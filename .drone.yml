@@ -3,7 +3,7 @@ pipeline:
     group: test
     image: clburlison/pylint
     commands:
-      - pylint -r . || true
+      - pylint -r y . || true
 
   test:
     group: test
