@@ -1,0 +1,12 @@
+pipeline:
+  lint-code:
+    group: test
+    image: clburlison/pylint
+    commands:
+      - pylint -r . || true
+
+  test:
+    group: test
+    image: python:3-alpine
+    commands:
+      - ./run_tests.sh

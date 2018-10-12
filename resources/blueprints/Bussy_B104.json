@@ -1,0 +1,237 @@
+{
+  "apartment": {
+    "externalSpaces": [
+      {
+        "type": "terrace",
+        "area": 248000,
+        "windows": [
+          0,
+          1
+        ]
+      }
+    ],
+    "loadBearingWalls": [],
+    "externalWalls": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fixedItems": [
+      {
+        "coef1": 5,
+        "width": 75,
+        "type": "window",
+        "coef2": 764,
+        "vertex1": 4,
+        "vertex2": 5
+      },
+      {
+        "coef1": 185,
+        "width": 91,
+        "type": "doorWindow",
+        "coef2": 523,
+        "vertex1": 5,
+        "vertex2": 6
+      },
+      {
+        "coef1": 143,
+        "width": 70,
+        "type": "window",
+        "coef2": 313,
+        "vertex1": 6,
+        "vertex2": 7
+      },
+      {
+        "coef1": 567,
+        "width": 46,
+        "type": "window",
+        "coef2": 907,
+        "vertex1": 6,
+        "vertex2": 7
+      },
+      {
+        "coef1": 120,
+        "width": 37,
+        "type": "window",
+        "coef2": 375,
+        "vertex1": 7,
+        "vertex2": 8
+      },
+      {
+        "coef1": 454,
+        "width": 73,
+        "type": "window",
+        "coef2": 581,
+        "vertex1": 7,
+        "vertex2": 8
+      },
+      {
+        "coef1": 810,
+        "width": 69,
+        "type": "window",
+        "coef2": 933,
+        "vertex1": 7,
+        "vertex2": 8
+      },
+      {
+        "coef1": 123,
+        "width": 73,
+        "type": "window",
+        "coef2": 286,
+        "vertex1": 8,
+        "vertex2": 0
+      },
+      {
+        "coef1": 568,
+        "width": 42,
+        "type": "window",
+        "coef2": 885,
+        "vertex1": 8,
+        "vertex2": 0
+      },
+      {
+        "coef1": 0,
+        "width": 48,
+        "type": "duct",
+        "coef2": 1000,
+        "vertex1": 9,
+        "vertex2": 10
+      },
+      {
+        "coef1": 0,
+        "width": 73,
+        "type": "duct",
+        "coef2": 1000,
+        "vertex1": 11,
+        "vertex2": 12
+      },
+      {
+        "coef1": 304,
+        "width": 90,
+        "type": "frontDoor",
+        "coef2": 965,
+        "vertex1": 2,
+        "vertex2": 3
+      }
+    ],
+    "vertices": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 606,
+        "y": 250
+      },
+      {
+        "x": 509,
+        "y": 490
+      },
+      {
+        "x": 647,
+        "y": 546
+      },
+      {
+        "x": 513,
+        "y": 867
+      },
+      {
+        "x": 393,
+        "y": 817
+      },
+      {
+        "x": 189,
+        "y": 1312
+      },
+      {
+        "x": -339,
+        "y": 1222
+      },
+      {
+        "x": -214,
+        "y": 515
+      },
+      {
+        "x": 98,
+        "y": 834
+      },
+      {
+        "x": 108,
+        "y": 777
+      },
+      {
+        "x": 428,
+        "y": 479
+      },
+      {
+        "x": 459,
+        "y": 403
+      }
+    ],
+    "rooms": [
+      {
+        "type": "entrance",
+        "variant": "s",
+        "requiredArea": {
+          "min": 25000,
+          "max": 50000
+        }
+      },
+      {
+        "type": "livingKitchen",
+        "variant": "s",
+        "requiredArea": {
+          "min": 240000,
+          "max": 360000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "xs",
+        "requiredArea": {
+          "min": 90000,
+          "max": 95000.0
+        }
+      },
+      {
+        "type": "bathroom",
+        "variant": "s",
+        "requiredArea": {
+          "min": 40000,
+          "max": 60000
+        }
+      },
+      {
+        "type": "wc",
+        "variant": "s",
+        "requiredArea": {
+          "min": 10000,
+          "max": 30000
+        }
+      }
+    ]
+  },
+  "area": 806833
+}

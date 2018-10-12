@@ -1,0 +1,4 @@
+pytest
+matplotlib==2.2.2
+numpy==1.14.5
+scipy==1.1.0
