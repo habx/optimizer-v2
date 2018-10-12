@@ -1,9 +1,9 @@
 pipeline:
-  lint-code:
-    group: test
-    image: clburlison/pylint
-    commands:
-      - pylint libs || true
+  #lint-code:
+  #  group: test
+  #  image: clburlison/pylint
+  #  commands:
+  #    - pylint libs || true
 
   test:
     group: test
