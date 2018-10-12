@@ -7,6 +7,6 @@ pipeline:
 
   test:
     group: test
-    image: python:3-alpine
+    image: python:3
     commands:
       - ./run_tests.sh
