@@ -8,7 +8,7 @@ import logging
 import libs.logsetup as ls
 ls.init()
 
-file_ext = 'png'
+file_ext = 'svg'
 
 
 def test_unit_vector():
