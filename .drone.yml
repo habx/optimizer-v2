@@ -11,7 +11,7 @@ pipeline:
     commands:
       - ./run_tests.sh
 
-  listing-results:
+  showing-outputs:
     image: alpine
     commands:
       - find output
