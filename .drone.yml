@@ -10,3 +10,8 @@ pipeline:
     image: python:3.6
     commands:
       - ./run_tests.sh
+
+  listing-results:
+    image: alpine
+    commands:
+      - find output
