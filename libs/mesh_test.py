@@ -2,11 +2,13 @@
 # TODO : replace this by cleaner unit tests
 # (@florent: any idea on the best library and files structure for this ?)
 import os
-
-if 'MPLBACKEND' not in os.environ:
-        os.environ['MPLBACKEND'] = 'svg'
-
 import libs.mesh as m
+import logging
+
+import libs.logsetup as ls
+ls.init()
+
+file_ext = 'png'
 
 
 def test_unit_vector():
@@ -15,8 +17,8 @@ def test_unit_vector():
     """
     angles = [i * 45 for i in range(10)] + [-i * 45 for i in range(10)]
     for angle in angles:
-        print('angle:', angle, '-', m.unit_vector(angle))
-        print('verif: ', angle, m.ccw_angle(m.unit_vector(angle)))
+        logging.info('angle: %s - %s', angle, m.unit_vector(angle))
+        logging.info('verif: %s %s', angle, m.ccw_angle(m.unit_vector(angle)))
 
 # test_unit_vector()
 
@@ -30,7 +32,7 @@ def test_angle():
     mesh = m.Mesh().from_boundary(perimeter)
 
     for edge in mesh.faces[0].edges():
-        print(edge.next_angle, edge.next_is_outward)
+        logging.info(edge.next_angle, edge.next_is_outward)
 
 # test_angle()
 
@@ -55,9 +57,7 @@ def test_remove_edge():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-# test_remove_edge()
+    m.plt.savefig('output/mesh_test_remove_edge.%s' % file_ext)
 
 
 def test_non_ortho_cut():
@@ -79,7 +79,7 @@ def test_non_ortho_cut():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
+    m.plt.savefig('output/mesh_test_non_ortho_cut.%s' % file_ext)
 
 # test_non_ortho_cut()
 
@@ -97,7 +97,7 @@ def test_cut():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
+    m.plt.savefig('output/mesh_test_cut.%s' % file_ext)
 
 # test_cut()
 
@@ -115,9 +115,7 @@ def test_cut_to_vertex():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_cut_to_vertex()
+    m.plt.savefig('output/mesh_test_cut_to_vertex.%s' % file_ext)
 
 
 def test_cut_to_start_vertex():
@@ -133,9 +131,7 @@ def test_cut_to_start_vertex():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_cut_to_start_vertex()
+    m.plt.savefig('output/mesh_test_cut_to_start_vertex.%s' % file_ext)
 
 
 def test_cut_inserted_face():
@@ -155,9 +151,7 @@ def test_cut_inserted_face():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_cut_inserted_face()
+    m.plt.savefig('output/mesh_test_cut_inserted_face.%s' % file_ext)
 
 
 def test_snap_to_edge():
@@ -174,9 +168,7 @@ def test_snap_to_edge():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_snap_to_edge()
+    m.plt.savefig('output/mesh_test_snap_to_edge.%s' % file_ext)
 
 
 def test_add_face():
@@ -227,9 +219,7 @@ def test_add_face():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_add_face()
+    m.plt.savefig('output/mesh_test_add_face.%s' % file_ext)
 
 
 def test_add_and_cut_face():
@@ -259,9 +249,7 @@ def test_add_and_cut_face():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-test_add_and_cut_face()
+    m.plt.savefig('output/mesh_test_add_and_cut_face.%s' % file_ext)
 
 
 def test_cut_snap():
@@ -281,7 +269,4 @@ def test_cut_snap():
 
     mesh.check()
     mesh.plot()
-    m.plt.show()
-
-
-test_cut_snap()
+    m.plt.savefig('output/mesh_test_cut_snap.%s' % file_ext)

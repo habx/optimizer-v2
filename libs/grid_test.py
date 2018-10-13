@@ -1,13 +1,19 @@
 """for testing purposes"""
 import json
 import math
+import logging
 from libs.utils.decorator_cache import DecoratorCache
 from libs.mesh import plt, Mesh
 from libs.grid import get_perimeter, get_fixed_items_perimeters
 import libs.optimizer_input as Input
+import libs.logsetup
 
 
-def plot_perimeters(perimeters):
+import libs.logsetup as ls
+ls.init()
+
+
+def _plot_perimeters(perimeters):
     """
     Test
     :param perimeters:
@@ -29,7 +35,8 @@ def plot_perimeters(perimeters):
                 plot_and_cut_perimeter(perimeter, fixed_items, ax=axs[col, row])
 
         fig.tight_layout()
-        plt.show()
+        # plt.show()
+        plt.savefig('output/grid_test_apartments.svg')
 
 
 def plot_and_cut_perimeter(perimeter=None, fixed_items=None, ax=None):
@@ -63,7 +70,7 @@ def plot_and_cut_perimeter(perimeter=None, fixed_items=None, ax=None):
     return mesh
 
 
-def get_infos():
+def _get_infos():
     """
     Test
     :return:
@@ -76,11 +83,11 @@ def get_infos():
     ]
     input_folder = "resources/blueprints"
     output_folder = "output"
-    cache_folder = "cache"
+    cache_folder = "output/cache/grid_test"
 
     input_files_path = [tuple(input_folder + "/" + file for file in files) for files in input_files]
 
-    print(input_files_path)
+    logging.debug("input_files_path = %s", input_files_path)
 
     # retrieve data from json files
     infos_array = []
@@ -117,9 +124,7 @@ def test_apartments():
     Test
     :return:
     """
-    infos = get_infos()
+    infos = _get_infos()
     perimeters = [(get_perimeter(info[0]), get_fixed_items_perimeters(info[0])) for info in infos]
-    plot_perimeters(perimeters)
-    return
+    _plot_perimeters(perimeters)
 
-test_apartments()

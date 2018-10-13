@@ -4,7 +4,7 @@ from libs.utils.decorator_cache import DecoratorCache
 
 nb_calls = 0
 
-@DecoratorCache([__file__], 'results/cache')
+@DecoratorCache([__file__], 'output/cache')
 def _decorated_function(x):
     global nb_calls
     print('computing')

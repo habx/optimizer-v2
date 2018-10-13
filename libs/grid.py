@@ -74,4 +74,3 @@ def get_fixed_items_perimeters(infos):
     fixed_items_polygons = infos.floor_plan.fixed_items['Polygon']
     output = [polygon.exterior.coords[1:] for polygon in fixed_items_polygons]
     return output
-
