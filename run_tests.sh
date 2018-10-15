@@ -6,11 +6,6 @@
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-export MPLBACKEND=Agg
-
-# Synthetic view
-pytest
-
 # Verbose view
 pytest -v --duration 1
 
