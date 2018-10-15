@@ -9,4 +9,7 @@ pip install -q -r requirements.txt
 # Verbose view
 pytest -v --duration 1
 
+# To compare the packages
+pip list
+
 pylint libs || true
