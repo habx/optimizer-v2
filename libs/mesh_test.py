@@ -95,7 +95,7 @@ def test_cut():
     edges = list(mesh.boundary_edges())
     [edge.pair.cut_at_barycenter(0.6) for edge in edges]
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_cut.%s' % file_ext)
 
@@ -129,7 +129,7 @@ def test_cut_to_start_vertex():
     edges = list(mesh.boundary_edges())
     edges[0].pair.cut_at_barycenter(0.4001)
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_cut_to_start_vertex.%s' % file_ext)
 
@@ -149,7 +149,7 @@ def test_cut_inserted_face():
     edges = list(mesh.faces[1].edges())
     edges[1].cut_at_barycenter(0.5)
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_cut_inserted_face.%s' % file_ext)
 
@@ -217,7 +217,7 @@ def test_add_face():
         if edge.length > 20:
             edge.pair.cut_at_barycenter(0.5)
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_add_face.%s' % file_ext)
 
@@ -247,7 +247,7 @@ def test_add_and_cut_face():
     edges = list(face.edges())
     edges[2].cut_at_barycenter(0.8, 80.0)
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_add_and_cut_face.%s' % file_ext)
 
@@ -267,6 +267,6 @@ def test_cut_snap():
 
     edges[0].pair.cut_at_barycenter(0.5, 64)
 
-    mesh.check()
+    assert mesh.check()
     mesh.plot()
     m.plt.savefig('output/mesh_test_cut_snap.%s' % file_ext)

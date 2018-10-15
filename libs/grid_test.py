@@ -62,11 +62,11 @@ def plot_and_cut_perimeter(perimeter=None, fixed_items=None, ax=None):
             edge.pair.cut_at_barycenter(0.5)  # 513 867 - 541 797
             if ax is None:
                 mesh.plot(options=('fill', 'edges', 'half-edges', 'boundary-edges', 'vertices'))
-                mesh.check()
+                assert mesh.check()
                 plt.show()
 
     mesh.plot(ax=ax, options=('fill', 'edges'))
-    mesh.check()
+    assert mesh.check()
     return mesh
 
 

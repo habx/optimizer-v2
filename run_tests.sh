@@ -12,6 +12,6 @@ export MPLBACKEND=Agg
 pytest
 
 # Verbose view
-pytest -v
+pytest -v --duration 1
 
 pylint libs || true
