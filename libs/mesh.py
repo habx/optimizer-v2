@@ -4,6 +4,7 @@ Mesh module
 """
 
 import math
+import logging
 from typing import Optional, Tuple, List, Sequence, Any, Generator
 from random import randint
 import matplotlib.pyplot as plt
@@ -1547,31 +1548,26 @@ class Mesh:
         It's a best effort. Only a few strong consistencies are checked.
         :return: boolean
         """
-        is_valid = True
-        print('------ checking Mesh :', end=" ")
+        error = None
         for face in self.faces:
-            # print('Checking:', face)
             for edge in face.edges():
                 if edge is None:
-                    is_valid = False
-                    print('\n!!! Edge is None for:', face)
+                    error = '!!! Edge is None for: %s' % face
                 if edge.face is not face:
-                    is_valid = False
-                    print('\nwrong face in edge:', edge, edge.face)
+                    error = 'wrong face in edge: %s %s' % ( edge, edge.face)
                 if edge.pair and edge.pair.pair is not edge:
-                    is_valid = False
-                    print('\nwrong pair attribution:', edge, edge.pair)
+                    error = 'wrong pair attribution: %s %s' % (edge, edge.pair)
                 if edge.start.edge is None:
-                    is_valid = False
-                    print('\n!!! vertex has no edge:', edge.start)
+                    error = '!!! vertex has no edge: ' % edge.start
                 if edge.start.edge.start is not edge.start:
-                    is_valid = False
-                    print('\nwrong edge attribution in:', edge.start)
+                    error = 'wrong edge attribution in: %s' % edge.start
                 if edge.next.next is edge:
-                    is_valid = False
-                    print('\n2-edges face found:', face)
-        print('OK' if is_valid else '!! NOT OK', ' ---------------')
-        return is_valid
+                    error = '2-edges face found: %s' % face
+        if error is None:
+            logging.info('Mesh is OK')
+        else:
+            logging.warning('Mesh check error: %s' % error)
+        return error is None
 
     # noinspection PyCompatibility
     def plot(self, ax=None, options=('fill', 'edges', 'half-edges', 'vertices')):
