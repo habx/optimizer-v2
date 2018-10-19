@@ -1,8 +1,10 @@
+# coding=utf-8
 """Test of DecoratorCache"""
 
 from libs.utils.decorator_cache import DecoratorCache
 
 nb_calls = 0
+
 
 @DecoratorCache([__file__], 'output/cache')
 def _decorated_function(x):

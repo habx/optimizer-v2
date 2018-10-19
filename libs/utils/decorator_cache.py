@@ -1,3 +1,8 @@
+# coding=utf-8
+"""
+Decorator used for caching purpose
+"""
+
 from os import makedirs
 from os.path import isfile, join, exists
 import hashlib
@@ -45,7 +50,8 @@ class DecoratorCache(object):
 
     def get_file_path(self, func_name, func_args, func_kwargs):
         """
-        Computes a file path from the hash of the function arguments and the content of the required files.
+        Computes a file path from the hash of the function arguments
+        and the content of the required files.
         To compute the hash we use a pickle dumps byte object
 
         :param func_name: name of the function that is decorated
@@ -58,7 +64,7 @@ class DecoratorCache(object):
 
         for elt in self.required_files:
             if isinstance(elt, str) and isfile(elt):
-                with open(elt, "r", encoding="utf-8") as f:
+                with open(elt, encoding="utf-8") as f:
                     data = f.read()
                     f.close()
                 _hash += make_hash_from_dump(data)
@@ -109,7 +115,12 @@ class DecoratorCache(object):
 
 
 def hash_sha1(elt):
-    return hashlib.sha1(str(elt).encode('utf-8')).hexdigest()
+    """
+    Returns a hash
+    :param elt:
+    :return:
+    """
+    return hashlib.sha1(str(elt).encode()).hexdigest()
 
 
 def make_hash_from_dump(obj):
