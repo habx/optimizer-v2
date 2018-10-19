@@ -5,6 +5,7 @@ Test module for plan module
 """
 import json
 import logging
+import os
 
 from libs.plan import Plan
 import libs.logsetup as ls
@@ -88,29 +89,30 @@ def get_floor_plans_dicts():
     :return:
     """
     input_files = [
-        ("Antony_A22.json", "Antony_A22_setup.json"),
-        ("Bussy_A001.json", "Bussy_A001_setup.json"),
-        ("Bussy_B104.json", "Bussy_B104_setup.json"),
-        ("Levallois_Parisot.json", "Levallois_Parisot_setup.json")
+        "Antony_A22.json",
+        "Bussy_A001.json",
+        "Bussy_B104.json",
+        "Levallois_Parisot.json"
     ]
-    input_folder = "resources/blueprints"
+    input_folder = "../resources/blueprints"
+    module_path = os.path.dirname(__file__)
+    input_path = os.path.join(module_path, input_folder)
 
-    input_files_path = [tuple(input_folder + "/" + file for file in files)
-                        for files in input_files]
+    input_files_path = [os.path.join(input_path, file_path) for file_path in input_files]
 
     logging.debug("input_files_path = %s", input_files_path)
 
     # retrieve data from json files
     infos_array = []
     for input_file in input_files_path:
-        with open(input_file[0]) as floor_plan_file:
+        with open(os.path.abspath(input_file)) as floor_plan_file:
             input_floor_plan_dict = json.load(floor_plan_file)
             infos_array.append(input_floor_plan_dict)
 
     return infos_array
 
 
-def test():
+def test_floor_plan():
     """
     Test
     :return:
