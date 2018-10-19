@@ -4,7 +4,7 @@ geometry module
 Contains utility functions for computational geometry
 """
 
-from typing import Optional, Any, Sequence
+from typing import Optional, Any, Sequence, Dict
 import numpy as np
 import shapely as sp
 from shapely.geometry import Point, LineString, LinearRing
@@ -21,6 +21,15 @@ def magnitude(vector: Vector2d) -> float:
     """
     mag = np.sqrt(vector[0]**2 + vector[1]**2)
     return mag
+
+
+def direction_vector(point_1: Coords2d, point_2: Coords2d) -> Vector2d:
+    """
+    Convenient function to calculate the direction vector between two points
+    :return: tuple containing x, y values
+    """
+    output_vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
+    return normalized_vector(output_vector)
 
 
 def ccw_angle(vector_1: Vector2d, vector_2: Optional[Vector2d] = None) -> float:
@@ -49,6 +58,16 @@ def nearest_point(point: Point, perimeter: LinearRing) -> Point:
     dist = perimeter.project(point)
     nearest_p = perimeter.interpolate(dist)
     return nearest_p
+
+
+def point_dict_to_tuple(point_as_dict: Dict[str, str]) -> Coords2d:
+    """
+    Transform a point as a dict into a point as a tuple
+    ex: {'x': 2.0, 'y': 3.2 } -> (2.0, 3.2)
+    :param point_as_dict:
+    :return: tuple of floats
+    """
+    return point_as_dict['x'], point_as_dict['y']
 
 
 def move_point(point: Coords2d, vector: Vector2d, coeff: Optional[float] = 1.0) -> Coords2d:
@@ -86,6 +105,15 @@ def unit_vector(angle: float) -> Vector2d:
     angle = angle - 360 * np.sign(angle) if np.abs(angle) > 180 else angle
     rad = angle * np.pi / 180
     return np.cos(rad), np.sin(rad)
+
+
+def normal(vector: Vector2d) -> Vector2d:
+    """
+    A CCW normal of the edge of length 1
+    :return: a tuple containing x, y values
+    """
+    normal_vector = -vector[1], vector[0]
+    return normalized_vector(normal_vector)
 
 
 def normalized_vector(vector: Vector2d) -> Vector2d:

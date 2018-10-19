@@ -7,26 +7,60 @@ import json
 import logging
 
 from libs.plan import Plan
-from libs.utils.decorator_cache import DecoratorCache
-import libs.optimizer_input as json_input
 import libs.logsetup as ls
+from libs.utils.geometry import (
+    barycenter,
+    direction_vector,
+    normal,
+    move_point,
+    point_dict_to_tuple
+)
 
 ls.init()
 
 
-def get_perimeter(infos):
+def get_perimeter(input_floor_plan_dict):
     """
     Returns a vertices list of the perimeter points of an apartment
-    :param infos:
+    :param input_floor_plan_dict:
     :return:
     """
-    apartment = infos.input_floor_plan_dict['apartment']
+    apartment = input_floor_plan_dict['apartment']
     perimeter_walls = apartment['externalWalls']
     vertices = apartment['vertices']
     return [(vertices[i]['x'], vertices[i]['y']) for i in perimeter_walls]
 
 
-def get_fixed_items_perimeters(infos):
+def get_fixed_item_perimeter(fixed_item, vertices):
+    """calculates the polygon perimeter of the fixed item
+    Input dict expected with following attributes
+    {
+        "type": "doorWindow",
+        "vertex2": 1,
+        "width": 80,
+        "coef1": 286,
+        "vertex1": 0,
+        "coef2": 540
+      },
+    """
+    width = fixed_item['width']
+    vertex_1 = point_dict_to_tuple(vertices[fixed_item['vertex1']])
+    vertex_2 = point_dict_to_tuple(vertices[fixed_item['vertex2']])
+    coef_1 = fixed_item['coef1']
+    coef_2 = fixed_item['coef2']
+    point_1 = barycenter(vertex_1, vertex_2, coef_1 / 1000)
+    point_2 = barycenter(vertex_1, vertex_2, coef_2 / 1000)
+
+    vector = direction_vector(point_1, point_2)
+    normal_vector = normal(vector)
+
+    point_3 = move_point(point_2, normal_vector, width)
+    point_4 = move_point(point_1, normal_vector, width)
+
+    return point_1, point_2, point_3, point_4
+
+
+def get_fixed_items_perimeters(input_floor_plan_dict):
     """
     Returns a list with the perimeter of each fixed items.
     NOTE: we are using the pandas dataframe because we do not want to recalculate
@@ -34,19 +68,21 @@ def get_fixed_items_perimeters(infos):
     it would be much better to read and store the geometry
     of each fixed items as list of vertices instead of the way it's done by using barycentric and
     width data. It would be faster and enable us any fixed item shape.
-    :param infos:
+    :param input_floor_plan_dict:
     :return: list
     """
-    fixed_items_polygons = infos.floor_plan.fixed_items['Polygon']
-    fixed_items_category = infos.floor_plan.fixed_items['Type']
+    apartment = input_floor_plan_dict['apartment']
+    vertices = apartment['vertices']
+    fixed_items = apartment['fixedItems']
     output = []
-    for i, polygon in enumerate(fixed_items_polygons):
-        output.append((polygon.exterior.coords[1:], fixed_items_category[i]))
+    for fixed_item in fixed_items:
+        coords = get_fixed_item_perimeter(fixed_item, vertices)
+        output.append((coords, fixed_item['type']))
 
     return output
 
 
-def get_infos():
+def get_floor_plans_dicts():
     """
     Test
     :return:
@@ -57,9 +93,7 @@ def get_infos():
         ("Bussy_B104.json", "Bussy_B104_setup.json"),
         ("Levallois_Parisot.json", "Levallois_Parisot_setup.json")
     ]
-    input_folder = "../resources/blueprints"
-    output_folder = "../output"
-    cache_folder = "../output/cache/grid_test"
+    input_folder = "resources/blueprints"
 
     input_files_path = [tuple(input_folder + "/" + file for file in files)
                         for files in input_files]
@@ -71,31 +105,7 @@ def get_infos():
     for input_file in input_files_path:
         with open(input_file[0]) as floor_plan_file:
             input_floor_plan_dict = json.load(floor_plan_file)
-
-        with open(input_file[1]) as setup_file:
-            input_setup_dict = json.load(setup_file)
-
-        # modify the data into the infos and settings class
-        @DecoratorCache(['InputOptimizer.py'], cache_folder)
-        def retrieve_input(_input_floor_plan_dict, _input_setup_dict,
-                           _output_folder, save_output=True, save_cache=True, save_log=True):
-            """
-            Retrieves data from json json_input
-            :param _input_floor_plan_dict:
-            :param _input_setup_dict:
-            :param _output_folder:
-            :param save_output:
-            :param save_cache:
-            :param save_log:
-            :return:
-            """
-            _settings = json_input.AlgoSettings()
-            _infos = json_input.Infos(_input_floor_plan_dict, _input_setup_dict, output_folder,
-                                      save_output, save_cache, save_log, _settings)
-            return _settings, _infos
-
-        settings, infos = retrieve_input(input_floor_plan_dict, input_setup_dict, output_folder)
-        infos_array.append((infos, settings))
+            infos_array.append(input_floor_plan_dict)
 
     return infos_array
 
@@ -105,13 +115,13 @@ def test():
     Test
     :return:
     """
-    infos = get_infos()[3][0]  # first floor plan
-    perimeter = get_perimeter(infos)
+    floor_plans_dicts = get_floor_plans_dicts()[3]  # first floor plan
+    perimeter = get_perimeter(floor_plans_dicts)
 
     plan = Plan().from_boundary(perimeter)
     empty_space = plan.empty_space
 
-    fixed_items = get_fixed_items_perimeters(infos)
+    fixed_items = get_fixed_items_perimeters(floor_plans_dicts)
 
     for fixed_item in fixed_items:
         empty_space.add_fixed_space(*fixed_item)
