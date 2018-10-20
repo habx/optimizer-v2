@@ -7,8 +7,8 @@ import math
 import logging
 from operator import attrgetter
 from typing import Optional, Tuple, List, Sequence, Generator
-
 import matplotlib.pyplot as plt
+
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
@@ -21,7 +21,7 @@ from libs.utils.geometry import (
     normalized_vector,
     barycenter
 )
-from libs.plot import random_color, make_arrow, plot_polygon
+from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
 
 # MODULE CONSTANTS
@@ -736,13 +736,6 @@ class Edge:
                 return True
         return False
 
-    def add_space_next(self):
-        """
-        Duplicates the next pointer into the space next pointer
-        :return:
-        """
-        self.space_next = self.next
-
     def remove(self):
         """
         Removes the edge from the face. The corresponding faces are merged
@@ -1089,16 +1082,17 @@ class Edge:
         vertex = Vertex().barycenter(self.start, self.end, coeff)
         return self.split(vertex)
 
-    def plot_half_edge(self, ax, color: str = 'black'):
+    def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):
         """
         Plots a semi-arrow to indicate half-edge for debugging purposes
         :param ax:
         :param color:
+        :param save: whether to save the plot
         :return:
         """
         arrow = make_arrow(self.start.coords, self.vector, self.normal)
         x_coords, y_coords = zip(*arrow.coords)
-        ax.plot(x_coords, y_coords, 'k', color=color)
+        return plot_edge(x_coords, y_coords, ax, color, save)
 
     def plot_normal(self, ax, color: str = 'black'):
         """
@@ -1111,6 +1105,8 @@ class Edge:
         arrow = self.normal
         # noinspection PyCompatibility
         ax.quiver(*start_point, *arrow, color=color)
+
+        return ax
 
 
 class Face:
@@ -1497,17 +1493,17 @@ class Face:
 
         return False
 
-    def plot(self, ax=None, options=('fill', 'border'), color: Optional[str] = None):
+    def plot(self,
+             ax=None,
+             options=('fill', 'border'),
+             color: Optional[str] = None,
+             save: Optional[bool] = None):
         """
         Plots the face
         :return:
         """
-
-        if ax is None:
-            fig, ax = plt.subplots()
-
         x, y = self.as_sp.exterior.xy
-        plot_polygon(ax, x, y, options, color)
+        return plot_polygon(ax, x, y, options, color, save)
 
 
 class Mesh:
@@ -1626,7 +1622,11 @@ class Mesh:
         return is_valid
 
     # noinspection PyCompatibility
-    def plot(self, ax=None, options=('fill', 'border', 'half-edges', 'vertices')):
+    def plot(self,
+             ax=None,
+             options=('fill', 'border', 'half-edges', 'vertices'),
+             save: bool = True,
+             show: bool = False):
         """
         Plots a mesh using matplotlib library.
         A few options can be used:
@@ -1636,17 +1636,14 @@ class Mesh:
         • 'half-edge': display arrows for each oriented half-edge. Useful for debugging.
         :param ax:
         :param options:
+        :param save: whether to save as .svg file
+        :param show: whether to show as matlplotlib window
         :return: ax
         """
 
-        if ax is None:
-            fig, ax = plt.subplots()
-
-        ax.set_aspect('equal')
-
         for face in self.faces:
             color = random_color()
-            face.plot(ax, options, color)
+            ax = face.plot(ax, options, color, False)
 
             for edge in face.edges:
                 # display edges normal vector
@@ -1654,12 +1651,14 @@ class Mesh:
                     edge.plot_normal(ax, color)
                 # display half edges vector
                 if 'half-edges' in options:
-                    edge.plot_half_edge(ax, color)
+                    edge.plot_half_edge(ax, color, False)
 
         if 'boundary-edges' in options:
             color = random_color()
             for edge in self.boundary_edges:
-                edge.plot_half_edge(ax, color)
+                edge.plot_half_edge(ax, color, False)
+
+        plot_save(save, show)
 
         return ax
 
@@ -1708,3 +1707,23 @@ class Mesh:
             next_edge = current_edge
 
         return self
+
+
+if __name__ == '__main__':
+
+    def plot():
+        """
+        Plot a graph
+        :return:
+        """
+        perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
+        mesh = Mesh().from_boundary(perimeter)
+
+        for edge in mesh.boundary_edges:
+            if edge.pair.next_is_outward:
+                edge.pair.laser_cut_at_barycenter(1)
+                edge.previous.pair.laser_cut_at_barycenter(0)
+
+        mesh.plot(save=False, show=True)
+
+    plot()

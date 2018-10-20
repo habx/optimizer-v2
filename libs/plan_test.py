@@ -8,6 +8,7 @@ import logging
 import os
 
 from libs.plan import Plan
+from libs.category import space_categories
 import libs.logsetup as ls
 from libs.utils.geometry import (
     barycenter,
@@ -126,10 +127,12 @@ def test_floor_plan():
     fixed_items = get_fixed_items_perimeters(floor_plans_dicts)
 
     for fixed_item in fixed_items:
-        empty_space.add_fixed_space(*fixed_item)
+        empty_space.insert_space(fixed_item[0], category=space_categories[fixed_item[1]])
 
     for edge in list(empty_space.edges):
         empty_space.cut_at_barycenter(edge)
+
+    plan.plot()
 
     assert plan.check()
 
@@ -143,34 +146,34 @@ def test_add_duct_to_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(200, 0), (400, 0), (400, 400), (200, 400)]
 
+    duct_category = space_categories['duct']
+
     # add border duct
     plan = Plan().from_boundary(perimeter)
-    plan.empty_space.add_fixed_space(duct, 'duct')
+    plan.empty_space.insert_space(duct, duct_category)
 
     # add inside duct
     inside_duct = [(600, 200), (800, 200), (800, 400), (600, 400)]
-    plan.empty_space.add_fixed_space(inside_duct, 'duct')
+    plan.empty_space.insert_space(inside_duct, duct_category)
 
     # add touching duct
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
-    plan.empty_space.add_fixed_space(touching_duct, 'duct')
+    plan.empty_space.insert_space(touching_duct, duct_category)
 
     # add separating duct
     separating_duct = [(700, 800), (1000, 700), (1000, 800), (800, 1000), (700, 1000)]
-    plan.empty_space.add_fixed_space(separating_duct, 'duct')
+    plan.empty_space.insert_space(separating_duct, duct_category)
 
     # add single touching point
     point_duct = [(0, 600), (200, 500), (200, 700)]
-    plan.empty_space.add_fixed_space(point_duct, 'duct')
+    plan.empty_space.insert_space(point_duct, duct_category)
 
     # add complex duct
     complex_duct = [(300, 1000), (300, 600), (600, 600), (600, 800), (500, 1000),
                     (450, 800), (400, 1000), (350, 1000)]
-    plan.empty_space.add_fixed_space(complex_duct, 'duct')
+    plan.empty_space.insert_space(complex_duct, duct_category)
 
-    # add a face from another space
-    duct_spaces = list(plan.get_spaces('duct'))
-    print(duct_spaces)
+    plan.plot()
 
     assert plan.check()
 
@@ -191,9 +194,6 @@ def test_add_face():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.plot()
-
     plan.empty_space.add_face(face_to_remove)
-    plan.plot()
 
     assert plan.check()

@@ -8,18 +8,10 @@ Ideas :
 """
 from typing import Optional, List, Sequence, Tuple
 import logging
-import matplotlib.pyplot as plt
 
 from libs.mesh import Mesh, Face, Edge, Vertex
-
-
-SPACE_COLORS = {
-    'duct': 'k',
-    'window': '#A3A3A3',
-    'entrance': 'r',
-    'empty': 'b',
-    'space': 'b'
-}
+from libs.category import space_categories, Category
+from libs.plot import plot_save
 
 
 class Plan:
@@ -33,10 +25,10 @@ class Plan:
     """
     def __init__(self, mesh: Optional[Mesh] = None,
                  spaces: Optional[List['Space']] = None,
-                 walls: Optional[List['Wall']] = None):
+                 linears: Optional[List['Linear']] = None):
         self.mesh = mesh
         self.spaces = spaces or []
-        self.walls = walls or []
+        self.linears = linears or []
 
     def from_boundary(self, boundary):
         """
@@ -47,7 +39,7 @@ class Plan:
         :return:
         """
         self.mesh = Mesh().from_boundary(boundary)
-        empty_space = EmptySpace(self, self.mesh.faces[0])
+        empty_space = Space(self, self.mesh.faces[0])
         self.add_space(empty_space)
 
         return self
@@ -67,7 +59,7 @@ class Plan:
         :return:
         """
         if category is not None:
-            return (space for space in self.spaces if space.category == category)
+            return (space for space in self.spaces if space.category.name == category)
 
         return (space for space in self.spaces)
 
@@ -85,16 +77,10 @@ class Plan:
         Plots a plan
         :return:
         """
-
-        if ax is None:
-            fig, ax = plt.subplots()
-
-        ax.set_aspect('equal')
-
         for space in self.spaces:
-            space.plot(ax)
+            ax = space.plot(ax, save=False)
 
-        plt.show()
+        plot_save()
 
     def check(self):
         """
@@ -102,16 +88,15 @@ class Plan:
         NOTE : To be completed
         :return:
         """
-        logging.info('-'*12 + ' checking plan: ')
         is_valid = True
 
         for space in self.spaces:
             is_valid = space.check()
 
         if is_valid:
-            logging.info('0K')
+            logging.info('Checking plan: ' + '✅ 0K')
         else:
-            logging.info('NOT OK')
+            logging.info('Checking plan: ' + '🔴 NOT OK')
 
         return is_valid
 
@@ -120,10 +105,13 @@ class Space:
     """
     Space Class
     """
-    category = 'space'
-
-    def __init__(self, plan: Plan, face: Face, boundary_edge: Optional[Edge] = None):
+    def __init__(self,
+                 plan: Plan,
+                 face: Face,
+                 boundary_edge: Optional[Edge] = None,
+                 category: Category = space_categories['empty']):
         self.plan = plan
+        self.category = category
         self._face = face  # one face belonging to the space
         self._edge = boundary_edge or face.edge  # one edge on the boundary of the space
         # set the circular reference
@@ -200,6 +188,31 @@ class Space:
             return None
         return self.edge.space_siblings
 
+    @property
+    def area(self) -> float:
+        """
+        Returns the area of the Space
+        :return:
+        """
+        _area = 0.0
+        for face in self.faces:
+            _area += face.area
+
+        return _area
+
+    @property
+    def perimeter(self) -> float:
+        """
+        Returns the length of the Space perimeter
+        :return:
+        """
+        _perimeter = 0.0
+
+        for edge in self.edges:
+            _perimeter += edge.length
+
+        return _perimeter
+
     def is_boundary(self, edge):
         """
         Returns True if the edge is on the boundary of the space.
@@ -257,7 +270,6 @@ class Space:
         Adds a face to the space and adjust the edges list accordingly
         If the added face belongs to another space we first need to remove it from the space
         We do not enable to add a face inside a hole in the face
-        TODO : test this
         :param face: face to add to space
         """
         # if the space has no faces yet just add the face as the reference for the Space
@@ -404,7 +416,34 @@ class Space:
         # check if we still find every face
         for face in space_faces:
             if not face.is_linked_to_space():
-                self.plan.add_space(EmptySpace(self.plan, face))
+                self.plan.add_space(Space(self.plan, face))
+
+    def insert_space(self, boundary, category: Category) -> 'Space':
+        """
+        Adds a new space inside the first face of the space
+        1. Create the corresponding face in the mesh
+        2. Create the fixedItem instance of the proper type
+        :param boundary:
+        :param category:
+        :return:
+        """
+        # create the mesh of the fixed space
+        space_mesh = Mesh().from_boundary(boundary)
+        face_of_space = space_mesh.faces[0]
+        container_face = self.face
+
+        # insert the face in the emptySpace
+        new_faces = container_face.insert_face(face_of_space)
+        self.face = new_faces[0]  # per convention the ref. face of the Space is the biggest one
+
+        # remove the face of the fixed_item from the empty space
+        self.remove_face(face_of_space)
+
+        # create the space and add it to the plan
+        space = Space(self.plan, face_of_space, category=category)
+        self.plan.add_space(space)
+
+        return space
 
     def cut(self, edge: Edge, vertex: Vertex, angle: float = 90.0, traverse: str = 'absolute'):
         """
@@ -446,26 +485,17 @@ class Space:
         vertex = Vertex().barycenter(edge.start, edge.end, coeff)
         return self.cut(edge, vertex, angle, traverse)
 
-    def plot(self, ax=None):
+    def plot(self, ax=None, save: Optional[bool] = None):
         """
         plot the space
         """
-
-        # if ax is not provided it means we want to plot just this face
-        # so we create a matplot fig and show it
-        show_plot = False
-        if ax is None:
-            fig, ax = plt.subplots()
-            show_plot = True
-
-        color = SPACE_COLORS[self.category]
+        color = self.category.color
         for face in self.faces:
-            face.plot(ax, color=color)
+            ax = face.plot(ax, color=color, save=save)
         for edge in self.edges:
-            edge.plot_half_edge(ax, color=color)
+            edge.plot_half_edge(ax, color=color, save=save)
 
-        if show_plot:
-            plt.show()
+        return ax
 
     def check(self):
         """
@@ -489,122 +519,9 @@ class Space:
         return is_valid
 
 
-class EmptySpace(Space):
-    """
-    Empty Space Class : Used for the empty initial plan
-    Has only one face
-    """
-
-    category = 'empty'
-
-    def add_fixed_space(self, boundary, category: str) -> 'FixedSpace':
-        """
-        Adds a fixed item inside the first face of the mesh
-        1. Create the corresponding face in the mesh
-        2. Create the fixedItem instance of the proper type
-        :param boundary:
-        :param category:
-        :return:
-        """
-        fixed_space_categories = {
-            'frontDoor': EntranceSpace,
-            'duct': DuctSpace,
-            'window': WindowSpace,
-            'doorWindow': WindowSpace
-        }
-
-        # create the mesh of the fixed space
-        fixed_space_mesh = Mesh().from_boundary(boundary)
-        face_of_fixed_item = fixed_space_mesh.faces[0]
-        container_face = self.face
-
-        # insert the face in the emptySpace
-        new_faces = container_face.insert_face(face_of_fixed_item)
-        self.face = new_faces[0]  # per convention the ref. face of the Space is the biggest one
-
-        # remove the face of the fixed_item from the empty space
-        self.remove_face(face_of_fixed_item)
-
-        # create the fixedSpace and add it to the plan
-        fixed_space = fixed_space_categories[category](self.plan, face_of_fixed_item)
-        self.plan.add_space(fixed_space)
-
-        return fixed_space
-
-
-class FixedSpace(Space):
-    """
-    Fixed Space Class : Duct,
-    """
-    pass
-
-
-class WindowSpace(FixedSpace):
-    """
-    Window Space Class : Window, entrance
-    """
-
-    category = 'window'
-
-
-class DuctSpace(FixedSpace):
-    """
-    Fixed Space Class : Duct,
-    """
-    category = 'duct'
-
-
-class EntranceSpace(FixedSpace):
-    """
-    Fixed Space Class : Entrance
-    """
-    category = 'entrance'
-
-
-class Wall:
+class Linear:
     """
     Wall Class
     """
     def __init__(self, edges: Sequence[Edge]):
         self.edges = edges
-
-
-class LoadBearingWall(Wall):
-    """
-    LoadbearingWall Class
-    """
-    pass
-
-
-class BoundaryWall(Wall):
-    """
-    BoundaryWall Class
-    """
-    pass
-
-
-class Transformation:
-    """
-    Transformation class
-    Describes a transformation of a mesh
-    A transformation queries the edges of the mesh and modify them as prescribed
-    • a query
-    • a transformation
-    """
-
-    pass
-
-
-class Factory:
-    """
-    Grid Factory Class
-    Creates a mesh according to transformations, boundaries and fixed-items json_input
-    and specific rules
-    """
-    pass
-
-
-class Query:
-    """
-    Queries a mesh and returns a generator with the required edges
-    """

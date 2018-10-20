@@ -3,17 +3,83 @@
 Plot module : used for plotting function for meshes and plans
 """
 from random import randint
+import os
+import datetime
+import logging
+from typing import Optional
 
 from shapely.geometry import LineString
 from typing import Sequence
+import matplotlib.pyplot as plt
+
 from libs.utils.custom_types import Vector2d, Coords2d
+from libs.utils.geometry import (
+    normalized_vector,
+    move_point,
+    magnitude,
+    ccw_angle,
+    unit_vector
+)
 
-from libs.utils.geometry import normalized_vector, move_point, magnitude, ccw_angle, unit_vector
+SAVE_PATH = "../output/plots"
+module_path = os.path.dirname(__file__)
+output_path = os.path.join(module_path, SAVE_PATH)
+
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
+
+def plot_save(save: bool = True, show: bool = False):
+    """
+    Saves or displays the plot
+    :param save:
+    :param show:
+    :return:
+    """
+
+    if not save and not show:
+        return
+
+    if save:
+        logging.info('Saving plot')
+        file_name = str(datetime.datetime.utcnow()).replace('/', '-') + '.svg'
+        plt.savefig(os.path.join(output_path, file_name), format='svg')
+
+    if show:
+        plt.show()
 
 
-def plot_polygon(_ax, data1: Sequence[float], data2: Sequence[float],
+def plot_edge(x_coords: Sequence[float],
+              y_coords: Sequence[float],
+              _ax=None,
+              color: str = 'b',
+              should_save: Optional[bool] = None):
+
+    """
+    Plots an edge
+    :param _ax:
+    :param x_coords:
+    :param y_coords:
+    :param color:
+    :param should_save: whether to save the plot
+    :return:
+    """
+    if _ax is None:
+        fig, _ax = plt.subplots()
+        _ax.set_aspect('equal')
+        should_save = True if should_save is None else should_save
+
+    _ax.plot(x_coords, y_coords, 'k', color=color)
+    plot_save(should_save)
+
+    return _ax
+
+
+def plot_polygon(_ax,
+                 data1: Sequence[float],
+                 data2: Sequence[float],
                  options: Sequence[str] = ('vertices', 'border', 'fill'),
-                 color: str = 'b'):
+                 color: str = 'b',
+                 should_save: Optional[bool] = None):
     """
     Simple convenience function to plot a mesh face with matplotlib
     :param _ax:
@@ -21,14 +87,23 @@ def plot_polygon(_ax, data1: Sequence[float], data2: Sequence[float],
     :param data2:
     :param options: tuple of strings indicating what to show on plot
     :param color: string, matplotlib color
+    :param should_save: whether to save the plot
     :return:
     """
+
+    if _ax is None:
+        fig, _ax = plt.subplots()
+        _ax.set_aspect('equal')
+        should_save = True if should_save is None else should_save
+
     if 'fill' in options:
         _ax.fill(data1, data2, alpha=0.3, color=color)
     if 'border' in options:
         _ax.plot(data1, data2, 'k', color=color)
     if 'vertices' in options:
         _ax.plot(data1, data2, 'ro', color=color)
+
+    plot_save(should_save)
 
     return _ax
 
