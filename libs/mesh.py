@@ -7,7 +7,6 @@ import math
 import logging
 from operator import attrgetter
 from typing import Optional, Tuple, List, Sequence, Generator
-import matplotlib.pyplot as plt
 
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
