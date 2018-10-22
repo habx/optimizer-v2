@@ -11,14 +11,15 @@ from typing import Optional, Tuple, List, Sequence, Generator
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
+import matplotlib.pyplot as plt
 
 from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
-    scale_line,
     unit_vector,
     normalized_vector,
-    barycenter
+    barycenter,
+    move_point
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -30,7 +31,7 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 LINE_LENGTH = 500000
 ANGLE_EPSILON = 1  # value to check if an angle has a specific value
 COORD_EPSILON = 1  # coordinates precision for snapping purposes
-MIN_ANGLE = 10  # min. acceptable angle in grid
+MIN_ANGLE = 10.0  # min. acceptable angle in grid
 COORD_DECIMAL = 2  # number of decimal of the points coordinates
 
 
@@ -233,7 +234,7 @@ class Vertex:
 
         return self
 
-    def clean(self) -> Optional['Vertex']:
+    def clean(self):
         """
         Removes an unneeded vertex.
         It is a vertex that is used only by one edge.
@@ -241,18 +242,23 @@ class Vertex:
         """
         edges = list(self.edges)
         nb_edges = len(edges)
+        # check the number of edges starting from the vertex
         if nb_edges > 2:
-            logging.warning('Cannot clean a vertex used by more than one edge')
-            return self
+            logging.info('Cannot clean a vertex used by more than one edge')
+            return
+        # only a vertex with two edges can be cleaned
         if nb_edges == 2:
             if edges[0].previous.pair is not edges[1]:
                 raise ValueError('Vertex is malformed' +
                                  ' and cannot be cleaned:{0}'.format(self))
             if self.edge.previous.next_is_aligned:
-                self.edge.previous.next = self.edge.next
-                self.edge.pair.next = self.edge.pair.next.next
-                return None
-        return self
+                edge = self.edge
+                # preserve references
+                edge.preserve_references()
+                edge.pair.next.preserve_references()
+                # remove edges
+                edge.previous.next = edge.next
+                edge.pair.next = edge.pair.next.next
 
     def is_equal(self, other: 'Vertex') -> bool:
         """
@@ -345,7 +351,8 @@ class Edge:
                  next_edge: Optional['Edge'],
                  face: Optional['Face'],
                  pair: Optional['Edge'] = None,
-                 space_next: Optional['Edge'] = None):
+                 space_next: Optional['Edge'] = None,
+                 linear=None):
         """
         A half edge data structure implementation.
         By convention our half edge structure is based on a CCW rotation.
@@ -362,6 +369,10 @@ class Edge:
         # always add a pair Edge, because an edge should always have a pair edge
         self._pair = pair if pair else Edge(None, None, None, self)
         self._space_next = space_next
+        self.linear = linear
+
+        # check the size of the edge
+        self.check_size()
 
     def __repr__(self):
         output = 'Edge: '
@@ -425,6 +436,8 @@ class Edge:
         Sets the next Edge of the edge
         """
         self._next = value
+        # check the size
+        self.check_size()
 
     @property
     def face(self) -> Optional['Face']:
@@ -660,8 +673,10 @@ class Edge:
         due to floating point precision
         :return:
         """
-        ratio = 2 * COORD_EPSILON / self.length + 1
-        return scale_line(self.as_sp, ratio)
+        vector = self.unit_vector
+        end_point = move_point(self.end.coords, vector, COORD_EPSILON)
+        start_point = move_point(self.start.coords, vector, -1*COORD_EPSILON)
+        return LineString([start_point, end_point])
 
     @property
     def as_sp_dilated(self) -> Polygon:
@@ -739,7 +754,7 @@ class Edge:
         """
         Removes the edge from the face. The corresponding faces are merged
         1. remove the face from the mesh
-        2. stitch the extremities of the remove edge
+        2. stitch the extremities of the removed edge
         3. attribute correct face to orphan edges
         :return: mesh
         """
@@ -753,23 +768,48 @@ class Edge:
             for edge in self.siblings:
                 edge.face = other_face
         else:
+            other_face.remove_from_mesh()
             for edge in self.pair.siblings:
                 edge.face = self.face
+
+        # preserve references
+        self.preserve_references()
+        self.pair.preserve_references()
 
         # stitch the edge extremities
         self.pair.previous.next = self.next
         self.previous.next = self.pair.next
 
-        # preserve the vertices start edge reference
-        # for both the edge and its pair edge
-        if self.start.edge is self:
-            self.start.edge = self.pair.next
-        if self.pair.start.edge is self.pair:
-            self.pair.start.edge = self.next
-
-        # clean eventually useless vertices
+        # clean useless vertices
         self.start.clean()
         self.end.clean()
+
+    def preserve_references(self, other: Optional['Edge'] = None):
+        """
+        Used to preserve face, vertex and boundary references
+        when the edge is removed from the mesh.
+        A mesh is considered removed from a mesh if there an't anymore
+        edge pointers to it and its pair.
+        """
+        # preserve face reference
+        if self.face and self.face.edge is self:
+            self.face.edge = other or self.next
+
+        # preserve boundary edge reference
+        if self is self.mesh.boundary_edge:
+            self.mesh.boundary_edge = other or self.next
+
+        # preserve vertex reference
+        if self.start.edge is self:
+            self.start.edge = other or self.ccw
+
+        # preserve space reference
+        if self.space is not None and self.space.edge is self:
+            self.space.edge = other or self.space_next
+
+        # preserve linear reference
+        if self.linear is not None and self.linear.edge is self:
+            self.linear.edge = other or self.space_next
 
     def intersect(self, vector: Vector2d) -> Optional['Edge']:
         """
@@ -785,6 +825,10 @@ class Edge:
         # create a line to the edge at the vertex position
         sp_line = self.end.sp_line(vector)
 
+        if not sp_line.is_valid:
+            logging.warning('Invalid geometry of sp_line')
+            return None
+
         # find the intersection
         closest_edge = None
         intersection_point = None
@@ -792,14 +836,21 @@ class Edge:
 
         # iterate trough every edge of the face but the laser_cut edge
         for edge in self.siblings:
-            # do not check for the first edge or the second one
-            if edge is self:
+            # do not check for edges that starts or end with the same end vertex of the edge
+            if self.end in (edge.start, edge.end):
                 continue
-            if edge is self.next:
+            # check if the edge is facing the correct direction
+            angle_vector_edge = ccw_angle(vector, edge.normal)
+            if angle_vector_edge <= 90.0 or angle_vector_edge >= 270.0:
                 continue
 
             # looks for an intersection
             sp_edge = edge.as_sp_extended
+
+            if not sp_edge.is_valid:
+                logging.warning('Invalid geometry of sp_edge')
+                return None
+
             if sp_edge.intersects(sp_line):
                 temp_intersection_point = sp_edge.intersection(sp_line)
                 # if the orthogonal line intersects more than the point
@@ -835,8 +886,14 @@ class Edge:
         """
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            print('WARNING: cannot link two edges ' +
-                  ' that are already linked:{0}-{1}'.format(self, other))
+            logging.warning('cannot link two edges ' +
+                            ' that are already linked:{0}-{1}'.format(self, other))
+            return None
+
+        # check if the edges are the same
+        if other is self or self.end is other.end:
+            logging.warning('cannot link one vertex to itself ' +
+                            ':{0}-{1}'.format(self, other))
             return None
 
         # create the new edge and its pair
@@ -963,15 +1020,17 @@ class Edge:
         if vertex is self.start:
             angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
             if not angle_is_inside:
-                print('WARNING: cannot cut according to angle:{0}'.format(angle))
+                logging.info('Cannot cut according to angle:{0} < {1} < {2}'.
+                             format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
                 return None
 
             first_edge = self.previous
         # 2. the vertex is the end of the edge
         elif vertex is self.end:
-            angle_is_inside = angle > 180.0 - self.next_angle + MIN_ANGLE
+            angle_is_inside = 180 - MIN_ANGLE > angle > 180.0 - self.next_angle + MIN_ANGLE
             if not angle_is_inside:
-                print('WARNING: cannot cut according to angle:{0}'.format(angle))
+                logging.info('Cannot cut according to angle:{0} > {1} > {2}'.
+                             format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
                 return None
         # 3. the vertex is in the middle of the edge:
         # split the first edge
@@ -984,7 +1043,7 @@ class Edge:
 
         # if no intersection can be found return None
         if closest_edge is None:
-            print('WARNING: could not find an intersection')
+            logging.warning('Could not find an intersection')
             return None
 
         # assign a correct edge to the initial face
@@ -997,7 +1056,14 @@ class Edge:
         first_edge_next = first_edge.next
 
         # link the two edges
-        first_edge.link(closest_edge)
+        link_edge = first_edge.link(closest_edge)
+        # check to see if the link was properly executed.
+        # if not, it means that the closest edge was linked to the first edge
+        # to prevent recursion while laser cutting if the first_edge is the closest_edge next edge
+        # we return a different edge as the next edge to cut
+        if link_edge is None:
+            if closest_edge.next is first_edge:
+                closest_edge_next = first_edge.pair.next
 
         return first_edge_next, closest_edge_next
 
@@ -1070,6 +1136,9 @@ class Edge:
             edge_pair.space_previous.space_next = new_edge.pair
             new_edge.pair.space_next = edge_pair
 
+        # preserve linear pointer [LINEAR]
+        new_edge.linear = edge.linear
+
         return new_edge
 
     def split_barycenter(self, coeff: float) -> 'Edge':
@@ -1091,7 +1160,7 @@ class Edge:
         """
         arrow = make_arrow(self.start.coords, self.vector, self.normal)
         x_coords, y_coords = zip(*arrow.coords)
-        return plot_edge(x_coords, y_coords, ax, color, save)
+        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
 
     def plot_normal(self, ax, color: str = 'black'):
         """
@@ -1106,6 +1175,15 @@ class Edge:
         ax.quiver(*start_point, *arrow, color=color)
 
         return ax
+
+    def check_size(self):
+        """Checks the size of the edge"""
+        if self.start and self.end and self.start is self.end:
+            raise ValueError('Cannot create and edge starting and ending with the same' +
+                             'vertex: {0}'.format(self.start))
+
+        if self.start and self.end and self.length < COORD_EPSILON:
+            logging.warning('Created a very small edge: {0} - {1}'.format(self.start, self.end))
 
 
 class Face:
@@ -1190,7 +1268,7 @@ class Face:
         :return: a generator
         """
         edge = from_edge or self.edge
-        return edge.siblings
+        yield from edge.siblings
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -1319,7 +1397,7 @@ class Face:
         best_vertex = None
         best_near_vertex = None
         for vertex in face.vertices:
-            near_vertex = vertex.nearest_point(self)
+            near_vertex = vertex.nearest_point(self)  # Note : beware this is a brand new vertex
             distance_to_vertex = vertex.distance_to(near_vertex)
             if min_distance is None or distance_to_vertex < min_distance:
                 best_vertex = vertex
@@ -1328,6 +1406,7 @@ class Face:
 
         # create a new edge linking the vertex of the face to the enclosing face
         edge_shared = best_near_vertex.snap_to_edge(*self_edges)
+        best_near_vertex = edge_shared.start  # ensure existing vertex reference
         new_edge = Edge(best_near_vertex, best_vertex.edge.previous.pair, self)
         new_edge.pair.face = self
         new_edge.pair.start = best_vertex
@@ -1375,10 +1454,15 @@ class Face:
 
             # backward check for isolation
             # first check for 2-edged face
+            # if a 2 edged face is found we keep the edge and remove the touching edge
             if previous_edge.pair.next.next is previous_edge.pair:
+                # preserve references for space, linear, face and vertex
+                previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
+                previous_edge.pair.next.preserve_references(previous_edge)
+                # remove the duplicate edges
                 previous_edge.pair = previous_edge.pair.next.pair
 
-                # [SPACE] keep space references
+                # [SPACE] keep space boundary references
                 if previous_touching_edge.is_space_boundary:
                     previous_touching_edge.space_previous.space_next = previous_edge
                     previous_edge.space_next = previous_touching_edge.space_next
@@ -1438,14 +1522,21 @@ class Face:
         # add the space reference [SPACE]
         face.space = self.space
 
+        # split the face edges if they touch a vertex of the container face
+        # TODO : this is highly inefficient as we try to intersect every edge with every vertex
+
+        for vertex in self.vertices:
+            face_edges = list(face.edges)
+            vertex.snap_to_edge(*face_edges)
+
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
         shared_edges = []
-        face_vertices = list(face.vertices)
-        for vertex in face_vertices:
+        face_edges = list(face.edges)
+        for edge in face_edges:
+            vertex = edge.start
             edge_shared = vertex.snap_to_edge(*self_edges)
             if edge_shared is not None:
-                edge = vertex.edge
                 shared_edges.append((edge_shared, edge))
                 # after a split: update list of edges
                 self_edges = list(self.edges)
@@ -1492,6 +1583,23 @@ class Face:
 
         return False
 
+    def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
+        """
+        Inserts an edge on the boundary of the face
+        :param vertex_1:
+        :param vertex_2:
+        :return:
+        """
+        edges = []
+        for vertex in vertex_1, vertex_2:
+            edge = vertex.snap_to_edge(*self.edges)
+            if edge is None:
+                logging.warning('Could not insert edge because vertex is not on the face boundary')
+                return None
+            edges.append(edge)
+
+        return edges[0]
+
     def plot(self,
              ax=None,
              options=('fill', 'border'),
@@ -1509,9 +1617,9 @@ class Mesh:
     """
     Mesh Class
     """
-    def __init__(self, faces: Optional[List[Face]] = None, external_edge: Optional[Edge] = None):
+    def __init__(self, faces: Optional[List[Face]] = None, boundary_edge: Optional[Edge] = None):
         self._faces = faces
-        self._external_edge = external_edge
+        self._boundary_edge = boundary_edge
 
     def __repr__(self):
         output = 'Mesh:\n'
@@ -1541,7 +1649,7 @@ class Mesh:
         property
         :return: one of the external edge of the mesh
         """
-        return self._external_edge
+        return self._boundary_edge
 
     @boundary_edge.setter
     def boundary_edge(self, value: Edge):
@@ -1551,7 +1659,7 @@ class Mesh:
         """
         if value.face is not None:
             raise ValueError('An external edge cannot have a face: {0}'.format(value))
-        self._external_edge = value
+        self._boundary_edge = value
 
     @property
     def boundary_edges(self):
@@ -1562,7 +1670,7 @@ class Mesh:
         if self.boundary_edge is None:
             raise ValueError('An external edge must be specified for this mesh !')
 
-        return self.boundary_edge.siblings
+        yield from self.boundary_edge.siblings
 
     def add_face(self, face: Face) -> 'Mesh':
         """
@@ -1595,35 +1703,39 @@ class Mesh:
         :return: boolean
         """
         is_valid = True
-        print('------ checking Mesh :', end=" ")
         for face in self.faces:
-            # print('Checking:', face)
             for edge in face.edges:
                 if edge is None:
                     is_valid = False
-                    print('\n!!! Edge is None for:', face)
+                    logging.error('Checking Mesh: Edge is None for:{0}'.format(face))
                 if edge.face is not face:
                     is_valid = False
-                    print('\nwrong face in edge:', edge, edge.face)
+                    logging.error('Checking Mesh: Wrong face in edge:' +
+                                  '{0} for face:{1}'.format(edge, edge.face))
                 if edge.pair and edge.pair.pair is not edge:
                     is_valid = False
-                    print('\nwrong pair attribution:', edge, edge.pair)
+                    logging.error('Checking Mesh: Wrong pair attribution:' +
+                                  ' {0} for face: {1}'.format(edge, edge.pair))
                 if edge.start.edge is None:
                     is_valid = False
-                    print('\n!!! vertex has no edge:', edge.start)
+                    logging.error('Checking Mesh: Vertex has no edge: {0}'.format(edge.start))
                 if edge.start.edge.start is not edge.start:
                     is_valid = False
-                    print('\nwrong edge attribution in:', edge.start)
+                    logging.error('Checking Mesh: Wrong edge attribution in: ' +
+                                  '{0}'.format(edge.start))
                 if edge.next.next is edge:
                     is_valid = False
-                    print('\n2-edges face found:', face)
-        print('OK' if is_valid else '!! NOT OK', ' ---------------')
+                    logging.error('Checking Mesh: 2-edges face found:{0}'.format(face))
+        for edge in self.boundary_edges:
+            if edge.face is not None:
+                logging.error('Wrong edge in mesh boundary edges:{0}'.format(edge))
+        logging.info('Checking Mesh: ' + 'OK' if is_valid else '!! NOT OK')
         return is_valid
 
     # noinspection PyCompatibility
     def plot(self,
              ax=None,
-             options=('fill', 'border', 'half-edges', 'vertices'),
+             options=('fill', 'border', 'half-edges', 'boundary-edges', 'vertices'),
              save: bool = True,
              show: bool = False):
         """
@@ -1710,6 +1822,8 @@ class Mesh:
 
 if __name__ == '__main__':
 
+    logging.getLogger().setLevel(logging.INFO)
+
     def plot():
         """
         Plot a graph
@@ -1723,6 +1837,35 @@ if __name__ == '__main__':
                 edge.pair.laser_cut_at_barycenter(1)
                 edge.previous.pair.laser_cut_at_barycenter(0)
 
-        mesh.plot(save=False, show=True)
+        mesh.plot(show=True)
 
-    plot()
+    # plot()
+
+    def remove_edge():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
+        mesh = Mesh().from_boundary(perimeter)
+
+        edges = list(mesh.faces[0].edges)
+
+        edges[0].laser_cut_at_barycenter(0.5)
+        edges[3].laser_cut_at_barycenter(0.5)
+
+        mesh.plot(show=True)
+
+        edges = list(mesh.faces[0].edges)
+        edges[1].remove()
+
+        mesh.plot(show=True)
+
+        edges = list(mesh.faces[1].edges)
+        edges[0].remove()
+
+        mesh.check()
+        mesh.plot(show=True)
+        plt.show()
+
+    remove_edge()

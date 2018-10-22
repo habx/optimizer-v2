@@ -1,0 +1,280 @@
+{
+  "apartment": {
+    "vertices": [
+      {
+        "y": 0,
+        "x": 0
+      },
+      {
+        "y": 0,
+        "x": 1355
+      },
+      {
+        "y": 360,
+        "x": 1355
+      },
+      {
+        "y": 360,
+        "x": 1530
+      },
+      {
+        "y": 880,
+        "x": 1530
+      },
+      {
+        "y": 880,
+        "x": 1220
+      },
+      {
+        "y": 530,
+        "x": 1220
+      },
+      {
+        "y": 530,
+        "x": 470
+      },
+      {
+        "y": 879,
+        "x": 470
+      },
+      {
+        "y": 879,
+        "x": 0
+      },
+      {
+        "y": 593,
+        "x": 260
+      },
+      {
+        "y": 593,
+        "x": 209
+      },
+      {
+        "y": 360,
+        "x": 1380
+      },
+      {
+        "y": 441,
+        "x": 1380
+      }
+    ],
+    "rooms": [
+      {
+        "type": "entrance",
+        "requiredArea": {
+          "min": 25000,
+          "max": 50000
+        },
+        "variant": "m"
+      },
+      {
+        "type": "living",
+        "requiredArea": {
+          "min": 270000,
+          "max": 330000
+        },
+        "variant": "l"
+      },
+      {
+        "type": "kitchen",
+        "requiredArea": {
+          "min": 130000,
+          "max": 170000
+        },
+        "variant": "m"
+      },
+      {
+        "type": "bedroom",
+        "requiredArea": {
+          "min": 90000,
+          "max": 100000
+        },
+        "variant": "s"
+      },
+      {
+        "type": "bedroom",
+        "requiredArea": {
+          "min": 90000,
+          "max": 95000.0
+        },
+        "variant": "xs"
+      },
+      {
+        "type": "bedroom",
+        "requiredArea": {
+          "min": 90000,
+          "max": 95000.0
+        },
+        "variant": "xs"
+      },
+      {
+        "type": "bathroom",
+        "requiredArea": {
+          "min": 20000,
+          "max": 40000
+        },
+        "variant": "xs"
+      },
+      {
+        "type": "wcBathroom",
+        "requiredArea": {
+          "min": 80000,
+          "max": 120000
+        },
+        "variant": "m"
+      },
+      {
+        "type": "wc",
+        "requiredArea": {
+          "min": 10000,
+          "max": 30000
+        },
+        "variant": "s"
+      }
+    ],
+    "externalWalls": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "fixedItems": [
+      {
+        "vertex1": 0,
+        "vertex2": 1,
+        "type": "doorWindow",
+        "coef2": 157,
+        "width": 60,
+        "coef1": 89
+      },
+      {
+        "vertex1": 0,
+        "vertex2": 1,
+        "type": "doorWindow",
+        "coef2": 357,
+        "width": 60,
+        "coef1": 289
+      },
+      {
+        "vertex1": 0,
+        "vertex2": 1,
+        "type": "doorWindow",
+        "coef2": 622,
+        "width": 59,
+        "coef1": 555
+      },
+      {
+        "vertex1": 0,
+        "vertex2": 1,
+        "type": "doorWindow",
+        "coef2": 755,
+        "width": 59,
+        "coef1": 687
+      },
+      {
+        "vertex1": 0,
+        "vertex2": 1,
+        "type": "doorWindow",
+        "coef2": 955,
+        "width": 60,
+        "coef1": 821
+      },
+      {
+        "vertex1": 4,
+        "vertex2": 5,
+        "type": "window",
+        "coef2": 589,
+        "width": 69,
+        "coef1": 294
+      },
+      {
+        "vertex1": 8,
+        "vertex2": 9,
+        "type": "doorWindow",
+        "coef2": 809,
+        "width": 82,
+        "coef1": 429
+      },
+      {
+        "vertex1": 9,
+        "vertex2": 0,
+        "type": "doorWindow",
+        "coef2": 610,
+        "width": 85,
+        "coef1": 408
+      },
+      {
+        "vertex1": 3,
+        "vertex2": 4,
+        "type": "duct",
+        "coef2": 676,
+        "width": 70,
+        "coef1": 551
+      },
+      {
+        "vertex1": 12,
+        "vertex2": 13,
+        "type": "duct",
+        "coef2": 1000,
+        "width": 71,
+        "coef1": 0
+      },
+      {
+        "vertex1": 7,
+        "vertex2": 8,
+        "type": "duct",
+        "coef2": 165,
+        "width": 63,
+        "coef1": 5
+      },
+      {
+        "vertex1": 6,
+        "vertex2": 7,
+        "type": "frontDoor",
+        "coef2": 385,
+        "width": 92,
+        "coef1": 257
+      }
+    ],
+    "externalSpaces": [
+      {
+        "type": "balcony",
+        "area": 76330,
+        "windows": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "balcony",
+        "area": 132600,
+        "windows": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "type": "terrace",
+        "area": 390000,
+        "windows": [
+          6,
+          7
+        ]
+      }
+    ],
+    "loadBearingWalls": [
+      [
+        10,
+        11
+      ]
+    ]
+  },
+  "area": 1020430
+}

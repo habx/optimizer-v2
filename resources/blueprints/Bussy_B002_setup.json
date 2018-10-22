@@ -1,0 +1,60 @@
+{
+  "setup": [
+    {
+      "type": "entrance",
+      "variant": "s",
+      "requiredArea": {
+        "min": 25000,
+        "max": 50000
+      }
+    },
+    {
+      "type": "livingKitchen",
+      "variant": "l",
+      "requiredArea": {
+        "min": 440000,
+        "max": 560000
+      }
+    },
+    {
+      "type": "bedroom",
+      "variant": "m",
+      "requiredArea": {
+        "min": 100000,
+        "max": 120000
+      }
+    },
+    {
+      "type": "bedroom",
+      "variant": "m",
+      "requiredArea": {
+        "min": 100000,
+        "max": 120000
+      }
+    },
+    {
+      "type": "bedroom",
+      "variant": "m",
+      "requiredArea": {
+        "min": 100000,
+        "max": 120000
+      }
+    },
+    {
+      "type": "bathroom",
+      "variant": "m",
+      "requiredArea": {
+        "min": 60000,
+        "max": 80000
+      }
+    },
+    {
+      "type": "bathroom",
+      "variant": "xs",
+      "requiredArea": {
+        "min": 20000,
+        "max": 40000
+      }
+    }
+  ]
+}

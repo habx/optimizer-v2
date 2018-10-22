@@ -1,0 +1,173 @@
+{
+  "apartment": {
+    "externalSpaces": [
+      {
+        "type": "balcony",
+        "area": 72000,
+        "windows": [
+          0,
+          1
+        ]
+      }
+    ],
+    "rooms": [
+      {
+        "type": "entrance",
+        "variant": "s",
+        "requiredArea": {
+          "min": 25000,
+          "max": 50000
+        }
+      },
+      {
+        "type": "livingKitchen",
+        "variant": "s",
+        "requiredArea": {
+          "min": 240000,
+          "max": 360000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "wcBathroom",
+        "variant": "s",
+        "requiredArea": {
+          "min": 50000,
+          "max": 90000
+        }
+      }
+    ],
+    "loadBearingWalls": [
+      [
+        8,
+        9
+      ]
+    ],
+    "fixedItems": [
+      {
+        "vertex2": 1,
+        "width": 74,
+        "coef1": 154,
+        "type": "window",
+        "vertex1": 0,
+        "coef2": 340
+      },
+      {
+        "vertex2": 1,
+        "width": 90,
+        "coef1": 417,
+        "type": "doorWindow",
+        "vertex1": 0,
+        "coef2": 776
+      },
+      {
+        "vertex2": 2,
+        "width": 81,
+        "coef1": 707,
+        "type": "window",
+        "vertex1": 1,
+        "coef2": 877
+      },
+      {
+        "vertex2": 4,
+        "width": 69,
+        "coef1": 436,
+        "type": "window",
+        "vertex1": 3,
+        "coef2": 584
+      },
+      {
+        "vertex2": 5,
+        "width": 31,
+        "coef1": 204,
+        "type": "window",
+        "vertex1": 4,
+        "coef2": 744
+      },
+      {
+        "vertex2": 0,
+        "width": 48,
+        "coef1": 0,
+        "type": "duct",
+        "vertex1": 7,
+        "coef2": 191
+      },
+      {
+        "vertex2": 9,
+        "width": 76,
+        "coef1": 0,
+        "type": "duct",
+        "vertex1": 8,
+        "coef2": 1000
+      },
+      {
+        "vertex2": 6,
+        "width": 89,
+        "coef1": 832,
+        "type": "frontDoor",
+        "vertex1": 5,
+        "coef2": 938
+      }
+    ],
+    "vertices": [
+      {
+        "y": 0,
+        "x": 0
+      },
+      {
+        "y": 89,
+        "x": 498
+      },
+      {
+        "y": 608,
+        "x": 405
+      },
+      {
+        "y": 586,
+        "x": 287
+      },
+      {
+        "y": 1191,
+        "x": 180
+      },
+      {
+        "y": 1134,
+        "x": -152
+      },
+      {
+        "y": 301,
+        "x": -4
+      },
+      {
+        "y": 291,
+        "x": -52
+      },
+      {
+        "y": 507,
+        "x": 207
+      },
+      {
+        "y": 590,
+        "x": 193
+      }
+    ],
+    "externalWalls": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "area": 462167
+}

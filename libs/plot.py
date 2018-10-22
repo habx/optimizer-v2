@@ -28,6 +28,7 @@ output_path = os.path.join(module_path, SAVE_PATH)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 
+
 def plot_save(save: bool = True, show: bool = False):
     """
     Saves or displays the plot
@@ -43,6 +44,7 @@ def plot_save(save: bool = True, show: bool = False):
         logging.info('Saving plot')
         file_name = str(datetime.datetime.utcnow()).replace('/', '-') + '.svg'
         plt.savefig(os.path.join(output_path, file_name), format='svg')
+        plt.close()  # need to close the plot (otherwise matplotlib keeps it in memory)
 
     if show:
         plt.show()
@@ -52,7 +54,9 @@ def plot_edge(x_coords: Sequence[float],
               y_coords: Sequence[float],
               _ax=None,
               color: str = 'b',
-              should_save: Optional[bool] = None):
+              width: float = 1.0,
+              alpha=1,
+              save: Optional[bool] = None):
 
     """
     Plots an edge
@@ -60,16 +64,23 @@ def plot_edge(x_coords: Sequence[float],
     :param x_coords:
     :param y_coords:
     :param color:
-    :param should_save: whether to save the plot
+    :param width:
+    :param alpha
+    :param save: whether to save the plot
     :return:
     """
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
-        should_save = True if should_save is None else should_save
+        save = True if save is None else save
 
-    _ax.plot(x_coords, y_coords, 'k', color=color)
-    plot_save(should_save)
+    _ax.plot(x_coords, y_coords, 'k',
+             linewidth=width,
+             color=color,
+             alpha=alpha,
+             solid_capstyle='butt')
+
+    plot_save(save)
 
     return _ax
 
@@ -112,6 +123,7 @@ def make_arrow(point: Coords2d, vector: Vector2d, normal: Vector2d) -> LineStrin
     """
     Returns a polyline of the form o a semi-arrow translated from original edge
     Used to plot half-edge for debugging purposes
+    TODO : make a nicer arrow
     :param point: starting point of the edge
     :param vector:
     :param normal:
@@ -143,5 +155,4 @@ def random_color() -> str:
     Convenient function for matplotlib
     :return: string
     """
-    matplotlib_colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k')
-    return matplotlib_colors[randint(0, len(matplotlib_colors) - 1)]
+    return '#%02X%02X%02X' % (randint(0, 255), randint(0, 255), randint(0, 255))

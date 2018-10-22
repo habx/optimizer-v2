@@ -1,27 +1,28 @@
 # coding=utf-8
 """
 Plan Module
-We define a grid as a mesh with specific functionalities
-
-Ideas :
-- a face should have a type (space, object, reserved_space) and a nature from type:
+Creates the following classes:
+• Plan : contains the description of a blue print
+• Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
+• Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-from typing import Optional, List, Sequence, Tuple
+from typing import Optional, List, Tuple, Sequence, Generator
 import logging
+import matplotlib.pyplot as plt
+
 
 from libs.mesh import Mesh, Face, Edge, Vertex
-from libs.category import space_categories, Category
-from libs.plot import plot_save
+from libs.category import space_categories, LinearCategory, SpaceCategory
+from libs.plot import plot_save, plot_edge
+from libs.utils.custom_types import Coords2d
 
 
 class Plan:
     """
     Main class containing the floor plan of the apartment
-    • mesh
-    • spaces
-    • walls
-    • objects
-    • json_input
+    • mesh : the corresponding geometric mesh
+    • spaces : rooms or ducts or pillars etc.
+    • linears : windows, doors, walls etc.
     """
     def __init__(self, mesh: Optional[Mesh] = None,
                  spaces: Optional[List['Space']] = None,
@@ -30,7 +31,7 @@ class Plan:
         self.spaces = spaces or []
         self.linears = linears or []
 
-    def from_boundary(self, boundary):
+    def from_boundary(self, boundary: Sequence[Coords2d]):
         """
         Creates a plan from a list of points
         1. create the mesh
@@ -44,7 +45,7 @@ class Plan:
 
         return self
 
-    def add_space(self, space):
+    def add_space(self, space: 'Space'):
         """
         Add a space in the plan
         :param space:
@@ -52,7 +53,15 @@ class Plan:
         """
         self.spaces.append(space)
 
-    def get_spaces(self, category: Optional[str] = None):
+    def add_linear(self, linear: 'Linear'):
+        """
+        Add a linear in the plan
+        :param linear:
+        :return:
+        """
+        self.linears.append(linear)
+
+    def get_spaces(self, category: Optional[str] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
         :param category:
@@ -64,7 +73,7 @@ class Plan:
         return (space for space in self.spaces)
 
     @property
-    def empty_space(self):
+    def empty_space(self) -> Optional['Space']:
         """
         The first empty space of the plan
         Note : the empty space is only used for the creation of the plan
@@ -72,7 +81,7 @@ class Plan:
         """
         return list(self.get_spaces(category='empty'))[0]
 
-    def plot(self, ax=None):
+    def plot(self, ax=None, show: bool = False, save: bool = True):
         """
         Plots a plan
         :return:
@@ -80,9 +89,12 @@ class Plan:
         for space in self.spaces:
             ax = space.plot(ax, save=False)
 
-        plot_save()
+        for linear in self.linears:
+            ax = linear.plot(ax, save=False)
 
-    def check(self):
+        plot_save(save, show)
+
+    def check(self) -> bool:
         """
         Used to verify plan consistency
         NOTE : To be completed
@@ -109,7 +121,7 @@ class Space:
                  plan: Plan,
                  face: Face,
                  boundary_edge: Optional[Edge] = None,
-                 category: Category = space_categories['empty']):
+                 category: SpaceCategory = space_categories['empty']):
         self.plan = plan
         self.category = category
         self._face = face  # one face belonging to the space
@@ -155,7 +167,7 @@ class Space:
         self._edge = value
 
     @property
-    def faces(self):
+    def faces(self) -> Generator[Face, None, None]:
         """
         The faces included in the Space. Returns an iterator.
         :return:
@@ -163,7 +175,7 @@ class Space:
         seen = [self.face]
         yield self.face
 
-        def get_adjacent_faces(face):
+        def get_adjacent_faces(face: Face) -> Generator[Face, None, None]:
             """
             Recursive function to retrieve all the faces of the space
             :param face:
@@ -179,14 +191,14 @@ class Space:
         yield from get_adjacent_faces(self.face)
 
     @property
-    def edges(self):
+    def edges(self) -> Generator[Edge, None, None]:
         """
         The boundary edges of the space
         :return:
         """
         if self.edge is None:
-            return None
-        return self.edge.space_siblings
+            return
+        yield from self.edge.space_siblings
 
     @property
     def area(self) -> float:
@@ -270,6 +282,7 @@ class Space:
         Adds a face to the space and adjust the edges list accordingly
         If the added face belongs to another space we first need to remove it from the space
         We do not enable to add a face inside a hole in the face
+        TODO : if the face belongs to another Space we should also correct the other Space boundary
         :param face: face to add to space
         """
         # if the space has no faces yet just add the face as the reference for the Space
@@ -418,7 +431,7 @@ class Space:
             if not face.is_linked_to_space():
                 self.plan.add_space(Space(self.plan, face))
 
-    def insert_space(self, boundary, category: Category) -> 'Space':
+    def insert_space(self, boundary, category: SpaceCategory) -> 'Space':
         """
         Adds a new space inside the first face of the space
         1. Create the corresponding face in the mesh
@@ -445,6 +458,22 @@ class Space:
 
         return space
 
+    def insert_linear(self,
+                      point_1: Coords2d,
+                      point_2: Coords2d,
+                      category: LinearCategory) -> 'Linear':
+        """
+        Inserts a linear inside the Space boundary given a
+        :return: a linear
+        """
+        vertex_1 = Vertex(*point_1)
+        vertex_2 = Vertex(*point_2)
+        new_edge = self.face.insert_edge(vertex_1, vertex_2)
+        new_linear = Linear(new_edge, category)
+        self.plan.add_linear(new_linear)
+
+        return new_linear
+
     def cut(self, edge: Edge, vertex: Vertex, angle: float = 90.0, traverse: str = 'absolute'):
         """
         Cuts the space at the corresponding edge
@@ -467,7 +496,7 @@ class Space:
             :param new_edges: Tuple of the new edges created by the cut
             """
             start_edge, end_edge = new_edges
-            return self.is_boundary(end_edge)
+            return end_edge.pair.space is not self
 
         edge.laser_cut(vertex, angle, callback=callback, traverse=traverse)
 
@@ -521,7 +550,116 @@ class Space:
 
 class Linear:
     """
-    Wall Class
+    Linear Class
+    A linear is an object composed of one or several contiguous edges localized on the boundary
+    of a space object
     """
-    def __init__(self, edges: Sequence[Edge]):
-        self.edges = edges
+    def __init__(self, edge: Edge, category: LinearCategory):
+        """
+        Init
+        :param edge: one of the edge of the Linear. A linear can have more than one edge.
+        """
+        if edge.space_next is None:
+            raise ValueError('cannot create a linear that is not on the boundary of a space')
+
+        self._edge = edge
+        # set the circular reference
+        edge.linear = self
+        self.category = category
+
+    @property
+    def edge(self) -> Edge:
+        """
+        property
+        :return: the reference edge of the linear
+        """
+        return self._edge
+
+    @edge.setter
+    def edge(self, value: Edge):
+        if value.space_next is None:
+            raise ValueError('cannot create a linear that is not on the boundary of a space')
+        self._edge = value
+        value.linear = self
+
+    @property
+    def edges(self):
+        """
+        All the edges of the Linear
+        :return:
+        """
+        return (edge for edge in self.edge.space_siblings if edge.linear is self)
+
+    def add_edge(self, edge: Edge):
+        """
+        Add an edge to the linear
+        :return:
+        """
+        if edge.space_next is None:
+            raise ValueError('cannot add an edge to a linear' +
+                             ' that is not on the boundary of a space')
+
+        if self.edge is None:
+            self.edge = Edge
+            return
+
+        if self in (edge.space_next, edge.space_previous):
+            edge.linear = self
+        else:
+            raise ValueError('Cannot add an edge that is not connected to the linear' +
+                             ' on a space boundary')
+
+    def plot(self, ax=None, save=None):
+        """
+        Plots the linear object
+        :return:
+        """
+        for edge in self.edges:
+            x_coords, y_coords = zip(*edge.as_sp.coords)
+            ax = plot_edge(x_coords, y_coords, ax,
+                           color=self.category.color,
+                           width=self.category.width, alpha=0.6, save=save)
+        return ax
+
+    def check(self) -> bool:
+        """
+        Check if the linear is valid.
+        A linear is valid if all its edges are connected.
+        :return:
+        """
+        is_valid = True
+        for edge in self.edges:
+            if edge is self.edge:
+                continue
+            if self not in (edge.space_next, edge.space_previous):
+                is_valid = False
+
+        return is_valid
+
+
+if __name__ == '__main__':
+
+    import libs.reader as reader
+
+    def floor_plan():
+        """
+        Test
+        :return:
+        """
+        input_file = "Massy_C204.json"
+        plan = reader.create_plan_from_file(input_file)
+        empty_space = plan.empty_space
+
+        boundary_edges = list(empty_space.edges)
+
+        for edge in boundary_edges:
+            if edge.length > 30:
+                empty_space.cut_at_barycenter(edge, 0)
+                empty_space.cut_at_barycenter(edge, 1)
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+    floor_plan()

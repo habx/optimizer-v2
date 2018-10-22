@@ -1,6 +1,7 @@
 # coding=utf-8
 """
 Constraint module : describes the type of constraint that can be applied to a space or a linear
+These constraints could be used by a genetic algorithm to compute a multi-objective cost function
 """
 
 from typing import Callable

@@ -228,3 +228,55 @@ def test_cut_snap():
     edges[0].pair.laser_cut_at_barycenter(0.5, 64)
 
     assert mesh.check()
+
+
+def test_cut_inside_edge():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    mesh = Mesh().from_boundary(perimeter)
+
+    hole = [(200, 200), (800, 200), (800, 800), (200, 800)]
+
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    edges = list(mesh.boundary_edges)
+
+    edges[4].pair.previous.cut_at_barycenter()
+
+    assert mesh.check()
+
+
+def insert_touching_face():
+    """
+    test
+    :return:
+    """
+
+    perimeter = [(0, 0), (200, 0), (200, 200), (400, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    duct = [(100, 200), (600, 200), (600, 400), (100, 400)]
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(duct)
+
+    assert mesh.check()
+
+
+def cut_to_inside_edge():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    mesh = Mesh().from_boundary(perimeter)
+
+    hole = [(200, 200), (800, 200), (800, 800), (200, 800)]
+
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    edges = list(mesh.boundary_edges)
+
+    edges[3].pair.cut_at_barycenter(0.1)
+
+    assert mesh.check()

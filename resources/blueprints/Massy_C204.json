@@ -1,0 +1,218 @@
+{
+  "apartment": {
+    "externalSpaces": [
+      {
+        "type": "balcony",
+        "area": 139000,
+        "windows": [
+          0,
+          1,
+          2
+        ]
+      }
+    ],
+    "externalWalls": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "rooms": [
+      {
+        "type": "livingKitchen",
+        "variant": "s",
+        "requiredArea": {
+          "min": 240000,
+          "max": 360000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "s",
+        "requiredArea": {
+          "min": 90000,
+          "max": 100000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "s",
+        "requiredArea": {
+          "min": 90000,
+          "max": 100000
+        }
+      },
+      {
+        "type": "bathroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 60000,
+          "max": 80000
+        }
+      },
+      {
+        "type": "wc",
+        "variant": "s",
+        "requiredArea": {
+          "min": 10000,
+          "max": 30000
+        }
+      },
+      {
+        "type": "entrance",
+        "variant": "m",
+        "requiredArea": {
+          "min": 25000,
+          "max": 50000
+        }
+      }
+    ],
+    "loadBearingWalls": [
+      [
+        8,
+        9
+      ],
+      [
+        10,
+        11
+      ]
+    ],
+    "vertices": [
+      {
+        "y": 0,
+        "x": 0
+      },
+      {
+        "y": 0,
+        "x": 493
+      },
+      {
+        "y": -179,
+        "x": 493
+      },
+      {
+        "y": -179,
+        "x": 858
+      },
+      {
+        "y": 131,
+        "x": 858
+      },
+      {
+        "y": 131,
+        "x": 996
+      },
+      {
+        "y": 629,
+        "x": 996
+      },
+      {
+        "y": 629,
+        "x": 0
+      },
+      {
+        "y": 63,
+        "x": 413
+      },
+      {
+        "y": 63,
+        "x": 492
+      },
+      {
+        "y": 251,
+        "x": 604
+      },
+      {
+        "y": 251,
+        "x": 674
+      }
+    ],
+    "fixedItems": [
+      {
+        "type": "doorWindow",
+        "width": 47,
+        "vertex1": 6,
+        "vertex2": 7,
+        "coef1": 126,
+        "coef2": 317
+      },
+      {
+        "type": "doorWindow",
+        "width": 50,
+        "vertex1": 6,
+        "vertex2": 7,
+        "coef1": 458,
+        "coef2": 559
+      },
+      {
+        "type": "doorWindow",
+        "width": 45,
+        "vertex1": 6,
+        "vertex2": 7,
+        "coef1": 711,
+        "coef2": 900
+      },
+      {
+        "type": "window",
+        "width": 63,
+        "vertex1": 7,
+        "vertex2": 0,
+        "coef1": 265,
+        "coef2": 498
+      },
+      {
+        "type": "window",
+        "width": 59,
+        "vertex1": 7,
+        "vertex2": 0,
+        "coef1": 761,
+        "coef2": 928
+      },
+      {
+        "type": "duct",
+        "width": 68,
+        "vertex1": 8,
+        "vertex2": 9,
+        "coef1": 0,
+        "coef2": 1000
+      },
+      {
+        "type": "duct",
+        "width": 68,
+        "vertex1": 10,
+        "vertex2": 11,
+        "coef1": 0,
+        "coef2": 1000
+      },
+      {
+        "type": "duct",
+        "width": 88,
+        "vertex1": 2,
+        "vertex2": 3,
+        "coef1": 469,
+        "coef2": 584
+      },
+      {
+        "type": "duct",
+        "width": 136,
+        "vertex1": 5,
+        "vertex2": 6,
+        "coef1": 274,
+        "coef2": 349
+      },
+      {
+        "type": "frontDoor",
+        "width": 91,
+        "vertex1": 2,
+        "vertex2": 3,
+        "coef1": 714,
+        "coef2": 989
+      }
+    ]
+  },
+  "area": 673741
+}

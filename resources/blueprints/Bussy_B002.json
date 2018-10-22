@@ -1,0 +1,240 @@
+{
+  "apartment": {
+    "externalSpaces": [
+      {
+        "type": "garden",
+        "area": 877000,
+        "windows": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "vertices": [
+      {
+        "x": 0,
+        "y": 0
+      },
+      {
+        "x": 550,
+        "y": 227
+      },
+      {
+        "x": 143,
+        "y": 1205
+      },
+      {
+        "x": 80,
+        "y": 1590
+      },
+      {
+        "x": -854,
+        "y": 1430
+      },
+      {
+        "x": -783,
+        "y": 1027
+      },
+      {
+        "x": -588,
+        "y": 1107
+      },
+      {
+        "x": -513,
+        "y": 925
+      },
+      {
+        "x": -400,
+        "y": 969
+      },
+      {
+        "x": 143,
+        "y": 1196
+      },
+      {
+        "x": -98,
+        "y": 1094
+      },
+      {
+        "x": -185,
+        "y": 1060
+      },
+      {
+        "x": -276,
+        "y": 1205
+      },
+      {
+        "x": -306,
+        "y": 1275
+      }
+    ],
+    "loadBearingWalls": [
+      [
+        9,
+        8
+      ]
+    ],
+    "rooms": [
+      {
+        "type": "entrance",
+        "variant": "s",
+        "requiredArea": {
+          "min": 25000,
+          "max": 50000
+        }
+      },
+      {
+        "type": "livingKitchen",
+        "variant": "l",
+        "requiredArea": {
+          "min": 440000,
+          "max": 560000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "bedroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 100000,
+          "max": 120000
+        }
+      },
+      {
+        "type": "bathroom",
+        "variant": "m",
+        "requiredArea": {
+          "min": 60000,
+          "max": 80000
+        }
+      },
+      {
+        "type": "bathroom",
+        "variant": "xs",
+        "requiredArea": {
+          "min": 20000,
+          "max": 40000
+        }
+      }
+    ],
+    "externalWalls": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fixedItems": [
+      {
+        "coef2": 238,
+        "width": 41,
+        "type": "window",
+        "coef1": 58,
+        "vertex1": 1,
+        "vertex2": 2
+      },
+      {
+        "coef2": 538,
+        "width": 41,
+        "type": "window",
+        "coef1": 366,
+        "vertex1": 1,
+        "vertex2": 2
+      },
+      {
+        "coef2": 811,
+        "width": 89,
+        "type": "doorWindow",
+        "coef1": 639,
+        "vertex1": 1,
+        "vertex2": 2
+      },
+      {
+        "coef2": 743,
+        "width": 38,
+        "type": "window",
+        "coef1": 271,
+        "vertex1": 2,
+        "vertex2": 3
+      },
+      {
+        "coef2": 352,
+        "width": 64,
+        "type": "window",
+        "coef1": 252,
+        "vertex1": 3,
+        "vertex2": 4
+      },
+      {
+        "coef2": 703,
+        "width": 37,
+        "type": "window",
+        "coef1": 506,
+        "vertex1": 3,
+        "vertex2": 4
+      },
+      {
+        "coef2": 927,
+        "width": 69,
+        "type": "window",
+        "coef1": 830,
+        "vertex1": 3,
+        "vertex2": 4
+      },
+      {
+        "coef2": 285,
+        "width": 59,
+        "type": "duct",
+        "coef1": 209,
+        "vertex1": 8,
+        "vertex2": 0
+      },
+      {
+        "coef2": 164,
+        "width": 37,
+        "type": "duct",
+        "coef1": 0,
+        "vertex1": 0,
+        "vertex2": 1
+      },
+      {
+        "coef2": 1000,
+        "width": 84,
+        "type": "duct",
+        "coef1": 0,
+        "vertex1": 12,
+        "vertex2": 13
+      },
+      {
+        "coef2": 703,
+        "width": 90,
+        "type": "frontDoor",
+        "coef1": 614,
+        "vertex1": 8,
+        "vertex2": 0
+      }
+    ]
+  },
+  "area": 1055070
+}
