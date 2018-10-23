@@ -37,12 +37,17 @@ class LinearCategory(Category):
     A category of a linear
     Examples : window, doorWindow, door, wall, entrance
     """
-    def __init__(self, name, mutable: bool = True, aperture: bool =False, width: float = 5.0):
+    def __init__(self,
+                 name,
+                 mutable: bool = True,
+                 aperture: bool = False,
+                 width: float = 5.0):
         super().__init__(name, mutable)
         self.aperture = aperture
         self.width = width
+        self.mutable = mutable
 
-# TODO : we should create a catalog class that encapsules the different categories
+# TODO : we should create a catalog class that encapsulates the different categories
 
 
 linear_categories = {

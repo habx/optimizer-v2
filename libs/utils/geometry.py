@@ -129,6 +129,15 @@ def normalized_vector(vector: Vector2d) -> Vector2d:
     return coord_x, coord_y
 
 
+def opposite_vector(vector: Vector2d) -> Vector2d:
+    """
+    Returns the opposite vector
+    :param vector:
+    :return:
+    """
+    return -vector[0], -vector[1]
+
+
 def barycenter(point_1: Coords2d, point_2: Coords2d, coeff: float) -> Coords2d:
     """
     Calculates the barycenter of two points
@@ -173,3 +182,24 @@ def add_random_noise(coords: Coords2d, maximum: float = 1.0) -> Coords2d:
     x_coord = coords[0] + random_unit() * maximum
     y_coord = coords[1] + random_unit() * maximum
     return x_coord, y_coord
+
+
+def same_half_plane(vector_1: Vector2d, vector_2: Vector2d) -> bool:
+    """
+    Returns True if the vectors are facing the same direction
+    (meaning they point to the same half-plane)
+    :param vector_1:
+    :param vector_2:
+    :return:
+    """
+    return dot_product(vector_1, vector_2) > 0
+
+
+def dot_product(vector_1: Vector2d, vector_2: Vector2d):
+    """
+    Returns the dot product of the two vectors
+    :param vector_1:
+    :param vector_2:
+    :return:
+    """
+    return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]

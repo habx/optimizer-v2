@@ -657,6 +657,8 @@ if __name__ == '__main__':
                 empty_space.cut_at_barycenter(edge, 0)
                 empty_space.cut_at_barycenter(edge, 1)
 
+        print(plan.mesh.directions)
+
         plan.plot(save=False)
         plt.show()
 

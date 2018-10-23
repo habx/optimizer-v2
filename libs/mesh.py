@@ -5,7 +5,7 @@ Mesh module
 
 import math
 import logging
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from typing import Optional, Tuple, List, Sequence, Generator
 
 from shapely.geometry.polygon import Polygon
@@ -19,7 +19,9 @@ from libs.utils.geometry import (
     unit_vector,
     normalized_vector,
     barycenter,
-    move_point
+    move_point,
+    same_half_plane,
+    opposite_vector
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -279,6 +281,62 @@ class Vertex:
         point = nearest_point(self.as_sp, face.as_sp_linear_ring())
         return Vertex(*point.coords[0])
 
+    def project_point(self, face: 'Face', vector: Vector2d) -> Tuple['Vertex', 'Edge', float]:
+        """
+        Returns the projected point according to the vector direction
+        on the face boundary according to the provided vector.
+        Note the vertex has to be inside the face.
+        :param face:
+        :param vector:
+        :return: a tuple containing the new vertex and the associated edge, and the distance from
+        the projected vertex
+        """
+        # check whether the face contains the vertex
+        if not face.as_sp.intersects(self.as_sp):
+            raise ValueError('Can not project a vertex' +
+                             ' that is outside the face: {0} - {1}'.format(self, face))
+
+        # find the intersection
+        closest_edge = None
+        intersection_point = None
+        smallest_distance = None
+
+        # iterate trough every edge of the face but the laser_cut edge
+        for edge in face.edges:
+
+            # do not project on edges that starts or end with the vertex
+            if self in (edge.start, edge.end):
+                continue
+
+            # check if the edge is facing the correct direction
+            angle_vector_edge = ccw_angle(vector, edge.normal)
+            if angle_vector_edge <= 90.0 or angle_vector_edge >= 270.0:
+                continue
+
+            # we use shapely to compute the intersection point
+            # create an extended shapely lineString from the edge
+            sp_edge = edge.as_sp_extended
+            # create a line to the edge at the vertex position
+            sp_line = self.sp_line(vector)
+            temp_intersection_point = sp_edge.intersection(sp_line)
+
+            # we are only interested in a clean intersection
+            # meaning only one Point
+            if temp_intersection_point.geom_type != 'Point':
+                continue
+
+            new_distance = sp_line.project(temp_intersection_point)
+
+            # only keep the closest point
+            if not smallest_distance or new_distance < smallest_distance:
+                smallest_distance = new_distance
+                closest_edge = edge
+                intersection_point = temp_intersection_point
+
+        return (Vertex(*intersection_point.coords[0]),
+                closest_edge,
+                smallest_distance) if smallest_distance else None
+
     def distance_to(self, other: 'Vertex') -> float:
         """
         Returns the distance between the vertex and another
@@ -501,6 +559,14 @@ class Edge:
             return self.face.mesh
         else:
             return self.pair.face.mesh
+
+    @property
+    def absolute_angle(self) -> float:
+        """
+        Returns the ccw angle in degrees between he (0,1) vector and the edge
+        :return:
+        """
+        return ccw_angle(self.vector)
 
     @property
     def next_angle(self) -> float:
@@ -822,55 +888,13 @@ class Edge:
         :return: the laser_cut edge
         """
 
-        # create a line to the edge at the vertex position
-        sp_line = self.end.sp_line(vector)
+        intersection_data = self.end.project_point(self.face, vector)
 
-        if not sp_line.is_valid:
-            logging.warning('Invalid geometry of sp_line')
+        if intersection_data is None:
             return None
 
-        # find the intersection
-        closest_edge = None
-        intersection_point = None
-        smallest_distance = None
+        intersection_vertex, closest_edge, distance_to_edge = intersection_data
 
-        # iterate trough every edge of the face but the laser_cut edge
-        for edge in self.siblings:
-            # do not check for edges that starts or end with the same end vertex of the edge
-            if self.end in (edge.start, edge.end):
-                continue
-            # check if the edge is facing the correct direction
-            angle_vector_edge = ccw_angle(vector, edge.normal)
-            if angle_vector_edge <= 90.0 or angle_vector_edge >= 270.0:
-                continue
-
-            # looks for an intersection
-            sp_edge = edge.as_sp_extended
-
-            if not sp_edge.is_valid:
-                logging.warning('Invalid geometry of sp_edge')
-                return None
-
-            if sp_edge.intersects(sp_line):
-                temp_intersection_point = sp_edge.intersection(sp_line)
-                # if the orthogonal line intersects more than the point
-                # (eg: overflows a whole edge) we do not laser_cut
-                if temp_intersection_point.geom_type != 'Point':
-                    continue
-                new_distance = sp_line.project(temp_intersection_point)
-                if not smallest_distance or new_distance < smallest_distance:
-                    smallest_distance = new_distance
-                    closest_edge = edge
-                    intersection_point = temp_intersection_point
-
-        # check if we have found an intersection point
-        if smallest_distance is None:
-            return None
-
-        # create the intersection vertex
-        intersection_vertex = Vertex(*intersection_point.coords[0])
-
-        # split the intersected edge
         closest_edge = closest_edge.split(intersection_vertex).previous
 
         return closest_edge
@@ -1388,24 +1412,37 @@ class Face:
         :return:
         """
         # create a fixed list of the enclosing face edges for ulterior navigation
-        self_edges = list(self.edges)
+        main_directions = self.mesh.directions
+        vectors = unit_vector(main_directions[0][0]), unit_vector(main_directions[1][0])
 
-        # find the vertex of the face closest to the enclosing face
-        # TODO : only use the main orientation of the mesh boundary
-
+        # find the closest vertex of the face to the boundary of the receiving face
+        # according to the mesh two main directions
         min_distance = None
         best_vertex = None
         best_near_vertex = None
+        best_shared_edge = None
         for vertex in face.vertices:
-            near_vertex = vertex.nearest_point(self)  # Note : beware this is a brand new vertex
-            distance_to_vertex = vertex.distance_to(near_vertex)
-            if min_distance is None or distance_to_vertex < min_distance:
-                best_vertex = vertex
-                best_near_vertex = near_vertex
-                min_distance = distance_to_vertex
+            for vector in vectors:
+                _correct_orientation = not same_half_plane(vector, vertex.edge.vector)
+                _vector = vector if _correct_orientation else opposite_vector(vector)
+                intersection_data = vertex.project_point(self, _vector)
+                if intersection_data is None:
+                    continue
+                near_vertex, shared_edge, distance_to_vertex = intersection_data
+                # check whether we are projecting unto an immutable linear
+                if shared_edge.linear is not None and not shared_edge.linear.category.mutable:
+                    continue
+                if min_distance is None or distance_to_vertex < min_distance:
+                    best_vertex = vertex
+                    best_near_vertex = near_vertex
+                    best_shared_edge = shared_edge
+                    min_distance = distance_to_vertex
+
+        if min_distance is None:
+            raise Exception('Cannot find and intersection point to insert face !:{0}'.format(face))
 
         # create a new edge linking the vertex of the face to the enclosing face
-        edge_shared = best_near_vertex.snap_to_edge(*self_edges)
+        edge_shared = best_near_vertex.snap_to_edge(best_shared_edge)
         best_near_vertex = edge_shared.start  # ensure existing vertex reference
         new_edge = Edge(best_near_vertex, best_vertex.edge.previous.pair, self)
         new_edge.pair.face = self
@@ -1672,6 +1709,26 @@ class Mesh:
 
         yield from self.boundary_edge.siblings
 
+    @property
+    def directions(self) -> Sequence[Tuple[float, float]]:
+        """
+        Returns the main directions of the mesh.
+        For each boundary edge we calculate the absolute ccw angle and we add it to a dict.
+        :return:
+        """
+        directions_dict = {}
+
+        for edge in self.boundary_edges:
+            angle = edge.absolute_angle % 180.0
+            # we round the angle to the desired precision given by the ANGLE_EPSILON constant
+            angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
+            if angle in directions_dict:
+                directions_dict[angle] += edge.length
+            else:
+                directions_dict[angle] = edge.length
+
+        return sorted(directions_dict.items(), key=itemgetter(1), reverse=True)
+
     def add_face(self, face: Face) -> 'Mesh':
         """
         Adds a face to the mesh
@@ -1864,8 +1921,10 @@ if __name__ == '__main__':
         edges = list(mesh.faces[1].edges)
         edges[0].remove()
 
+        print(mesh.directions)
+
         mesh.check()
-        mesh.plot(show=True)
+        mesh.plot(show=True, save=False)
         plt.show()
 
     remove_edge()
