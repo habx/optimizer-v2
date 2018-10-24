@@ -5,6 +5,8 @@
 * 100 characters column width (not 120 nor 80)
 
 ### TODO
+- [ ] add way more unit tests
+- [ ] add matplotlib live visualization with pytest debugging
 - [ ] add load bearing walls import
 - [ ] create a parallel cut (slice), useful for non rectilinear apartment
 - [ ] create grid generator

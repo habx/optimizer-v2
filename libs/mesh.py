@@ -898,31 +898,55 @@ class Edge:
         3. attribute correct face to orphan edges
         :return: mesh
         """
+        if not self.is_mutable:
+            logging.warning('Cannot remove an immutable edge')
+            return
+
         other_face = self.pair.face
+        remaining_face = self.face
 
         # attribute new face to orphan
         # note if the edge is a boundary edge we attribute the edge face
         # to the pair edge siblings, not the other way around
-        if self.face is not None:
-            self.face.remove_from_mesh()
-            for edge in self.siblings:
-                edge.face = other_face
+        if self.face is self.pair.face:
+            if self.next is not self.pair and self.pair.next is not self:
+                raise ValueError('cannot remove an edge that will create an' +
+                                 ' unconnected hole in a face: {0}'.format(self))
+            logging.info('Removing an isolated edge: {0}'.format(self))
+            isolated_edge = self if self.next is self.pair else self.pair
+            isolated_edge.preserve_references(isolated_edge.pair.next)
+            isolated_edge.pair.preserve_references(isolated_edge.pair.next)
+            isolated_edge.previous.next = isolated_edge.pair.next
+            isolated_edge.start.clean()
         else:
-            other_face.remove_from_mesh()
-            for edge in self.pair.siblings:
-                edge.face = self.face
+            if self.face is not None:
+                self.face.remove_from_mesh()
+                remaining_face = other_face
+            else:
+                other_face.remove_from_mesh()
+                for edge in self.pair.siblings:
+                    edge.face = self.face
 
-        # preserve references
-        self.preserve_references()
-        self.pair.preserve_references()
+            for edge in self.siblings:
+                edge.face = remaining_face
 
-        # stitch the edge extremities
-        self.pair.previous.next = self.next
-        self.previous.next = self.pair.next
+            # preserve references
+            self.preserve_references()
+            self.pair.preserve_references()
 
-        # clean useless vertices
-        self.start.clean()
-        self.end.clean()
+            # stitch the edge extremities
+            self.pair.previous.next = self.next
+            self.previous.next = self.pair.next
+
+            # clean useless vertices
+            self.start.clean()
+            self.end.clean()
+
+        # remove isolated edges
+        for edge in remaining_face.edges:
+            if edge.next is edge.pair:
+                edge.remove()
+                break
 
     def preserve_references(self, other: Optional['Edge'] = None):
         """
@@ -2023,4 +2047,27 @@ if __name__ == '__main__':
         mesh.plot(show=True, save=False)
         plt.show()
 
-    remove_edge()
+    # remove_edge()
+
+
+    def remove_complex_edge():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(100, 100), (400, 100), (400, 400), (100, 400)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        mesh.plot(save=False)
+        plt.show()
+
+        mesh.faces[1].edge.remove()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    remove_complex_edge()

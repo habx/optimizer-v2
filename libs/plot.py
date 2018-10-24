@@ -42,7 +42,9 @@ def plot_save(save: bool = True, show: bool = False):
 
     if save:
         logging.info('Saving plot')
-        file_name = str(datetime.datetime.utcnow()).replace('/', '-') + '.svg'
+        ax = plt.gca()
+        date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        file_name = ax.get_title() + '_' + date_time + '.svg'
         plt.savefig(os.path.join(output_path, file_name), format='svg')
         plt.close()  # need to close the plot (otherwise matplotlib keeps it in memory)
 

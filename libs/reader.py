@@ -21,6 +21,12 @@ from libs.utils.custom_types import Coords2d, FourCoords2d
 
 INPUT_FOLDER = "../resources/blueprints"
 INPUT_FILES = [
+    "Levallois_A3_505.json",
+    "Levallois_Parisot.json",
+    "Levallois_Tisnes.json",
+    "Levallois_Creuze.json",
+    "Levallois_Meyronin.json",
+    "Levallois_Letourneur.json",
     "Antony_A22.json",
     "Antony_A33.json",
     "Antony_B14.json",
@@ -28,25 +34,32 @@ INPUT_FILES = [
     "Bussy_A001.json",
     "Bussy_A101.json",
     "Bussy_A202.json",
+    "Bussy_B002.json",
     "Bussy_B104.json",
-    "Levallois_Parisot.json",
-    "Levallois_A3_505.json",
-    "Levallois_Creuze.json",
-    "Massy_C102.json",
-    "Massy_C204.json",
-    "Noisy_A318.json",
-    "Paris18_A402.json",
-    "Paris18_A502.json",
-    "Sartrouville_A104.json",
-    "Sartrouville_R1.json",
-    "Vernouillet_A002.json",
-    "Vernouillet_A105.json",
+    "Bussy_Regis.json",
     "Edison_10.json",
     "Edison_20.json",
+    "Massy_C102.json",
+    "Massy_C204.json",
+    "Massy_C303.json",
+    "Noisy_A145.json",
+    "Noisy_A318.json",
+    "Paris18_A301.json",
+    "Paris18_A302.json",
+    "Paris18_A402.json",
+    "Paris18_A501.json",
+    "Paris18_A502.json",
+    "Sartrouville_RDC.json",
+    "Sartrouville_R1.json",
+    "Sartrouville_R2.json",
+    "Sartrouville_A104.json",
+    "Vernouillet_A002.json",
+    "Vernouillet_A003.json",
+    "Vernouillet_A105.json"
 ]
 
 
-def get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
+def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
     """
     Returns a vertices list of the perimeter points of an apartment
     :param input_floor_plan_dict:
@@ -58,8 +71,8 @@ def get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
     return [(vertices[i]['x'], vertices[i]['y']) for i in perimeter_walls]
 
 
-def get_fixed_item_perimeter(fixed_item: Dict,
-                             vertices: Sequence[Coords2d]) -> FourCoords2d:
+def _get_fixed_item_perimeter(fixed_item: Dict,
+                              vertices: Sequence[Coords2d]) -> FourCoords2d:
     """calculates the polygon perimeter of the fixed item
     Input dict expected with following attributes
     Should be useless if the dict gives us the fixed item geometry directly
@@ -89,7 +102,7 @@ def get_fixed_item_perimeter(fixed_item: Dict,
     return point_1, point_2, point_3, point_4
 
 
-def get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
+def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
     """
     Returns a list with the perimeter of each fixed items.
     NOTE: we are using the pandas dataframe because we do not want to recalculate
@@ -105,7 +118,7 @@ def get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Co
     fixed_items = apartment['fixedItems']
     output = []
     for fixed_item in fixed_items:
-        coords = get_fixed_item_perimeter(fixed_item, vertices)
+        coords = _get_fixed_item_perimeter(fixed_item, vertices)
         output.append((coords, fixed_item['type']))
 
     return output
@@ -134,12 +147,12 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     :return: a plan object
     """
     floor_plan_dict = get_floor_plan_dict(input_file)
-    perimeter = get_perimeter(floor_plan_dict)
-
-    my_plan = plan.Plan().from_boundary(perimeter)
+    perimeter = _get_perimeter(floor_plan_dict)
+    file_name = os.path.splitext(os.path.basename(input_file))[0]
+    my_plan = plan.Plan(file_name).from_boundary(perimeter)
     empty_space = my_plan.empty_space
 
-    fixed_items = get_fixed_items_perimeters(floor_plan_dict)
+    fixed_items = _get_fixed_items_perimeters(floor_plan_dict)
 
     for fixed_item in fixed_items:
         if fixed_item[1] in space_categories:

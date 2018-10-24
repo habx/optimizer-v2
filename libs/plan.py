@@ -10,7 +10,6 @@ from typing import Optional, List, Tuple, Sequence, Generator
 import logging
 import matplotlib.pyplot as plt
 
-
 from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge
@@ -24,9 +23,9 @@ class Plan:
     • spaces : rooms or ducts or pillars etc.
     • linears : windows, doors, walls etc.
     """
-    def __init__(self, mesh: Optional[Mesh] = None,
-                 spaces: Optional[List['Space']] = None,
-                 linears: Optional[List['Linear']] = None):
+    def __init__(self, name: str = 'unnamed_plan', mesh: Optional[Mesh] = None,
+                 spaces: Optional[List['Space']] = None, linears: Optional[List['Linear']] = None):
+        self.name = name
         self.mesh = mesh
         self.spaces = spaces or []
         self.linears = linears or []
@@ -99,6 +98,8 @@ class Plan:
 
         for linear in self.linears:
             ax = linear.plot(ax, save=False)
+
+        ax.set_title(self.name)
 
         plot_save(save, show)
 
@@ -681,7 +682,7 @@ if __name__ == '__main__':
                 empty_space.cut_at_barycenter(edge, 0)
                 empty_space.cut_at_barycenter(edge, 1)
 
-        plan.plot(save=False)
+        plan.plot()
         plt.show()
 
         assert plan.check()

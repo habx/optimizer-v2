@@ -280,3 +280,21 @@ def cut_to_inside_edge():
     edges[3].pair.cut_at_barycenter(0.1)
 
     assert mesh.check()
+
+
+def test_remove_complex_edge():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(100, 100), (400, 100), (400, 400), (100, 400)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    mesh.plot(save=False)
+
+    mesh.faces[1].edge.remove()
+
+    assert mesh.check()
