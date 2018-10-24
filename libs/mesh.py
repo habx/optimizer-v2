@@ -613,8 +613,18 @@ class Edge:
         using a pseudo equality on the angle
         :return: boolean
         """
-        angle = angle_pseudo_equal(self.next_angle, 180)
-        return angle
+        is_aligned = angle_pseudo_equal(self.next_angle, 180)
+        return is_aligned
+
+    @property
+    def previous_is_aligned(self) -> bool:
+        """
+        Indicates if the next edge is approximately aligned with this one,
+        using a pseudo equality on the angle
+        :return: boolean
+        """
+        is_aligned = angle_pseudo_equal(self.previous_angle, 180)
+        return is_aligned
 
     @property
     def next_is_ortho(self) -> bool:
@@ -798,6 +808,25 @@ class Edge:
             edge = edge.next
 
     @property
+    def reverse_siblings(self) -> Generator['Edge', None, None]:
+        """
+        Returns the siblings of the edge, starting with itself
+        looping in reverse
+        :return: generator yielding each edge in the loop
+        """
+        yield self
+        edge = self.previous
+        # in order to detect infinite loop we stored each yielded edge
+        seen = []
+        while edge is not self:
+            if edge in seen:
+                raise Exception('Infinite loop' +
+                                ' starting from edge:{0}'.format(self))
+            seen.append(edge)
+            yield edge
+            edge = edge.previous
+
+    @property
     def space_siblings(self) -> Generator['Edge', None, None]:
         """
         Returns the siblings of the edge on the space boundary,
@@ -815,6 +844,25 @@ class Edge:
             seen.append(edge)
             yield edge
             edge = edge.space_next
+
+    @property
+    def aligned_siblings(self)-> Generator['Edge', None, None]:
+        """
+        Returns the edges that are aligned with self and contiguous
+        Starts with the edge itself, then all the next ones, then all the previous ones
+        :return:
+        """
+        yield self
+        # forward check
+        for edge in self.next.siblings:
+            if not edge.previous_is_aligned:
+                break
+            yield edge
+        # backward check
+        for edge in self.previous.reverse_siblings:
+            if not edge.next_is_aligned:
+                break
+            yield edge
 
     def is_linked_to_face(self, face: 'Face') -> bool:
         """
