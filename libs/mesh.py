@@ -531,6 +531,19 @@ class Edge:
         self._space_next = value
 
     @property
+    def is_mutable(self):
+        """
+        Returns True if the edge can be split, False otherwise
+        An edge can not be split if its link to an immutable linear (for example a window)
+        :return:
+        """
+        if not self.linear:
+            return True
+        if self.linear.category.mutable:
+            return True
+        return False
+
+    @property
     def is_space_boundary(self):
         """
         property
@@ -714,6 +727,19 @@ class Edge:
         length = math.sqrt(x**2 + y**2)
         return x/length, y/length
 
+    @property
+    def max_length(self) -> Optional[float]:
+        """
+        Returns the max length of the direction of the edge
+        Totally arbitrary formula
+        :return:
+        """
+        angle = self.absolute_angle % 180.0
+        # we round the angle to the desired precision given by the ANGLE_EPSILON constant
+        angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
+        max_l = next((l for deg, l in self.mesh.directions if angle_pseudo_equal(deg, angle)), None)
+        return (max_l / 2) * 1.10 if max_l is not None else None
+
     def sp_ortho_line(self, vertex) -> LineString:
         """
         Returns a shapely LineString othogonal
@@ -877,7 +903,7 @@ class Edge:
         if self.linear is not None and self.linear.edge is self:
             self.linear.edge = other or self.space_next
 
-    def intersect(self, vector: Vector2d) -> Optional['Edge']:
+    def intersect(self, vector: Vector2d, max_length: Optional[float] = None) -> Optional['Edge']:
         """
         Finds the opposite point of the edge end on the face boundary
         according to a vector direction.
@@ -885,19 +911,27 @@ class Edge:
         Returns the edge created at the intersection vertex,
         before the intersection.
         :param vector:
+        :param max_length: maximum authorized length of the cut
         :return: the laser_cut edge
         """
 
         intersection_data = self.end.project_point(self.face, vector)
 
+        # if not intersection was found we return None
         if intersection_data is None:
             return None
 
         intersection_vertex, closest_edge, distance_to_edge = intersection_data
 
-        closest_edge = closest_edge.split(intersection_vertex).previous
+        # check if we've exceeded the max authorized length
+        if max_length is not None and max_length < distance_to_edge:
+            return None
 
-        return closest_edge
+        # split the destination edge
+        closest_edge = closest_edge.split(intersection_vertex)
+
+        # if the destination edge cannot be split return None
+        return closest_edge.previous if closest_edge else None
 
     def link(self, other: 'Edge') -> Optional['Edge']:
         """
@@ -944,9 +978,8 @@ class Edge:
                   angle: float = 90.0,
                   traverse: str = 'absolute',
                   vector: Optional[Vector2d] = None,
+                  max_length: Optional[float] = None,
                   callback: Optional[SpaceCutCb] = None) -> Optional[Tuple['Edge', 'Edge']]:
-        # TODO : add a max laser_cut length
-        # (do not cut if the new edge exceeds the max_length)
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -956,6 +989,7 @@ class Edge:
         Possible values : 'absolute', 'relative'
         :param vector: a vector indicating the absolute direction fo the laser_cut,
         if present we ignore the angle parameter
+        :param max_length: max length for the total laser_cut
         :param callback: Optional
         :return: self
         """
@@ -971,7 +1005,7 @@ class Edge:
             vector = unit_vector(ccw_angle(self.vector) + angle)
 
         # try to cut the edge
-        new_edges = self.cut(vertex, angle, vector=vector)
+        new_edges = self.cut(vertex, angle, vector=vector, max_length=max_length)
 
         # if the vertex is at the end or the start of the edge
         # we have to try to cut the other edge starting
@@ -979,13 +1013,13 @@ class Edge:
         if vertex is self.start:
             edge = self
             while new_edges is None and edge.ccw is not self:
-                new_edges = self.ccw.cut(vertex, vector=vector)
+                new_edges = self.ccw.cut(vertex, vector=vector, max_length=max_length)
                 edge = edge.ccw
 
         if vertex is self.end:
             edge = self
             while new_edges is None and edge.pair.cw.pair is not self:
-                new_edges = self.pair.cw.pair.cut(vertex, vector=vector)
+                new_edges = self.pair.cw.pair.cut(vertex, vector=vector, max_length=max_length)
                 edge = edge.pair.cw.pair
 
         if new_edges is None:
@@ -998,23 +1032,27 @@ class Edge:
         if callback is not None:
             stop = callback(new_edges)
 
+        # check the distance
+        if max_length is not None:
+            distance_traveled = new_edge_start.start.distance_to(new_edge_end.start)
+            max_length -= distance_traveled
+
         # laser_cut the next edge if traverse option is set
         if traverse == 'absolute' and not stop:
-            return new_edge_end.pair.laser_cut(new_edge_end.start, angle,
-                                               vector=vector,
-                                               callback=callback)
+            return new_edge_end.pair.laser_cut(new_edge_end.start, angle, vector=vector,
+                                               max_length=max_length, callback=callback)
 
         if traverse == 'relative' and not stop:
-            return new_edge_end.pair.laser_cut(new_edge_end.start, angle,
-                                               traverse='relative',
-                                               callback=callback)
+            return new_edge_end.pair.laser_cut(new_edge_end.start, angle, traverse='relative',
+                                               max_length=max_length, callback=callback)
 
         return new_edges
 
     def cut(self,
             vertex: Vertex,
             angle: float = 90.0,
-            vector: Optional[Vector2d] = None) -> Optional[Tuple['Edge', 'Edge']]:
+            vector: Optional[Vector2d] = None,
+            max_length: Optional[float] = None) -> Optional[Tuple['Edge', 'Edge']]:
         """
         Will cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1022,6 +1060,7 @@ class Edge:
         :param angle : indicates the angle to laser_cut the face from the vertex
         :param vector: a vector indicating the absolute direction fo the laser_cut,
         if present we ignore the angle parameter
+        :param max_length : the max_length authorized for the cut
         :return: the new created edges
         """
 
@@ -1056,18 +1095,22 @@ class Edge:
                 logging.info('Cannot cut according to angle:{0} > {1} > {2}'.
                              format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
                 return None
-        # 3. the vertex is in the middle of the edge:
-        # split the first edge
         else:
+            # split the starting edge
             first_edge.split(vertex)
+            # do not cut an edge that is not mutable
+            if not self.is_mutable:
+                logging.info('Could not a cut an immutable linear:' +
+                             '{0}'.format(self.linear.category.name))
+                return None
 
         # create a line to the edge at the vertex position
         line_vector = vector if vector is not None else unit_vector(ccw_angle(self.vector) + angle)
-        closest_edge = first_edge.intersect(line_vector)
+        closest_edge = first_edge.intersect(line_vector, max_length)
 
         # if no intersection can be found return None
         if closest_edge is None:
-            logging.warning('Could not find an intersection')
+            logging.info('Could not create a viable cut')
             return None
 
         # assign a correct edge to the initial face
@@ -1115,7 +1158,7 @@ class Edge:
         vertex = Vertex().barycenter(self.start, self.end, coeff)
         return self.cut(vertex, angle)
 
-    def split(self, vertex: 'Vertex') -> 'Edge':
+    def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
         Splits the edge at a specific vertex
         :param vertex: a vertex object where we should split
@@ -1129,6 +1172,11 @@ class Edge:
             return self
         if vertex is self.end:
             return self.next
+
+        # check for immutable edge
+        # (we check after snapping because an immutable edge can be split at its extremities)
+        if not self.is_mutable:
+            return None
 
         # define edges
         edge = self
@@ -1430,7 +1478,7 @@ class Face:
                     continue
                 near_vertex, shared_edge, distance_to_vertex = intersection_data
                 # check whether we are projecting unto an immutable linear
-                if shared_edge.linear is not None and not shared_edge.linear.category.mutable:
+                if not shared_edge.is_mutable:
                     continue
                 if min_distance is None or distance_to_vertex < min_distance:
                     best_vertex = vertex

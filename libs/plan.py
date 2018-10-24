@@ -81,6 +81,14 @@ class Plan:
         """
         return list(self.get_spaces(category='empty'))[0]
 
+    @property
+    def directions(self):
+        """
+        Returns the main directions of the mesh of the plan
+        :return:
+        """
+        return self.mesh.directions
+
     def plot(self, ax=None, show: bool = False, save: bool = True):
         """
         Plots a plan
@@ -100,7 +108,7 @@ class Plan:
         NOTE : To be completed
         :return:
         """
-        is_valid = True
+        is_valid = self.mesh.check()
 
         for space in self.spaces:
             is_valid = space.check()
@@ -163,7 +171,6 @@ class Space:
         """
         property
         """
-        # TODO check if value is on border
         self._edge = value
 
     @property
@@ -474,7 +481,12 @@ class Space:
 
         return new_linear
 
-    def cut(self, edge: Edge, vertex: Vertex, angle: float = 90.0, traverse: str = 'absolute'):
+    def cut(self,
+            edge: Edge,
+            vertex: Vertex,
+            angle: float = 90.0,
+            traverse: str = 'absolute',
+            max_length: Optional[float] = None):
         """
         Cuts the space at the corresponding edge
         Adjust the self.faces and self.edges list accordingly
@@ -482,6 +494,7 @@ class Space:
         :param vertex:
         :param angle:
         :param traverse:
+        :param max_length
         :return:
         """
         if not self.is_boundary(edge):
@@ -489,6 +502,11 @@ class Space:
             logging.warning('WARNING: Cannot cut an edge that is not' +
                             ' on the boundary of the space:{0}'.format(edge))
             return
+
+        # TODO : not sure about this. Does not seem like the best approach.
+        # probably best to slice non rectilinear space into smaller simple space,
+        # than apply a grid generation to these spaces
+        # max_length = max_length if max_length is not None else edge.max_length
 
         def callback(new_edges: Optional[Tuple[Edge, Edge]]):
             """
@@ -498,21 +516,24 @@ class Space:
             start_edge, end_edge = new_edges
             return end_edge.pair.space is not self
 
-        edge.laser_cut(vertex, angle, callback=callback, traverse=traverse)
+        edge.laser_cut(vertex, angle, traverse=traverse, callback=callback,
+                       max_length=max_length)
 
     def cut_at_barycenter(self, edge: Optional[Edge] = None, coeff: float = 0.5,
-                          angle: float = 90.0, traverse: str = 'absolute'):
+                          angle: float = 90.0, traverse: str = 'absolute',
+                          max_length: Optional[float] = None):
         """
         Convenience method
         :param edge:
         :param coeff:
         :param angle:
         :param traverse:
+        :param max_length:
         :return:
         """
         edge = edge or self.edge
         vertex = Vertex().barycenter(edge.start, edge.end, coeff)
-        return self.cut(edge, vertex, angle, traverse)
+        return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None, save: Optional[bool] = None):
         """
@@ -543,6 +564,9 @@ class Space:
         for edge in self.edges:
             if edge.face not in faces:
                 logging.error('Error in space: boundary edge with wrong face')
+                is_valid = False
+            if edge.space is not self:
+                logging.error('Error in edge: boundary edge with wrong space')
                 is_valid = False
 
         return is_valid
@@ -656,8 +680,6 @@ if __name__ == '__main__':
             if edge.length > 30:
                 empty_space.cut_at_barycenter(edge, 0)
                 empty_space.cut_at_barycenter(edge, 1)
-
-        print(plan.mesh.directions)
 
         plan.plot(save=False)
         plt.show()
