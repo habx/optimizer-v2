@@ -24,15 +24,15 @@ def test_floor_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
+    """
     empty_space = plan.empty_space
-
     boundary_edges = list(empty_space.edges)
 
     for edge in boundary_edges:
         if edge.length > 30:
             empty_space.cut_at_barycenter(edge, 0)
             empty_space.cut_at_barycenter(edge, 1)
-
+    """
     plan.plot()
 
     assert plan.check()

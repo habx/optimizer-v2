@@ -5,6 +5,8 @@
 * 100 characters column width (not 120 nor 80)
 
 ### TODO
+- [ ] change the way the enclosed face are connected (used orthogonal projection on closest edge)
+- [ ] check failing floor plan : Noisy_A145, Antony_B14 (hard fails), Bussy_Regis, Massy_C102 (sotf fails)
 - [ ] add way more unit tests
 - [ ] add matplotlib live visualization with pytest debugging
 - [ ] add load bearing walls import

@@ -298,3 +298,75 @@ def test_remove_complex_edge():
     mesh.faces[1].edge.remove()
 
     assert mesh.check()
+
+
+def test_insert_complex_face_1():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()
+
+
+def test_insert_complex_face_2():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()
+
+
+def test_insert_complex_face_3():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()
+
+
+def test_insert_complex_face_4():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(50, 200), (150, 200), (150, 300), (50, 300)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()

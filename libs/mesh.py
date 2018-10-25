@@ -7,6 +7,7 @@ import math
 import logging
 from operator import attrgetter, itemgetter
 from typing import Optional, Tuple, List, Sequence, Generator
+import copy
 
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
@@ -21,7 +22,8 @@ from libs.utils.geometry import (
     barycenter,
     move_point,
     same_half_plane,
-    opposite_vector
+    opposite_vector,
+    dot_product
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -378,6 +380,14 @@ class Vertex:
         :return: the newly created edge if a snap happened, None otherwise
         """
         for edge in edges:
+            # if the vertex has an edge we make sure that we snap to the correct edge pair.
+            # this is needed only for internal edge
+            if self.edge is not None and edge.is_internal:
+                if dot_product(edge.normal, self.edge.opposite_vector) > 0:
+                    continue
+                if dot_product(edge.normal, self.edge.opposite_vector) == 0:
+                    if dot_product(edge.vector, self.edge.opposite_vector) > 0:
+                        continue
             dist = edge.as_sp.distance(self.as_sp)
             if dist <= COORD_EPSILON:
                 return edge.split(self)
@@ -552,6 +562,14 @@ class Edge:
         :return:
         """
         return self.space_next is not None
+
+    @property
+    def is_internal(self):
+        """
+        Returns True if the edge is inside the face (in the case of a face with a hole)
+        :return:
+        """
+        return self.pair.face is self.face
 
     @property
     def space(self):
@@ -903,7 +921,7 @@ class Edge:
         1. remove the face from the mesh
         2. stitch the extremities of the removed edge
         3. attribute correct face to orphan edges
-        :return: mesh
+        :return: the remaining face after the edge was removed
         """
         if not self.is_mutable:
             logging.warning('Cannot remove an immutable edge')
@@ -1557,6 +1575,7 @@ class Face:
         new_faces = [self]
 
         if intersection_points.geom_type == 'LineString':
+            logging.info('While slicing only found a lineString as intersection')
             return new_faces
 
         for geom_object in intersection_points:
@@ -1649,7 +1668,7 @@ class Face:
         ex: new_container_face = container_face.insert(face_to_insert)
 
         :param shared_edges:
-        :return: the largest faces created inside self
+        :return: the faces created or modified : the receiving face and the smaller face created
         """
 
         touching_edge, edge, new_face = None, None, None
@@ -1724,17 +1743,11 @@ class Face:
         :param face:
         :return:
         """
-        # add the new face to the mesh
-        self.mesh.add_face(face)
-
         # add all pair edges to face
         face.add_exterior(self)
 
         # create a fixed list of the face edges for ulterior navigation
         self_edges = list(self.edges)
-
-        # add the space reference [SPACE]
-        face.space = self.space
 
         # split the face edges if they touch a vertex of the container face
         # TODO : this is highly inefficient as we try to intersect every edge with every vertex
@@ -1749,6 +1762,7 @@ class Face:
         face_edges = list(face.edges)
         for edge in face_edges:
             vertex = edge.start
+            vertex.start = edge  # we need to do this to ensure proper snapping direction
             edge_shared = vertex.snap_to_edge(*self_edges)
             if edge_shared is not None:
                 shared_edges.append((edge_shared, edge))
@@ -1767,49 +1781,84 @@ class Face:
         # case 3 : touching face
         return self._insert_touching_face(shared_edges)
 
+    def _insert_face_over_internal_edge(self, face: 'Face', internal_edge: Edge) -> List['Face']:
+        """
+        Inserts a face that overlaps an internal edge of the receiving face.
+        This is hard.
+        we have to :
+        1. split the face,
+        2. insert each newly created faces
+        3. merge the inserted faces
+        4. preserve the initial face reference
+        TODO : extend this technique to enable the insertion of a face overlapping several faces
+        :param face:
+        :return:
+        """
+        logging.info('Inserting face in a face with an internal edge')
+        # we slice the face if needed
+        face_copy = copy.deepcopy(face)
+        sliced_faces = face_copy._slice(internal_edge.start, internal_edge.vector)
+        # if no face was created just proceed
+        if len(sliced_faces) == 1:
+            return self._insert_face(face)
+        # else add each new face
+        # first store the shared edges for ulterior merge
+        edges_to_remove = []
+        for sliced_face in sliced_faces:
+            for edge in sliced_face.edges:
+                if edge.pair.face in sliced_faces:
+                    edges_to_remove.append(edge)
+        new_faces = []
+        # we create brand new faces and we insert them in the face
+        # a bit brutal, a better way is certainly possible ;-)
+        for sliced_face in sliced_faces:
+            new_faces.append(Mesh().from_boundary(sliced_face.coords).faces[0])
+        inserted_faces = []
+        for new_face in new_faces:
+            new_inserted_face = self._insert_face(new_face)
+            inserted_faces += new_inserted_face
+
+        # merge the faces
+        remaining_face = new_faces[0]
+        for new_face in new_faces:
+            for edge in new_face.edges:
+                if edge.pair.face in new_faces:
+                    remaining_face = edge.remove()
+
+        # attribute the references to the initial face
+        # to preserve the face references
+        for edge in remaining_face.edges:
+            edge.face = face
+        face.edge = remaining_face.edge
+
+        # return the create faces
+        created_faces = sorted(inserted_faces, key=attrgetter('area'), reverse=True)
+        return created_faces
+
     def insert_face(self, face: 'Face') -> List['Face']:
         """
         Inserts the face if it fits inside the receiving face
         Returns the list of the faces created inside the receiving face
-
+        including the receiving face
         """
         if not self.contains(face):
             raise ValueError("Cannot insert a face that is not" +
                              " entirely contained in the receiving face !:{0}".format(face))
 
+        # add the new face to the mesh
+        self.mesh.add_face(face)
+        # add the space reference [SPACE]
+        face.space = self.space
+
         # Check if the receiving face has an internal edge because this is a very special
-        # case and has to be treated differently : we have to split the face, add each
-        # split part and then merge the split part into the initial face
-        # Note : the same technique could be used to implement insertion of face overlapping
-        # several faces
+        # case and has to be treated differently
         internal_edge = None
         for edge in self.edges:
             if edge.pair.face is edge.face:
                 internal_edge = edge
                 break
-
         if internal_edge:
-            logging.info('Inserting face in a face with an internal edge')
-            sliced_faces = face._slice(internal_edge.start, internal_edge.vector)
-            new_faces = []
-            # we create new faces
-            for face in sliced_faces:
-                new_faces.append(Mesh().from_boundary(face.coords).faces[0])
-            inserted_faces = []
-            for new_face in new_faces:
-                inserted_faces += self._insert_face(new_face)
-
-            return inserted_faces
-
-            # merge the faces
-            """remaining_new_face = new_faces[0]
-            for new_face in new_faces[1:]:
-                remaining_new_face = remaining_new_face.merge(new_face)
-                if new_face is not remaining_new_face:
-                    inserted_faces.remove(new_face)"""
-
-            # return the create faces
-            """return sorted(inserted_faces, key=attrgetter('area'), reverse=True)"""
+            return self._insert_face_over_internal_edge(face, internal_edge)
 
         return self._insert_face(face)
 
@@ -2222,7 +2271,7 @@ if __name__ == '__main__':
         mesh = Mesh().from_boundary(perimeter)
         mesh.faces[0].insert_face_from_boundary(hole)
 
-        hole_2 = [(50, 200), (200, 200), (200, 300), (50, 300)]
+        hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
 
         mesh.faces[0].insert_face_from_boundary(hole_2)
 
@@ -2232,4 +2281,28 @@ if __name__ == '__main__':
         plt.show()
 
     insert_complex_face_3()
+
+
+    def insert_complex_face_4():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        hole_2 = [(50, 200), (150, 200), (150, 300), (50, 300)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    insert_complex_face_4()
 

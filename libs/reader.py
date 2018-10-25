@@ -202,8 +202,8 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name).from_boundary(perimeter)
 
-    # fixed_items = _get_load_bearings_walls(floor_plan_dict)
-    fixed_items = _get_fixed_items_perimeters(floor_plan_dict)
+    fixed_items = _get_load_bearings_walls(floor_plan_dict)
+    fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
 
     for fixed_item in fixed_items:
         if fixed_item[1] in space_categories:
