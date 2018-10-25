@@ -13,7 +13,7 @@ from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
 import matplotlib.pyplot as plt
 
-from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d
+from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
     unit_vector,
@@ -379,7 +379,7 @@ class Vertex:
         """
         for edge in edges:
             dist = edge.as_sp.distance(self.as_sp)
-            if dist < COORD_EPSILON:
+            if dist <= COORD_EPSILON:
                 return edge.split(self)
         return None
 
@@ -388,13 +388,15 @@ class Vertex:
                 length: float = LINE_LENGTH) -> LineString:
         """
         Returns a shapely LineString starting
-        from the vertex and following the vector
+        from the vertex, slightly moved in the opposite vector and following the vector
         and of the given length
         :param vector: direction of the lineString
         :param length: float length of the lineString
         :return:
         """
-        start_point = self.coords
+        vector = normalized_vector(vector)
+        # to ensure proper intersection we shift slightly the start point
+        start_point = move_point(self.coords, vector, -1/2 * COORD_EPSILON)
         end_point = (start_point[0] + vector[0] * length,
                      start_point[1] + vector[1] * length)
         return LineString([start_point, end_point])
@@ -833,6 +835,9 @@ class Edge:
         starting with itself
         :return: generator yielding each edge in the loop
         """
+        if not self.is_space_boundary:
+            raise ValueError('Cannot find space siblings from an edge' +
+                             ' that is not on the boundary of a space:{0}'.format(self))
         yield self
         edge = self.space_next
         # in order to detect infinite loop we stored each yielded edge
@@ -841,6 +846,8 @@ class Edge:
             if edge in seen:
                 raise Exception('Infinite space loop' +
                                 ' starting from edge:{0}'.format(self))
+            if not edge.is_space_boundary:
+                raise Exception('The space boundary is badly formed on edge:{0}'.format(edge))
             seen.append(edge)
             yield edge
             edge = edge.space_next
@@ -890,7 +897,7 @@ class Edge:
                 return True
         return False
 
-    def remove(self):
+    def remove(self) -> 'Face':
         """
         Removes the edge from the face. The corresponding faces are merged
         1. remove the face from the mesh
@@ -900,7 +907,7 @@ class Edge:
         """
         if not self.is_mutable:
             logging.warning('Cannot remove an immutable edge')
-            return
+            return self.face
 
         other_face = self.pair.face
         remaining_face = self.face
@@ -947,6 +954,8 @@ class Edge:
             if edge.next is edge.pair:
                 edge.remove()
                 break
+
+        return remaining_face
 
     def preserve_references(self, other: Optional['Edge'] = None):
         """
@@ -1051,7 +1060,7 @@ class Edge:
                   traverse: str = 'absolute',
                   vector: Optional[Vector2d] = None,
                   max_length: Optional[float] = None,
-                  callback: Optional[SpaceCutCb] = None) -> Optional[Tuple['Edge', 'Edge']]:
+                  callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1097,7 +1106,7 @@ class Edge:
         if new_edges is None:
             return None
 
-        new_edge_start, new_edge_end = new_edges
+        new_edge_start, new_edge_end, new_face = new_edges
 
         # call the callback
         stop = False
@@ -1124,7 +1133,7 @@ class Edge:
             vertex: Vertex,
             angle: float = 90.0,
             vector: Optional[Vector2d] = None,
-            max_length: Optional[float] = None) -> Optional[Tuple['Edge', 'Edge']]:
+            max_length: Optional[float] = None) -> TwoEdgesAndAFace:
         """
         Will cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1201,10 +1210,13 @@ class Edge:
         # to prevent recursion while laser cutting if the first_edge is the closest_edge next edge
         # we return a different edge as the next edge to cut
         if link_edge is None:
+            new_face = None
             if closest_edge.next is first_edge:
                 closest_edge_next = first_edge.pair.next
+        else:
+            new_face = link_edge.pair.face
 
-        return first_edge_next, closest_edge_next
+        return first_edge_next, closest_edge_next, new_face
 
     def laser_cut_at_barycenter(self, coeff: float,
                                 angle: float = 90.0) -> Optional[Tuple['Edge', 'Edge']]:
@@ -1423,6 +1435,14 @@ class Face:
         return (edge.start for edge in self.edges)
 
     @property
+    def coords(self):
+        """
+        Returns the list of the coordinates of the face
+        :return:
+        """
+        return [vertex.coords for vertex in self.vertices]
+
+    @property
     def as_sp(self) -> Polygon:
         """
         Returns a shapely Polygon corresponding to the face geometry
@@ -1518,6 +1538,46 @@ class Face:
             edge.face = other
 
         return self
+
+    def _slice(self, vertex: Vertex, vector: Vector2d) -> List['Face']:
+        """
+        Cuts a face according to a linestring
+        :param vertex:
+        :param vector:
+        :return:
+        """
+        line = vertex.sp_line(vector)
+        intersection_points = self.as_sp_linear_ring().intersection(line)
+
+        if intersection_points.is_empty:
+            logging.info('Cannot slice a face with a segment that does not intersect it')
+            return [self]
+
+        new_vertices = []
+        new_faces = [self]
+
+        if intersection_points.geom_type == 'LineString':
+            return new_faces
+
+        for geom_object in intersection_points:
+            if geom_object.geom_type == 'Point':
+                new_vertices.append(Vertex(*geom_object.coords[0]))
+
+            if geom_object.geom_type == 'LineString':
+                new_vertices.append(Vertex(*geom_object.coords[0]))
+                new_vertices.append(Vertex(*geom_object.coords[-1]))
+
+        for vertex in new_vertices:
+            new_edge = vertex.snap_to_edge(*self.edges)
+            if new_edge is None:
+                raise Exception('We should have found an intersection !!')
+            new_mesh_objects = new_edge.cut(vertex, vector=vector)
+            if new_mesh_objects:
+                start_edge, end_edge, new_face = new_mesh_objects
+                if new_face:
+                    new_faces.append(new_face)
+
+        return new_faces
 
     def _insert_enclosed_face(self, face: 'Face') -> List['Face']:
         """
@@ -1647,7 +1707,7 @@ class Face:
         sorted_faces = sorted(all_faces, key=attrgetter('area'), reverse=True)
         return sorted_faces
 
-    def _insert_identical_face(self, face):
+    def _insert_identical_face(self, face) -> List['Face']:
         """
         insert a identical face
         :param face:
@@ -1657,16 +1717,13 @@ class Face:
               ' no need to do anything: {0}'.format(face))
         return [self]  # NOTE : not sure this is best. Maybe we should swap self with face
 
-    def insert_face(self, face: 'Face') -> List['Face']:
+    def _insert_face(self, face: 'Face') -> List['Face']:
         """
-        Inserts the face if it fits inside the receiving face
-        Returns the list of the faces created inside the receiving face
-
+        Internal : inserts a face assuming the viability of the inserted face has been
+        previously checked
+        :param face:
+        :return:
         """
-        if not self.contains(face):
-            raise ValueError("Cannot insert a face that is not" +
-                             " entirely contained in the receiving face !:{0}".format(face))
-
         # add the new face to the mesh
         self.mesh.add_face(face)
 
@@ -1710,6 +1767,52 @@ class Face:
         # case 3 : touching face
         return self._insert_touching_face(shared_edges)
 
+    def insert_face(self, face: 'Face') -> List['Face']:
+        """
+        Inserts the face if it fits inside the receiving face
+        Returns the list of the faces created inside the receiving face
+
+        """
+        if not self.contains(face):
+            raise ValueError("Cannot insert a face that is not" +
+                             " entirely contained in the receiving face !:{0}".format(face))
+
+        # Check if the receiving face has an internal edge because this is a very special
+        # case and has to be treated differently : we have to split the face, add each
+        # split part and then merge the split part into the initial face
+        # Note : the same technique could be used to implement insertion of face overlapping
+        # several faces
+        internal_edge = None
+        for edge in self.edges:
+            if edge.pair.face is edge.face:
+                internal_edge = edge
+                break
+
+        if internal_edge:
+            logging.info('Inserting face in a face with an internal edge')
+            sliced_faces = face._slice(internal_edge.start, internal_edge.vector)
+            new_faces = []
+            # we create new faces
+            for face in sliced_faces:
+                new_faces.append(Mesh().from_boundary(face.coords).faces[0])
+            inserted_faces = []
+            for new_face in new_faces:
+                inserted_faces += self._insert_face(new_face)
+
+            return inserted_faces
+
+            # merge the faces
+            """remaining_new_face = new_faces[0]
+            for new_face in new_faces[1:]:
+                remaining_new_face = remaining_new_face.merge(new_face)
+                if new_face is not remaining_new_face:
+                    inserted_faces.remove(new_face)"""
+
+            # return the create faces
+            """return sorted(inserted_faces, key=attrgetter('area'), reverse=True)"""
+
+        return self._insert_face(face)
+
     def insert_face_from_boundary(self, perimeter: List[Coords2d]) -> List['Face']:
         """
         Insertes a face directly from a boundary
@@ -1751,11 +1854,26 @@ class Face:
         for vertex in vertex_1, vertex_2:
             edge = vertex.snap_to_edge(*self.edges)
             if edge is None:
-                logging.warning('Could not insert edge because vertex is not on the face boundary')
-                return None
+                raise ValueError('Could not insert edge because vertex is not on the face boundary')
             edges.append(edge)
 
         return edges[0]
+
+    def merge(self, other: 'Face') -> 'Face':
+        """
+        Merges two adjacent faces. In order to be merge they have to share at least one edge
+        :param other:
+        :return:
+        """
+        # find one shared edge and remove it
+        # Note : the remove method will cleanup the other remaining edges
+        for edge in self.edges:
+            if edge.pair.face is other:
+                shared_edge = edge
+                return shared_edge.remove()
+
+        logging.warning('Cannot merge two faces that do not share at least one edge:' +
+                        '{0}-{1}'.format(self, other))
 
     def plot(self,
              ax=None,
@@ -2049,25 +2167,69 @@ if __name__ == '__main__':
 
     # remove_edge()
 
-
-    def remove_complex_edge():
+    def insert_complex_face():
         """
         Test
         :return:
         """
         perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(100, 100), (400, 100), (400, 400), (100, 400)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
 
         mesh = Mesh().from_boundary(perimeter)
         mesh.faces[0].insert_face_from_boundary(hole)
 
+        hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
+
         mesh.plot(save=False)
         plt.show()
 
-        mesh.faces[1].edge.remove()
+    insert_complex_face()
+
+    def insert_complex_face_2():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
 
         mesh.plot(save=False)
         plt.show()
 
+    insert_complex_face_2()
 
-    remove_complex_edge()
+    def insert_complex_face_3():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        hole_2 = [(50, 200), (200, 200), (200, 300), (50, 300)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+    insert_complex_face_3()
+

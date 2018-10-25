@@ -4,7 +4,7 @@ Custom Types module
 Contains custom types for typing
 """
 
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Optional
 
 
 # Vector type and coords type
@@ -15,3 +15,6 @@ SpaceCutCb = Callable[[Tuple['Edge', 'Edge']], bool]
 
 # rectangular points
 FourCoords2d = Tuple[Coords2d, Coords2d, Coords2d, Coords2d]
+
+# edge, edge, face
+TwoEdgesAndAFace = Optional[Tuple['Edge', 'Edge', Optional['Face']]]

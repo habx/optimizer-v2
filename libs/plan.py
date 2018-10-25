@@ -72,13 +72,22 @@ class Plan:
         return (space for space in self.spaces)
 
     @property
+    def empty_spaces(self) -> Generator['Space', None, None]:
+        """
+        The first empty space of the plan
+        Note : the empty space is only used for the creation of the plan
+        :return:
+        """
+        return self.get_spaces(category='empty')
+
+    @property
     def empty_space(self) -> Optional['Space']:
         """
         The first empty space of the plan
         Note : the empty space is only used for the creation of the plan
         :return:
         """
-        return list(self.get_spaces(category='empty'))[0]
+        return list(self.empty_spaces)[0]
 
     @property
     def directions(self):
@@ -87,6 +96,40 @@ class Plan:
         :return:
         """
         return self.mesh.directions
+
+    def insert_space(self, boundary, category):
+        """
+        Inserts a face in an empty face
+        :param boundary
+        :param category
+        :return:
+        """
+        for empty_space in self.empty_spaces:
+            try:
+                empty_space.insert_space(boundary, category)
+                break
+            except ValueError:
+                pass
+        else:
+            logging.error('Could not insert the space in the plan:' +
+                          ' {0}, {1}'.format(boundary, category))
+
+    def insert_linear(self, point_1, point_2, category):
+        """
+        Inserts a face in an empty face
+        :param point_1
+        :param point_2
+        :param category
+        :return:
+        """
+        for empty_space in self.empty_spaces:
+            try:
+                empty_space.insert_linear(point_1, point_2, category)
+                break
+            except ValueError:
+                pass
+        else:
+            logging.error('Could not insert the linear in the plan')
 
     def plot(self, ax=None, show: bool = False, save: bool = True):
         """
@@ -439,7 +482,7 @@ class Space:
             if not face.is_linked_to_space():
                 self.plan.add_space(Space(self.plan, face))
 
-    def insert_space(self, boundary, category: SpaceCategory) -> 'Space':
+    def insert_space(self, boundary, category: SpaceCategory) ->'Space':
         """
         Adds a new space inside the first face of the space
         1. Create the corresponding face in the mesh
@@ -514,7 +557,7 @@ class Space:
             Callback to insure space consistency
             :param new_edges: Tuple of the new edges created by the cut
             """
-            start_edge, end_edge = new_edges
+            start_edge, end_edge, new_face = new_edges
             return end_edge.pair.space is not self
 
         edge.laser_cut(vertex, angle, traverse=traverse, callback=callback,
@@ -671,18 +714,19 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "Massy_C204.json"
+        input_file = "Antony_B14.json"
         plan = reader.create_plan_from_file(input_file)
+        """
         empty_space = plan.empty_space
-
         boundary_edges = list(empty_space.edges)
 
         for edge in boundary_edges:
             if edge.length > 30:
                 empty_space.cut_at_barycenter(edge, 0)
                 empty_space.cut_at_barycenter(edge, 1)
+         """
 
-        plan.plot()
+        plan.plot(save=False)
         plt.show()
 
         assert plan.check()

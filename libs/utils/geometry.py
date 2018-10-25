@@ -107,13 +107,13 @@ def unit_vector(angle: float) -> Vector2d:
     return np.cos(rad), np.sin(rad)
 
 
-def normal(vector: Vector2d) -> Vector2d:
+def normal_vector(vector: Vector2d) -> Vector2d:
     """
     A CCW normal of the edge of length 1
     :return: a tuple containing x, y values
     """
-    normal_vector = -vector[1], vector[0]
-    return normalized_vector(normal_vector)
+    vector = -vector[1], vector[0]
+    return normalized_vector(vector)
 
 
 def normalized_vector(vector: Vector2d) -> Vector2d:

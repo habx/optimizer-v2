@@ -5,6 +5,7 @@ Category module : describes the type of space or linear that can be used in a pr
 
 CATEGORIES_COLORS = {
     'duct': 'k',
+    'loadBearingWall': 'k',
     'window': '#FFCB19',
     'doorWindow': '#FFCB19',
     'entrance': 'r',
@@ -55,12 +56,14 @@ linear_categories = {
     'door': LinearCategory('door', aperture=True),
     'doorWindow': LinearCategory('doorWindow', False, True),
     'frontDoor': LinearCategory('frontDoor', False, True),
-    'wall': LinearCategory('wall')
+    'wall': LinearCategory('wall'),
+    'externalWall': LinearCategory('externalWall', False, width=2.0)
 }
 
 space_categories = {
     'empty': SpaceCategory('empty'),
     'duct': SpaceCategory('duct', False),
+    'loadBearingWall': SpaceCategory('loadBearingWall', False),
     'chamber': SpaceCategory('chamber'),
     'living': SpaceCategory('living'),
     'entrance': SpaceCategory('entrance'),

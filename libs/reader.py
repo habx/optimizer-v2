@@ -13,7 +13,7 @@ from libs.utils.geometry import (
     point_dict_to_tuple,
     barycenter,
     direction_vector,
-    normal,
+    normal_vector,
     move_point
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
@@ -57,6 +57,7 @@ INPUT_FILES = [
     "Vernouillet_A003.json",
     "Vernouillet_A105.json"
 ]
+LOAD_BEARING_WALL_WIDTH = 15.0
 
 
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
@@ -92,12 +93,22 @@ def _get_fixed_item_perimeter(fixed_item: Dict,
     coef_2 = fixed_item['coef2']
     point_1 = barycenter(vertex_1, vertex_2, coef_1 / 1000)
     point_2 = barycenter(vertex_1, vertex_2, coef_2 / 1000)
+    return _rectangle_from_segment((point_1, point_2), width)
 
+
+def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) -> FourCoords2d:
+    """
+    Creates a rectangle from a segment and a width
+    :param segment: 
+    :param width: 
+    :return: 
+    """
+    point_1, point_2 = segment
     vector = direction_vector(point_1, point_2)
-    normal_vector = normal(vector)
+    vector = normal_vector(vector)
 
-    point_3 = move_point(point_2, normal_vector, width)
-    point_4 = move_point(point_1, normal_vector, width)
+    point_3 = move_point(point_2, vector, width)
+    point_4 = move_point(point_1, vector, width)
 
     return point_1, point_2, point_3, point_4
 
@@ -120,6 +131,46 @@ def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[C
     for fixed_item in fixed_items:
         coords = _get_fixed_item_perimeter(fixed_item, vertices)
         output.append((coords, fixed_item['type']))
+
+    return output
+
+
+def _get_load_bearing_wall_perimeter(load_bearing_wall, vertices) -> Sequence[Coords2d]:
+    """
+    Returns a rectangular perimeter around the wall
+    Expect the following data model :
+    "loadBearingWalls": [
+      [
+        9,
+        8
+      ]
+    ],
+    :param load_bearing_wall:
+    :param vertices:
+    :return:
+    """
+
+    wall_points = [point_dict_to_tuple(vertices[ix]) for ix in load_bearing_wall]
+    normal = normal_vector(direction_vector(*wall_points))
+    point_1 = move_point(wall_points[0], normal, 1)
+    point_2 = move_point(wall_points[1], normal,  1)
+
+    return _rectangle_from_segment((point_1, point_2), LOAD_BEARING_WALL_WIDTH)
+
+
+def _get_load_bearings_walls(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, str]]:
+    """
+    Returns a proper format with type and coordinates for each load bearing wall
+    :param input_floor_plan_dict:
+    :return:
+    """
+    apartment = input_floor_plan_dict['apartment']
+    vertices = apartment['vertices']
+    load_bearing_walls = apartment['loadBearingWalls']
+    output = []
+    for load_bearing_wall in load_bearing_walls:
+        coords = _get_load_bearing_wall_perimeter(load_bearing_wall, vertices)
+        output.append((coords, 'loadBearingWall'))
 
     return output
 
@@ -150,15 +201,15 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name).from_boundary(perimeter)
-    empty_space = my_plan.empty_space
 
+    # fixed_items = _get_load_bearings_walls(floor_plan_dict)
     fixed_items = _get_fixed_items_perimeters(floor_plan_dict)
 
     for fixed_item in fixed_items:
         if fixed_item[1] in space_categories:
-            empty_space.insert_space(fixed_item[0], category=space_categories[fixed_item[1]])
+            my_plan.insert_space(fixed_item[0], category=space_categories[fixed_item[1]])
         if fixed_item[1] in linear_categories:
-            empty_space.insert_linear(fixed_item[0][0], fixed_item[0][1],
-                                      category=linear_categories[fixed_item[1]])
+            my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
+                                  category=linear_categories[fixed_item[1]])
 
     return my_plan
