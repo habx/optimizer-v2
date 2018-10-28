@@ -383,14 +383,22 @@ class Vertex:
             # if the vertex has an edge we make sure that we snap to the correct edge pair.
             # this is needed only for internal edge
             if self.edge is not None and edge.is_internal:
-                if dot_product(edge.normal, self.edge.opposite_vector) > 0:
+                if dot_product(edge.normal, self.edge.vector) < 0:
                     continue
-                if dot_product(edge.normal, self.edge.opposite_vector) == 0:
-                    if dot_product(edge.vector, self.edge.opposite_vector) > 0:
-                        continue
+                if (dot_product(edge.normal, self.edge.vector) == 0
+                        and dot_product(edge.vector, self.edge.vector) < 0):
+                    continue
             dist = edge.as_sp.distance(self.as_sp)
             if dist <= COORD_EPSILON:
-                return edge.split(self)
+                new_edge = edge.split(self)
+                # check if we have a correct edge : TODO change this to something less horrible
+                if self.edge is not None and new_edge.is_internal:
+                    if dot_product(new_edge.normal, self.edge.vector) < 0:
+                        continue
+                    if (dot_product(new_edge.normal, self.edge.vector) == 0
+                            and dot_product(new_edge.vector, self.edge.vector) < 0):
+                        continue
+                return new_edge
         return None
 
     def sp_line(self,
@@ -1505,6 +1513,15 @@ class Face:
         """
         return self.as_sp.length
 
+    @property
+    def internal_edges(self) -> Generator[Edge, None, None]:
+        """
+        Returns the internal edges of the face.
+        An internal edge is defined has having the same face as its pair
+        :return:
+        """
+        return (edge for edge in self.edges if edge.pair.face is self)
+
     def add_to_mesh(self, mesh: 'Mesh') -> 'Face':
         """
         Adds the face to a mesh
@@ -1566,17 +1583,21 @@ class Face:
         """
         line = vertex.sp_line(vector)
         intersection_points = self.as_sp_linear_ring().intersection(line)
+        new_faces = [self]
 
         if intersection_points.is_empty:
             logging.info('Cannot slice a face with a segment that does not intersect it')
-            return [self]
-
-        new_vertices = []
-        new_faces = [self]
+            return new_faces
 
         if intersection_points.geom_type == 'LineString':
             logging.info('While slicing only found a lineString as intersection')
             return new_faces
+
+        if intersection_points.geom_type == 'Point':
+            logging.info('While slicing only found a point as intersection')
+            return new_faces
+
+        new_vertices = []
 
         for geom_object in intersection_points:
             if geom_object.geom_type == 'Point':
@@ -1589,7 +1610,7 @@ class Face:
         for vertex in new_vertices:
             new_edge = vertex.snap_to_edge(*self.edges)
             if new_edge is None:
-                raise Exception('We should have found an intersection !!')
+                raise Exception('This is impossible ! We should have found an intersection !!')
             new_mesh_objects = new_edge.cut(vertex, vector=vector)
             if new_mesh_objects:
                 start_edge, end_edge, new_face = new_mesh_objects
@@ -1616,6 +1637,7 @@ class Face:
 
         # find the closest vertex of the face to the boundary of the receiving face
         # according to the mesh two main directions
+        # TODO change this to closest orthogonal cut
         min_distance = None
         best_vertex = None
         best_near_vertex = None
@@ -1781,7 +1803,9 @@ class Face:
         # case 3 : touching face
         return self._insert_touching_face(shared_edges)
 
-    def _insert_face_over_internal_edge(self, face: 'Face', internal_edge: Edge) -> List['Face']:
+    def _insert_face_over_internal_edge(self,
+                                        face: 'Face',
+                                        internal_edges: List[Edge]) -> List['Face']:
         """
         Inserts a face that overlaps an internal edge of the receiving face.
         This is hard.
@@ -1794,13 +1818,19 @@ class Face:
         :param face:
         :return:
         """
-        logging.info('Inserting face in a face with an internal edge')
-        # we slice the face if needed
+        # we slice the face if needed, we check each internal edges
         face_copy = copy.deepcopy(face)
-        sliced_faces = face_copy._slice(internal_edge.start, internal_edge.vector)
-        # if no face was created just proceed
+        sliced_faces = [face_copy]
+        for internal_edge in internal_edges:
+            sliced_faces_temp = copy.copy(sliced_faces)
+            for sliced_face in sliced_faces_temp:
+                sliced_faces.remove(sliced_face)  # to prevent duplicates
+                sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector)
+        # if no face was created we proceed with a standard insert
         if len(sliced_faces) == 1:
             return self._insert_face(face)
+
+        logging.info('Inserting face in a face overlapping an internal edge')
         # else add each new face
         # first store the shared edges for ulterior merge
         edges_to_remove = []
@@ -1813,10 +1843,19 @@ class Face:
         # a bit brutal, a better way is certainly possible ;-)
         for sliced_face in sliced_faces:
             new_faces.append(Mesh().from_boundary(sliced_face.coords).faces[0])
-        inserted_faces = []
+        # insert the new faces in the containing face
+        # Note : we have to try for each face created
+        container_faces = [self]
         for new_face in new_faces:
-            new_inserted_face = self._insert_face(new_face)
-            inserted_faces += new_inserted_face
+            container_faces_copy = copy.copy(container_faces)
+            for container_face in container_faces_copy:
+                try:
+                    new_inserted_faces = container_face._insert_face(new_face)
+                    container_faces.remove(container_face)
+                    container_faces += new_inserted_faces
+                    break
+                except ValueError:
+                    continue
 
         # merge the faces
         remaining_face = new_faces[0]
@@ -1832,7 +1871,7 @@ class Face:
         face.edge = remaining_face.edge
 
         # return the create faces
-        created_faces = sorted(inserted_faces, key=attrgetter('area'), reverse=True)
+        created_faces = sorted(container_faces, key=attrgetter('area'), reverse=True)
         return created_faces
 
     def insert_face(self, face: 'Face') -> List['Face']:
@@ -1852,13 +1891,9 @@ class Face:
 
         # Check if the receiving face has an internal edge because this is a very special
         # case and has to be treated differently
-        internal_edge = None
-        for edge in self.edges:
-            if edge.pair.face is edge.face:
-                internal_edge = edge
-                break
-        if internal_edge:
-            return self._insert_face_over_internal_edge(face, internal_edge)
+        internal_edges = list(self.internal_edges)
+        if internal_edges:
+            return self._insert_face_over_internal_edge(face, internal_edges)
 
         return self._insert_face(face)
 
@@ -2236,7 +2271,7 @@ if __name__ == '__main__':
         mesh.plot(save=False)
         plt.show()
 
-    insert_complex_face()
+    # insert_complex_face()
 
     def insert_complex_face_2():
         """
@@ -2258,7 +2293,7 @@ if __name__ == '__main__':
         mesh.plot(save=False)
         plt.show()
 
-    insert_complex_face_2()
+    # insert_complex_face_2()
 
     def insert_complex_face_3():
         """
@@ -2280,7 +2315,29 @@ if __name__ == '__main__':
         mesh.plot(save=False)
         plt.show()
 
-    insert_complex_face_3()
+    # insert_complex_face_3()
+
+    def insert_complex_face_5():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+    # insert_complex_face_5()
 
 
     def insert_complex_face_4():
@@ -2304,5 +2361,56 @@ if __name__ == '__main__':
         plt.show()
 
 
-    insert_complex_face_4()
+    # insert_complex_face_4()
 
+    def insert_multiple_overlapping():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
+        hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        hole_3 = [(20, 50), (60, 50), (60, 450), (20, 450)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_3)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    # insert_multiple_overlapping()
+
+
+    def insert_multiple_overlapping_closing():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
+        hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        hole_3 = [(20, 0), (60, 0), (60, 220), (500, 220), (500, 280),
+                  (60, 280), (60, 500), (20, 500)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_3)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    insert_multiple_overlapping_closing()

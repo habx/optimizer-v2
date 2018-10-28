@@ -145,6 +145,7 @@ def _get_load_bearing_wall_perimeter(load_bearing_wall, vertices) -> Sequence[Co
         8
       ]
     ],
+    TODO : treat the case of contiguous wall
     :param load_bearing_wall:
     :param vertices:
     :return:

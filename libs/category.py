@@ -24,6 +24,9 @@ class Category:
         self.mutable = mutable
         self.color = CATEGORIES_COLORS.get(self.name, color)
 
+    def __repr__(self):
+        return self.name
+
 
 class SpaceCategory(Category):
     """

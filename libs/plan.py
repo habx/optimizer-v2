@@ -708,6 +708,8 @@ class Linear:
 if __name__ == '__main__':
 
     import libs.reader as reader
+    logging.getLogger().setLevel(logging.INFO)
+
 
     def floor_plan():
         """
@@ -716,6 +718,7 @@ if __name__ == '__main__':
         """
         input_file = "Antony_B14.json"
         plan = reader.create_plan_from_file(input_file)
+
         """
         empty_space = plan.empty_space
         boundary_edges = list(empty_space.edges)
