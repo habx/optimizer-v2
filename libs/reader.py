@@ -209,6 +209,7 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     for fixed_item in fixed_items:
         if fixed_item[1] in space_categories:
             my_plan.insert_space(fixed_item[0], category=space_categories[fixed_item[1]])
+            pass
         if fixed_item[1] in linear_categories:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
                                   category=linear_categories[fixed_item[1]])

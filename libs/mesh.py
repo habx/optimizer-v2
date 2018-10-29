@@ -14,6 +14,7 @@ from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
 import matplotlib.pyplot as plt
 
+from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
@@ -271,7 +272,7 @@ class Vertex:
         :param other:
         :return:
         """
-        return self.distance_to(other) < COORD_EPSILON
+        return self.distance_to(other) <= COORD_EPSILON
 
     def nearest_point(self, face: 'Face') -> 'Vertex':
         """
@@ -382,7 +383,7 @@ class Vertex:
         for edge in edges:
             # if the vertex has an edge we make sure that we snap to the correct edge pair.
             # this is needed only for internal edge
-            if self.edge is not None and edge.is_internal:
+            if self.edge is not None:
                 if dot_product(edge.normal, self.edge.vector) < 0:
                     continue
                 if (dot_product(edge.normal, self.edge.vector) == 0
@@ -955,6 +956,7 @@ class Edge:
             if self.face is not None:
                 self.face.remove_from_mesh()
                 remaining_face = other_face
+                other_face = self.face
             else:
                 other_face.remove_from_mesh()
                 for edge in self.pair.siblings:
@@ -966,6 +968,20 @@ class Edge:
             # preserve references
             self.preserve_references()
             self.pair.preserve_references()
+
+            # check for space next references
+            # check if edge was a space boundary
+            if self.is_space_boundary:
+                if self.face is remaining_face:
+                    self.face.space.add_face(other_face)
+                else:
+                    self.space.remove_face(other_face)
+
+            if self.pair.is_space_boundary:
+                if self.pair.face is remaining_face:
+                    self.pair.face.space.add_face(other_face)
+                else:
+                    self.pair.space.remove_face(other_face)
 
             # stitch the edge extremities
             self.pair.previous.next = self.next
@@ -1562,6 +1578,29 @@ class Face:
         """
         return self.as_sp_dilated.contains(other.as_sp)
 
+    def crosses(self, other: 'Face') -> bool:
+        """
+        Returns true if the face are overlapping but the other face is not contained inside the face
+        :param other:
+        :return:
+        """
+        return self.as_sp_dilated.crosses(other.as_sp)
+
+    def is_insertable(self, other: 'Face') -> bool:
+        """
+        Returns True if the other face can be inserted in the face
+        :param other:
+        :return:
+        """
+        if not self.contains(other):
+            if self.crosses(other):
+                raise ValueError("Cannot insert a face that is" +
+                                 " crossing the receiving face !:{0}".format(other))
+            else:
+                logging.info('Other face is outside receiving face: {0} -> {1}'.format(other, self))
+                raise OutsideFaceError()
+        return True
+
     def add_exterior(self, other: 'Face') -> 'Face':
         """
         Assigns to the external edge the provided face.
@@ -1765,6 +1804,9 @@ class Face:
         :param face:
         :return:
         """
+        # check if the face can be inserted
+        self.is_insertable(face)
+
         # add all pair edges to face
         face.add_exterior(self)
 
@@ -1776,7 +1818,9 @@ class Face:
 
         for vertex in self.vertices:
             face_edges = list(face.edges)
-            vertex.snap_to_edge(*face_edges)
+            new_edge = vertex.snap_to_edge(*face_edges)
+            if new_edge is not None:
+                logging.info('Snapped a vertex from the receiving face: {0}'.format(vertex))
 
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
@@ -1851,10 +1895,12 @@ class Face:
             for container_face in container_faces_copy:
                 try:
                     new_inserted_faces = container_face._insert_face(new_face)
+                    self.mesh.add_face(new_face)  # we need this for proper clean-up
+                    new_face.space = self.space
                     container_faces.remove(container_face)
                     container_faces += new_inserted_faces
                     break
-                except ValueError:
+                except OutsideFaceError:
                     continue
 
         # merge the faces
@@ -1869,6 +1915,7 @@ class Face:
         for edge in remaining_face.edges:
             edge.face = face
         face.edge = remaining_face.edge
+        self.mesh.remove_face(remaining_face)
 
         # return the create faces
         created_faces = sorted(container_faces, key=attrgetter('area'), reverse=True)
@@ -1880,9 +1927,8 @@ class Face:
         Returns the list of the faces created inside the receiving face
         including the receiving face
         """
-        if not self.contains(face):
-            raise ValueError("Cannot insert a face that is not" +
-                             " entirely contained in the receiving face !:{0}".format(face))
+        # check if the face can be inserted
+        self.is_insertable(face)
 
         # add the new face to the mesh
         self.mesh.add_face(face)
@@ -1899,14 +1945,19 @@ class Face:
 
     def insert_face_from_boundary(self, perimeter: List[Coords2d]) -> List['Face']:
         """
-        Insertes a face directly from a boundary
+        Inserts a face directly from a boundary
         :param perimeter:
         :return: the biggest face
         """
 
         mesh = Mesh().from_boundary(perimeter)
         face_to_insert = mesh.faces[0]
-        return self.insert_face(face_to_insert)
+        new_faces = self.insert_face(face_to_insert)
+
+        if self.space is not None:
+            self.space.face = new_faces[0]
+
+        return new_faces
 
     def is_linked_to_space(self):
         """
@@ -1938,7 +1989,8 @@ class Face:
         for vertex in vertex_1, vertex_2:
             edge = vertex.snap_to_edge(*self.edges)
             if edge is None:
-                raise ValueError('Could not insert edge because vertex is not on the face boundary')
+                raise OutsideVertexError('Could not insert edge because vertex' +
+                                         ' is not on the face boundary')
             edges.append(edge)
 
         return edges[0]
@@ -2414,3 +2466,71 @@ if __name__ == '__main__':
 
 
     insert_multiple_overlapping_closing()
+
+    def insert_very_close_border_duct():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 250), (250, 250), (250, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(250, 251.01), (250, 200), (400, 200), (400, 251.01)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    insert_very_close_border_duct()
+
+    def insert_complex_face_6():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+
+        hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
+
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+
+    insert_complex_face_6()
+
+
+    def insert_two_faces_on_internal_edge():
+        """
+        Test
+        :return:
+        """
+
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
+
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.faces[0].insert_face_from_boundary(hole)
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+        mesh.faces[2].insert_face_from_boundary(hole_3)
+
+        mesh.check()
+
+        mesh.plot(save=False)
+        plt.show()
+
+    insert_two_faces_on_internal_edge()
+
+

@@ -14,6 +14,7 @@ from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge
 from libs.utils.custom_types import Coords2d
+from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 
 
 class Plan:
@@ -108,8 +109,8 @@ class Plan:
             try:
                 empty_space.insert_space(boundary, category)
                 break
-            except ValueError:
-                pass
+            except OutsideFaceError:
+                continue
         else:
             logging.error('Could not insert the space in the plan:' +
                           ' {0}, {1}'.format(boundary, category))
@@ -126,7 +127,7 @@ class Plan:
             try:
                 empty_space.insert_linear(point_1, point_2, category)
                 break
-            except ValueError:
+            except OutsideVertexError:
                 pass
         else:
             logging.error('Could not insert the linear in the plan')
@@ -328,13 +329,14 @@ class Space:
         """
         return edge.face is None or edge.face.space is not self
 
-    def add_face(self, face: Face):
+    def add_face(self, face: Face, start_from: Optional[Edge] = None):
         """
         Adds a face to the space and adjust the edges list accordingly
         If the added face belongs to another space we first need to remove it from the space
-        We do not enable to add a face inside a hole in the face
+        We do not enable to add a face inside a hole in the face (enclosed face)
         TODO : if the face belongs to another Space we should also correct the other Space boundary
         :param face: face to add to space
+        :param start_from: an edge to start the adjacency search from
         """
         # if the space has no faces yet just add the face as the reference for the Space
         if self.face is None:
@@ -346,35 +348,46 @@ class Space:
             raise ValueError('Cannot add a face that already ' +
                              'belongs to the space: {0}'.format(face))
 
+        # we start the search for a boundary edge from the start_from edge or the face edge
+        start_from = start_from or face.edge
+
         # else we make sure the new face is adjacent to at least one of the space faces
-        shared_edges = []
-        for edge in face.edges:
-            if self.is_boundary(edge.pair):
-                shared_edges.append(edge)
+        space_edges = []
+        for edge in start_from.siblings:
+            if not space_edges:
+                # first boundary edge found
+                if self.is_boundary(edge.pair):
+                    space_edges.append(edge)
+                    break
             else:
-                if shared_edges:
+                # note : we only keep "connected" space boundaries
+                if self.is_boundary(edge.pair) and edge.pair.space_next is space_edges[-1].pair:
+                    space_edges.append(edge)
+                else:
                     break
         else:
             raise ValueError('Cannot add a face that is not adjacent' +
                              ' to the space:{0}'.format(face))
 
-        # check for previously shared edges:
-        edge = shared_edges[0].previous
-        while self.is_boundary(edge.pair):
-            if edge in shared_edges:
+        # check for previous space boundaries:
+        edge = space_edges[0].pair.space_next.pair
+        while edge.face is face:
+            if edge in space_edges:
                 raise ValueError('Cannot add a face that is completely enclosed in the Space')
-            shared_edges.insert(0, edge)
-            edge = edge.previous
+            space_edges.insert(0, edge)
+            edge = edge.pair.space_next.pair
 
-        end_edge = shared_edges[-1]
-        start_edge = shared_edges[0]
+        end_edge = space_edges[-1]
+        start_edge = space_edges[0]
 
         end_edge.pair.space_previous.space_next = end_edge.next
         start_edge.previous.space_next = start_edge.pair.space_next
 
-        for edge in shared_edges:
+        # remove the old space references
+        for edge in space_edges:
             edge.pair.space_next = None
 
+        # add the new space references inside the added face
         for edge in end_edge.next.siblings:
             if edge.next is start_edge:
                 break
@@ -388,7 +401,7 @@ class Space:
         Remove a face from the space and adjust the edges list accordingly
         :param face: face to remove from space
         """
-        if face not in self.faces:
+        if face.space is not self or face not in self.faces:
             raise ValueError('Cannot remove a face' +
                              ' that does not belong to the space:{0}'.format(face))
 
@@ -403,10 +416,11 @@ class Space:
             else:
                 self.face = None
                 self.edge = None
-                logging.info('INFO: removing only face left in the Space: {0}'.format(self))
+                logging.info('Removing only face left in the Space: {0}'.format(self))
                 return
 
-        # 2 : check if the space edge belongs to the face:
+        # 2 : check if the space edge belongs to the face and assign another to
+        #     preserve space edge reference
         if self.edge in face.edges:
             for boundary_edge in self.edge.space_siblings:
                 if boundary_edge is not self.edge and boundary_edge.face is not face:
@@ -415,7 +429,7 @@ class Space:
             else:
                 raise ValueError('Something is wrong with this space structure !')
 
-        # 2 : find a touching edge or an enclosed face
+        # 2 : find a boundary edge or an enclosed face
         same_face = True
         exit_edge = None
         enclosed_face = None
@@ -444,6 +458,7 @@ class Space:
             while edge is not exit_edge:
                 edge.space_next = edge.next
                 edge = edge.next
+            face.space = None
             return
 
         # CASE 2 : touching face
@@ -716,7 +731,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "Antony_B14.json"
+        input_file = "Noisy_A145.json"
         plan = reader.create_plan_from_file(input_file)
 
         """
@@ -734,4 +749,131 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-    floor_plan()
+    # floor_plan()
+
+    def add_overlapping_face():
+        """
+        Test. Create a new face, remove it, then add it again.
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+        hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
+
+        plan = Plan().from_boundary(perimeter)
+
+        # add complex face
+        plan.empty_space.face.insert_face_from_boundary(hole)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_2)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+
+    # add_overlapping_face()
+
+    def add_border_overlapping_face():
+        """
+        Test. Create a new face, remove it, then add it again.
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+        hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
+
+        plan = Plan().from_boundary(perimeter)
+
+        # add complex face
+        plan.empty_space.face.insert_face_from_boundary(hole)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_2)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        # plan.empty_space.remove_face(face_to_remove)
+
+        plan.mesh.plot(save=False)
+        plt.show()
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+
+    add_border_overlapping_face()
+
+
+    def add_face_touching_internal_edge():
+        """
+        Test. Create a new face, remove it, then add it again.
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+        hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
+        hole_3 = [(50, 200), (150, 200), (150, 300), (50, 300)]
+
+        plan = Plan().from_boundary(perimeter)
+
+        # add complex face
+        plan.empty_space.face.insert_face_from_boundary(hole)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_2)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_3)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        plan.empty_space.remove_face(face_to_remove)
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+    # add_face_touching_internal_edge()
+
+    def add_two_face_touching_internal_edge_and_border():
+        """
+        Test. Create a new face, remove it, then add it again.
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
+
+        plan = Plan().from_boundary(perimeter)
+
+        # add complex face
+        plan.empty_space.face.insert_face_from_boundary(hole)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        # plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_2)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        # plan.empty_space.remove_face(face_to_remove)
+
+        plan.empty_space.face.insert_face_from_boundary(hole_3)
+        face_to_remove = list(plan.empty_space.faces)[1]
+        # plan.empty_space.remove_face(face_to_remove)
+
+        plan.plot(save=False)
+        plt.show()
+
+        plan.mesh.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+    add_two_face_touching_internal_edge_and_border()
