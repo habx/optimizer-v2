@@ -2,7 +2,7 @@
 """
 Reader module : Used to read file from json input and create a plan.
 """
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Sequence, Tuple, List
 import os
 import json
 
@@ -135,7 +135,8 @@ def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[C
     return output
 
 
-def _get_load_bearing_wall_perimeter(load_bearing_wall, vertices) -> Sequence[Coords2d]:
+def _get_load_bearing_wall_perimeter(load_bearing_wall: List[int],
+                                     vertices: Sequence[Dict[str, str]]) -> Sequence[Coords2d]:
     """
     Returns a rectangular perimeter around the wall
     Expect the following data model :
@@ -208,7 +209,8 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
 
     for fixed_item in fixed_items:
         if fixed_item[1] in space_categories:
-            my_plan.insert_space(fixed_item[0], category=space_categories[fixed_item[1]])
+            my_plan.insert_space_from_boundary(fixed_item[0],
+                                               category=space_categories[fixed_item[1]])
             pass
         if fixed_item[1] in linear_categories:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],

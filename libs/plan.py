@@ -15,6 +15,7 @@ from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge
 from libs.utils.custom_types import Coords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
+from libs.utils.decorator_timer import DecoratorTimer
 
 
 class Plan:
@@ -91,19 +92,22 @@ class Plan:
         return list(self.empty_spaces)[0]
 
     @property
-    def directions(self):
+    def directions(self) -> Sequence[Tuple[float, float]]:
         """
         Returns the main directions of the mesh of the plan
         :return:
         """
         return self.mesh.directions
 
-    def insert_space(self, boundary, category):
+    def insert_space_from_boundary(self,
+                                   boundary: Sequence[Tuple[Coords2d]],
+                                   category: SpaceCategory = space_categories['empty']):
         """
-        Inserts a face in an empty face
+        Inserts a new space inside the reference face of the space.
+        By design, will not insert a space overlapping several faces of the receiving space.
+        The new space is designed from the boundary. By default, the category is empty.
         :param boundary
         :param category
-        :return:
         """
         for empty_space in self.empty_spaces:
             try:
@@ -112,10 +116,12 @@ class Plan:
             except OutsideFaceError:
                 continue
         else:
-            logging.error('Could not insert the space in the plan:' +
-                          ' {0}, {1}'.format(boundary, category))
+            # this should probably raise an exception but too many input blueprints are
+            # incorrect due to wrong load bearing walls geometry, it would fail too many tests
+            logging.error('Could not insert the space in the plan because it overlaps other non' +
+                          ' empty spaces: {0}, {1}'.format(boundary, category))
 
-    def insert_linear(self, point_1, point_2, category):
+    def insert_linear(self, point_1: Coords2d, point_2: Coords2d, category: LinearCategory):
         """
         Inserts a face in an empty face
         :param point_1
@@ -130,7 +136,8 @@ class Plan:
             except OutsideVertexError:
                 pass
         else:
-            logging.error('Could not insert the linear in the plan')
+            raise ValueError('Could not insert the linear in the plan:' +
+                             '[{0},{1}] - {2}'.format(point_1, point_2, category))
 
     def plot(self, ax=None, show: bool = False, save: bool = True):
         """
@@ -156,7 +163,7 @@ class Plan:
         is_valid = self.mesh.check()
 
         for space in self.spaces:
-            is_valid = space.check()
+            is_valid = is_valid and space.check()
 
         if is_valid:
             logging.info('Checking plan: ' + '✅ 0K')
@@ -277,7 +284,7 @@ class Space:
 
         return _perimeter
 
-    def is_boundary(self, edge):
+    def is_boundary(self, edge: Edge) -> bool:
         """
         Returns True if the edge is on the boundary of the space.
         :param edge:
@@ -288,9 +295,9 @@ class Space:
 
         return edge.is_space_boundary
 
-    def starts_from_boundary(self, edge) -> Optional[Edge]:
+    def starts_from_boundary(self, edge: Edge) -> Optional[Edge]:
         """
-        Returns True if the edge belongs to the Space and starts from a boundary edge
+        Returns the boundary edge if the edge belongs to the Space and starts from a boundary edge
         :param edge:
         :return:
         """
@@ -310,7 +317,7 @@ class Space:
 
         return None
 
-    def is_internal(self, edge):
+    def is_internal(self, edge: Edge) -> bool:
         """
         Returns True if the edge is internal of the space
         :param edge:
@@ -321,7 +328,7 @@ class Space:
 
         return not self.is_boundary(edge)
 
-    def is_outside(self, edge):
+    def is_outside(self, edge: Edge) -> bool:
         """
         Return True if the edge is outside of the space (not on the boundary or inside)
         :param edge:
@@ -358,7 +365,6 @@ class Space:
                 # first boundary edge found
                 if self.is_boundary(edge.pair):
                     space_edges.append(edge)
-                    break
             else:
                 # note : we only keep "connected" space boundaries
                 if self.is_boundary(edge.pair) and edge.pair.space_next is space_edges[-1].pair:
@@ -366,8 +372,11 @@ class Space:
                 else:
                     break
         else:
-            raise ValueError('Cannot add a face that is not adjacent' +
-                             ' to the space:{0}'.format(face))
+            if not space_edges:
+                raise ValueError('Cannot add a face that is not adjacent' +
+                                 ' to the space:{0}'.format(face))
+            else:
+                raise ValueError('Cannot add a face that is completely enclosed in the Space')
 
         # check for previous space boundaries:
         edge = space_edges[0].pair.space_next.pair
@@ -472,9 +481,7 @@ class Space:
 
         previous_edge, previous_space_edge, previous_ante_space_edge = edges[-1]
         for edge_tuple in edges:
-
             edge, space_edge, ante_space_edge = edge_tuple
-
             if space_edge is not None:
                 if space_edge is not edge:
                     edge.pair.space_next = space_edge
@@ -484,7 +491,6 @@ class Space:
                     ante_space_edge.space_next = previous_edge.pair
             else:
                 edge.pair.space_next = previous_edge.pair
-
             previous_edge, previous_space_edge, previous_ante_space_edge = edge_tuple
 
         # check for separated faces
@@ -495,16 +501,30 @@ class Space:
         # check if we still find every face
         for face in space_faces:
             if not face.is_linked_to_space():
-                self.plan.add_space(Space(self.plan, face))
+                # if the boundary edge of the face belong to a disconnected face
+                # we must change it (TODO : we could find a cleaner way...)
+                if self.edge.face is face:
+                    for other_face in space_faces:
+                        if other_face is face:
+                            continue
+                        if other_face.space is self:
+                            for edge in other_face.edges:
+                                if self.is_boundary(edge):
+                                    self.edge = edge
+                                    break
+                            if self.edge.face is not face:
+                                break
+                # create a new space of the same category
+                self.plan.add_space(Space(self.plan, face, category=self.category))
 
-    def insert_space(self, boundary, category: SpaceCategory) ->'Space':
+    def insert_space(self,
+                     boundary: Sequence[Coords2d],
+                     category: SpaceCategory = space_categories['empty']) ->'Space':
         """
         Adds a new space inside the first face of the space
-        1. Create the corresponding face in the mesh
-        2. Create the fixedItem instance of the proper type
         :param boundary:
         :param category:
-        :return:
+        :return: the new space
         """
         # create the mesh of the fixed space
         space_mesh = Mesh().from_boundary(boundary)
@@ -567,7 +587,7 @@ class Space:
         # than apply a grid generation to these spaces
         # max_length = max_length if max_length is not None else edge.max_length
 
-        def callback(new_edges: Optional[Tuple[Edge, Edge]]):
+        def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
             Callback to insure space consistency
             :param new_edges: Tuple of the new edges created by the cut
@@ -606,7 +626,7 @@ class Space:
 
         return ax
 
-    def check(self):
+    def check(self) -> bool:
         """
         Check consistency of space
         :return:
@@ -666,7 +686,7 @@ class Linear:
         value.linear = self
 
     @property
-    def edges(self):
+    def edges(self) -> Generator[Edge, None, None]:
         """
         All the edges of the Linear
         :return:
@@ -692,7 +712,7 @@ class Linear:
             raise ValueError('Cannot add an edge that is not connected to the linear' +
                              ' on a space boundary')
 
-    def plot(self, ax=None, save=None):
+    def plot(self, ax=None, save: bool = None):
         """
         Plots the linear object
         :return:
@@ -725,155 +745,26 @@ if __name__ == '__main__':
     import libs.reader as reader
     logging.getLogger().setLevel(logging.INFO)
 
-
+    @DecoratorTimer()
     def floor_plan():
         """
-        Test
+        Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Noisy_A145.json"
+        input_file = "Bussy_Regis.json"
         plan = reader.create_plan_from_file(input_file)
 
-        """
-        empty_space = plan.empty_space
-        boundary_edges = list(empty_space.edges)
+        for empty_space in plan.empty_spaces:
+            boundary_edges = list(empty_space.edges)
 
-        for edge in boundary_edges:
-            if edge.length > 30:
-                empty_space.cut_at_barycenter(edge, 0)
-                empty_space.cut_at_barycenter(edge, 1)
-         """
+            for edge in boundary_edges:
+                if edge.length > 30:
+                    empty_space.cut_at_barycenter(edge, 0)
+                    empty_space.cut_at_barycenter(edge, 1)
 
         plan.plot(save=False)
         plt.show()
 
         assert plan.check()
 
-    # floor_plan()
-
-    def add_overlapping_face():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
-
-        plan = Plan().from_boundary(perimeter)
-
-        # add complex face
-        plan.empty_space.face.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-
-    # add_overlapping_face()
-
-    def add_border_overlapping_face():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
-
-        plan = Plan().from_boundary(perimeter)
-
-        # add complex face
-        plan.empty_space.face.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        # plan.empty_space.remove_face(face_to_remove)
-
-        plan.mesh.plot(save=False)
-        plt.show()
-
-        plan.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-
-    add_border_overlapping_face()
-
-
-    def add_face_touching_internal_edge():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
-        hole_3 = [(50, 200), (150, 200), (150, 300), (50, 300)]
-
-        plan = Plan().from_boundary(perimeter)
-
-        # add complex face
-        plan.empty_space.face.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_3)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-    # add_face_touching_internal_edge()
-
-    def add_two_face_touching_internal_edge_and_border():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
-        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
-
-        plan = Plan().from_boundary(perimeter)
-
-        # add complex face
-        plan.empty_space.face.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        # plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        # plan.empty_space.remove_face(face_to_remove)
-
-        plan.empty_space.face.insert_face_from_boundary(hole_3)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        # plan.empty_space.remove_face(face_to_remove)
-
-        plan.plot(save=False)
-        plt.show()
-
-        plan.mesh.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-    add_two_face_touching_internal_edge_and_border()
+    floor_plan()

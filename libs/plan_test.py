@@ -25,16 +25,14 @@ def test_floor_plan(input_file):
     """
     plan = reader.create_plan_from_file(input_file)
     """
-    empty_space = plan.empty_space
-    boundary_edges = list(empty_space.edges)
+    for empty_space in plan.empty_spaces:
+        boundary_edges = list(empty_space.edges)
 
-    for edge in boundary_edges:
-        if edge.length > 30:
-            empty_space.cut_at_barycenter(edge, 0)
-            empty_space.cut_at_barycenter(edge, 1)
-    """
+        for edge in boundary_edges:
+            if edge.length > 30:
+                empty_space.cut_at_barycenter(edge, 0)
+                empty_space.cut_at_barycenter(edge, 1)"""
     plan.plot()
-
     assert plan.check()
 
 
@@ -53,28 +51,28 @@ def test_add_duct_to_space():
 
     # add border duct
     plan = Plan().from_boundary(perimeter)
-    plan.empty_space.insert_space(duct, duct_category)
+    plan.insert_space_from_boundary(duct, duct_category)
 
     # add inside duct
     inside_duct = [(600, 200), (800, 200), (800, 400), (600, 400)]
-    plan.empty_space.insert_space(inside_duct, duct_category)
+    plan.insert_space_from_boundary(inside_duct, duct_category)
 
     # add touching duct
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
-    plan.empty_space.insert_space(touching_duct, duct_category)
+    plan.insert_space_from_boundary(touching_duct, duct_category)
 
     # add separating duct
     separating_duct = [(700, 800), (1000, 700), (1000, 800), (800, 1000), (700, 1000)]
-    plan.empty_space.insert_space(separating_duct, duct_category)
+    plan.insert_space_from_boundary(separating_duct, duct_category)
 
     # add single touching point
     point_duct = [(0, 600), (200, 500), (200, 700)]
-    plan.empty_space.insert_space(point_duct, duct_category)
+    plan.insert_space_from_boundary(point_duct, duct_category)
 
     # add complex duct
     complex_duct = [(300, 1000), (300, 600), (600, 600), (600, 800), (500, 1000),
                     (450, 800), (400, 1000), (350, 1000)]
-    plan.empty_space.insert_space(complex_duct, duct_category)
+    plan.insert_space_from_boundary(complex_duct, duct_category)
 
     assert plan.check()
 
@@ -88,7 +86,6 @@ def test_add_face():
 
     plan = Plan().from_boundary(perimeter)
 
-    # add complex face
     complex_face = [(700, 800), (1000, 700), (1000, 800), (800, 1000), (700, 1000)]
     plan.empty_space.face.insert_face_from_boundary(complex_face)
 
@@ -109,7 +106,119 @@ def test_cut_to_inside_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     plan = Plan().from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
-    plan.empty_space.insert_space(duct, space_categories['duct'])
+    plan.insert_space_from_boundary(duct, space_categories['duct'])
     plan.empty_space.cut_at_barycenter(list(plan.empty_space.edges)[7])
+
+    assert plan.check()
+
+
+def test_add_overlapping_face():
+    """
+    Test. Create a new face, remove it, then add it again.
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+    hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
+
+    plan = Plan().from_boundary(perimeter)
+
+    plan.empty_space.face.insert_face_from_boundary(hole)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_2)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    assert plan.check()
+
+
+def test_add_border_overlapping_face():
+    """
+    Test. Create a new face, remove it, then add it again.
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+    hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
+
+    plan = Plan().from_boundary(perimeter)
+
+    plan.empty_space.face.insert_face_from_boundary(hole)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_2)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    assert plan.check()
+
+
+def test_add_face_touching_internal_edge():
+    """
+    Test. Create a new face, remove it, then add it again.
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+    hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
+    hole_3 = [(50, 200), (150, 200), (150, 300), (50, 300)]
+
+    plan = Plan().from_boundary(perimeter)
+
+    plan.empty_space.face.insert_face_from_boundary(hole)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_2)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_3)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    assert plan.check()
+
+
+def test_add_two_face_touching_internal_edge_and_border():
+    """
+    Test. Create a new face, remove it, then add it again.
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+    hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+    hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
+
+    plan = Plan().from_boundary(perimeter)
+
+    plan.empty_space.face.insert_face_from_boundary(hole)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_2)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    plan.empty_space.face.insert_face_from_boundary(hole_3)
+    face_to_remove = list(plan.empty_space.faces)[1]
+    plan.empty_space.remove_face(face_to_remove)
+
+    assert plan.check()
+
+
+def test_insert_separating_wall():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    wall = [(250, 0), (300, 0), (300, 500), (250, 500)]
+    plan = Plan('Plan_test_wall').from_boundary(perimeter)
+
+    plan.insert_space_from_boundary(wall, category=space_categories['loadBearingWall'])
 
     assert plan.check()

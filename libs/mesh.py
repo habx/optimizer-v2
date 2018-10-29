@@ -413,6 +413,7 @@ class Vertex:
         :param length: float length of the lineString
         :return:
         """
+        length = length or LINE_LENGTH
         vector = normalized_vector(vector)
         # to ensure proper intersection we shift slightly the start point
         start_point = move_point(self.coords, vector, -1/2 * COORD_EPSILON)
@@ -956,11 +957,19 @@ class Edge:
             if self.face is not None:
                 self.face.remove_from_mesh()
                 remaining_face = other_face
-                other_face = self.face
             else:
                 other_face.remove_from_mesh()
                 for edge in self.pair.siblings:
                     edge.face = self.face
+
+            augmented_space = remaining_face.space
+
+            # check for space next references
+            # check if edge was a space boundary
+            if self.is_space_boundary:
+                self.space.remove_face(self.face)
+            if self.pair.is_space_boundary:
+                self.pair.space.remove_face(self.pair.face)
 
             for edge in self.siblings:
                 edge.face = remaining_face
@@ -969,20 +978,6 @@ class Edge:
             self.preserve_references()
             self.pair.preserve_references()
 
-            # check for space next references
-            # check if edge was a space boundary
-            if self.is_space_boundary:
-                if self.face is remaining_face:
-                    self.face.space.add_face(other_face)
-                else:
-                    self.space.remove_face(other_face)
-
-            if self.pair.is_space_boundary:
-                if self.pair.face is remaining_face:
-                    self.pair.face.space.add_face(other_face)
-                else:
-                    self.pair.space.remove_face(other_face)
-
             # stitch the edge extremities
             self.pair.previous.next = self.next
             self.previous.next = self.pair.next
@@ -990,6 +985,10 @@ class Edge:
             # clean useless vertices
             self.start.clean()
             self.end.clean()
+
+            # add remaining face to winning space
+            if augmented_space is not None:
+                augmented_space.add_face(remaining_face)
 
         # remove isolated edges
         for edge in remaining_face.edges:
@@ -1613,14 +1612,17 @@ class Face:
 
         return self
 
-    def _slice(self, vertex: Vertex, vector: Vector2d) -> List['Face']:
+    def _slice(self,
+               vertex: Vertex,
+               vector: Vector2d,
+               length: Optional[float] = None) -> List['Face']:
         """
         Cuts a face according to a linestring
         :param vertex:
         :param vector:
         :return:
         """
-        line = vertex.sp_line(vector)
+        line = vertex.sp_line(vector, length=length)
         intersection_points = self.as_sp_linear_ring().intersection(line)
         new_faces = [self]
 
@@ -1869,7 +1871,8 @@ class Face:
             sliced_faces_temp = copy.copy(sliced_faces)
             for sliced_face in sliced_faces_temp:
                 sliced_faces.remove(sliced_face)  # to prevent duplicates
-                sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector)
+                sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector,
+                                                   internal_edge.length)
         # if no face was created we proceed with a standard insert
         if len(sliced_faces) == 1:
             return self._insert_face(face)
@@ -1959,7 +1962,7 @@ class Face:
 
         return new_faces
 
-    def is_linked_to_space(self):
+    def is_linked_to_space(self) -> bool:
         """
         Returns True if the face is linked to the Space
         This has the meaning that the face is connected to the reference face of the Space.

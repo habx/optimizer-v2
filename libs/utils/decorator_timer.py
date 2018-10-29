@@ -68,18 +68,17 @@ class DecoratorTimer(object):
             output = func(*args, **kwargs)
 
             end_time = time.time()
-            duration = start_time - end_time
+            duration = end_time - start_time
 
-            logging.info("TIMER : Function {name} executed" +
-                         " in {time} seconds".format(name=func_name, time=duration))
+            logging.info("TIMER : Function {0} executed in {1} seconds".format(func_name, duration))
 
             if self.memorize:
                 self.memorize_time(duration)
 
             if self.number_of_calls > 0:
                 logging.info("TIMER : Average executation time" +
-                             " of {time} seconds over {x} calls".format(time=self.average_time,
-                                                                        x=self.number_of_calls))
+                             " of {0} seconds over {1} calls".format(self.average_time,
+                                                                     self.number_of_calls))
             return output
 
         return decorated
