@@ -23,8 +23,7 @@ from libs.utils.geometry import (
     barycenter,
     move_point,
     same_half_plane,
-    opposite_vector,
-    dot_product
+    opposite_vector
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -34,22 +33,24 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
-ANGLE_EPSILON = 1  # value to check if an angle has a specific value
-COORD_EPSILON = 1  # coordinates precision for snapping purposes
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
+COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 10.0  # min. acceptable angle in grid
 COORD_DECIMAL = 2  # number of decimal of the points coordinates
 
 
 # MODULE FUNCTIONS
 
-def angle_pseudo_equal(angle: float, value: float) -> bool:
+def pseudo_equal(value: float, other: float, epsilon: float = ANGLE_EPSILON) -> bool:
     """
-    Verify if an angle is very close to a specific value
-    :param angle: float
+    Verify if an value is very close to a specific value, according to an epsilon float
+    (returns value == other ± epsilon)
     :param value: float
+    :param other: float
+    :param epsilon: float
     :return: boolean
     """
-    return value + ANGLE_EPSILON > angle > value - ANGLE_EPSILON
+    return other + epsilon > value > other - epsilon
 
 
 # MODULE CLASSES
@@ -253,17 +254,22 @@ class Vertex:
             return
         # only a vertex with two edges can be cleaned
         if nb_edges == 2:
-            if edges[0].previous.pair is not edges[1]:
+            previous_edge = self.edge.previous
+            if previous_edge.pair is not edges[1]:
                 raise ValueError('Vertex is malformed' +
                                  ' and cannot be cleaned:{0}'.format(self))
-            if self.edge.previous.next_is_aligned:
+            if previous_edge.next_is_aligned:
                 edge = self.edge
                 # preserve references
                 edge.preserve_references()
                 edge.pair.next.preserve_references()
                 # remove edges
-                edge.previous.next = edge.next
+                previous_edge.next = edge.next
                 edge.pair.next = edge.pair.next.next
+
+                # create a new pair
+                edge.pair.pair = previous_edge
+                previous_edge.pair = edge.pair
 
     def is_equal(self, other: 'Vertex') -> bool:
         """
@@ -351,7 +357,7 @@ class Vertex:
 
     def snap_to(self, *others: 'Vertex') -> 'Vertex':
         """
-        Used to snap a vertex to another one that is closed.
+        Used to snap a vertex to another one that is close.
         The function returns the first vertex from the argument list
         that is localized inside the approximation radius
         (given by the pseudo equality is_equal)
@@ -380,27 +386,29 @@ class Vertex:
         :param edges: edges to check
         :return: the newly created edge if a snap happened, None otherwise
         """
+        best_edge = None
+        min_angle = None
         for edge in edges:
             # if the vertex has an edge we make sure that we snap to the correct edge pair.
             # this is needed only for internal edge
-            if self.edge is not None:
-                if dot_product(edge.normal, self.edge.vector) < 0:
-                    continue
-                if (dot_product(edge.normal, self.edge.vector) == 0
-                        and dot_product(edge.vector, self.edge.vector) < 0):
-                    continue
             dist = edge.as_sp.distance(self.as_sp)
             if dist <= COORD_EPSILON:
                 new_edge = edge.split(self)
-                # check if we have a correct edge : TODO change this to something less horrible
-                if self.edge is not None and new_edge.is_internal:
-                    if dot_product(new_edge.normal, self.edge.vector) < 0:
-                        continue
-                    if (dot_product(new_edge.normal, self.edge.vector) == 0
-                            and dot_product(new_edge.vector, self.edge.vector) < 0):
-                        continue
-                return new_edge
-        return None
+                if new_edge is None:
+                    continue
+                if self.edge is None:
+                    best_edge = new_edge
+                    break
+                # check if we have a correct edge
+                # TODO we only need this if the face has an internal edge
+                # (we could check to improve the speed of the method)
+                new_angle = ccw_angle(new_edge.vector, self.edge.vector)
+                if min_angle is None or min_angle > new_angle:
+                    best_edge = new_edge
+                    min_angle = new_angle
+                    if pseudo_equal(min_angle, 0.0):
+                        break
+        return best_edge
 
     def sp_line(self,
                 vector: Vector2d,
@@ -643,7 +651,7 @@ class Edge:
         using a pseudo equality on the angle
         :return: boolean
         """
-        is_aligned = angle_pseudo_equal(self.next_angle, 180)
+        is_aligned = pseudo_equal(self.next_angle, 180)
         return is_aligned
 
     @property
@@ -653,7 +661,7 @@ class Edge:
         using a pseudo equality on the angle
         :return: boolean
         """
-        is_aligned = angle_pseudo_equal(self.previous_angle, 180)
+        is_aligned = pseudo_equal(self.previous_angle, 180)
         return is_aligned
 
     @property
@@ -662,7 +670,7 @@ class Edge:
         Indicates if the next edge i
         :return:
         """
-        return angle_pseudo_equal(self.next_angle, 90)
+        return pseudo_equal(self.next_angle, 90)
 
     @property
     def length(self) -> float:
@@ -777,7 +785,7 @@ class Edge:
         angle = self.absolute_angle % 180.0
         # we round the angle to the desired precision given by the ANGLE_EPSILON constant
         angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
-        max_l = next((l for deg, l in self.mesh.directions if angle_pseudo_equal(deg, angle)), None)
+        max_l = next((l for deg, l in self.mesh.directions if pseudo_equal(deg, angle)), None)
         return (max_l / 2) * 1.10 if max_l is not None else None
 
     def sp_ortho_line(self, vertex) -> LineString:
@@ -1076,6 +1084,17 @@ class Edge:
                             ':{0}-{1}'.format(self, other))
             return None
 
+        # snap vertices if they are very close
+        snapped_vertex = other.end.snap_to(self.end)
+        if snapped_vertex is self.end:
+            other.next.start = snapped_vertex
+            logging.info('Snapping vertices instead of linking them:{0}-{1}'.format(self, other))
+            return None
+
+        if self.end.distance_to(other.end) < COORD_EPSILON / 4:
+            logging.warning('Linking to very close vertices: ' +
+                            '{0} - {1}'.format(self.end, other.end))
+
         # create the new edge and its pair
         new_edge = Edge(self.end, other.next, self.face)
         new_edge.pair.start = other.end
@@ -1205,8 +1224,8 @@ class Edge:
         if vertex is self.start:
             angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
             if not angle_is_inside:
-                logging.info('Cannot cut according to angle:{0} < {1} < {2}'.
-                             format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
+                logging.debug('Cannot cut according to angle:{0} < {1} < {2}'.
+                              format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
                 return None
 
             first_edge = self.previous
@@ -1214,8 +1233,8 @@ class Edge:
         elif vertex is self.end:
             angle_is_inside = 180 - MIN_ANGLE > angle > 180.0 - self.next_angle + MIN_ANGLE
             if not angle_is_inside:
-                logging.info('Cannot cut according to angle:{0} > {1} > {2}'.
-                             format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
+                logging.debug('Cannot cut according to angle:{0} > {1} > {2}'.
+                              format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
                 return None
         else:
             # split the starting edge
@@ -1232,7 +1251,7 @@ class Edge:
 
         # if no intersection can be found return None
         if closest_edge is None:
-            logging.info('Could not create a viable cut')
+            logging.warning('Could not create a viable cut')
             return None
 
         # assign a correct edge to the initial face
@@ -1285,7 +1304,14 @@ class Edge:
 
     def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
-        Splits the edge at a specific vertex
+        Splits the edge at a specific vertex.
+        We create two new half-edges:
+
+        ---------> - - - ->
+        old edge  • new edge
+        <- - - - - <-------
+        new pair   old pair
+
         :param vertex: a vertex object where we should split
         :return: the newly created edge starting from the vertex
         """
@@ -1303,38 +1329,38 @@ class Edge:
         if not self.is_mutable:
             return None
 
-        # define edges
+        # define edges names for clarity sake
         edge = self
         next_edge = self.next
         edge_pair = self.pair
-        edge_pair_previous = self.pair.previous
+        next_edge_pair = self.pair.next
 
-        # create a new edge and assign it to vertex if needed
-        new_edge = Edge(vertex, next_edge, edge.face)
-        new_edge.pair.face = edge_pair.face
-        new_edge.pair.start = edge_pair.start
+        # create the two new half edges
+        new_edge = Edge(vertex, next_edge, edge.face, edge_pair)
+        new_edge.pair = edge_pair
+
+        new_edge_pair = Edge(vertex, next_edge_pair, edge_pair.face, edge)
+        new_edge_pair.pair = edge
+
         vertex.edge = vertex.edge if vertex.edge is not None else new_edge
 
-        # insure correct vertex reference
-        if edge_pair.start.edge is edge_pair:
-            edge_pair.start.edge = new_edge.pair
-
         # change the current edge destinations and starting point
-        edge_pair_previous.next = new_edge.pair
-        edge_pair.start = vertex
+        new_edge_pair.next = next_edge_pair
+        new_edge.next = next_edge
         edge.next = new_edge
-        new_edge.pair.next = edge_pair
+        edge_pair.next = new_edge_pair
 
         # preserve space boundary pointer [SPACE]
         if edge.is_space_boundary:
             new_edge.space_next = edge.space_next
             edge.space_next = new_edge
         if edge_pair.is_space_boundary:
-            edge_pair.space_previous.space_next = new_edge.pair
-            new_edge.pair.space_next = edge_pair
+            new_edge_pair.space_next = edge_pair.space_next
+            edge_pair.space_next = new_edge_pair
 
         # preserve linear pointer [LINEAR]
         new_edge.linear = edge.linear
+        new_edge_pair.linear = edge_pair.linear
 
         return new_edge
 
@@ -1376,11 +1402,11 @@ class Edge:
     def check_size(self):
         """Checks the size of the edge"""
         if self.start and self.end and self.start is self.end:
-            raise ValueError('Cannot create and edge starting and ending with the same' +
+            raise ValueError('Cannot create and edge starting and ending with the same ' +
                              'vertex: {0}'.format(self.start))
 
-        if self.start and self.end and self.length < COORD_EPSILON:
-            logging.warning('Created a very small edge: {0} - {1}'.format(self.start, self.end))
+        if self.start and self.end and self.length < COORD_EPSILON / 4:
+            raise ValueError('Created a very small edge: {0} - {1}'.format(self.start, self.end))
 
 
 class Face:
@@ -2058,6 +2084,40 @@ class Mesh:
         self._faces = value
 
     @property
+    def vertices(self) -> Generator[Vertex, None, None]:
+        """
+        Returns all the vertices of the mesh
+        :return:
+        """
+        seen = []
+        for face in self.faces:
+            for edge in face.edges:
+                if edge.start not in seen:
+                    seen.append(edge.start)
+                    yield edge.start
+        # also check the boundary edges (face is None)
+        for edge in self.boundary_edges:
+            if edge.start not in seen:
+                seen.append(edge.start)
+                yield edge.start
+
+    def check_duplicate_vertices(self) -> bool:
+        """
+        Check if there are duplicates vertices. Same coordinates but not same vertex.
+        :return:
+        """
+        is_valid = True
+        for vertex in self.vertices:
+            for other_vertex in self.vertices:
+                if other_vertex is vertex:
+                    continue
+                if other_vertex.distance_to(vertex) < COORD_EPSILON / 4:
+                    logging.info('Found duplicate vertices: ' +
+                                 '{0} - {1}'.format(vertex, other_vertex))
+                    is_valid = False
+        return is_valid
+
+    @property
     def boundary_edge(self) -> Edge:
         """
         property
@@ -2137,6 +2197,7 @@ class Mesh:
         :return: boolean
         """
         is_valid = True
+
         for face in self.faces:
             for edge in face.edges:
                 if edge is None:
@@ -2159,11 +2220,19 @@ class Mesh:
                                   '{0}'.format(edge.start))
                 if edge.next.next is edge:
                     is_valid = False
-                    logging.error('Checking Mesh: 2-edges face found:{0}'.format(face))
+                    logging.error('Checking Mesh: 2-edges face found:{0}'.format(edge))
+                if edge.next is edge.pair:
+                    is_valid = False
+                    logging.warning('Checking Mesh: folded edge found: {0}'.format(edge))
+
         for edge in self.boundary_edges:
             if edge.face is not None:
                 logging.error('Wrong edge in mesh boundary edges:{0}'.format(edge))
-        logging.info('Checking Mesh: ' + 'OK' if is_valid else '!! NOT OK')
+                is_valid = False
+
+        is_valid = is_valid and self.check_duplicate_vertices()
+
+        logging.info('Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
 
     # noinspection PyCompatibility
@@ -2271,269 +2340,7 @@ if __name__ == '__main__':
                 edge.pair.laser_cut_at_barycenter(1)
                 edge.previous.pair.laser_cut_at_barycenter(0)
 
-        mesh.plot(show=True)
-
-    # plot()
-
-    def remove_edge():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
-        mesh = Mesh().from_boundary(perimeter)
-
-        edges = list(mesh.faces[0].edges)
-
-        edges[0].laser_cut_at_barycenter(0.5)
-        edges[3].laser_cut_at_barycenter(0.5)
-
-        mesh.plot(show=True)
-
-        edges = list(mesh.faces[0].edges)
-        edges[1].remove()
-
-        mesh.plot(show=True)
-
-        edges = list(mesh.faces[1].edges)
-        edges[0].remove()
-
-        print(mesh.directions)
-
-        mesh.check()
-        mesh.plot(show=True, save=False)
-        plt.show()
-
-    # remove_edge()
-
-    def insert_complex_face():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
         mesh.plot(save=False)
         plt.show()
 
-    # insert_complex_face()
-
-    def insert_complex_face_2():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-    # insert_complex_face_2()
-
-    def insert_complex_face_3():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-    # insert_complex_face_3()
-
-    def insert_complex_face_5():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-    # insert_complex_face_5()
-
-
-    def insert_complex_face_4():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(50, 200), (150, 200), (150, 300), (50, 300)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    # insert_complex_face_4()
-
-    def insert_multiple_overlapping():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
-        hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        hole_3 = [(20, 50), (60, 50), (60, 450), (20, 450)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_3)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    # insert_multiple_overlapping()
-
-
-    def insert_multiple_overlapping_closing():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
-        hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        hole_3 = [(20, 0), (60, 0), (60, 220), (500, 220), (500, 280),
-                  (60, 280), (60, 500), (20, 500)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_3)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    insert_multiple_overlapping_closing()
-
-    def insert_very_close_border_duct():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 250), (250, 250), (250, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(250, 251.01), (250, 200), (400, 200), (400, 251.01)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    insert_very_close_border_duct()
-
-    def insert_complex_face_6():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
-
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    insert_complex_face_6()
-
-
-    def insert_two_faces_on_internal_edge():
-        """
-        Test
-        :return:
-        """
-
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
-        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-        mesh.faces[2].insert_face_from_boundary(hole_3)
-
-        mesh.check()
-
-        mesh.plot(save=False)
-        plt.show()
-
-    insert_two_faces_on_internal_edge()
-
-
+    plot()

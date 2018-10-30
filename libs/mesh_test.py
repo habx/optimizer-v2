@@ -370,3 +370,114 @@ def test_insert_complex_face_4():
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
     assert mesh.check()
+
+
+def test_insert_complex_face_5():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()
+
+
+def test_insert_complex_face_6():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    assert mesh.check()
+
+
+def test_insert_two_faces_on_internal_edge():
+    """
+    Test
+    :return:
+    """
+
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+    hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
+    hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+    mesh.faces[2].insert_face_from_boundary(hole_3)
+
+    assert mesh.check()
+
+
+def test_insert_very_close_border_duct():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 250), (250, 250), (250, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(250, 251.01), (250, 200), (400, 200), (400, 251.01)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    assert mesh.check()
+
+
+def test_insert_multiple_overlapping():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
+    hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    hole_3 = [(20, 50), (60, 50), (60, 450), (20, 450)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_3)
+
+    assert mesh.check()
+
+
+def test_insert_multiple_overlapping_closing():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
+    hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
+
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    hole_3 = [(20, 0), (60, 0), (60, 220), (500, 220), (500, 280),
+              (60, 280), (60, 500), (20, 500)]
+
+    mesh.faces[0].insert_face_from_boundary(hole_3)
+
+    assert mesh.check()
+

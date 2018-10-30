@@ -146,7 +146,6 @@ def _get_load_bearing_wall_perimeter(load_bearing_wall: List[int],
         8
       ]
     ],
-    TODO : treat the case of contiguous wall
     :param load_bearing_wall:
     :param vertices:
     :return:
@@ -211,7 +210,6 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
         if fixed_item[1] in space_categories:
             my_plan.insert_space_from_boundary(fixed_item[0],
                                                category=space_categories[fixed_item[1]])
-            pass
         if fixed_item[1] in linear_categories:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
                                   category=linear_categories[fixed_item[1]])

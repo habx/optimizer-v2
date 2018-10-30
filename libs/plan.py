@@ -32,6 +32,12 @@ class Plan:
         self.spaces = spaces or []
         self.linears = linears or []
 
+    def __repr__(self):
+        output = 'Plan ' + self.name + ': '
+        for space in self.spaces:
+            output += space.__repr__() + ' - '
+        return output
+
     def from_boundary(self, boundary: Sequence[Coords2d]):
         """
         Creates a plan from a list of points
@@ -123,7 +129,8 @@ class Plan:
 
     def insert_linear(self, point_1: Coords2d, point_2: Coords2d, category: LinearCategory):
         """
-        Inserts a face in an empty face
+        Inserts a linear object in the plan at the given points
+        Will try to insert it in every empty space.
         :param point_1
         :param point_2
         :param category
@@ -192,6 +199,10 @@ class Space:
         for edge in self._edge.siblings:
             edge.space_next = edge.next
 
+    def __repr__(self):
+        output = 'Space: ' + self.category.name + ' - ' + id(self)
+        return output
+
     @property
     def face(self) -> Face:
         """
@@ -253,7 +264,7 @@ class Space:
     def edges(self) -> Generator[Edge, None, None]:
         """
         The boundary edges of the space
-        :return:
+        :return: an iterator
         """
         if self.edge is None:
             return
@@ -262,7 +273,7 @@ class Space:
     @property
     def area(self) -> float:
         """
-        Returns the area of the Space
+        Returns the area of the Space.
         :return:
         """
         _area = 0.0
@@ -583,7 +594,7 @@ class Space:
             return
 
         # TODO : not sure about this. Does not seem like the best approach.
-        # probably best to slice non rectilinear space into smaller simple space,
+        # probably best to slice non rectilinear space into smaller simpler spaces,
         # than apply a grid generation to these spaces
         # max_length = max_length if max_length is not None else edge.max_length
 
@@ -751,8 +762,10 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Bussy_Regis.json"
+        input_file = "Noisy_A145.json"
         plan = reader.create_plan_from_file(input_file)
+
+        plan.mesh.check()
 
         for empty_space in plan.empty_spaces:
             boundary_edges = list(empty_space.edges)
