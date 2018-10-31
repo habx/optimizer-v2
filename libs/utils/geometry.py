@@ -192,7 +192,7 @@ def same_half_plane(vector_1: Vector2d, vector_2: Vector2d) -> bool:
     :param vector_2:
     :return:
     """
-    return dot_product(vector_1, vector_2) > 0
+    return dot_product(vector_1, vector_2) >= 0
 
 
 def dot_product(vector_1: Vector2d, vector_2: Vector2d):

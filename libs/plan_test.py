@@ -27,7 +27,7 @@ def test_floor_plan(input_file):
 
     for empty_space in plan.empty_spaces:
         boundary_edges = list(empty_space.edges)
-
+        
         for edge in boundary_edges:
             if edge.length > 30:
                 empty_space.cut_at_barycenter(edge, 0)

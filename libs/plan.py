@@ -200,7 +200,7 @@ class Space:
             edge.space_next = edge.next
 
     def __repr__(self):
-        output = 'Space: ' + self.category.name + ' - ' + id(self)
+        output = 'Space: ' + self.category.name + ' - ' + str(id(self))
         return output
 
     @property
@@ -762,18 +762,18 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Noisy_A145.json"
+        input_file = "Vernouillet_A002.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.mesh.check()
-
+        """
         for empty_space in plan.empty_spaces:
             boundary_edges = list(empty_space.edges)
 
             for edge in boundary_edges:
                 if edge.length > 30:
                     empty_space.cut_at_barycenter(edge, 0)
-                    empty_space.cut_at_barycenter(edge, 1)
+                    empty_space.cut_at_barycenter(edge, 1)"""
 
         plan.plot(save=False)
         plt.show()

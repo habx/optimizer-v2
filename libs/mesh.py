@@ -281,7 +281,7 @@ class Vertex:
         """
         return self.distance_to(other) <= COORD_EPSILON
 
-    def nearest_point(self, face: 'Face') -> 'Vertex':
+    def nearest_point(self, face: 'Face') -> Optional[Tuple['Vertex', 'Edge', float]]:
         """
         Returns the nearest point on the perimeter of the given face,
         to the vertex
@@ -289,7 +289,11 @@ class Vertex:
         :return: vertex
         """
         point = nearest_point(self.as_sp, face.as_sp_linear_ring())
-        return Vertex(*point.coords[0])
+        for edge in face.edges:
+            if edge.as_sp_dilated.intersects(point):
+                nearest_vertex = Vertex(*point.coords[0])
+                return nearest_vertex, edge, self.distance_to(nearest_vertex)
+        raise Exception('Something that should be impossible happened !:{0}'.format(point))
 
     def project_point(self, face: 'Face', vector: Vector2d) -> Tuple['Vertex', 'Edge', float]:
         """
@@ -411,6 +415,12 @@ class Vertex:
                     if pseudo_equal(min_angle, 0.0):
                         break
         return best_edge
+
+    def vector(self, other: 'Vertex') -> Vector2d:
+        """
+        Returns the vector between two vertices
+        """
+        return other.x - self.x, other.y - self.y
 
     def sp_line(self,
                 vector: Vector2d,
@@ -1702,18 +1712,18 @@ class Face:
         """
         # create a fixed list of the enclosing face edges for ulterior navigation
         main_directions = self.mesh.directions
-        vectors = unit_vector(main_directions[0][0]), unit_vector(main_directions[1][0])
+        vectors = [unit_vector(main_direction[0]) for main_direction in main_directions]
 
         # find the closest vertex of the face to the boundary of the receiving face
         # according to the mesh two main directions
-        # TODO change this to closest orthogonal cut
         min_distance = None
         best_vertex = None
         best_near_vertex = None
         best_shared_edge = None
         for vertex in face.vertices:
             for vector in vectors:
-                _correct_orientation = not same_half_plane(vector, vertex.edge.vector)
+                edge = vertex.edge.pair.next
+                _correct_orientation = same_half_plane(vector, edge.normal)
                 _vector = vector if _correct_orientation else opposite_vector(vector)
                 intersection_data = vertex.project_point(self, _vector)
                 if intersection_data is None:
@@ -1721,6 +1731,9 @@ class Face:
                 near_vertex, shared_edge, distance_to_vertex = intersection_data
                 # check whether we are projecting unto an immutable linear
                 if not shared_edge.is_mutable:
+                    continue
+                if not pseudo_equal(ccw_angle(shared_edge.vector,
+                                              vertex.vector(near_vertex)) % 90.0, 0.0):
                     continue
                 if min_distance is None or distance_to_vertex < min_distance:
                     best_vertex = vertex
@@ -2151,8 +2164,8 @@ class Mesh:
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:
         """
-        Returns the main directions of the mesh.
-        For each boundary edge we calculate the absolute ccw angle and we add it to a dict.
+        Returns the main directions of the mesh as a tuple containing an angle and a length
+        For each boundary edge we calculate the absolute ccw angle and we add it to a dict
         :return:
         """
         directions_dict = {}

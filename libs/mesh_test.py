@@ -178,7 +178,7 @@ def test_add_face():
     face.insert_face(mesh7.faces[0])
 
     for edge in mesh.boundary_edges:
-        if edge.length > 20:
+        if edge.length > 50:
             edge.pair.laser_cut_at_barycenter(0.5)
 
     assert mesh.check()
