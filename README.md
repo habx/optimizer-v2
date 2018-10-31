@@ -6,8 +6,8 @@
 * we use 100 characters column width (not 120 nor 80)
 
 ### TODO
-- [ ] correct snapping and cutting methods to prevent the creation of half-edge with the same 
-starting and ending vertex
+- [x] ~~correct snapping and cutting methods to prevent the creation of half-edge with the same 
+starting and ending vertex~~
 - [ ] change the way the enclosed face are connected (used orthogonal projection on closest edge)
 - [x] ~~check failing floor plan : Noisy_A145, Antony_B14 (hard fails), Bussy_Regis, Massy_C102 
 (soft fails)~~

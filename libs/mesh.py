@@ -1,6 +1,7 @@
 # coding=utf-8
 """
 Mesh module
+Half-edge representation
 """
 
 import math
@@ -294,7 +295,8 @@ class Vertex:
         """
         Returns the projected point according to the vector direction
         on the face boundary according to the provided vector.
-        Note the vertex has to be inside the face.
+        Note: the vertex has to be inside the face.
+        Note: this does not split the edge the point is projected unto
         :param face:
         :param vector:
         :return: a tuple containing the new vertex and the associated edge, and the distance from
