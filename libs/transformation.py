@@ -118,7 +118,6 @@ def _projection_action(source_vertex: 'Vertex',
     # we are only interested in a clean intersection
     # meaning only one Point
     if temp_intersection_point.geom_type != 'Point':
-        logging.info('Intersection:{0}'.format(temp_intersection_point))
         return None
 
     # return a new vertex at the intersection point

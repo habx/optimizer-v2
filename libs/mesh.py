@@ -2,12 +2,14 @@
 """
 Mesh module
 Half-edge representation
+TODO : we should completely change the snapping mecanism. Only coordinates should snap, not
+vertices themselves (to be confirmed)
 """
 
 import math
 import logging
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator
+from typing import Optional, Tuple, List, Sequence, Generator, TYPE_CHECKING
 import copy
 
 from shapely.geometry.polygon import Polygon
@@ -29,6 +31,9 @@ from libs.utils.geometry import (
     opposite_vector
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
+
+if TYPE_CHECKING:
+    from libs.plan import Space, Linear
 
 
 # MODULE CONSTANTS
@@ -274,7 +279,7 @@ class Vertex:
 
         # find the intersection
         closest_edge = None
-        intersection_point = None
+        intersection_vertex = None
         smallest_distance = None
 
         # iterate trough every edge of the face but the laser_cut edge
@@ -284,32 +289,22 @@ class Vertex:
             if self in (edge.start, edge.end):
                 continue
 
-            # check if the edge is facing the correct direction
-            angle_vector_edge = ccw_angle(vector, edge.normal)
-            if angle_vector_edge <= 90.0 or angle_vector_edge >= 270.0:
+            projected_vertex = (transformation.get['projection']
+                                              .config(vector=vector, edge=edge)
+                                              .apply_to(self))
+
+            if projected_vertex is None:
                 continue
 
-            # we use shapely to compute the intersection point
-            # create an extended shapely lineString from the edge
-            sp_edge = edge.as_sp_extended
-            # create a line to the edge at the vertex position
-            sp_line = self.sp_line(vector)
-            temp_intersection_point = sp_edge.intersection(sp_line)
-
-            # we are only interested in a clean intersection
-            # meaning only one Point
-            if temp_intersection_point.geom_type != 'Point':
-                continue
-
-            new_distance = sp_line.project(temp_intersection_point)
+            new_distance = projected_vertex.distance_to(self)
 
             # only keep the closest point
             if not smallest_distance or new_distance < smallest_distance:
                 smallest_distance = new_distance
                 closest_edge = edge
-                intersection_point = temp_intersection_point
+                intersection_vertex = projected_vertex
 
-        return (Vertex(*intersection_point.coords[0]),
+        return (intersection_vertex,
                 closest_edge,
                 smallest_distance) if smallest_distance else None
 
@@ -330,6 +325,8 @@ class Vertex:
         (given by the pseudo equality is_equal)
         or self if no vertex is close enough
         example : vertex_to_snap = vertex_to_snap.snap_to(v1, v2, v3)
+        TODO : we need to change this, we should snap coordinates but not vertices themselves
+        TODO : This will enable live updating of transformation
         :param others: one or many vertices
         :return: a vertex
         """
@@ -413,7 +410,7 @@ class Edge:
                  face: Optional['Face'],
                  pair: Optional['Edge'] = None,
                  space_next: Optional['Edge'] = None,
-                 linear=None):
+                 linear: Optional['Linear'] = None):
         """
         A half edge data structure implementation.
         By convention our half edge structure is based on a CCW rotation.
@@ -563,7 +560,7 @@ class Edge:
         return self.pair.face is self.face
 
     @property
-    def space(self):
+    def space(self) -> Optional['Space']:
         """
         property
         :return: the space of the face of the edge
@@ -644,6 +641,14 @@ class Edge:
         :return:
         """
         return pseudo_equal(self.next_angle, 90)
+
+    @property
+    def previous_is_ortho(self) -> bool:
+        """
+        Indicates if the next edge i
+        :return:
+        """
+        return pseudo_equal(self.previous_angle, 90)
 
     @property
     def length(self) -> float:
@@ -1038,6 +1043,7 @@ class Edge:
 
     def link(self, other: 'Edge') -> Optional['Edge']:
         """
+        TODO : why do we link the end and not the start ?
         Creates an edge between two edges.
         We link the end vertices of each edge
         Note : we cannot linked two edges that are already linked
@@ -1047,8 +1053,8 @@ class Edge:
         """
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            logging.warning('cannot link two edges ' +
-                            ' that are already linked:{0}-{1}'.format(self, other))
+            logging.info('cannot link two edges ' +
+                         ' that are already linked:{0}-{1}'.format(self, other))
             return None
 
         # check if the edges are the same
@@ -1070,6 +1076,7 @@ class Edge:
 
         # create the new edge and its pair
         new_edge = Edge(self.end, other.next, self.face)
+        self.face.edge = self  # preserve split face edge reference
         new_edge.pair.start = other.end
         new_edge.pair.next = self.next
 
@@ -1281,6 +1288,48 @@ class Edge:
                                 .apply_to(self.start))
         return self.cut(vertex, angle)
 
+    def ortho_cut(self) -> Optional['Face']:
+        """
+        Tries to cut the edge face at the edge start vertex in an orthogonal projection to any
+        edge of the face
+        :return: the new created faces
+        """
+        for edge in self.siblings:
+            vector = opposite_vector(edge.normal)
+            angle = ccw_angle(self.vector, vector)
+            angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
+            if not angle_is_inside:
+                logging.debug('Cannot cut according to angle:{0} < {1} < {2}'.
+                              format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
+                continue
+
+            if edge is self or edge is self.previous:
+                continue
+
+            projected_vertex = (transformation.get['projection']
+                                              .config(vector=vector, edge=edge)
+                                              .apply_to(self.start))
+
+            if projected_vertex is None:
+                continue
+
+            split_edge = edge.split(projected_vertex)
+
+            if split_edge is None:
+                continue
+
+            split_edge_previous = split_edge.previous
+            self_previous = self.previous
+
+            linked_edge = self_previous.link(split_edge_previous)
+
+            if linked_edge is None:
+                continue
+
+            return linked_edge.face
+
+        return None
+
     def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
         Splits the edge at a specific vertex.
@@ -1446,7 +1495,7 @@ class Face:
         self._mesh = value
 
     @property
-    def space(self):
+    def space(self) -> Optional['Space']:
         """
         property
         :return: the space of the face
@@ -1454,7 +1503,7 @@ class Face:
         return self._space
 
     @space.setter
-    def space(self, value):
+    def space(self, value: Optional['Space']):
         """
         property
         Sets the space of the face
@@ -2319,11 +2368,11 @@ if __name__ == '__main__':
         """
         perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
         mesh = Mesh().from_boundary(perimeter)
+        edges = list(mesh.boundary_edges)
+        for edge in edges:
+            edge.pair.ortho_cut()
 
-        for edge in mesh.boundary_edges:
-            if edge.pair.next_is_outward:
-                edge.pair.laser_cut_at_barycenter(1)
-                edge.previous.pair.laser_cut_at_barycenter(0)
+        edges = list(mesh.boundary_edges)
 
         mesh.plot(save=False)
         plt.show()

@@ -481,3 +481,16 @@ def test_insert_multiple_overlapping_closing():
 
     assert mesh.check()
 
+
+def test_ortho_cut():
+    """
+    Plot a graph
+    :return:
+    """
+    perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
+    mesh = Mesh().from_boundary(perimeter)
+    edges = list(mesh.boundary_edges)
+    for edge in edges:
+        edge.pair.ortho_cut()
+
+    assert mesh.check()
