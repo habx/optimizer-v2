@@ -15,6 +15,8 @@ from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
 import matplotlib.pyplot as plt
 
+import libs.transformation as transformation
+
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
@@ -72,8 +74,8 @@ class Vertex:
         self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
         self._edge = edge
         # attributes used to store barycenter data
-        self._parents = None  # a tuple (vertex 1, vertex 2)
-        self._coeff = None  # barycenter coefficient
+        self._children = []
+        self._parent = None
 
     def __repr__(self):
         return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=id(self))
@@ -127,36 +129,15 @@ class Vertex:
         self._edge = value
 
     @property
-    def parents(self) -> Tuple:
+    def parent(self) -> Optional['Vertex']:
         """
-        property
-        :return: the parents vertices of a barycentric vertex as a tuple
+        Property
         """
-        return self._parents
+        return self._parent
 
-    @parents.setter
-    def parents(self, value: Tuple):
-        """
-        property
-        Sets the parents of a barycentric vertex
-        """
-        self._parents = value
-
-    @property
-    def coeff(self) -> float:
-        """
-        property
-        :return: the parents vertices of a barycentric vertex as a tuple
-        """
-        return self._coeff
-
-    @coeff.setter
-    def coeff(self, value):
-        """
-        property
-        Sets the parents of a barycentric vertex
-        """
-        self._parents = value
+    @parent.setter
+    def parent(self, value: 'Vertex'):
+        self._parent = value
 
     @property
     def coords(self):
@@ -213,33 +194,13 @@ class Vertex:
 
         return self.edge.face.mesh
 
-    def barycenter(self,
-                   vertex_1: 'Vertex',
-                   vertex_2: 'Vertex',
-                   coeff: float) -> 'Vertex':
+    def add_child(self, child):
         """
-        Sets the coordinates to the barycenter of the given vertices
-        and stores the information
-        :param vertex_1:
-        :param vertex_2:
-        :param coeff: barycentric coefficient (starting from first vertex)
-        :return: self
+        Adds a child to the vertex
+        :param child:
+        :return:
         """
-        if coeff == 0:
-            return vertex_1
-
-        if coeff == 1:
-            return vertex_2
-
-        if coeff > 1 or coeff < 0:
-            raise Exception('A barycenter coefficient' +
-                            'should have a value between 0 and 1')
-
-        self.parents = vertex_1, vertex_2
-        self.coeff = coeff
-        self.x, self.y = barycenter(vertex_1.coords, vertex_2.coords, coeff)
-
-        return self
+        self._children.append(child)
 
     def clean(self):
         """
@@ -1299,7 +1260,10 @@ class Edge:
         :param angle:
         :return:
         """
-        vertex = Vertex().barycenter(self.start, self.end, coeff)
+        # vertex = Vertex().barycenter(self.start, self.end, coeff)
+        vertex = (transformation.get['barycenter']
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.laser_cut(vertex, angle)
 
     def cut_at_barycenter(self, coeff: float = 0.5,
@@ -1311,7 +1275,10 @@ class Edge:
         :param angle:
         :return:
         """
-        vertex = Vertex().barycenter(self.start, self.end, coeff)
+        # vertex = Vertex().barycenter(self.start, self.end, coeff)
+        vertex = (transformation.get['barycenter']
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.cut(vertex, angle)
 
     def split(self, vertex: 'Vertex') -> Optional['Edge']:
@@ -1382,7 +1349,10 @@ class Edge:
         :param coeff: float
         :return: self
         """
-        vertex = Vertex().barycenter(self.start, self.end, coeff)
+        # vertex = Vertex().barycenter(self.start, self.end, coeff)
+        vertex = (transformation.get['barycenter']
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.split(vertex)
 
     def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):

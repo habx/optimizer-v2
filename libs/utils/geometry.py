@@ -118,11 +118,16 @@ def normal_vector(vector: Vector2d) -> Vector2d:
 
 def normalized_vector(vector: Vector2d) -> Vector2d:
     """
-    Returns a vector of same direction but of length 1
+    Returns a vector of same direction but of length 1.
+    Note: to prevent division per zero, if the vector is equal to (0, 0) return (0,0)
     :param vector:
     :return:
     """
     vector_length = magnitude(vector)
+
+    if vector_length == 0:
+        return 0, 0
+
     coord_x = vector[0] / vector_length
     coord_y = vector[1] / vector_length
 

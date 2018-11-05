@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge
+import libs.transformation as transformation
 from libs.utils.custom_types import Coords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
@@ -622,7 +623,8 @@ class Space:
         :return:
         """
         edge = edge or self.edge
-        vertex = Vertex().barycenter(edge.start, edge.end, coeff)
+        vertex = transformation.get['barycenter'].config(vertex=edge.end, coeff=coeff).apply_to(edge.start)
+        # vertex = Vertex().barycenter(edge.start, edge.end, coeff)
         return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None, save: Optional[bool] = None):
