@@ -208,3 +208,15 @@ def dot_product(vector_1: Vector2d, vector_2: Vector2d):
     :return:
     """
     return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]
+
+
+def pseudo_equal(value: float, other: float, epsilon: float) -> bool:
+    """
+    Verify if an value is very close to a specific value, according to an epsilon float
+    (returns value == other ± epsilon)
+    :param value: float
+    :param other: float
+    :param epsilon: float
+    :return: boolean
+    """
+    return other + epsilon > value > other - epsilon

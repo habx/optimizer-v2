@@ -2,8 +2,9 @@
 """
 Mesh module
 Half-edge representation
-TODO : we should completely change the snapping mecanism. Only coordinates should snap, not
-vertices themselves (to be confirmed)
+TODO : we should completely change the snapping mecanism. Only coordinates should snap,
+not vertices themselves (to be confirmed)
++ we should split the mesh module in several files
 """
 
 import math
@@ -28,7 +29,8 @@ from libs.utils.geometry import (
     barycenter,
     move_point,
     same_half_plane,
-    opposite_vector
+    opposite_vector,
+    pseudo_equal
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -41,24 +43,10 @@ if TYPE_CHECKING:
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
-ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
-COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
+ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
+COORD_EPSILON = 3.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 10.0  # min. acceptable angle in grid
 COORD_DECIMAL = 2  # number of decimal of the points coordinates
-
-
-# MODULE FUNCTIONS
-
-def pseudo_equal(value: float, other: float, epsilon: float = ANGLE_EPSILON) -> bool:
-    """
-    Verify if an value is very close to a specific value, according to an epsilon float
-    (returns value == other ± epsilon)
-    :param value: float
-    :param other: float
-    :param epsilon: float
-    :return: boolean
-    """
-    return other + epsilon > value > other - epsilon
 
 
 # MODULE CLASSES
@@ -81,6 +69,7 @@ class Vertex:
         # attributes used to store barycenter data
         self._children = []
         self._parent = None
+        self.transformation = None
 
     def __repr__(self):
         return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=id(self))
@@ -152,6 +141,16 @@ class Vertex:
         """
         return self.x, self.y
 
+    @coords.setter
+    def coords(self, value: Coords2d):
+        """
+        Sets the vertex coordinates via a tuple
+        :param value:
+        :return:
+        """
+        self.x = value[0]
+        self.y = value[1]
+
     @property
     def as_sp(self):
         """
@@ -207,6 +206,22 @@ class Vertex:
         """
         self._children.append(child)
 
+    def update(self, **params):
+        """
+        Updates the coordinates of the vertex
+        (for example if its parent has changed)
+        :param params: optional transformation parameter
+        :return:
+        """
+        if params is not None:
+            self.transformation.config(**params)
+
+        new_coords = self.transformation.action(self, **self.transformation.params)
+        if new_coords is not None:
+            self.coords = new_coords
+        else:
+            logging.info('Cannot update vertex coordinates: {0}'.format(self))
+
     def clean(self):
         """
         Removes an unneeded vertex.
@@ -254,7 +269,7 @@ class Vertex:
         :param face:
         :return: vertex
         """
-        point = nearest_point(self.as_sp, face.as_sp_linear_ring())
+        point = nearest_point(self.as_sp, face.as_sp_linear_ring)
         for edge in face.edges:
             if edge.as_sp_dilated.intersects(point):
                 nearest_vertex = Vertex(*point.coords[0])
@@ -370,7 +385,7 @@ class Vertex:
                 if min_angle is None or min_angle > new_angle:
                     best_edge = new_edge
                     min_angle = new_angle
-                    if pseudo_equal(min_angle, 0.0):
+                    if pseudo_equal(min_angle, 0.0, ANGLE_EPSILON):
                         break
         return best_edge
 
@@ -544,6 +559,14 @@ class Edge:
         return False
 
     @property
+    def is_mesh_boundary(self):
+        """
+        Returns True if the edge is one the boundary of the mesh
+        :return:
+        """
+        return self.pair.face is None or self.face is None
+
+    @property
     def is_space_boundary(self):
         """
         property
@@ -621,7 +644,7 @@ class Edge:
         using a pseudo equality on the angle
         :return: boolean
         """
-        is_aligned = pseudo_equal(self.next_angle, 180)
+        is_aligned = pseudo_equal(self.next_angle, 180, ANGLE_EPSILON)
         return is_aligned
 
     @property
@@ -631,7 +654,7 @@ class Edge:
         using a pseudo equality on the angle
         :return: boolean
         """
-        is_aligned = pseudo_equal(self.previous_angle, 180)
+        is_aligned = pseudo_equal(self.previous_angle, 180, ANGLE_EPSILON)
         return is_aligned
 
     @property
@@ -640,7 +663,7 @@ class Edge:
         Indicates if the next edge i
         :return:
         """
-        return pseudo_equal(self.next_angle, 90)
+        return pseudo_equal(self.next_angle, 90, ANGLE_EPSILON)
 
     @property
     def previous_is_ortho(self) -> bool:
@@ -648,7 +671,7 @@ class Edge:
         Indicates if the next edge i
         :return:
         """
-        return pseudo_equal(self.previous_angle, 90)
+        return pseudo_equal(self.previous_angle, 90, ANGLE_EPSILON)
 
     @property
     def length(self) -> float:
@@ -749,6 +772,10 @@ class Edge:
         A CCW normal of the edge of length 1
         :return: a tuple containing x, y values
         """
+        # per convention if the edge is of length 0 we return the 0, 0 vector
+        if self.length == 0:
+            return 0, 0
+
         x, y = -self.vector[1], self.vector[0]
         length = math.sqrt(x**2 + y**2)
         return x/length, y/length
@@ -763,7 +790,8 @@ class Edge:
         angle = self.absolute_angle % 180.0
         # we round the angle to the desired precision given by the ANGLE_EPSILON constant
         angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
-        max_l = next((l for deg, l in self.mesh.directions if pseudo_equal(deg, angle)), None)
+        max_l = next((l for deg, l in self.mesh.directions
+                      if pseudo_equal(deg, angle, ANGLE_EPSILON)), None)
         return (max_l / 2) * 1.10 if max_l is not None else None
 
     def sp_ortho_line(self, vertex) -> LineString:
@@ -911,17 +939,17 @@ class Edge:
                 return True
         return False
 
-    def remove(self) -> 'Face':
+    def remove(self) -> Optional['Face']:
         """
         Removes the edge from the face. The corresponding faces are merged
         1. remove the face from the mesh
         2. stitch the extremities of the removed edge
         3. attribute correct face to orphan edges
-        :return: the remaining face after the edge was removed
+        :return: the remaining face after the edge was removed, None if the edge cannot be removed
         """
         if not self.is_mutable:
             logging.warning('Cannot remove an immutable edge')
-            return self.face
+            return None
 
         other_face = self.pair.face
         remaining_face = self.face
@@ -973,7 +1001,7 @@ class Edge:
             self.end.clean()
 
             # add remaining face to winning space
-            if augmented_space is not None:
+            if augmented_space is not None and remaining_face.space is not augmented_space:
                 augmented_space.add_face(remaining_face)
 
         # remove isolated edges
@@ -1295,7 +1323,12 @@ class Edge:
         :return: the new created faces
         """
         for edge in self.siblings:
+            # we do not check the two edges touching the vertex
+            if edge is self or edge is self.previous:
+                continue
+
             vector = opposite_vector(edge.normal)
+            # check if we are cutting trough the edge
             angle = ccw_angle(self.vector, vector)
             angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
             if not angle_is_inside:
@@ -1303,17 +1336,37 @@ class Edge:
                               format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
                 continue
 
-            if edge is self or edge is self.previous:
-                continue
-
             projected_vertex = (transformation.get['projection']
                                               .config(vector=vector, edge=edge)
                                               .apply_to(self.start))
-
+            # If we can not project orthogonally on the edge we continue
             if projected_vertex is None:
                 continue
 
-            split_edge = edge.split(projected_vertex)
+            # Check if we cross the boundary of the face
+            min_distance = projected_vertex.distance_to(self.start)
+            closest_edge = edge
+
+            for other_edge in edge.siblings:
+                # we do not check the two edges touching the vertex
+                if other_edge is self or other_edge is self.previous:
+                    continue
+
+                other_projected_vertex = (transformation.get['projection']
+                                                        .config(vector=vector, edge=other_edge)
+                                                        .apply_to(self.start))
+
+                if other_projected_vertex is None:
+                    continue
+
+                other_distance = other_projected_vertex.distance_to(self.start)
+
+                if other_distance < min_distance:
+                    projected_vertex = other_projected_vertex
+                    min_distance = other_distance
+                    closest_edge = other_edge
+
+            split_edge = closest_edge.split(projected_vertex)
 
             if split_edge is None:
                 continue
@@ -1550,6 +1603,7 @@ class Face:
         list_vertices.append(list_vertices[0])
         return Polygon(list_vertices)
 
+    @property
     def as_sp_linear_ring(self) -> LinearRing:
         """
         Returns a shapely LinearRing corresponding to the face perimeter
@@ -1612,6 +1666,15 @@ class Face:
         if mesh is None:
             raise ValueError('Face has no mesh to remove it from: {0}'.format(self))
         mesh.remove_face(self)
+
+        # preserve space reference
+        if self.space and self.space.face is self:
+            for face in self.space.faces:
+                if face is not self:
+                    self.space.face = face
+                    break
+            else:
+                self.space.face = None
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
@@ -1680,7 +1743,7 @@ class Face:
         :return:
         """
         line = vertex.sp_line(vector, length=length)
-        intersection_points = self.as_sp_linear_ring().intersection(line)
+        intersection_points = self.as_sp_linear_ring.intersection(line)
         new_faces = [self]
 
         if intersection_points.is_empty:
@@ -1751,8 +1814,9 @@ class Face:
                 # check whether we are projecting unto an immutable linear
                 if not shared_edge.is_mutable:
                     continue
-                if not pseudo_equal(ccw_angle(shared_edge.vector,
-                                              vertex.vector(near_vertex)) % 90.0, 0.0):
+                projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
+                if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
+                        and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
                     continue
                 if min_distance is None or distance_to_vertex < min_distance:
                     best_vertex = vertex
@@ -2058,7 +2122,7 @@ class Face:
 
         return edges[0]
 
-    def merge(self, other: 'Face') -> 'Face':
+    def merge(self, other: 'Face') -> Optional['Face']:
         """
         Merges two adjacent faces. In order to be merge they have to share at least one edge
         :param other:
@@ -2371,8 +2435,6 @@ if __name__ == '__main__':
         edges = list(mesh.boundary_edges)
         for edge in edges:
             edge.pair.ortho_cut()
-
-        edges = list(mesh.boundary_edges)
 
         mesh.plot(save=False)
         plt.show()

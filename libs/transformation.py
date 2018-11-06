@@ -10,7 +10,6 @@ Examples :
 
 import copy
 from typing import Callable, Dict, Optional, TYPE_CHECKING
-import logging
 
 from libs.utils.custom_types import Vector2d
 from libs.utils.geometry import (
@@ -29,7 +28,7 @@ class Transformation:
     """
     def __init__(self, name: str, action: Callable, params: Optional[Dict] = None):
         self.name = name
-        self._params = params or {}
+        self.params = params or {}
         self.action = action
 
     def config(self, **params):
@@ -38,7 +37,7 @@ class Transformation:
         :param params:
         :return:
         """
-        self._params = params
+        self.params = params
         return self
 
     def apply_to(self, vertex: 'Vertex') -> Optional['Vertex']:
@@ -47,11 +46,13 @@ class Transformation:
         :param vertex:
         :return: a new vertex or None (if the transformation cannot be performed)
         """
+        from libs.mesh import Vertex
 
-        new_vertex = self.action(vertex, **self._params)
-        if new_vertex is None:
+        new_point = self.action(vertex, **self.params)
+        if new_point is None:
             return None
 
+        new_vertex = Vertex(*new_point)
         vertex.add_child(new_vertex)
         new_vertex.parent = vertex
         new_vertex.transformation = copy.copy(self)
@@ -68,15 +69,11 @@ def _barycenter_action(source_vertex: 'Vertex', vertex: 'Vertex', coeff: float) 
     :param coeff
     :return:
     """
-    from libs.mesh import Vertex
-
     if coeff is None or coeff > 1 or coeff < 0:
         raise ValueError('A barycenter coefficient' +
                          'should have a value between 0 and 1: {0}'.format(coeff))
 
-    x, y = barycenter(source_vertex.coords, vertex.coords, coeff)
-
-    return Vertex(x, y)
+    return barycenter(source_vertex.coords, vertex.coords, coeff)
 
 
 def _translation_action(source_vertex: 'Vertex', vector: Vector2d) -> 'Vertex':
@@ -86,9 +83,7 @@ def _translation_action(source_vertex: 'Vertex', vector: Vector2d) -> 'Vertex':
     :param vector:
     :return: Vertex
     """
-    from libs.mesh import Vertex
-
-    return Vertex(*move_point(source_vertex.coords, vector))
+    return move_point(source_vertex.coords, vector)
 
 
 def _projection_action(source_vertex: 'Vertex',
@@ -101,7 +96,6 @@ def _projection_action(source_vertex: 'Vertex',
     :param edge:
     :return:
     """
-    from libs.mesh import Vertex
     # check if the edge is facing the correct direction
     # per convention we can only project on an opposite facing edge
     # the edge also cannot be perpendicular to the projection vector
@@ -121,7 +115,7 @@ def _projection_action(source_vertex: 'Vertex',
         return None
 
     # return a new vertex at the intersection point
-    return Vertex(*temp_intersection_point.coords[0])
+    return temp_intersection_point.coords[0]
 
 
 # transformations catalogue
@@ -135,6 +129,8 @@ get = {
 
 
 if __name__ == '__main__':
+
+    from libs.mesh import Vertex, Edge
 
     def compute_a_barycenter():
         """

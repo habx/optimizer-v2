@@ -50,5 +50,3 @@ def test_project_a_vertex():
                 .apply_to(vertex_3))
 
     assert vertex_4.coords == (2.0, 2.0)
-
-
