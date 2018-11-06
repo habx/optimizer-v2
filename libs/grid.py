@@ -16,10 +16,6 @@ from libs.plan import Plan
 class Grid:
     """
     Creates a grid inside a plan.
-    1. We select an edge according to the selectors,
-    2. We apply the slicers
-    3. if new edges are created we recursively apply the grid
-    4. Once, we're finished we apply the reducers
     """
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Slicer']]):
         self.name = name

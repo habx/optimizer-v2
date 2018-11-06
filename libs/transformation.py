@@ -11,7 +11,7 @@ Examples :
 import copy
 from typing import Callable, Dict, Optional, TYPE_CHECKING
 
-from libs.utils.custom_types import Vector2d
+from libs.utils.custom_types import Vector2d, Coords2d
 from libs.utils.geometry import (
     barycenter,
     move_point,
@@ -61,13 +61,15 @@ class Transformation:
 
 
 # Standard actions :
-def _barycenter_action(source_vertex: 'Vertex', vertex: 'Vertex', coeff: float) -> 'Vertex':
+# Note : actions must return a coordinates Tuple
+
+def _barycenter_action(source_vertex: 'Vertex', vertex: 'Vertex', coeff: float) -> Coords2d:
     """
     Computes the barycenter
     :param source_vertex
     :param vertex
     :param coeff
-    :return:
+    :return: a coordinates Tuple
     """
     if coeff is None or coeff > 1 or coeff < 0:
         raise ValueError('A barycenter coefficient' +
@@ -76,25 +78,25 @@ def _barycenter_action(source_vertex: 'Vertex', vertex: 'Vertex', coeff: float) 
     return barycenter(source_vertex.coords, vertex.coords, coeff)
 
 
-def _translation_action(source_vertex: 'Vertex', vector: Vector2d) -> 'Vertex':
+def _translation_action(source_vertex: 'Vertex', vector: Vector2d) -> Coords2d:
     """
     Translates a vertex according to a vector
     :param source_vertex:
     :param vector:
-    :return: Vertex
+    :return: a coordinates Tuple
     """
     return move_point(source_vertex.coords, vector)
 
 
 def _projection_action(source_vertex: 'Vertex',
-                       vector: Vector2d, edge: 'Edge') -> Optional['Vertex']:
+                       vector: Vector2d, edge: 'Edge') -> Optional[Coords2d]:
     """
     Projects a vertex unto an edge according to a vector.
     Will return None if the projection point is outside the edge
     :param source_vertex:
     :param vector:
     :param edge:
-    :return:
+    :return: a coordinates Tuple
     """
     # check if the edge is facing the correct direction
     # per convention we can only project on an opposite facing edge
