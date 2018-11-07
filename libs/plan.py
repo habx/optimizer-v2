@@ -14,7 +14,7 @@ from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge
 import libs.transformation as transformation
-from libs.utils.custom_types import Coords2d
+from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
 
@@ -417,6 +417,25 @@ class Space:
         # finish by adding the space reference in the face object
         face.space = self
 
+    def change_face_reference(self, face: Face):
+        """
+        Changes the face reference of the space
+        :return:
+        """
+        if self.face is not face:
+            return
+        # verify that the face is not the only face in the Space
+        # if another face is found, it becomes the face reference of the Space
+        for other_face in self.faces:
+            if other_face is not face:
+                self.face = other_face
+                break
+        else:
+            self.face = None
+            self.edge = None
+            logging.info('Removing only face left in the Space: {0}'.format(self))
+            return
+
     def remove_face(self, face: Face):
         """
         Remove a face from the space and adjust the edges list accordingly
@@ -427,18 +446,7 @@ class Space:
                              ' that does not belong to the space:{0}'.format(face))
 
         # 1 : check if the face is the reference stored in the Space
-        if self.face is face:
-            # verify that the face is not the only face in the Space
-            # if another face is found, it becomes the face reference of the Space
-            for other_face in self.faces:
-                if other_face is not face:
-                    self.face = other_face
-                    break
-            else:
-                self.face = None
-                self.edge = None
-                logging.info('Removing only face left in the Space: {0}'.format(self))
-                return
+        self.change_face_reference(face)
 
         # 2 : check if the space edge belongs to the face and assign another to
         #     preserve space edge reference
@@ -577,7 +585,7 @@ class Space:
             vertex: Vertex,
             angle: float = 90.0,
             traverse: str = 'absolute',
-            max_length: Optional[float] = None):
+            max_length: Optional[float] = None) -> TwoEdgesAndAFace:
         """
         Cuts the space at the corresponding edge
         Adjust the self.faces and self.edges list accordingly
@@ -592,7 +600,7 @@ class Space:
             # Important : this prevent the cut of internal space boundary (for space with holes)
             logging.warning('WARNING: Cannot cut an edge that is not' +
                             ' on the boundary of the space:{0}'.format(edge))
-            return
+            return None
 
         # TODO : not sure about this. Does not seem like the best approach.
         # probably best to slice non rectilinear space into smaller simpler spaces,
@@ -607,8 +615,8 @@ class Space:
             start_edge, end_edge, new_face = new_edges
             return end_edge.pair.space is not self
 
-        edge.laser_cut(vertex, angle, traverse=traverse, callback=callback,
-                       max_length=max_length)
+        return edge.laser_cut(vertex, angle, traverse=traverse, callback=callback,
+                              max_length=max_length)
 
     def cut_at_barycenter(self, edge: Optional[Edge] = None, coeff: float = 0.5,
                           angle: float = 90.0, traverse: str = 'absolute',
@@ -623,8 +631,9 @@ class Space:
         :return:
         """
         edge = edge or self.edge
-        vertex = transformation.get['barycenter'].config(vertex=edge.end, coeff=coeff).apply_to(edge.start)
-        # vertex = Vertex().barycenter(edge.start, edge.end, coeff)
+        vertex = (transformation.get['barycenter']
+                                .config(vertex=edge.end, coeff=coeff)
+                                .apply_to(edge.start))
         return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None, save: Optional[bool] = None):
@@ -648,17 +657,17 @@ class Space:
         # check if edges are correct
         if ((self.edge is None) + (self.face is None)) == 1:
             is_valid = False
-            logging.error('Error in space: only one of edge or face is None')
+            logging.error('Error in space: only one of edge or face is None: {0}'.format(self.edge))
             return is_valid
 
         faces = list(self.faces)
 
         for edge in self.edges:
             if edge.face not in faces:
-                logging.error('Error in space: boundary edge with wrong face')
+                logging.error('Error in space: boundary edge with wrong face: {0}'.format(edge))
                 is_valid = False
             if edge.space is not self:
-                logging.error('Error in edge: boundary edge with wrong space')
+                logging.error('Error in edge: boundary edge with wrong space: {0}'.format(edge))
                 is_valid = False
 
         return is_valid
@@ -766,16 +775,6 @@ if __name__ == '__main__':
         """
         input_file = "Vernouillet_A002.json"
         plan = reader.create_plan_from_file(input_file)
-
-        plan.mesh.check()
-        """
-        for empty_space in plan.empty_spaces:
-            boundary_edges = list(empty_space.edges)
-
-            for edge in boundary_edges:
-                if edge.length > 30:
-                    empty_space.cut_at_barycenter(edge, 0)
-                    empty_space.cut_at_barycenter(edge, 1)"""
 
         plan.plot(save=False)
         plt.show()

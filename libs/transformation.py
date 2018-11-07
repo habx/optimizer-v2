@@ -55,7 +55,11 @@ class Transformation:
         new_vertex = Vertex(*new_point)
         vertex.add_child(new_vertex)
         new_vertex.parent = vertex
+        # We do a shallow copy of the transformation + a shallow copy of the params
+        # this means we will be referencing the same action object for each transformation of
+        # the same type, this also mean each param object will be referenced and not copied
         new_vertex.transformation = copy.copy(self)
+        new_vertex.transformation.params = copy.copy(self.params)
 
         return new_vertex
 
@@ -78,14 +82,16 @@ def _barycenter_action(source_vertex: 'Vertex', vertex: 'Vertex', coeff: float) 
     return barycenter(source_vertex.coords, vertex.coords, coeff)
 
 
-def _translation_action(source_vertex: 'Vertex', vector: Vector2d) -> Coords2d:
+def _translation_action(source_vertex: 'Vertex',
+                        vector: Vector2d,
+                        coeff: Optional[float] = 1.0) -> Coords2d:
     """
     Translates a vertex according to a vector
     :param source_vertex:
     :param vector:
     :return: a coordinates Tuple
     """
-    return move_point(source_vertex.coords, vector)
+    return move_point(source_vertex.coords, vector, coeff)
 
 
 def _projection_action(source_vertex: 'Vertex',
@@ -118,7 +124,6 @@ def _projection_action(source_vertex: 'Vertex',
 
     # return a new vertex at the intersection point
     return temp_intersection_point.coords[0]
-
 
 # transformations catalogue
 

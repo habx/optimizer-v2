@@ -2,7 +2,8 @@
 """
 Mesh Testing module
 """
-from libs.mesh import Mesh, Vertex
+import copy
+from libs.mesh import Mesh, Vertex, Face
 
 
 def test_outward_cut():
@@ -493,4 +494,27 @@ def test_ortho_cut():
     for edge in edges:
         edge.pair.ortho_cut()
 
+    assert mesh.check()
+
+
+def test_face_clean():
+    """
+    Test
+    :return:
+    """
+
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    mesh = Mesh().from_boundary(perimeter)
+
+    boundary_edge = mesh.boundary_edge.pair
+    new_edge = copy.copy(boundary_edge)
+    new_edge.pair = copy.copy(boundary_edge.pair)
+    boundary_edge.face.edge = new_edge
+    boundary_edge.previous.next = new_edge
+    boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
+    new_face = Face(boundary_edge, mesh)
+    boundary_edge.face = new_face
+    new_edge.pair.face = new_face
+
+    new_face.clean()
     assert mesh.check()

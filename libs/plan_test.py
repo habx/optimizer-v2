@@ -32,7 +32,7 @@ def test_floor_plan(input_file):
             if edge.length > 30:
                 empty_space.cut_at_barycenter(edge, 0)
                 empty_space.cut_at_barycenter(edge, 1)
-    plan.plot()
+
     assert plan.check()
 
 
