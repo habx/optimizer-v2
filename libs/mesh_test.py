@@ -518,3 +518,19 @@ def test_face_clean():
 
     new_face.clean()
     assert mesh.check()
+
+
+def test_simplify_mesh_triangle():
+    """
+    Test to collapse a small edge linking two triangle faces.
+    This will delete both faces.
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    mesh = Mesh().from_boundary(perimeter)
+    edge = mesh.boundary_edge.pair
+    edge.cut_at_barycenter(0, 6)
+    edge.cut_at_barycenter(0.01, 175)
+    edge.next.cut_at_barycenter(1.0, 100.0)
+    mesh.simplify()
+    assert mesh.check()

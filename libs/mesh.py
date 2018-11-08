@@ -47,9 +47,9 @@ if TYPE_CHECKING:
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
 ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
-COORD_EPSILON = 2.0  # coordinates precision for snapping purposes
+COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
-COORD_DECIMAL = 2  # number of decimal of the points coordinates
+COORD_DECIMAL = 4  # number of decimal of the points coordinates
 
 
 # MODULE CLASSES
@@ -225,18 +225,18 @@ class Vertex:
         else:
             logging.info('Cannot update vertex coordinates: {0}'.format(self))
 
-    def clean(self):
+    def clean(self) -> List['Edge']:
         """
         Removes an unneeded vertex.
         It is a vertex that is used only by one edge.
-        :return: self or None
+        :return: the list of modified edges
         """
         edges = list(self.edges)
         nb_edges = len(edges)
         # check the number of edges starting from the vertex
         if nb_edges > 2:
             logging.info('Cannot clean a vertex used by more than one edge')
-            return
+            return []
         # only a vertex with two edges can be cleaned
         if nb_edges == 2:
             previous_edge = self.edge.previous
@@ -255,6 +255,8 @@ class Vertex:
                 # create a new pair
                 edge.pair.pair = previous_edge
                 previous_edge.pair = edge.pair
+
+                return [edge, edge.pair.next]
 
     def is_equal(self, other: 'Vertex') -> bool:
         """
@@ -714,6 +716,15 @@ class Edge:
             return None
         return self.next.start
 
+    @end.setter
+    def end(self, value: Vertex):
+        """
+        Sets the end vertex of the edge
+        :param value:
+        :return:
+        """
+        self.next.start = value
+
     @property
     def previous(self) -> 'Edge':
         """
@@ -943,6 +954,25 @@ class Edge:
         :return: bool
         """
         return self.as_sp_dilated.intersects(vertex.as_sp)
+
+    def collapse(self):
+        """
+        Collapse an edge by merging start and end vertices
+        :return:
+        """
+        # snap vertices
+        self.start = self.start.snap_to(self.end)
+        # preserve references
+        self.preserve_references()
+        self.pair.preserve_references()
+        # insure next pointers for edge and pair edge
+        self.previous.next = self.next
+        self.pair.previous.next = self.pair.next
+        # insure space next pointers for edge and pair edge
+        if self.space_next:
+            self.space_previous.space_next = self.space_next
+        if self.pair.space_next:
+            self.pair.space_previous.space_next = self.pair.space_next
 
     def remove(self) -> Optional['Face']:
         """
@@ -1682,6 +1712,18 @@ class Face:
         """
         return (edge for edge in self.edges if edge.pair.face is self)
 
+    @property
+    def siblings(self) -> Generator['Face', None, None]:
+        """
+        Returns all adjacent faces and itself
+        :return:
+        """
+        seen = [self]
+        yield self
+        for edge in self.edges:
+            if edge.pair.face is not None and edge.pair.face not in seen:
+                yield edge.pair.face
+
     def add_to_mesh(self, mesh: 'Mesh') -> 'Face':
         """
         Adds the face to a mesh
@@ -2210,6 +2252,57 @@ class Face:
 
         return None
 
+    def simplify(self) -> Sequence[Edge]:
+        """
+        Check if the end and start vertices of each edge are very close to themselves
+        and snaps them if needed. If the face only has two edges, cleans the face.
+        TODO : we should also clean isolated vertices
+        :return: the modified edges
+        """
+        modified_edges = []
+        cleaned_face = self.clean()
+        if cleaned_face is None:
+            return modified_edges
+        for edge in self.edges:
+            # 1. remove small edges
+            if edge.length <= COORD_EPSILON and edge.is_mutable:
+                small_edge = edge
+
+                # pick the best vertex to snap to, to preserve edges alignment
+                end_aligned = pseudo_equal(ccw_angle(edge.pair.previous.opposite_vector,
+                                                     edge.next.vector), 180.0,
+                                           epsilon=ANGLE_EPSILON)
+                start_aligned = pseudo_equal(ccw_angle(edge.previous.opposite_vector,
+                                                       edge.pair.next.vector), 180.0,
+                                             epsilon=ANGLE_EPSILON)
+
+                if not end_aligned and start_aligned:
+                    small_edge = edge.pair
+
+                small_edge.collapse()
+
+                modified_edges.append(small_edge)
+                modified_edges.append(small_edge.pair)
+                logging.debug('Snapping edge while simplifying face: {0}'.format(small_edge))
+                modified_edges += self.simplify()
+                break
+
+        return modified_edges
+
+    def recursive_simplify(self) -> Sequence[Edge]:
+        """
+        Simplify a face and all other modified faces
+        :return:
+        """
+        modified_edges = self.simplify()
+        total_modified_edges = modified_edges
+
+        for edge in modified_edges:
+            if edge.pair.face is not None:
+                total_modified_edges += edge.pair.face.recursive_simplify()
+
+        return total_modified_edges
+
     def plot(self,
              ax=None,
              options=('fill', 'border'),
@@ -2360,6 +2453,17 @@ class Mesh:
                              ' is not already in the mesh, {0}'.format(face))
         self.faces.remove(face)
 
+    def simplify(self):
+        """
+        Simplifies the mesh by snapping close vertices to each other
+        :return:
+        """
+        modified_edges = []
+        for face in self.faces:
+            modified_edges += face.recursive_simplify()
+
+        return modified_edges
+
     def check(self) -> bool:
         """
         Checks if the mesh is correctly formed.
@@ -2495,7 +2599,7 @@ class Mesh:
 
 if __name__ == '__main__':
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     def plot():
         """
@@ -2536,4 +2640,44 @@ if __name__ == '__main__':
         new_face.clean()
         mesh.check()
 
-    merge_two_faces_edge()
+    # merge_two_faces_edge()
+
+    def simplify_mesh():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (0.5, 0.5), (500, 0), (500, 500), (499.5, 500), (0, 500)]
+        mesh = Mesh().from_boundary(perimeter)
+        mesh.plot(save=False)
+        plt.show()
+        print(mesh.simplify())
+
+        mesh.plot(save=False)
+        plt.show()
+
+        mesh.check()
+
+    # simplify_mesh()
+
+    def simplify_mesh_triangle():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        mesh = Mesh().from_boundary(perimeter)
+        edge = mesh.boundary_edge.pair
+        edge.cut_at_barycenter(0, 6)
+        edge.cut_at_barycenter(0.01, 175)
+        edge.next.cut_at_barycenter(1.0, 100.0)
+        mesh.plot(save=False)
+        plt.show()
+        print(mesh.simplify())
+
+        mesh.plot(save=False)
+        plt.show()
+
+        mesh.check()
+
+    simplify_mesh_triangle()

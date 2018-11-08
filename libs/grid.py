@@ -31,6 +31,8 @@ class Grid:
         _plan = copy.deepcopy(plan)
         for operator in self.operators:
             self.iterate(_plan, operator)
+            # we simplify the mesh between each operator
+            plan.mesh.simplify()
 
         return _plan
 
@@ -260,14 +262,14 @@ rectilinear_grid = Grid('rectilinear', [
 
 if __name__ == '__main__':
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     def create_a_grid():
         """
         Test
         :return:
         """
-        input_file = reader.INPUT_FILES[21]
+        input_file = reader.INPUT_FILES[7]
         plan = reader.create_plan_from_file(input_file)
 
         new_plan = rectilinear_grid.apply_to(plan)
