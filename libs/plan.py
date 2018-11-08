@@ -67,6 +67,7 @@ class Plan:
         :param linear:
         :return:
         """
+        linear.plan = self
         self.linears.append(linear)
 
     def get_spaces(self, category: Optional[str] = None) -> Generator['Space', None, None]:
@@ -572,7 +573,7 @@ class Space:
         vertex_1 = Vertex(*point_1)
         vertex_2 = Vertex(*point_2)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = Linear(new_edge, category)
+        new_linear = Linear(self.plan, new_edge, category)
         self.plan.add_linear(new_linear)
 
         return new_linear
@@ -676,7 +677,7 @@ class Linear:
     A linear is an object composed of one or several contiguous edges localized on the boundary
     of a space object
     """
-    def __init__(self, edge: Edge, category: LinearCategory):
+    def __init__(self, plan: Plan, edge: Edge, category: LinearCategory):
         """
         Init
         :param edge: one of the edge of the Linear. A linear can have more than one edge.
@@ -684,6 +685,7 @@ class Linear:
         if edge.space_next is None:
             raise ValueError('cannot create a linear that is not on the boundary of a space')
 
+        self.plan = plan
         self._edge = edge
         # set the circular reference
         edge.linear = self

@@ -58,7 +58,7 @@ class Vertex:
     """
     Vertex class
     """
-    def __init__(self, x: float = 0, y: float = 0, edge: 'Edge' = None):
+    def __init__(self, x: float = 0, y: float = 0, edge: 'Edge' = None, mutable: bool = True):
         """
         A simple Vertex class with barycentric capability
         By default sets the vertex to the origin (0, 0)
@@ -69,7 +69,8 @@ class Vertex:
         self._x = float(np.around(float(x), decimals=COORD_DECIMAL))
         self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
         self._edge = edge
-        # attributes used to store barycenter data
+        self.mutable = mutable
+        # attributes used to store transformation data (not used at the moment)
         self._children = []
         self._parent = None
         self.transformation = None
@@ -231,6 +232,10 @@ class Vertex:
         It is a vertex that is used only by one edge.
         :return: the list of modified edges
         """
+        # only clean a mutable vertex
+        if not self.mutable:
+            return []
+
         edges = list(self.edges)
         nb_edges = len(edges)
         # check the number of edges starting from the vertex
@@ -429,6 +434,7 @@ class Edge:
                  next_edge: Optional['Edge'],
                  face: Optional['Face'],
                  pair: Optional['Edge'] = None,
+                 # plan pointers
                  space_next: Optional['Edge'] = None,
                  linear: Optional['Linear'] = None):
         """
@@ -446,10 +452,11 @@ class Edge:
         self._face = face
         # always add a pair Edge, because an edge should always have a pair edge
         self._pair = pair if pair else Edge(None, None, None, self)
+        # plan pointers
         self._space_next = space_next
         self.linear = linear
 
-        # check the size of the edge
+        # check the size of the edge (not really useful)
         self.check_size()
 
     def __repr__(self):
@@ -2268,16 +2275,22 @@ class Face:
             if edge.length <= COORD_EPSILON and edge.is_mutable:
                 small_edge = edge
 
-                # pick the best vertex to snap to, to preserve edges alignment
-                end_aligned = pseudo_equal(ccw_angle(edge.pair.previous.opposite_vector,
-                                                     edge.next.vector), 180.0,
-                                           epsilon=ANGLE_EPSILON)
-                start_aligned = pseudo_equal(ccw_angle(edge.previous.opposite_vector,
-                                                       edge.pair.next.vector), 180.0,
-                                             epsilon=ANGLE_EPSILON)
+                if not (edge.start.mutable or edge.end.mutable):
+                    return modified_edges
 
-                if not end_aligned and start_aligned:
-                    small_edge = edge.pair
+                if not edge.start.mutable:
+                    small_edge = edge
+                else:
+                    # pick the best vertex to snap to, to preserve edges alignment
+                    end_aligned = pseudo_equal(ccw_angle(edge.pair.previous.opposite_vector,
+                                                         edge.next.vector), 180.0,
+                                               epsilon=ANGLE_EPSILON)
+                    start_aligned = pseudo_equal(ccw_angle(edge.previous.opposite_vector,
+                                                           edge.pair.next.vector), 180.0,
+                                                 epsilon=ANGLE_EPSILON)
+
+                    if not end_aligned and start_aligned:
+                        small_edge = edge.pair
 
                 small_edge.collapse()
 
@@ -2567,7 +2580,7 @@ class Mesh:
             raise ValueError('The perimeter crosses itself:{0}'.format(boundary))
 
         initial_face = Face(None, self)
-        initial_vertex = Vertex(boundary[0][0], boundary[0][1])
+        initial_vertex = Vertex(boundary[0][0], boundary[0][1], mutable=False)
         initial_edge = Edge(initial_vertex, None, initial_face)
 
         self.boundary_edge = initial_edge.pair
