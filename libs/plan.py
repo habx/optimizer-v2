@@ -185,20 +185,17 @@ class Space:
     """
     Space Class
     """
-    def __init__(self,
-                 plan: Plan,
-                 face: Face,
-                 boundary_edge: Optional[Edge] = None,
+    def __init__(self, plan: Plan, face: Face, edge: Optional[Edge] = None,
                  category: SpaceCategory = space_categories['empty']):
         self.plan = plan
         self.category = category
         self._face = face  # one face belonging to the space
-        self._edge = boundary_edge or face.edge  # one edge on the boundary of the space
+        self._edge = edge or face.edge  # one edge on the boundary of the space
         # set the circular reference
         face.space = self
         # set the boundary of the Space
-        for edge in self._edge.siblings:
-            edge.space_next = edge.next
+        for _edge in self._edge.siblings:
+            _edge.space_next = _edge.next
 
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))

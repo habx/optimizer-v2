@@ -2,6 +2,7 @@
 """
 geometry module
 Contains utility functions for computational geometry
+TODO : we should structure this with a point class and a vector class
 """
 
 from typing import Optional, Any, Sequence, Dict
