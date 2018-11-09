@@ -6,12 +6,15 @@ from typing import Tuple, Sequence, Callable, Generator, Optional
 import copy
 import logging
 import matplotlib.pyplot as plt
+from functools import reduce
 
 
 import libs.reader as reader
-from libs.mesh import Edge, Face
+from libs.mesh import Edge, Face, MIN_ANGLE, ANGLE_EPSILON
 from libs.plan import Plan
 import libs.transformation as transformation
+
+from libs.utils.geometry import ccw_angle
 
 
 class Grid:
@@ -72,8 +75,8 @@ class Selector:
     """
     Returns an iterator on a given mesh face
     """
-    def __init__(self, name: str, predicates: Sequence[Callable]):
-        self.name = name
+    def __init__(self, *predicates: Callable, name: str = ''):
+        self.name = name or reduce(lambda x, y: x + '__' + y.__name__, predicates, '')
         self.predicates = predicates
 
     def yield_from(self, face: Face) -> Generator[Edge, None, None]:
@@ -82,7 +85,6 @@ class Selector:
         :param face:
         :return:
         """
-
         for edge in face.edges:
             filtered = True
             for predicate in self.predicates:
@@ -97,8 +99,8 @@ class Slicer:
     """
     Will cut a face in half
     """
-    def __init__(self, name: str, action: Callable):
-        self.name = name
+    def __init__(self, action: Callable, name: Optional[str] = None):
+        self.name = name or action.__name__
         self.action = action
 
     def apply_to(self, edge: Edge) -> bool:
@@ -114,96 +116,173 @@ class Slicer:
 
 # selectors
 
-def _non_ortho_angle(edge):
-    if edge.face.area < 50.0:
-        return False
-    if edge.previous_angle <= 95.0:
-        return False
-    return not edge.previous_is_ortho
-
-
-def _far_from_corner(edge):
-    min_dist = 30.0
-    close_to_next_corner = edge.next_is_ortho and edge.length < min_dist
-    close_to_previous_corner = edge.previous.previous_is_ortho and edge.previous.length < min_dist
-    return not close_to_next_corner and not close_to_previous_corner
-
-
-def _far_from_boundary(edge):
-    min_dist = 100.0
-    close_to_next_corner = (edge.next.is_mesh_boundary
-                            and edge.next_is_ortho
-                            and edge.length < min_dist)
-
-    close_to_previous_corner = (edge.previous.previous.is_mesh_boundary
-                                and edge.previous.previous_is_ortho
-                                and edge.previous.length < min_dist)
-
-    return not close_to_next_corner and not close_to_previous_corner
-
-
-def _non_aligned_angle(edge):
-    return not (edge.previous_is_aligned and edge.pair.face is None)
-
-
-def _is_aligned(edge):
-    return not _non_aligned_angle(edge)
-
-
-def _non_ortho_not_aligned(edge):
-    return _non_ortho_angle(edge) and _non_aligned_angle(edge)
-
-
-def _is_window(edge):
-    return edge.linear and edge.linear.category.name in ("window", "doorWindow")
-
-
-def _next_is_window(edge):
-    return _is_window(edge.next)
-
-
-def _previous_is_window(edge):
-    return _is_window(edge.previous)
-
-
-def _close_edge(edge):
-    select = edge.next_is_ortho and edge.next.next_is_ortho
-    if not select:
-        return False
-    close = edge.next.length < 10.0  # for example
-    return close
+# predicates
 
 
 def _is_not_space_boundary(edge: Edge):
+    """
+    Predicate
+    Returns True if the edge is not a space boundary
+    :param edge:
+    :return:
+    """
     return not edge.is_space_boundary
 
 
-def _min_length(min_length: float) -> Callable:
-    def _predicate(edge: Edge):
-        return edge.length >= min_length
+# predicates factories
+
+def is_not(predicate: Callable) -> Callable:
+    """
+    Returns the opposite predicate
+    :return:
+    """
+    def _predicate(edge: Edge) -> bool:
+        return not predicate(edge)
 
     return _predicate
 
 
-close_edge_selector = Selector('close_edge', [_is_not_space_boundary, _close_edge])
+def edge_angle(min_angle: Optional[float] = None,
+               max_angle: Optional[float] = None,
+               previous: bool = False) -> Callable:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge angle with its next edge
+    is comprised between the two provided values. Only one of the value can be provided
+    :param min_angle:
+    :param max_angle:
+    :param previous : whether to check for the angle to the next edge or to the previous edge
+    :return: boolean
+    """
+    if min_angle is None and max_angle is None:
+        raise ValueError('A min or a max angle must be provided to the angle predicate factory')
 
-is_aligned_selector = Selector('is_aligned', [_is_aligned, _far_from_corner])
+    def _predicate(edge: Edge) -> bool:
+        _angle = edge.next_angle if not previous else edge.previous_angle
+        if min_angle is not None and max_angle is not None:
+            return min_angle <= _angle <= max_angle
+        if min_angle is not None:
+            return _angle >= min_angle
+        if max_angle is not None:
+            return _angle <= max_angle
+        return True
 
-is_window_selector = Selector('window', [_is_window, _far_from_boundary, _far_from_corner])
+    return _predicate
 
-next_is_window_selector = Selector('before_window', [_next_is_window, _min_length(25)])
 
-previous_is_window = Selector('previous_window',
-                              [_previous_is_window, _far_from_boundary, _far_from_corner])
+def edge_length(min_length: float = None, max_length: float = None) -> Callable:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge has a length inferior or equal to the provided max
+    length, or a superior length to the provided min_length or both
+    :param min_length:
+    :param max_length
+    :return:
+    """
+    def _predicate(edge: Edge) -> bool:
+        if min_length is not None and max_length is not None:
+            return min_length <= edge.length <= max_length
+        if min_length is not None:
+            return edge.length >= min_length
+        if max_length is not None:
+            return edge.length <= max_length
 
-non_ortho_selector = Selector('non_ortho', [_non_ortho_angle, _non_aligned_angle])
+    return _predicate
 
-non_ortho_or_aligned = Selector('non_ortho_or_aligned', [_far_from_corner, _non_ortho_not_aligned])
+
+def is_linear(*category_names: str) -> Callable:
+    """
+    Predicate Factory
+    :param category_names:
+    :return: a predicate
+    """
+
+    def _predicate(edge: Edge) -> bool:
+        return edge.linear and edge.linear.category.name in category_names
+
+    return _predicate
+
+
+def touches_linear(*category_names: str, position: str = 'before') -> Callable:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge is between two linears of the provided category
+    :param category_names: tuple of linear category names
+    :param position : where should the edge be : before, after, between
+    :return:
+    """
+
+    position_valid_values = 'before', 'after', 'between'
+
+    if position not in position_valid_values:
+        raise ValueError('Wrong position value in predicate factory touches_linear:' +
+                         ' {0}'.format(position))
+
+    def _predicate(edge: Edge) -> bool:
+        if position == 'before':
+            return edge.next.linear and edge.next.linear.category.name in category_names
+        if position == 'after':
+            return edge.next.linear and edge.next.linear.category.name in category_names
+        if position == 'between':
+            if edge.previous.linear and edge.previous.linear.category.name in category_names:
+                if edge.next.linear and edge.next.linear.category.name in category_names:
+                    return True
+            return False
+
+    return _predicate
+
+
+def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Callable:
+    """
+    Predicate factory
+    Returns a predicate indicating if the edge is closer than
+    the provided minimum distance to a linear of the provided category
+    :param min_distance:
+    :param category_names
+    :return: function
+    """
+    def _predicate(edge: Edge):
+        linear_edges = []
+        for sibling in edge.siblings:
+            if sibling.linear and sibling.linear.category.name in category_names:
+                linear_edges.append(sibling)
+
+        if not linear_edges:
+            return False
+
+        for linear_edge in linear_edges:
+            start_point_dist, end_point_dist = None, None
+            if ccw_angle(edge.vector, linear_edge.opposite_vector) >= 90.0 - MIN_ANGLE:
+                continue
+            start_point_line = linear_edge.start.sp_line(linear_edge.normal)
+            end_point_line = linear_edge.end.sp_line(linear_edge.normal)
+            start_point_intersection = start_point_line.intersection(edge.as_sp)
+            end_point_intersection = end_point_line.intersection(edge.as_sp)
+            if (not start_point_intersection.is_empty
+                    and start_point_intersection.geom_type == 'Point'):
+                start_point_dist = start_point_intersection.distance(linear_edge.start.as_sp)
+            if (not end_point_intersection.is_empty
+                    and end_point_intersection.geom_type == 'Point'):
+                end_point_dist = end_point_intersection.distance(linear_edge.end.as_sp)
+            if not start_point_dist and not end_point_dist:
+                continue
+            dist_to_edge = min(d for d in (start_point_dist, end_point_dist) if d is not None)
+            if dist_to_edge <= min_distance:
+                return True
+
+        return False
+
+    return _predicate
 
 # slicers
 
 
 def _cut_has_changed_the_mesh(cut_data):
+    """
+    Used to check if the cut has changed the mesh (meaning a new face has been created)
+    :param cut_data:
+    :return:
+    """
     return cut_data and cut_data[2] is not None
 
 
@@ -211,7 +290,7 @@ def _remove_edge(edge):
     return edge.remove()
 
 
-remove_edge_action = Slicer('remove_edge', _remove_edge)
+remove_edge = Slicer(_remove_edge, 'remove_edge')
 
 
 def _ortho_cut(edge: Edge):
@@ -219,61 +298,109 @@ def _ortho_cut(edge: Edge):
     return _cut_has_changed_the_mesh(cut_data)
 
 
-ortho_cut_slicer = Slicer('ortho_cut', _ortho_cut)
+ortho_projection_cut = Slicer(_ortho_cut, 'ortho_projection_cut')
 
 
-def _cut_ortho_to_edge(edge):
-    cut_data = edge.cut_at_barycenter(0.0)
-    return _cut_has_changed_the_mesh(cut_data)
+def barycenter_cut(coeff: float, angle: float = 90.0, traverse: str = 'relative') -> Callable:
+    """
+    Action Factory
+    :param coeff:
+    :param angle:
+    :param traverse:
+    :return: an action function
+    """
+    def _action(edge: Edge) -> bool:
+        cut_data = edge.recursive_barycenter_cut(coeff, angle, traverse)
+        return _cut_has_changed_the_mesh(cut_data)
+
+    return _action
 
 
-start_slicer = Slicer('boundary', _cut_ortho_to_edge)
+def translation_cut(dist: float, angle: float = 90.0, traverse: str = 'relative') -> Callable:
+    """
+    Action Factory
+    :param dist:
+    :param angle:
+    :param traverse:
+    :return: an action function
+    """
+    def _action(edge: Edge) -> bool:
+        # check the length of the edge. It cannot be inferior to the translation distance
+        if edge.length < dist:
+            return False
+        # create a translated vertex
+        vertex = (transformation.get['translation']
+                  .config(vector=edge.unit_vector, coeff=dist)
+                  .apply_to(edge.start))
+        cut_data = edge.recursive_cut(vertex, angle=angle, traverse=traverse)
+        return _cut_has_changed_the_mesh(cut_data)
 
-
-def _cut_ortho_to_previous(edge):
-    cut_data = edge.previous.cut_at_barycenter(1)
-    return _cut_has_changed_the_mesh(cut_data)
-
-
-end_slicer = Slicer('boundary', _cut_ortho_to_previous)
-
-
-def _ortho_laser_cut(edge: Edge) -> Optional[Face]:
-    distance_to_window = 15
-    vertex = (transformation.get['translation']
-                            .config(vector=edge.unit_vector, coeff=-1*distance_to_window)
-                            .apply_to(edge.end))
-    cut_data = edge.space.cut(edge, vertex, traverse='relative')
-    return _cut_has_changed_the_mesh(cut_data)
-
-
-ortho_laser_cut = Slicer('ortho_laser_cut', _ortho_laser_cut)
+    return _action
 
 # grids
 
-ortho_grid = Grid('ortho_grid', [(non_ortho_selector, ortho_cut_slicer)])
 
-rectilinear_grid = Grid('rectilinear', [
-                                        (non_ortho_or_aligned, ortho_cut_slicer),
-                                        (non_ortho_or_aligned, start_slicer),
-                                        (non_ortho_or_aligned, end_slicer),
-                                        (next_is_window_selector, ortho_laser_cut)
-                                       ])
+sequence_grid = Grid('sequence_grid', [
+    (
+        Selector(edge_angle(180.0 + ANGLE_EPSILON, 270.0 - ANGLE_EPSILON, previous=True)),
+        ortho_projection_cut
+    ),
+    (
+        Selector(edge_angle(180.0 + ANGLE_EPSILON, 270.0 - ANGLE_EPSILON)),
+        ortho_projection_cut
+    ),
+    (
+        Selector(edge_angle(90.0 + ANGLE_EPSILON, 180.0 - ANGLE_EPSILON, previous=True)),
+        ortho_projection_cut
+    ),
+    (
+        Selector(edge_angle(90.0 + ANGLE_EPSILON, 180.0 - ANGLE_EPSILON)),
+        ortho_projection_cut
+    ),
+    (
+        Selector(edge_angle(270.0 - ANGLE_EPSILON, 270.0 + ANGLE_EPSILON, previous=True)),
+        ortho_projection_cut
+    ),
+    (
+        Selector(close_to_linear('window', 'doorWindow', min_distance=90.0),
+                 _is_not_space_boundary),
+        remove_edge
+    ),
+    (
+        Selector(touches_linear('window', 'doorWindow', position='between')),
+        Slicer(barycenter_cut(0.5))
+    ),
+    (
+        Selector(edge_angle(180.0 - ANGLE_EPSILON, 180.0 + ANGLE_EPSILON),
+                 is_not(touches_linear('window', 'doorWindow')),
+                 is_not(is_linear('window', 'doorWindow'))),
+        Slicer(barycenter_cut(1.0))
+    ),
+    (
+        Selector(edge_length(min_length=150.0)),
+        Slicer(barycenter_cut(0.5))
+    ),
+    (
+        Selector(close_to_linear('window', 'doorWindow', min_distance=90.0),
+                 _is_not_space_boundary),
+        remove_edge
+    )
+])
 
 if __name__ == '__main__':
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     def create_a_grid():
         """
         Test
         :return:
         """
-        input_file = reader.INPUT_FILES[7]
+        input_file = reader.INPUT_FILES[17]  # 16: Edison_10
         plan = reader.create_plan_from_file(input_file)
 
-        new_plan = rectilinear_grid.apply_to(plan)
-        new_plan.mesh.check()
+        new_plan = sequence_grid.apply_to(plan)
+        new_plan.check()
 
         new_plan.plot(save=False)
         plt.show()

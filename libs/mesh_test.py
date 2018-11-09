@@ -16,8 +16,8 @@ def test_outward_cut():
 
     for edge in mesh.boundary_edges:
         if edge.pair.next_is_outward:
-            edge.pair.laser_cut_at_barycenter(1)
-            edge.previous.pair.laser_cut_at_barycenter(0)
+            edge.pair.recursive_barycenter_cut(1)
+            edge.previous.pair.recursive_barycenter_cut(0)
 
     assert mesh.check()
 
@@ -31,8 +31,8 @@ def test_remove_edge():
     mesh = Mesh().from_boundary(perimeter)
 
     edges = list(mesh.faces[0].edges)
-    edges[0].laser_cut_at_barycenter(0.5)
-    edges[3].laser_cut_at_barycenter(0.5)
+    edges[0].recursive_barycenter_cut(0.5)
+    edges[3].recursive_barycenter_cut(0.5)
 
     edges = list(mesh.faces[0].edges)
     edges[1].remove()
@@ -52,13 +52,13 @@ def test_non_ortho_cut():
     mesh = Mesh().from_boundary(perimeter)
     edges = list(mesh.faces[0].edges)
 
-    edges[0].laser_cut_at_barycenter(0.5, 30)
+    edges[0].recursive_barycenter_cut(0.5, 30)
 
     edges = list(mesh.faces[0].edges)
-    edges[3].laser_cut_at_barycenter(0.5, 100)
+    edges[3].recursive_barycenter_cut(0.5, 100)
 
     edges = list(mesh.faces[2].edges)
-    edges[4].laser_cut_at_barycenter(0.8)
+    edges[4].recursive_barycenter_cut(0.8)
 
     assert mesh.check()
 
@@ -72,7 +72,7 @@ def test_cut():
     mesh = Mesh().from_boundary(perimeter)
 
     edges = list(mesh.boundary_edges)
-    [edge.pair.laser_cut_at_barycenter(0.6) for edge in edges]
+    [edge.pair.recursive_barycenter_cut(0.6) for edge in edges]
 
     assert mesh.check()
 
@@ -86,7 +86,7 @@ def test_cut_to_vertex():
     mesh = Mesh().from_boundary(perimeter)
 
     edges = list(mesh.boundary_edges)
-    edges[0].pair.laser_cut_at_barycenter(0, 30.0)
+    edges[0].pair.recursive_barycenter_cut(0, 30.0)
 
     assert mesh.check()
 
@@ -100,7 +100,7 @@ def test_cut_to_start_vertex():
     mesh = Mesh().from_boundary(perimeter)
 
     edges = list(mesh.boundary_edges)
-    edges[0].pair.laser_cut_at_barycenter(0.4001)
+    edges[0].pair.recursive_barycenter_cut(0.4001)
 
     assert mesh.check()
 
@@ -118,7 +118,7 @@ def test_cut_inserted_face():
     mesh.faces[0].insert_face(mesh_.faces[0])
 
     edges = list(mesh.faces[1].edges)
-    edges[1].laser_cut_at_barycenter(0.5)
+    edges[1].recursive_barycenter_cut(0.5)
 
     assert mesh.check()
 
@@ -180,7 +180,7 @@ def test_add_face():
 
     for edge in mesh.boundary_edges:
         if edge.length > 50:
-            edge.pair.laser_cut_at_barycenter(0.5)
+            edge.pair.recursive_barycenter_cut(0.5)
 
     assert mesh.check()
 
@@ -208,7 +208,7 @@ def test_add_and_cut_face():
     face = face.insert_face(mesh6.faces[0])[0]
 
     edges = list(face.edges)
-    edges[2].laser_cut_at_barycenter(0.8, 80.0)
+    edges[2].recursive_barycenter_cut(0.8, 80.0)
 
     assert mesh.check()
 
@@ -224,9 +224,9 @@ def test_cut_snap():
     edges = list(mesh.boundary_edges)
 
     for edge in edges:
-        edge.pair.laser_cut_at_barycenter(0.5)
+        edge.pair.recursive_barycenter_cut(0.5)
 
-    edges[0].pair.laser_cut_at_barycenter(0.5, 64)
+    edges[0].pair.recursive_barycenter_cut(0.5, 64)
 
     assert mesh.check()
 
@@ -245,7 +245,7 @@ def test_cut_inside_edge():
 
     edges = list(mesh.boundary_edges)
 
-    edges[4].pair.previous.cut_at_barycenter()
+    edges[4].pair.previous.barycenter_cut()
 
     assert mesh.check()
 
@@ -278,7 +278,7 @@ def cut_to_inside_edge():
 
     edges = list(mesh.boundary_edges)
 
-    edges[3].pair.cut_at_barycenter(0.1)
+    edges[3].pair.barycenter_cut(0.1)
 
     assert mesh.check()
 
@@ -529,8 +529,8 @@ def test_simplify_mesh_triangle():
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     mesh = Mesh().from_boundary(perimeter)
     edge = mesh.boundary_edge.pair
-    edge.cut_at_barycenter(0, 6)
-    edge.cut_at_barycenter(0.01, 175)
-    edge.next.cut_at_barycenter(1.0, 100.0)
+    edge.barycenter_cut(0, 6)
+    edge.barycenter_cut(0.01, 175)
+    edge.next.barycenter_cut(1.0, 100.0)
     mesh.simplify()
     assert mesh.check()

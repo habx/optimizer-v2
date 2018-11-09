@@ -240,7 +240,7 @@ class Vertex:
         nb_edges = len(edges)
         # check the number of edges starting from the vertex
         if nb_edges > 2:
-            logging.info('Cannot clean a vertex used by more than one edge')
+            logging.debug('Cannot clean a vertex used by more than one edge')
             return []
         # only a vertex with two edges can be cleaned
         if nb_edges == 2:
@@ -256,6 +256,12 @@ class Vertex:
                 # remove edges
                 previous_edge.next = edge.next
                 edge.pair.next = edge.pair.next.next
+
+                # preserve space references [SPACE]
+                if edge.space_next:
+                    edge.space_previous.space_next = edge.space_next
+                if edge.pair.space_next:
+                    edge.pair.space_next = edge.pair.space_next.space_next
 
                 # create a new pair
                 edge.pair.pair = previous_edge
@@ -1183,13 +1189,13 @@ class Edge:
 
         return new_face
 
-    def laser_cut(self,
-                  vertex: Vertex,
-                  angle: float = 90.0,
-                  traverse: str = 'absolute',
-                  vector: Optional[Vector2d] = None,
-                  max_length: Optional[float] = None,
-                  callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
+    def recursive_cut(self,
+                      vertex: Vertex,
+                      angle: float = 90.0,
+                      traverse: str = 'absolute',
+                      vector: Optional[Vector2d] = None,
+                      max_length: Optional[float] = None,
+                      callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1251,16 +1257,16 @@ class Edge:
         # laser_cut the next edge if traverse option is set
         # if the new cut is unfruitful we do not return None but the last cut data
         if traverse == 'absolute' and not stop:
-            return new_edge_end.pair.laser_cut(new_edge_end.start, angle,
-                                               vector=vector,
-                                               max_length=max_length,
-                                               callback=callback) or new_edges_and_face
+            return new_edge_end.pair.recursive_cut(new_edge_end.start, angle,
+                                                   vector=vector,
+                                                   max_length=max_length,
+                                                   callback=callback) or new_edges_and_face
 
         if traverse == 'relative' and not stop:
-            return new_edge_end.pair.laser_cut(new_edge_end.start, angle,
-                                               traverse='relative',
-                                               max_length=max_length,
-                                               callback=callback) or new_edges_and_face
+            return new_edge_end.pair.recursive_cut(new_edge_end.start, angle,
+                                                   traverse='relative',
+                                                   max_length=max_length,
+                                                   callback=callback) or new_edges_and_face
 
         return new_edges_and_face
 
@@ -1357,23 +1363,24 @@ class Edge:
 
         return first_edge_next, closest_edge_next, new_face
 
-    def laser_cut_at_barycenter(self, coeff: float,
-                                angle: float = 90.0) -> Optional[Tuple['Edge', 'Edge']]:
+    def recursive_barycenter_cut(self, coeff: float,
+                                 angle: float = 90.0,
+                                 traverse: str = 'relative') -> Optional[Tuple['Edge', 'Edge']]:
         """
         Laser cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
         :param coeff:
         :param angle:
+        :param traverse: type of recursion
         :return:
         """
-        # vertex = Vertex().barycenter(self.start, self.end, coeff)
         vertex = (transformation.get['barycenter']
                                 .config(vertex=self.end, coeff=coeff)
                                 .apply_to(self.start))
-        return self.laser_cut(vertex, angle)
+        return self.recursive_cut(vertex, angle, traverse=traverse)
 
-    def cut_at_barycenter(self, coeff: float = 0.5,
-                          angle: float = 90.0) -> Optional[Tuple['Edge', 'Edge']]:
+    def barycenter_cut(self, coeff: float = 0.5,
+                       angle: float = 90.0) -> Optional[Tuple['Edge', 'Edge']]:
         """
         Cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
@@ -1453,6 +1460,28 @@ class Edge:
             return self, split_edge, new_face
 
         return None
+
+    def recursive_ortho_cut(self, recursive: str = 'true') -> TwoEdgesAndAFace:
+        """
+        Applies a recursive ortho cut
+        TODO : pb with this is that it might change the initial face due to rotation and induce
+        infinite loops (example : spiral patterns)
+        :return:
+        """
+        # do not cut an edge on the boundary
+        if self.face is None:
+            return None
+
+        cut_data = self.ortho_cut()
+
+        if not recursive:
+            return cut_data
+
+        if cut_data is None:
+            return None
+
+        first_edge, split_edge, new_face = cut_data
+        return split_edge.next.recursive_ortho_cut(recursive=recursive)
 
     def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
@@ -2681,9 +2710,9 @@ if __name__ == '__main__':
         perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
         mesh = Mesh().from_boundary(perimeter)
         edge = mesh.boundary_edge.pair
-        edge.cut_at_barycenter(0, 6)
-        edge.cut_at_barycenter(0.01, 175)
-        edge.next.cut_at_barycenter(1.0, 100.0)
+        edge.barycenter_cut(0, 6)
+        edge.barycenter_cut(0.01, 175)
+        edge.next.barycenter_cut(1.0, 100.0)
         mesh.plot(save=False)
         plt.show()
         print(mesh.simplify())

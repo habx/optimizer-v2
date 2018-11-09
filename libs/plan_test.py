@@ -30,8 +30,8 @@ def test_floor_plan(input_file):
         
         for edge in boundary_edges:
             if edge.length > 30:
-                empty_space.cut_at_barycenter(edge, 0)
-                empty_space.cut_at_barycenter(edge, 1)
+                empty_space.barycenter_cut(edge, 0)
+                empty_space.barycenter_cut(edge, 1)
 
     assert plan.check()
 
@@ -107,7 +107,7 @@ def test_cut_to_inside_space():
     plan = Plan().from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
     plan.insert_space_from_boundary(duct, space_categories['duct'])
-    plan.empty_space.cut_at_barycenter(list(plan.empty_space.edges)[7])
+    plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[7])
 
     assert plan.check()
 
