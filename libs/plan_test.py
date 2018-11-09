@@ -14,7 +14,7 @@ import libs.reader as reader
 
 ls.init()
 
-INPUT_FILES = reader.INPUT_FILES
+INPUT_FILES = reader.BLUEPRINT_INPUT_FILES
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)

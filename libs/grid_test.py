@@ -8,7 +8,7 @@ import pytest
 import libs.reader as reader
 from libs.grid import sequence_grid
 
-INPUT_FILES = reader.INPUT_FILES
+INPUT_FILES = reader.BLUEPRINT_INPUT_FILES
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)

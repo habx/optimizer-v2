@@ -68,8 +68,12 @@ space_categories = {
     'duct': SpaceCategory('duct', False),
     'loadBearingWall': SpaceCategory('loadBearingWall', False),
     'chamber': SpaceCategory('chamber'),
+    'bedroom': SpaceCategory('bedroom'),
     'living': SpaceCategory('living'),
     'entrance': SpaceCategory('entrance'),
     'kitchen': SpaceCategory('kitchen'),
-    'bathroom': SpaceCategory('bathroom')
+    'bathroom': SpaceCategory('bathroom'),
+    'wcBathroom': SpaceCategory('wcBathroom'),
+    'livingKitchen': SpaceCategory('livingKitchen'),
+    'wc': SpaceCategory('wc')
 }

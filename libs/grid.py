@@ -396,7 +396,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.INPUT_FILES[17]  # 16: Edison_10
+        input_file = reader.BLUEPRINT_INPUT_FILES[17]  # 16: Edison_10
         plan = reader.create_plan_from_file(input_file)
 
         new_plan = sequence_grid.apply_to(plan)

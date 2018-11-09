@@ -8,6 +8,7 @@ import json
 
 import libs.plan as plan
 from libs.category import space_categories, linear_categories
+from libs.specification import Specification, Item, Size
 
 from libs.utils.geometry import (
     point_dict_to_tuple,
@@ -19,8 +20,8 @@ from libs.utils.geometry import (
 from libs.utils.custom_types import Coords2d, FourCoords2d
 
 
-INPUT_FOLDER = "../resources/blueprints"
-INPUT_FILES = [
+BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
+BLUEPRINT_INPUT_FILES = [
     "Levallois_A3_505.json",
     "Levallois_Parisot.json",
     "Levallois_Tisnes.json",
@@ -58,6 +59,15 @@ INPUT_FILES = [
     "Vernouillet_A105.json"
 ]
 LOAD_BEARING_WALL_WIDTH = 15.0
+
+SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
+SPECIFICATION_INPUT_FILES = [
+    "Antony_A22_setup.json",
+    "Antony_A33_setup.json",
+    "Antony_B14_setup.json",
+    "Antony_B22_setup.json",
+    "Bussy_A001_setup.json"
+]
 
 
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
@@ -176,14 +186,15 @@ def _get_load_bearings_walls(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coor
     return output
 
 
-def get_floor_plan_dict(file_path: str = 'Antony_A22.json') -> Dict:
+def get_json_from_file(file_path: str = 'Antony_A22.json',
+                       input_folder: str = BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
 
     module_path = os.path.dirname(__file__)
-    input_file_path = os.path.join(module_path, INPUT_FOLDER, file_path)
+    input_file_path = os.path.join(module_path, input_folder, file_path)
 
     # retrieve data from json file
     with open(os.path.abspath(input_file_path)) as floor_plan_file:
@@ -198,7 +209,7 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     :param input_file: the path to a json file
     :return: a plan object
     """
-    floor_plan_dict = get_floor_plan_dict(input_file)
+    floor_plan_dict = get_json_from_file(input_file)
     perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name).from_boundary(perimeter)
@@ -215,3 +226,58 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
                                   category=linear_categories[fixed_item[1]])
 
     return my_plan
+
+
+def create_specification_from_file(input_file: str):
+    """
+    Creates a specification object from a json data
+    The model is in the form:
+    {
+      "setup": [
+        {
+          "type": "entrance",
+          "variant": "s",
+          "requiredArea": {
+            "min": 25000,
+            "max": 50000
+          }
+        },
+        {
+          "type": "livingKitchen",
+          "variant": "s",
+          "requiredArea": {
+            "min": 240000,
+            "max": 360000
+          }
+        }]
+    }
+    TODO : we should store the blueprint reference in the setup json
+
+    """
+    spec_dict = get_json_from_file(input_file, SPECIFICATION_INPUT_FOLDER)
+    specification = Specification(input_file)
+    for item in spec_dict['setup']:
+        _category = item['type']
+        if _category not in space_categories:
+            raise ValueError('Space type not present in space categories: {0}'.format(_category))
+        required_area = item['requiredArea']
+        size = Size(required_area['min'], required_area['max'])
+        variant = item['variant']
+        new_item = Item(space_categories[_category], variant, size)
+        specification.add_item(new_item)
+
+    return specification
+
+
+if __name__ == '__main__':
+
+    def specification_read():
+        """
+        Test
+        :return:
+        """
+        input_file = 'Bussy_A001_setup.json'
+        spec = create_specification_from_file(input_file)
+        print(spec)
+
+    specification_read()
