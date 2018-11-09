@@ -215,7 +215,8 @@ class Space:
     def face(self, value: Face):
         self._face = value
         # set the circular reference
-        value.space = self
+        if value is not None:
+            value.space = self
         # if the space has no edge it means it's empty so we can add an edge
         if self.edge is None:
             self.edge = value.edge
@@ -613,12 +614,12 @@ class Space:
             start_edge, end_edge, new_face = new_edges
             return end_edge.pair.space is not self
 
-        return edge.laser_cut(vertex, angle, traverse=traverse, callback=callback,
-                              max_length=max_length)
+        return edge.recursive_cut(vertex, angle, traverse=traverse, callback=callback,
+                                  max_length=max_length)
 
-    def cut_at_barycenter(self, edge: Optional[Edge] = None, coeff: float = 0.5,
-                          angle: float = 90.0, traverse: str = 'absolute',
-                          max_length: Optional[float] = None):
+    def barycenter_cut(self, edge: Optional[Edge] = None, coeff: float = 0.5,
+                       angle: float = 90.0, traverse: str = 'absolute',
+                       max_length: Optional[float] = None):
         """
         Convenience method
         :param edge:
@@ -662,10 +663,12 @@ class Space:
 
         for edge in self.edges:
             if edge.face not in faces:
-                logging.error('Error in space: boundary edge with wrong face: {0}'.format(edge))
+                logging.error('Error in space: boundary edge face not in space faces: ' +
+                              '{0} - {1}'.format(edge, edge.face))
                 is_valid = False
             if edge.space is not self:
-                logging.error('Error in edge: boundary edge with wrong space: {0}'.format(edge))
+                logging.error('Error in edge: boundary edge with wrong space: ' +
+                              '{0} - {1}'.format(edge, edge.space))
                 is_valid = False
 
         return is_valid
