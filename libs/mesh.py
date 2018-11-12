@@ -910,7 +910,7 @@ class Edge:
             if edge in seen:
                 raise Exception('Infinite space loop' +
                                 ' starting from edge:{0}'.format(self))
-            if not edge.is_space_boundary:
+            if not edge or not edge.is_space_boundary:
                 raise Exception('The space boundary is badly formed on edge:{0}'.format(edge))
             seen.append(edge)
             yield edge
@@ -1290,6 +1290,9 @@ class Edge:
         if self.face is None:
             return None
 
+        if self.face.space and not self.face.space.category.mutable:
+            return None
+
         # do not cut if the vertex is not inside the edge
         if not self.contains(vertex):
             logging.info('Trying to cut an edge on an outside vertex:' +
@@ -1557,6 +1560,17 @@ class Edge:
                                 .apply_to(self.start))
         return self.split(vertex)
 
+    def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
+        """
+        Plots the edge
+        :param ax:
+        :param color:
+        :param save:
+        :return:
+        """
+        x_coords, y_coords = zip(*(self.start.coords, self.end.coords))
+        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
+
     def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):
         """
         Plots a semi-arrow to indicate half-edge for debugging purposes
@@ -1781,12 +1795,7 @@ class Face:
 
         # preserve space reference
         if self.space and self.space.face is self:
-            for face in self.space.faces:
-                if face is not self:
-                    self.space.face = face
-                    break
-            else:
-                self.space.face = None
+            self.space.change_face(self)
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
@@ -2193,9 +2202,6 @@ class Face:
         face_to_insert = mesh.faces[0]
         new_faces = self.insert_face(face_to_insert)
 
-        if self.space is not None:
-            self.space.face = new_faces[0]
-
         return new_faces
 
     def is_linked_to_space(self) -> bool:
@@ -2283,7 +2289,7 @@ class Face:
         self.remove_from_mesh()
         # remove from the space [SPACE]
         if self.space:
-            self.space.change_face_reference(self)
+            self.space.change_face(self)
             self.space = None
 
         return None

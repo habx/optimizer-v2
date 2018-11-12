@@ -57,7 +57,7 @@ def plot_edge(x_coords: Sequence[float],
               _ax=None,
               color: str = 'b',
               width: float = 1.0,
-              alpha=1,
+              alpha: float = 1,
               save: Optional[bool] = None):
 
     """

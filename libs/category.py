@@ -11,7 +11,8 @@ CATEGORIES_COLORS = {
     'entrance': 'r',
     'frontDoor': 'r',
     'empty': 'b',
-    'space': 'b'
+    'space': 'b',
+    'seed': '#6a006a'
 }
 
 
@@ -65,6 +66,7 @@ linear_categories = {
 
 space_categories = {
     'empty': SpaceCategory('empty'),
+    'seed': SpaceCategory('seed'),
     'duct': SpaceCategory('duct', False),
     'loadBearingWall': SpaceCategory('loadBearingWall', False),
     'chamber': SpaceCategory('chamber'),
