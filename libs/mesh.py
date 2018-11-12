@@ -2214,14 +2214,7 @@ class Face:
         if self.space is None:
             return True  # per convention
 
-        if self.space.face is self:
-            return True
-
-        for face in self.space.faces:
-            if face is self:
-                return True
-
-        return False
+        return self in self.space.faces
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
         """

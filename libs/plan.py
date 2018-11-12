@@ -72,22 +72,22 @@ class Plan:
         self.linears.append(linear)
 
     def get_component(self,
-                      category_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
+                      cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
         """
         Returns an iterator of the spaces contained in the place
-        :param category_name:
+        :param cat_name: the name of the category
         :return:
         """
         for space in self.spaces:
-            if category_name is not None:
-                if space.category.name == category_name:
+            if cat_name is not None:
+                if space.category.name == cat_name:
                     yield space
             else:
                 yield space
 
         for linear in self.linears:
-            if category_name is not None:
-                if linear.category.name == category_name:
+            if cat_name is not None:
+                if linear.category.name == cat_name:
                     yield linear
             else:
                 yield linear
@@ -181,7 +181,7 @@ class Plan:
                              '[{0},{1}] - {2}'.format(point_1, point_2, category))
 
     def plot(self, ax=None, show: bool = False, save: bool = True,
-             options: Tuple['str'] = ('face', 'edge', 'half_edge', 'fill')):
+             options: Tuple = ('face', 'edge', 'half_edge', 'fill')):
         """
         Plots a plan
         :return:
@@ -236,9 +236,10 @@ class Space(PlanComponent):
         self.category = category
         # set the circular reference
         edge.face.space = self
-        # set the boundary of the Space
-        for _edge in self.edge.siblings:
-            _edge.space_next = _edge.next
+        # set the boundary of the Space if the edge has not already a boundary
+        if not self.edge.is_space_boundary:
+            for _edge in self.edge.siblings:
+                _edge.space_next = _edge.next
 
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
@@ -259,27 +260,36 @@ class Space(PlanComponent):
         The faces included in the Space. Returns an iterator.
         :return:
         """
-        # check if the space has at least one face
-        if self.face is None:
+        return self.get_adjacent_faces(self.face)
+
+    def get_adjacent_faces(self, face: Face) -> Generator[Face, None, None]:
+        """
+        Returns the adjacent faces of the specified face in the space,
+        per convention we start by returning the provided face
+        Needed for example when a space has been divided in disconnected pieces
+        :param face:
+        :return:
+        """
+        if face is None:
             return
 
-        seen = [self.face]
-        yield self.face
+        seen = [face]
+        yield face
 
-        def get_adjacent_faces(face: Face) -> Generator[Face, None, None]:
+        def _get_adjacent_faces(_face: Face) -> Generator[Face, None, None]:
             """
-            Recursive function to retrieve all the faces of the space
-            :param face:
-            :return:
-            """
-            for edge in face.edges:
+                Recursive function to retrieve all the faces of the space
+                :param _face:
+                :return:
+                """
+            for edge in _face.edges:
                 new_face = edge.pair.face
                 if new_face and new_face.space is self and new_face not in seen:
                     seen.append(new_face)
                     yield new_face
-                    yield from get_adjacent_faces(new_face)
+                    yield from _get_adjacent_faces(new_face)
 
-        yield from get_adjacent_faces(self.face)
+        yield from _get_adjacent_faces(face)
 
     @property
     def edges(self) -> Generator[Edge, None, None]:
@@ -467,15 +477,15 @@ class Space(PlanComponent):
                 raise ValueError('Cannot add a face that is not adjacent' +
                                  ' to the space:{0}'.format(face))
             if len(space_edges) == len(list(face.edges)):
-                # TODO : we should implement this
                 # raise ValueError('Cannot add a face that is completely enclosed in the Space')
                 return self._add_enclosed_face(face)
 
-        # check for previous space boundaries:
+        # check for other shared space boundaries that are localised before the first edge in
+        # space_edges : (we go backward)
         edge = space_edges[0].pair.space_next.pair
         while edge.face is face:
             if edge in space_edges:
-                raise ValueError('Cannot add a face that is completely enclosed in the Space')
+                raise ValueError('This should be impossible !!')
             space_edges.insert(0, edge)
             edge = edge.pair.space_next.pair
 
@@ -484,6 +494,10 @@ class Space(PlanComponent):
 
         end_edge.pair.space_previous.space_next = end_edge.next
         start_edge.previous.space_next = start_edge.pair.space_next
+
+        # preserve space edge reference
+        if self.edge.pair in space_edges:
+            self.edge = end_edge.next  # per convention
 
         # remove the old space references
         for edge in space_edges:
@@ -597,22 +611,20 @@ class Space(PlanComponent):
         space_faces.remove(face)
         # check if we still find every face
         for face in space_faces:
-            if face and not face.is_linked_to_space():
-                # if the boundary edge of the face belong to a disconnected face
-                # we must change it (TODO : we could find a cleaner way...)
-                if self.edge.face is face:
-                    for other_face in space_faces:
-                        if other_face is face:
-                            continue
-                        if other_face.space is self:
-                            for edge in other_face.edges:
-                                if self.is_boundary(edge):
-                                    self.edge = edge
-                                    break
-                            if self.edge.face is not face:
-                                break
+            if not face.is_linked_to_space():
                 # create a new space of the same category
-                self.plan.add_space(Space(self.plan, face.edge, category=self.category))
+                # find a boundary edge
+                boundary_edge = None
+                for edge in face.edges:
+                    if edge.is_space_boundary:
+                        boundary_edge = edge
+                        break
+
+                if boundary_edge:
+                    new_space = Space(self.plan, boundary_edge, category=self.category)
+                    for _face in self.get_adjacent_faces(face):
+                        _face.space = new_space
+                    self.plan.add_space(new_space)
 
     def insert_space(self,
                      boundary: Sequence[Coords2d],
@@ -891,8 +903,7 @@ if __name__ == '__main__':
         plan.empty_space.remove_face(middle_face)
         plan.empty_space.add_face(middle_face)
 
-        plan.plot(save=False)
+        plan.plot(save=False, options=('fill', 'border', 'half-edge'))
         plt.show()
 
     add_space()
-
