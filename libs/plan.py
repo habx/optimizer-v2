@@ -479,8 +479,6 @@ class Space(PlanComponent):
         # space_edges : (we go backward)
         edge = space_edges[0].pair.space_next.pair
         while edge.face is face:
-            if edge in space_edges:
-                raise ValueError('This should be impossible !!')
             space_edges.insert(0, edge)
             edge = edge.pair.space_next.pair
 
@@ -529,7 +527,6 @@ class Space(PlanComponent):
         """
         Remove a face from the space and adjust the edges list accordingly
         # TODO : for performance purpose, create a method transfer face (which will remove the face
-        # TODO : bug when creating new spaces, investigate this
         from the first space and add it to the second one in the same time)
         :param face: face to remove from space
         """
