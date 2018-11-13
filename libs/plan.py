@@ -140,7 +140,7 @@ class Plan:
         return True
 
     def insert_space_from_boundary(self,
-                                   boundary: Sequence[Tuple[Coords2d]],
+                                   boundary: Sequence[Coords2d],
                                    category: SpaceCategory = space_categories['empty']):
         """
         Inserts a new space inside the reference face of the space.
@@ -181,7 +181,7 @@ class Plan:
                              '[{0},{1}] - {2}'.format(point_1, point_2, category))
 
     def plot(self, ax=None, show: bool = False, save: bool = True,
-             options: Tuple = ('face', 'edge', 'half_edge', 'fill')):
+             options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border')):
         """
         Plots a plan
         :return:
@@ -364,7 +364,7 @@ class Space(PlanComponent):
 
         # check if one the edge starting from the same vertex belongs to the space boundary
         current_edge = edge.cw
-        while current_edge is not edge:
+        while current_edge.face is not edge.face:
             if self.is_boundary(current_edge):
                 return current_edge
             current_edge = current_edge.cw
@@ -561,7 +561,7 @@ class Space(PlanComponent):
             if edge.next.pair.next.pair is not edge:
                 exit_edge = edge.next.pair.next
         else:
-            if not same_face:
+            if not same_face or not exit_edge.is_internal:
                 raise ValueError('Can not remove from the space' +
                                  ' a face that is not on the boundary:{0}'.format(face))
             enclosed_face = True
@@ -595,34 +595,44 @@ class Space(PlanComponent):
             edge, space_edge, ante_space_edge = edge_tuple
             if space_edge is not None:
                 if space_edge is not edge:
-                    edge.pair.space_next = space_edge
+                    # we need to treat the special case of "a pointy face"
+                    if space_edge.face is face:
+                        edge.pair.space_next = edge.pair.next
+                    else:
+                        edge.pair.space_next = space_edge
                 if previous_space_edge is previous_edge:
                     previous_space_edge.space_next = None
                 else:
                     ante_space_edge.space_next = previous_edge.pair
             else:
-                edge.pair.space_next = previous_edge.pair
+                # we need to treat the special case of a "pointy face"
+                # if self.is_boundary(previous_edge):
+                bowtie_edge = edge.bowtie
+                if bowtie_edge:
+                    edge.pair.space_next = bowtie_edge.previous.pair
+                else:
+                    edge.pair.space_next = previous_edge.pair
             previous_edge, previous_space_edge, previous_ante_space_edge = edge_tuple
-
-        # check for separated faces
 
         # remove the face from the Space
         face.space = None
         space_faces.remove(face)
-        # check if we still find every face
-        for face in space_faces:
-            if not face.is_linked_to_space():
+
+        # check for separated faces
+        # TODO : only check for modified face for efficiency
+        for remaining_face in space_faces:
+            if not remaining_face.is_linked_to_space():
                 # create a new space of the same category
                 # find a boundary edge
                 boundary_edge = None
-                for edge in face.edges:
+                for edge in remaining_face.edges:
                     if edge.is_space_boundary:
                         boundary_edge = edge
                         break
 
                 if boundary_edge:
                     new_space = Space(self.plan, boundary_edge, category=self.category)
-                    for _face in self.get_adjacent_faces(face):
+                    for _face in self.get_adjacent_faces(remaining_face):
                         _face.space = new_space
                     self.plan.add_space(new_space)
 
@@ -726,7 +736,7 @@ class Space(PlanComponent):
 
     def plot(self, ax=None,
              save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'fill', 'border', 'half_edge')):
+             options: Tuple['str'] = ('face', 'fill', 'border', 'half-edge')):
         """
         plot the space
         """
@@ -885,25 +895,3 @@ if __name__ == '__main__':
         assert plan.check()
 
     # floor_plan()
-
-    def add_space():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        plan = Plan('my plan').from_boundary(perimeter)
-
-        plan.empty_space.barycenter_cut(coeff=0.3)
-        plan.empty_space.barycenter_cut()
-        plan.empty_space.barycenter_cut()
-
-        middle_face = list(plan.empty_space.faces)[1]
-
-        plan.empty_space.remove_face(middle_face)
-        plan.empty_space.add_face(middle_face)
-
-        plan.plot(save=False, options=('fill', 'border', 'half-edge'))
-        plt.show()
-
-    add_space()

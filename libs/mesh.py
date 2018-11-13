@@ -789,6 +789,29 @@ class Edge:
         return self.pair.next
 
     @property
+    def bowtie(self) -> Optional['Edge']:
+        """
+        Returns an edge starting from the same vertex and pointing to the same face.
+        Only useful in the case of a "bowtie" polygon
+        Example : E: the specified Edge, R: the returned Edge
+        • -> •
+        ^    |
+        |    v  E
+        • <- • -> •
+           R ^    |
+             |    v
+             • <- •
+        :return: a boolean
+        """
+        other = self.ccw
+        face = self.face
+        while other is not self:
+            if other.face is face:
+                return other
+            other = other.ccw
+        return None
+
+    @property
     def normal(self) -> Vector2d:
         """
         A CCW normal of the edge of length 1
