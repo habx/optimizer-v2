@@ -390,14 +390,14 @@ class Space(PlanComponent):
         """
         return edge.face is None or edge.face.space is not self
 
-    def _remove_lone_edge(self, edge: Edge):
+    def _remove_lone_space_edge(self, edge: Edge):
         """
         Remove a "lone edge" defined as having its pair as a space_next
         :param edge:
         :return:
         """
         if edge is edge.pair.space_next:
-            return self._remove_lone_edge(edge.pair)
+            return self._remove_lone_space_edge(edge.pair)
 
         if edge.pair is not edge.space_next:
             return
@@ -408,7 +408,7 @@ class Space(PlanComponent):
         edge.pair.space_next = None
 
         # recursive check the next edge
-        return self._remove_lone_edge(edge_space_previous)
+        return self._remove_lone_space_edge(edge_space_previous)
 
     def _add_enclosed_face(self, face):
         """
@@ -416,7 +416,7 @@ class Space(PlanComponent):
         :param face:
         :return:
         """
-        # find vertices that touches both spaces
+        # find the space boundary edges linking the enclosed face to the rest of the space
         touch_edges = []
         for edge in face.edges:
             if edge.pair.space_previous is not edge.next.pair:
@@ -426,7 +426,7 @@ class Space(PlanComponent):
             edge_pair_space_previous, edge_next_pair = edges
             edge_pair_space_previous.space_next = edge_next_pair.space_next
             # check if we created a lone space edge
-            self._remove_lone_edge(edge_pair_space_previous)
+            self._remove_lone_space_edge(edge_pair_space_previous)
 
         # remove space next references
         for edge in face.edges:
@@ -442,11 +442,6 @@ class Space(PlanComponent):
         :param face: face to add to space
         :param start_from: an edge to start the adjacency search from
         """
-        # check if the face is already inside the space
-        if face in self.faces:
-            raise ValueError('Cannot add a face that already ' +
-                             'belongs to the space: {0}'.format(face))
-
         if face.space:
             raise ValueError('Cannot add a face that already ' +
                              'belongs to another space : {0}'.format(face))
@@ -459,7 +454,7 @@ class Space(PlanComponent):
         # we start the search for a boundary edge from the start_from edge or the face edge
         start_from = start_from or face.edge
 
-        # else we make sure the new face is adjacent to at least one of the space faces
+        # we make sure the new face is adjacent to at least one of the space faces
         space_edges = []
         for edge in start_from.siblings:
             if not space_edges:
@@ -477,7 +472,7 @@ class Space(PlanComponent):
                 raise ValueError('Cannot add a face that is not adjacent' +
                                  ' to the space:{0}'.format(face))
             if len(space_edges) == len(list(face.edges)):
-                # raise ValueError('Cannot add a face that is completely enclosed in the Space')
+                # the face is completely enclosed in the space
                 return self._add_enclosed_face(face)
 
         # check for other shared space boundaries that are localised before the first edge in
@@ -542,9 +537,6 @@ class Space(PlanComponent):
             raise ValueError('Cannot remove a face' +
                              ' that does not belong to the space:{0}'.format(face))
 
-        # 0: store the faces of the space before we remove the face
-        space_faces = list(self.faces)
-
         # 1 : check if the face is the reference stored in the Space and change it
         self.change_face(face)
 
@@ -595,18 +587,13 @@ class Space(PlanComponent):
             edge, space_edge, ante_space_edge = edge_tuple
             if space_edge is not None:
                 if space_edge is not edge:
-                    # we need to treat the special case of "a pointy face"
-                    if space_edge.face is face:
-                        edge.pair.space_next = edge.pair.next
-                    else:
-                        edge.pair.space_next = space_edge
+                    edge.pair.space_next = space_edge
                 if previous_space_edge is previous_edge:
                     previous_space_edge.space_next = None
                 else:
                     ante_space_edge.space_next = previous_edge.pair
             else:
-                # we need to treat the special case of a "pointy face"
-                # if self.is_boundary(previous_edge):
+                # we need to treat the special case of a "bowtie space"
                 bowtie_edge = edge.bowtie
                 if bowtie_edge:
                     edge.pair.space_next = bowtie_edge.previous.pair
@@ -616,11 +603,14 @@ class Space(PlanComponent):
 
         # remove the face from the Space
         face.space = None
-        space_faces.remove(face)
 
-        # check for separated faces
-        # TODO : only check for modified face for efficiency
-        for remaining_face in space_faces:
+        # check for separated faces amongst the modified faces
+        seen = [face, None]
+        for face_edge in face.edges:
+            remaining_face = face_edge.pair.face
+            if remaining_face in seen or remaining_face.space is not self:
+                continue
+            seen.append(remaining_face)
             if not remaining_face.is_linked_to_space():
                 # create a new space of the same category
                 # find a boundary edge
