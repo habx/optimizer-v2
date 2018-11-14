@@ -3,7 +3,7 @@
 Space grower module
 A grower creates spaces in a plan from seeds point and according to a specification
 """
-from typing import List, Optional, Dict, Callable
+from typing import List, Optional, Dict, Callable, Generator, Tuple
 import copy
 import logging
 
@@ -15,8 +15,9 @@ from libs.specification import Specification
 import libs.reader as reader
 from libs.grid import sequence_grid, edge_length
 from libs.category import space_categories
+from libs.utils.custom_types import Vector2d
 
-from libs.utils.geometry import barycenter, move_point
+from libs.utils.geometry import barycenter, move_point, same_half_plane, ccw_angle, pseudo_equal, opposite_vector
 
 
 class Grower:
@@ -77,7 +78,7 @@ class Seeder:
         :return:
         """
         for component in self.plan.get_component():
-            if not component.category.mutable:
+            if component.category.seedable:
                 # create seed for each edge touching an empty space
                 for edge in component.edges:
                     seed_edge = edge.pair if isinstance(component, Space) else edge
@@ -108,6 +109,7 @@ class Seeder:
                 face_added = seed.grow()
                 if face_added:
                     faces_added.append(face_added)
+            # stop to grow once we cannot grow anymore
             if not faces_added:
                 break
 
@@ -123,9 +125,8 @@ class Seeder:
         """
         Adds a condition to create a seed.
         A condition is a predicate that takes an edge as input and returns a boolean
-        :param condition:
-        :param category_name:
-        :return:
+        :param condition: predicate
+        :param category_name: the str name of a category
         """
         key = category_name if category_name else 'general'
         if key in self.conditions:
@@ -172,11 +173,32 @@ class Seed:
                  plan_component: Optional[PlanComponent] = None):
         self.seeder = seeder
         self.edge = edge  # the reference edge of the seed
-        self.components = [plan_component] if PlanComponent else []
-        self.space: Optional[Space] = None
+        self.components = [plan_component] if PlanComponent else []  # the components of the seed
+        self.space: Optional[Space] = None  # the seed space
+        # edge pointers used for growth
+        self.horizontal_growth = True
 
     def __repr__(self):
         return 'Seed: {0}, {1}, {2}'.format(self.edge, self.components, self.space)
+
+    @property
+    def size(self) -> Tuple[float, float]:
+        """
+        Returns the width of the seed space
+        :return: width, depth
+        """
+        return self.space.bounding_box(self.edge.unit_vector)
+
+    def select(self, vector: Vector2d, epsilon: float = 10.0) -> Generator[Edge, None, None]:
+        """
+        Returns the edges of the seed space which normals are quasi parallel to the specified vector
+        :param vector:
+        :param epsilon:
+        :return:
+        """
+        for edge in self.space.edges:
+            if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon):
+                yield edge
 
     def grow(self) -> Optional[Face]:
         """
@@ -193,17 +215,35 @@ class Seed:
 
         # This growth mecanism does crazing things (spiraling and such). We should create
         # more appropriate rules to select the best face to add to the space
-        for edge in self.space.edges:
-            face = edge.pair.face
-            if face is None:
-                continue
-            if face.space and face.space.category.name != 'empty':
-                continue
-            face.space.remove_face(face)
-            self.space.add_face(face)
-            return face
+        max_width = 300
+        max_depth = 400
 
-        return None
+        self_size = self.size
+        added_face = None
+
+        if self.horizontal_growth:
+            directions = self.edge.unit_vector, opposite_vector(self.edge.unit_vector)
+        else:
+            directions = (self.edge.normal,)
+
+        for direction in directions:
+            for edge in list(self.select(direction)):
+                face = edge.pair.face
+                if face and (not face.space or face.space.category.name == 'empty'):
+                    face_size = face.bounding_box(direction)
+                    correct_size = (self_size[0] + face_size[0] <= max_width
+                                    if self.horizontal_growth
+                                    else self_size[1] + face_size[1] <= max_depth)
+                    if correct_size:
+                        face.space.remove_face(face)
+                        self.space.add_face(face)
+                        added_face = face
+                    else:
+                        break
+            if added_face is None and self.horizontal_growth:
+                self.horizontal_growth = False
+
+        return added_face
 
     def max_size(self):
         """
@@ -243,7 +283,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Noisy_A145.json')
+        plan = reader.create_plan_from_file('Massy_C204.json')
 
         new_plan = sequence_grid.apply_to(plan)
 

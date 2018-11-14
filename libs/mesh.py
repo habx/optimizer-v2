@@ -33,7 +33,9 @@ from libs.utils.geometry import (
     move_point,
     same_half_plane,
     opposite_vector,
-    pseudo_equal
+    pseudo_equal,
+    dot_product,
+    normal_vector
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -1796,6 +1798,32 @@ class Face:
         for edge in self.edges:
             if edge.pair.face is not None and edge.pair.face not in seen:
                 yield edge.pair.face
+
+    def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
+        """
+        Returns the bounding rectangular box of the space according to the direction vector
+        :param vector:
+        :return:
+        """
+        vector = vector or self.edge.unit_vector
+        total_x = 0
+        max_x = 0
+        min_x = 0
+        total_y = 0
+        max_y = 0
+        min_y = 0
+        number_of_turns = 0
+
+        for other in self.edges:
+            total_x += dot_product(other.vector, vector)
+            max_x = max(total_x, max_x)
+            min_x = min(total_x, min_x)
+            total_y += dot_product(other.vector, normal_vector(vector))
+            max_y = max(total_y, max_y)
+            min_y = min(total_y, min_y)
+        number_of_turns += 1
+
+        return max_x - min_x, max_y - min_y
 
     def add_to_mesh(self, mesh: 'Mesh') -> 'Face':
         """

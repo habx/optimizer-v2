@@ -20,9 +20,10 @@ class Category:
     """
     A category of a space or a linear
     """
-    def __init__(self, name: str, mutable: bool = True, color: str = 'b'):
+    def __init__(self, name: str, mutable: bool = True, seedable: bool = False, color: str = 'b'):
         self.name = name
         self.mutable = mutable
+        self.seedable = seedable
         self.color = CATEGORIES_COLORS.get(self.name, color)
 
     def __repr__(self):
@@ -45,9 +46,10 @@ class LinearCategory(Category):
     def __init__(self,
                  name,
                  mutable: bool = True,
+                 seedable: bool = False,
                  aperture: bool = False,
                  width: float = 5.0):
-        super().__init__(name, mutable)
+        super().__init__(name, mutable, seedable)
         self.aperture = aperture
         self.width = width
         self.mutable = mutable
@@ -56,10 +58,10 @@ class LinearCategory(Category):
 
 
 linear_categories = {
-    'window': LinearCategory('window', False, True),
+    'window': LinearCategory('window', False, True, True),
     'door': LinearCategory('door', aperture=True),
-    'doorWindow': LinearCategory('doorWindow', False, True),
-    'frontDoor': LinearCategory('frontDoor', False, True),
+    'doorWindow': LinearCategory('doorWindow', False, True, True),
+    'frontDoor': LinearCategory('frontDoor', False, True, True),
     'wall': LinearCategory('wall'),
     'externalWall': LinearCategory('externalWall', False, width=2.0)
 }
@@ -67,7 +69,7 @@ linear_categories = {
 space_categories = {
     'empty': SpaceCategory('empty'),
     'seed': SpaceCategory('seed'),
-    'duct': SpaceCategory('duct', False),
+    'duct': SpaceCategory('duct', False, True),
     'loadBearingWall': SpaceCategory('loadBearingWall', False),
     'chamber': SpaceCategory('chamber'),
     'bedroom': SpaceCategory('bedroom'),

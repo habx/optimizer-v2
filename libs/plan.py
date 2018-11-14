@@ -15,9 +15,10 @@ from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import space_categories, LinearCategory, SpaceCategory
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
-from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace
+from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
+from libs.utils.geometry import dot_product, normal_vector
 
 
 class Plan:
@@ -337,6 +338,30 @@ class Space(PlanComponent):
         list_vertices = [edge.start.coords for edge in self.edges]
         list_vertices.append(list_vertices[0])
         return Polygon(list_vertices)
+
+    def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
+        """
+        Returns the bounding rectangular box of the space according to the direction vector
+        :param vector:
+        :return:
+        """
+        vector = vector or self.edge.unit_vector
+        total_x = 0
+        max_x = 0
+        min_x = 0
+        total_y = 0
+        max_y = 0
+        min_y = 0
+
+        for space_edge in self.edges:
+            total_x += dot_product(space_edge.vector, vector)
+            max_x = max(total_x, max_x)
+            min_x = min(total_x, min_x)
+            total_y += dot_product(space_edge.vector, normal_vector(vector))
+            max_y = max(total_y, max_y)
+            min_y = min(total_y, min_y)
+
+        return max_x - min_x, max_y - min_y
 
     def is_boundary(self, edge: Edge) -> bool:
         """
@@ -882,3 +907,20 @@ if __name__ == '__main__':
         assert plan.check()
 
     # floor_plan()
+
+    def bounding_box():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(100, 0), (150, 50), (400, 0), (600, 0), (500, 400), (400, 400), (400, 500),
+                     (0, 500), (0, 400), (200, 400), (200, 200), (0, 200)]
+        plan = Plan().from_boundary(perimeter)
+        plan.plot(save=False)
+        plt.show()
+
+        box = plan.empty_space.bounding_box((1, 0))
+        assert box == (600.0, 500.0)
+
+
+    bounding_box()

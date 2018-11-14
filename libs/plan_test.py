@@ -372,3 +372,15 @@ def test_remove_middle_e_space():
     plan.empty_space.remove_face(plan.mesh.faces[0])
 
     assert plan.check()
+
+
+def test_bounding_box():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(100, 0), (150, 50), (400, 0), (600, 0), (500, 400), (400, 400), (400, 500),
+                 (0, 500), (0, 400), (200, 400), (200, 200), (0, 200)]
+    plan = Plan().from_boundary(perimeter)
+    box = plan.empty_space.bounding_box((1, 0))
+    assert box == (600.0, 500.0)
