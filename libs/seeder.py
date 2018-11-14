@@ -17,7 +17,7 @@ from libs.grid import sequence_grid, edge_length
 from libs.category import space_categories
 from libs.utils.custom_types import Vector2d
 
-from libs.utils.geometry import barycenter, move_point, same_half_plane, ccw_angle, pseudo_equal, opposite_vector
+from libs.utils.geometry import barycenter, move_point, ccw_angle, pseudo_equal, opposite_vector
 
 
 class Grower:
