@@ -474,6 +474,9 @@ class Space(PlanComponent):
         # if the space has no faces yet just add the face as the reference for the Space
         if self.edge is None:
             self.edge = face.edge
+            face.space = self
+            for edge in face.edges:
+                edge.space_next = edge.next
             return
 
         # we start the search for a boundary edge from the start_from edge or the face edge
@@ -545,6 +548,7 @@ class Space(PlanComponent):
                 break
         else:
             self.edge = None
+            face.space = None
             logging.info('Removing only face left in the Space: {0}'.format(self))
             return
 
@@ -561,6 +565,8 @@ class Space(PlanComponent):
 
         # 1 : check if the face is the reference stored in the Space and change it
         self.change_face(face)
+        if self.edge is None:
+            return
 
         # 2 : find a boundary edge or an enclosed face
         same_face = True
