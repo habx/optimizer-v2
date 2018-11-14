@@ -33,7 +33,9 @@ from libs.utils.geometry import (
     move_point,
     same_half_plane,
     opposite_vector,
-    pseudo_equal
+    pseudo_equal,
+    dot_product,
+    normal_vector
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -789,6 +791,29 @@ class Edge:
         return self.pair.next
 
     @property
+    def bowtie(self) -> Optional['Edge']:
+        """
+        Returns an edge starting from the same vertex and pointing to the same face.
+        Only useful in the case of a "bowtie" polygon
+        Example : E: the specified Edge, R: the returned Edge
+        • -> •
+        ^    |
+        |    v  E
+        • <- • -> •
+           R ^    |
+             |    v
+             • <- •
+        :return: a boolean
+        """
+        other = self.ccw
+        face = self.face
+        while other is not self:
+            if other.face is face:
+                return other
+            other = other.ccw
+        return None
+
+    @property
     def normal(self) -> Vector2d:
         """
         A CCW normal of the edge of length 1
@@ -910,7 +935,7 @@ class Edge:
             if edge in seen:
                 raise Exception('Infinite space loop' +
                                 ' starting from edge:{0}'.format(self))
-            if not edge.is_space_boundary:
+            if not edge or not edge.is_space_boundary:
                 raise Exception('The space boundary is badly formed on edge:{0}'.format(edge))
             seen.append(edge)
             yield edge
@@ -1290,6 +1315,9 @@ class Edge:
         if self.face is None:
             return None
 
+        if self.face.space and not self.face.space.category.mutable:
+            return None
+
         # do not cut if the vertex is not inside the edge
         if not self.contains(vertex):
             logging.info('Trying to cut an edge on an outside vertex:' +
@@ -1557,6 +1585,17 @@ class Edge:
                                 .apply_to(self.start))
         return self.split(vertex)
 
+    def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
+        """
+        Plots the edge
+        :param ax:
+        :param color:
+        :param save:
+        :return:
+        """
+        x_coords, y_coords = zip(*(self.start.coords, self.end.coords))
+        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
+
     def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):
         """
         Plots a semi-arrow to indicate half-edge for debugging purposes
@@ -1760,6 +1799,32 @@ class Face:
             if edge.pair.face is not None and edge.pair.face not in seen:
                 yield edge.pair.face
 
+    def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
+        """
+        Returns the bounding rectangular box of the space according to the direction vector
+        :param vector:
+        :return:
+        """
+        vector = vector or self.edge.unit_vector
+        total_x = 0
+        max_x = 0
+        min_x = 0
+        total_y = 0
+        max_y = 0
+        min_y = 0
+        number_of_turns = 0
+
+        for other in self.edges:
+            total_x += dot_product(other.vector, vector)
+            max_x = max(total_x, max_x)
+            min_x = min(total_x, min_x)
+            total_y += dot_product(other.vector, normal_vector(vector))
+            max_y = max(total_y, max_y)
+            min_y = min(total_y, min_y)
+        number_of_turns += 1
+
+        return max_x - min_x, max_y - min_y
+
     def add_to_mesh(self, mesh: 'Mesh') -> 'Face':
         """
         Adds the face to a mesh
@@ -1781,12 +1846,7 @@ class Face:
 
         # preserve space reference
         if self.space and self.space.face is self:
-            for face in self.space.faces:
-                if face is not self:
-                    self.space.face = face
-                    break
-            else:
-                self.space.face = None
+            self.space.change_face(self)
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
@@ -2193,9 +2253,6 @@ class Face:
         face_to_insert = mesh.faces[0]
         new_faces = self.insert_face(face_to_insert)
 
-        if self.space is not None:
-            self.space.face = new_faces[0]
-
         return new_faces
 
     def is_linked_to_space(self) -> bool:
@@ -2208,14 +2265,7 @@ class Face:
         if self.space is None:
             return True  # per convention
 
-        if self.space.face is self:
-            return True
-
-        for face in self.space.faces:
-            if face is self:
-                return True
-
-        return False
+        return self in self.space.faces
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
         """
@@ -2283,7 +2333,7 @@ class Face:
         self.remove_from_mesh()
         # remove from the space [SPACE]
         if self.space:
-            self.space.change_face_reference(self)
+            self.space.change_face(self)
             self.space = None
 
         return None
