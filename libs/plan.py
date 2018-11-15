@@ -18,7 +18,7 @@ import libs.transformation as transformation
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
-from libs.utils.geometry import dot_product, normal_vector
+from libs.utils.geometry import dot_product, normal_vector, pseudo_equal
 
 
 class Plan:
@@ -211,7 +211,7 @@ class Plan:
             is_valid = is_valid and space.check()
 
         if is_valid:
-            logging.info('Checking plan: ' + '✅ 0K')
+            logging.info('Checking plan: ' + '✅ OK')
         else:
             logging.info('Checking plan: ' + '🔴 NOT OK')
 
@@ -284,6 +284,9 @@ class Space(PlanComponent):
                 :return:
                 """
             for edge in _face.edges:
+                # if the edge is a boundary of the space do not propagate
+                if edge.is_space_boundary:
+                    continue
                 new_face = edge.pair.face
                 if new_face and new_face.space is self and new_face not in seen:
                     seen.append(new_face)
@@ -441,11 +444,19 @@ class Space(PlanComponent):
         :param face:
         :return:
         """
+        logging.debug('Adding an enclosed face: {0} - {1}'.format(face, self))
         # find the space boundary edges linking the enclosed face to the rest of the space
         touch_edges = []
+        change_reference_edge = False
         for edge in face.edges:
+            if edge.pair is self.edge:
+                change_reference_edge = True
             if edge.pair.space_previous is not edge.next.pair:
                 touch_edges.append((edge.pair.space_previous, edge.next.pair))
+
+        # if need be we change the space reference edge
+        if change_reference_edge:
+            self.edge = touch_edges[0][0]
 
         for edges in touch_edges:
             edge_pair_space_previous, edge_next_pair = edges
@@ -456,8 +467,24 @@ class Space(PlanComponent):
         # remove space next references
         for edge in face.edges:
             edge.pair.space_next = None
+            edge.space_next = None
 
         face.space = self
+
+    def add_first_face(self, face: Face):
+        """
+        Adds the first face of the space
+        :param face:
+        :return:
+        """
+        if self.face is not None:
+            raise ValueError('the space already has a face:' +
+                             ' {0} - {1}'.format(self, face))
+        logging.debug('Adding the first face of the Space: {0}'.format(self))
+        self.edge = face.edge
+        face.space = self
+        for edge in face.edges:
+            edge.space_next = edge.next
 
     def add_face(self, face: Face, start_from: Optional[Edge] = None):
         """
@@ -473,55 +500,55 @@ class Space(PlanComponent):
 
         # if the space has no faces yet just add the face as the reference for the Space
         if self.edge is None:
-            self.edge = face.edge
-            face.space = self
-            for edge in face.edges:
-                edge.space_next = edge.next
-            return
+            return self.add_first_face(face)
 
         # we start the search for a boundary edge from the start_from edge or the face edge
         start_from = start_from or face.edge
 
         # we make sure the new face is adjacent to at least one of the space faces
-        space_edges = []
+        adjacent_edges = []
         for edge in start_from.siblings:
-            if not space_edges:
+            if not adjacent_edges:
                 # first boundary edge found
                 if self.is_boundary(edge.pair):
-                    space_edges.append(edge)
+                    adjacent_edges.append(edge)
             else:
                 # note : we only search for "contiguous" space boundaries
-                if self.is_boundary(edge.pair) and edge.pair.space_next is space_edges[-1].pair:
-                    space_edges.append(edge)
+                if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
+                        and edge.pair.space_next is adjacent_edges[-1].pair):
+                    adjacent_edges.append(edge)
                 else:
                     break
-        else:
-            if not space_edges:
-                raise ValueError('Cannot add a face that is not adjacent' +
-                                 ' to the space:{0}'.format(face))
-            if len(space_edges) == len(list(face.edges)):
-                # the face is completely enclosed in the space
-                return self._add_enclosed_face(face)
+
+        if not adjacent_edges:
+            raise ValueError('Cannot add a face that is not adjacent' +
+                             ' to the space:{0} - {1}'.format(face, self))
 
         # check for other shared space boundaries that are localised before the first edge in
         # space_edges : (we go backward)
-        edge = space_edges[0].pair.space_next.pair
-        while edge.face is face:
-            space_edges.insert(0, edge)
+        edge = adjacent_edges[0].pair.space_next.pair
+        while edge.face is face and edge.next is adjacent_edges[0] and edge not in adjacent_edges:
+            adjacent_edges.insert(0, edge)
             edge = edge.pair.space_next.pair
 
-        end_edge = space_edges[-1]
-        start_edge = space_edges[0]
+        if len(adjacent_edges) == len(list(face.edges)):
+            # the face is completely enclosed in the space
+            return self._add_enclosed_face(face)
+
+        end_edge = adjacent_edges[-1]
+        start_edge = adjacent_edges[0]
 
         end_edge.pair.space_previous.space_next = end_edge.next
         start_edge.previous.space_next = start_edge.pair.space_next
 
         # preserve space edge reference
-        if self.edge.pair in space_edges:
+        # (if the reference edge of the space belongs to the boundary with
+        # the added face)
+        if self.edge.pair in adjacent_edges:
             self.edge = end_edge.next  # per convention
 
         # remove the old space references
-        for edge in space_edges:
+        for edge in adjacent_edges:
             edge.pair.space_next = None
 
         # add the new space references inside the added face
@@ -533,24 +560,94 @@ class Space(PlanComponent):
         # finish by adding the space reference in the face object
         face.space = self
 
-    def change_face(self, face: Face):
+    def remove_only_face(self, face: Face):
         """
-        Changes the face reference of the space
+        Removes the only face of the space
+        :param face:
         :return:
         """
         if self.face is not face:
-            return
-        # verify that the face is not the only face in the Space
+            raise ValueError('the face is not the reference face of the space:' +
+                             ' {0} - {1}'.format(self, face))
+        logging.debug('Removing only face left in the Space: {0}'.format(self))
+        self.edge = None
+        face.space = None
+        # remove space_next references inside the face
+        for edge in face.edges:
+            edge.space_next = None
+        return
+
+    def remove_encapsulating_face(self, face: Face):
+        """
+        Removes a face that encapsulates other faces
+        This means that the face contains all the space boundary edges but is not the
+        only face in the space
+        example:
+        • - - - - •
+        |   •     |
+        | /  \    |
+        •    •    |
+        | \ /     |
+        |  •      |
+        • - - - - •
+
+        :param face:
+        :return:
+        """
+        logging.debug('Removing an encapsulating face from a space:' +
+                      '{0} - {1}'.format(face, self))
+
+        entry_edge = None
+        previous_edge_is_boundary = self.is_boundary(face.edge)
+        for edge in face.edge.next.siblings:
+            if self.is_internal(edge):
+                edge_is_boundary = False
+            else:
+                edge_is_boundary = True
+            if not edge_is_boundary and previous_edge_is_boundary:
+                entry_edge = edge
+                break
+            previous_edge_is_boundary = edge_is_boundary
+
+        if not entry_edge:
+            raise ValueError('This face is not encapsulating: {0} - {1}'.format(face, self))
+
+        previous_edge = entry_edge
+        for edge in entry_edge.next.siblings:
+            if self.is_boundary(edge):
+                break
+            edge.pair.space_next = previous_edge.pair
+            previous_edge = edge
+
+        entry_edge.pair.space_next = previous_edge.pair
+
+        # change the space edge reference
+        self.edge = entry_edge.pair
+
+        # remove the space reference of the face
+        for edge in face.edges:
+            edge.space_next = None
+        face.space = None
+
+    def change_reference(self, face: Face) -> bool:
+        """
+        Changes the face reference of the space.
+        Returns True if the change is possible or unnecessary,
+        False if all the space edges belong to the face
+        :return:
+        """
+        # if the face does not include the edge reference of the space
+        # do nothing
+        if self.face is not face:
+            return True
+        # find an edge from another face in the Space boundary
         # if another face is found, it becomes the face reference of the Space
-        for sibling in self.edge.space_next.space_siblings:
+        for sibling in self.edges:
             if sibling.face is not face:
                 self.edge = sibling
-                break
-        else:
-            self.edge = None
-            face.space = None
-            logging.info('Removing only face left in the Space: {0}'.format(self))
-            return
+                return True
+
+        return False
 
     def remove_face(self, face: Face):
         """
@@ -559,21 +656,26 @@ class Space(PlanComponent):
         from the first space and add it to the second one in the same time)
         :param face: face to remove from space
         """
+        # TODO : we should remove the face not in self.faces check for performance purposes
         if face.space is not self or face not in self.faces:
             raise ValueError('Cannot remove a face' +
                              ' that does not belong to the space:{0}'.format(face))
 
-        # 1 : check if the face is the reference stored in the Space and change it
-        self.change_face(face)
-        if self.edge is None:
-            return
+        # 1 : check if the face includes the reference edge of the Space and change it
+        reference_has_changed = self.change_reference(face)
+        if not reference_has_changed:
+            # only one face in the space
+            if list(self.faces) == [self.face]:
+                return self.remove_only_face(face)
+            # very specific case of an encapsulating face
+            return self.remove_encapsulating_face(face)
 
-        # 2 : find a boundary edge or an enclosed face
+        # 2 : find the edges of the face that are in contact with the space
         same_face = True
         exit_edge = None
         enclosed_face = None
         for edge in face.edges:
-            if self.is_boundary(edge) or self.starts_from_boundary(edge):
+            if self.starts_from_boundary(edge):
                 break
             # check for enclosed face (an enclosed face has only one external face)
             # and find the exit edge
@@ -588,7 +690,8 @@ class Space(PlanComponent):
 
         # CASE 1 : enclosed face
         if enclosed_face:
-            logging.debug('Found enclosed face')
+            logging.debug('Removing and enclosed face from the space: ' +
+                          '{0} - {1}'.format(face, self))
             exit_edge.space_next = exit_edge.next
             exit_edge.pair.previous.space_next = exit_edge.pair
 
@@ -792,6 +895,12 @@ class Space(PlanComponent):
 
         faces = list(self.faces)
 
+        # check if the boundary is correct
+        if self.face and not pseudo_equal(self.area, self.as_sp.area, epsilon=0.01):
+            logging.error('Error in space: the boundary does not contain all the space faces: ' +
+                          '{0} != {1}, {2}'.format(self.area, self.as_sp.area, self.as_sp))
+            is_valid = False
+
         for edge in self.edges:
             if edge.face not in faces:
                 logging.error('Error in space: boundary edge face not in space faces: ' +
@@ -896,7 +1005,7 @@ class Linear(PlanComponent):
 if __name__ == '__main__':
 
     import libs.reader as reader
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     @DecoratorTimer()
     def floor_plan():
@@ -913,20 +1022,3 @@ if __name__ == '__main__':
         assert plan.check()
 
     # floor_plan()
-
-    def bounding_box():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(100, 0), (150, 50), (400, 0), (600, 0), (500, 400), (400, 400), (400, 500),
-                     (0, 500), (0, 400), (200, 400), (200, 200), (0, 200)]
-        plan = Plan().from_boundary(perimeter)
-        plan.plot(save=False)
-        plt.show()
-
-        box = plan.empty_space.bounding_box((1, 0))
-        assert box == (600.0, 500.0)
-
-
-    bounding_box()

@@ -208,7 +208,6 @@ class Seed:
             else:
                 self.space.remove_face(face)
                 initial_space.add_face(face)
-
         return added_face
 
     def grow(self) -> Optional['Face']:
@@ -232,10 +231,6 @@ class Seed:
 
         for face in self.neighbors:
             added_face = self.add_face(face)
-            """if added_face:
-                ax = self.seeder.plan.plot(save=False, options=('fill', 'border'))
-                self.seeder.plot(ax)
-                plt.show()"""
 
         # if we couldn't add face : switch to the next growth strategy
         if added_face is None:
@@ -269,14 +264,14 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import sequence_grid, edge_length
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     def grow_a_plan():
         """
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Massy_C204.json')
+        plan = reader.create_plan_from_file('Noisy_A145.json')
 
         new_plan = sequence_grid.apply_to(plan)
 
@@ -284,12 +279,11 @@ if __name__ == '__main__':
         seeder.add_condition(edge_length(50.0), 'duct')
 
         seeder.grow()
-        print(seeder)
 
-        ax = new_plan.plot(save=False, options=('fill', 'border'))
+        ax = new_plan.plot(save=False, options=('fill', 'border', 'half-edge', 'face'))
         seeder.plot(ax)
         plt.show()
 
-        plan.check()
+        assert new_plan.check()
 
     grow_a_plan()

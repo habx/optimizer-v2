@@ -1846,7 +1846,9 @@ class Face:
 
         # preserve space reference
         if self.space:
-            self.space.change_face(self)
+            reference_has_changed = self.space.change_reference(self)
+            if not reference_has_changed:
+                self.space.remove_only_face(self)
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """

@@ -6,7 +6,7 @@ Test module for plan module
 
 import pytest
 
-from libs.plan import Plan
+from libs.plan import Plan, Space
 from libs.category import space_categories
 import libs.logsetup as ls
 import libs.reader as reader
@@ -263,6 +263,7 @@ def test_remove_enclosing_space():
     hole_face = plan.mesh.faces[0]
 
     plan.empty_space.remove_face(hole_face)
+    plan.empty_space.add_face(hole_face)
 
     assert plan.check()
 
@@ -284,6 +285,7 @@ def test_remove_u_space():
     hole_face = plan.mesh.faces[1]
 
     plan.empty_space.remove_face(hole_face)
+    plan.empty_space.add_face(hole_face)
 
     assert plan.check()
 
@@ -301,6 +303,7 @@ def test_remove_middle_b_space():
     list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
+    plan.empty_space.add_face(plan.mesh.faces[0])
 
     assert plan.check()
 
@@ -318,6 +321,7 @@ def test_remove_middle_u_space():
     list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
+    plan.empty_space.add_face(plan.mesh.faces[0])
 
     assert plan.check()
 
@@ -335,6 +339,7 @@ def test_remove_middle_c_space():
     list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[2])
+    plan.empty_space.add_face(plan.mesh.faces[2])
 
     assert plan.check()
 
@@ -370,6 +375,9 @@ def test_remove_middle_e_space():
     plan.mesh.faces[0].insert_face_from_boundary(duct_2)
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
+    plan.empty_space.add_face(plan.mesh.faces[0])
+    plan.empty_space.remove_face(plan.mesh.faces[0])
+    plan.empty_space.add_face(plan.mesh.faces[0])
 
     assert plan.check()
 
@@ -384,3 +392,44 @@ def test_bounding_box():
     plan = Plan().from_boundary(perimeter)
     box = plan.empty_space.bounding_box((1, 0))
     assert box == (600.0, 500.0)
+
+
+def test_remove_face_along_internal_edge():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    plan = Plan('my plan').from_boundary(perimeter)
+
+    duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
+    plan.insert_space_from_boundary(duct)
+    list(plan.mesh.faces[1].edges)[-1].pair.barycenter_cut(1)
+    my_space = plan.empty_space
+    my_space.remove_face(plan.mesh.faces[0])
+    my_space.add_face(plan.mesh.faces[0])
+
+    assert plan.check()
+
+
+def test_remove_encapsulating_face():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    plan = Plan('my plan').from_boundary(perimeter)
+
+    duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
+    plan.empty_space.face.insert_face_from_boundary(duct)
+    list(plan.mesh.faces[1].edges)[0].pair.barycenter_cut(1)
+
+    my_space = plan.empty_space
+    my_space.remove_face(plan.mesh.faces[0])
+    new_space = Space(plan, plan.mesh.faces[0].edge)
+    plan.add_space(new_space)
+
+    plan.mesh.faces[1].space.remove_face(plan.mesh.faces[1])
+    new_space.add_face(plan.mesh.faces[1])
+
+    assert plan.check()

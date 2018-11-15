@@ -24,10 +24,8 @@ class GrowthMethod:
         self.action = action  # an action must take a seed as an argument and return a face
 
     def __call__(self, *args, **kwargs) -> Generator['Face', None, None]:
-
         if self.action is None:
             return
-
         yield from self.action(args[0])
 
 
