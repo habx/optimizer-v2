@@ -6,6 +6,7 @@ Describes the specifications of the different spaces
 
 from libs.category import SpaceCategory
 from libs.plan import Plan
+from libs.size import Size
 
 from typing import List, Optional
 
@@ -50,15 +51,3 @@ class Item:
 
     def __repr__(self):
         return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.size.__repr__()
-
-
-class Size:
-    """
-    The desired size of the specification item
-    """
-    def __init__(self, min_area: float, max_area: float):
-        self.min_area = float(min_area)
-        self.max_area = float(max_area)
-
-    def __repr__(self):
-        return 'Size: min {0} - max {1}'.format(self.min_area, self.max_area)

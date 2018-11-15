@@ -1845,8 +1845,10 @@ class Face:
         mesh.remove_face(self)
 
         # preserve space reference
-        if self.space and self.space.face is self:
-            self.space.change_face(self)
+        if self.space:
+            reference_has_changed = self.space.change_reference(self)
+            if not reference_has_changed:
+                self.space.remove_only_face(self)
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
@@ -2331,10 +2333,6 @@ class Face:
             edge_1.pair.space_next = edge_2.space_next
         # remove from the mesh
         self.remove_from_mesh()
-        # remove from the space [SPACE]
-        if self.space:
-            self.space.change_face(self)
-            self.space = None
 
         return None
 

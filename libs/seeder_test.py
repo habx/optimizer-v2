@@ -25,4 +25,4 @@ def test_grow_a_plan(input_file):
 
     new_plan.plot(save=True, options=('fill', 'border'))
 
-    assert(new_plan.check())
+    assert new_plan.check()

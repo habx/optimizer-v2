@@ -3,58 +3,18 @@
 Space grower module
 A grower creates spaces in a plan from seeds point and according to a specification
 """
-from typing import List, Optional, Dict, Callable, Generator, Tuple
-import copy
+from typing import List, Optional, Dict, Callable, Generator, Tuple, TYPE_CHECKING
 import logging
 
 import matplotlib.pyplot as plt
 
-from libs.mesh import Edge, Face
-from libs.plan import Space, Plan, PlanComponent
-from libs.specification import Specification
-import libs.reader as reader
-from libs.grid import sequence_grid, edge_length
 from libs.category import space_categories
-from libs.utils.custom_types import Vector2d
+from libs.plan import Space, PlanComponent
 
-from libs.utils.geometry import barycenter, move_point, ccw_angle, pseudo_equal, opposite_vector
+from libs.utils.geometry import barycenter, move_point
 
-
-class Grower:
-    """
-    Grower class
-    """
-    def __init__(self, specification: Specification, seeds: List['Seed']):
-        self.specification = specification
-        self.seeds = seeds
-
-    def __repr__(self):
-        output = 'Grower: \n'
-        output += self.specification.__repr__()
-        for seed in self.seeds:
-            output += seed.__repr__()
-
-        return output
-
-    def grow(self) -> Plan:
-        """
-        Creates a plan with new spaces
-        :return:
-        """
-        if self.specification.plan is None:
-            raise ValueError('Cannot grow from a specification with no plan:' +
-                             '{0}'.format(self.specification))
-
-        empty_plan = self.specification.plan
-        if not empty_plan.is_empty:
-            raise ValueError('Cannot grow inside a non empty plan: {0}'.format(empty_plan))
-
-        new_plan = copy.deepcopy(empty_plan)
-
-        # add a new space for each seed
-        # DO SOMETHING
-
-        return new_plan
+if TYPE_CHECKING:
+    from libs.mesh import Edge, Face
 
 
 class Seeder:
@@ -134,7 +94,7 @@ class Seeder:
         else:
             self.conditions[key] = [condition]
 
-    def check_condition(self, category_name: str, edge: Edge) -> bool:
+    def check_condition(self, category_name: str, edge: 'Edge') -> bool:
         """
         Verify the condition
         :param category_name:
@@ -169,14 +129,15 @@ class Seed:
     """
     def __init__(self,
                  seeder: Seeder,
-                 edge: Edge,
+                 edge: 'Edge',
                  plan_component: Optional[PlanComponent] = None):
         self.seeder = seeder
         self.edge = edge  # the reference edge of the seed
         self.components = [plan_component] if PlanComponent else []  # the components of the seed
         self.space: Optional[Space] = None  # the seed space
-        # edge pointers used for growth
-        self.horizontal_growth = True
+        # growth methods / should be stored in the space category
+        self.growth_methods = plan_component.category.seed_category.methods
+        self.growth_method_index = 0
 
     def __repr__(self):
         return 'Seed: {0}, {1}, {2}'.format(self.edge, self.components, self.space)
@@ -185,73 +146,97 @@ class Seed:
     def size(self) -> Tuple[float, float]:
         """
         Returns the width of the seed space
+        TODO : we should implement a size method for the space that will return a Size object
         :return: width, depth
         """
         return self.space.bounding_box(self.edge.unit_vector)
 
-    def select(self, vector: Vector2d, epsilon: float = 10.0) -> Generator[Edge, None, None]:
+    @property
+    def check_size(self) -> bool:
         """
-        Returns the edges of the seed space which normals are quasi parallel to the specified vector
-        :param vector:
-        :param epsilon:
+        Returns True if the space size is within the provided limits
         :return:
         """
-        for edge in self.space.edges:
-            if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon):
-                yield edge
+        max_size = self.max_size
+        return self.size[0] <= max_size[0] and self.size[1] <= max_size[1]
 
-    def grow(self) -> Optional[Face]:
+    @property
+    def max_size(self) -> Tuple[float, float]:
+        """
+        Returns the max size for the seed space according to its component
+        :return:
+        """
+        max_width = 0
+        max_depth = 0
+        for component in self.components:
+            max_width = max(max_width, component.category.seed_category.size.max_width)
+            max_depth = max(max_depth, component.category.seed_category.size.max_depth)
+
+        return max_width, max_depth
+
+    @property
+    def neighbors(self) -> Generator['Face', None, None]:
+        """
+        Returns adjacent faces of the corresponding growth method
+        :return:
+        """
+        yield from self.growth_method(self)
+
+    @property
+    def growth_method(self):
+        """
+        Returns the current growth method
+        :return:
+        """
+        return self.growth_methods[self.growth_method_index]
+
+    def add_face(self, face: 'Face') -> 'Face':
+        """
+        Adds a face to the seed space
+        :param face:
+        :return:
+        """
+        added_face = None
+
+        if face.space.category.name == 'empty':
+            initial_space = face.space
+            initial_space.remove_face(face)
+            self.space.add_face(face)
+            # check size
+            if self.check_size:
+                added_face = face
+            else:
+                self.space.remove_face(face)
+                initial_space.add_face(face)
+        return added_face
+
+    def grow(self) -> Optional['Face']:
         """
         Tries to grow the seed space by one face
         Returns the face added
         :param self:
         :return:
         """
+        if self.growth_method.name == 'done':
+            return None
+
+        # initialize first face
         if self.space is None:
             self.edge.face.space.remove_face(self.edge.face)
             self.space = Space(self.seeder.plan, self.edge, space_categories['seed'])
             self.seeder.plan.add_space(self.space)
             return self.edge.face
 
-        # This growth mecanism does crazing things (spiraling and such). We should create
-        # more appropriate rules to select the best face to add to the space
-        max_width = 300
-        max_depth = 400
-
-        self_size = self.size
         added_face = None
 
-        if self.horizontal_growth:
-            directions = self.edge.unit_vector, opposite_vector(self.edge.unit_vector)
-        else:
-            directions = (self.edge.normal,)
+        for face in self.neighbors:
+            added_face = self.add_face(face)
 
-        for direction in directions:
-            for edge in list(self.select(direction)):
-                face = edge.pair.face
-                if face and (not face.space or face.space.category.name == 'empty'):
-                    face_size = face.bounding_box(direction)
-                    correct_size = (self_size[0] + face_size[0] <= max_width
-                                    if self.horizontal_growth
-                                    else self_size[1] + face_size[1] <= max_depth)
-                    if correct_size:
-                        face.space.remove_face(face)
-                        self.space.add_face(face)
-                        added_face = face
-                    else:
-                        break
-            if added_face is None and self.horizontal_growth:
-                self.horizontal_growth = False
+        # if we couldn't add face : switch to the next growth strategy
+        if added_face is None:
+            self.growth_method_index += 1
 
         return added_face
-
-    def max_size(self):
-        """
-        returns the max size of the space
-        :param self:
-        :return:
-        """
-        pass
 
     def add_component(self, component: PlanComponent):
         """
@@ -276,14 +261,17 @@ class Seed:
 
 if __name__ == '__main__':
 
-    logging.getLogger().setLevel(logging.INFO)
+    import libs.reader as reader
+    from libs.grid import sequence_grid, edge_length
+
+    logging.getLogger().setLevel(logging.DEBUG)
 
     def grow_a_plan():
         """
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Massy_C204.json')
+        plan = reader.create_plan_from_file('Noisy_A145.json')
 
         new_plan = sequence_grid.apply_to(plan)
 
@@ -291,10 +279,11 @@ if __name__ == '__main__':
         seeder.add_condition(edge_length(50.0), 'duct')
 
         seeder.grow()
-        print(seeder)
 
-        ax = new_plan.plot(save=False, options=('fill', 'border'))
+        ax = new_plan.plot(save=False, options=('fill', 'border', 'half-edge', 'face'))
         seeder.plot(ax)
         plt.show()
+
+        assert new_plan.check()
 
     grow_a_plan()
