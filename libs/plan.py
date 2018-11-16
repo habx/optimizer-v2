@@ -225,6 +225,7 @@ class PlanComponent:
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
+        self.category = None
 
 
 class Space(PlanComponent):
@@ -873,7 +874,7 @@ class Space(PlanComponent):
             for face in self.faces:
                 if face is None:
                     continue
-                ax = face.plot(ax, color=color, save=save, options=('border',))
+                ax = face.plot(ax, color=color, save=save, options=('border', 'dash'))
 
         if 'half-edge' in options:
             for edge in self.edges:
@@ -931,6 +932,9 @@ class Linear(PlanComponent):
         self.category = category
         # set the circular reference
         edge.linear = self
+
+    def __repr__(self):
+        return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
 
     @property
     def edge(self) -> Edge:

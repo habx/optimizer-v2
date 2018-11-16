@@ -3,25 +3,33 @@
 Space grower module
 A grower creates spaces in a plan from seeds point and according to a specification
 """
-from typing import List, Optional, Dict, Callable, Generator, Tuple, TYPE_CHECKING
+from typing import List, Optional, Dict, Callable, Generator, Tuple, TYPE_CHECKING, Sequence
 import logging
 
 import matplotlib.pyplot as plt
 
 from libs.category import space_categories
-from libs.plan import Space, PlanComponent
+from libs.plan import Space, PlanComponent, Plan
+from libs.plot import plot_point
 
 from libs.utils.geometry import barycenter, move_point
 
 if TYPE_CHECKING:
     from libs.mesh import Edge, Face
 
+"""
+# TODO : to be deleted
+plt.ion()
+FIG, AX = plt.subplots()
+AX.set_aspect('equal')
+######################"""
+
 
 class Seeder:
     """
     Seeder Class
     """
-    def __init__(self, plan):
+    def __init__(self, plan: Plan):
         self.plan = plan
         self.seeds: List['Seed'] = []
         self.conditions: Dict[str] = {}
@@ -66,9 +74,7 @@ class Seeder:
         while True:
             faces_added = []
             for seed in self.seeds:
-                face_added = seed.grow()
-                if face_added:
-                    faces_added.append(face_added)
+                faces_added += seed.grow()
             # stop to grow once we cannot grow anymore
             if not faces_added:
                 break
@@ -140,7 +146,9 @@ class Seed:
         self.growth_method_index = 0
 
     def __repr__(self):
-        return 'Seed: {0}, {1}, {2}'.format(self.edge, self.components, self.space)
+        return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
+                '{5}').format(self.components, str(self.space.area), str(self.size[0]),
+                              str(self.size[1]), self.space, self.edge)
 
     @property
     def size(self) -> Tuple[float, float]:
@@ -208,35 +216,48 @@ class Seed:
             else:
                 self.space.remove_face(face)
                 initial_space.add_face(face)
+
         return added_face
 
-    def grow(self) -> Optional['Face']:
+    def grow(self) -> Sequence[Optional['Face']]:
         """
         Tries to grow the seed space by one face
-        Returns the face added
+        Returns the list of the faces added
         :param self:
         :return:
         """
         if self.growth_method.name == 'done':
-            return None
+            return []
 
         # initialize first face
         if self.space is None:
             self.edge.face.space.remove_face(self.edge.face)
             self.space = Space(self.seeder.plan, self.edge, space_categories['seed'])
             self.seeder.plan.add_space(self.space)
-            return self.edge.face
+            return [self.edge.face]
 
-        added_face = None
-
+        added_faces = []
         for face in self.neighbors:
             added_face = self.add_face(face)
+            if added_face is not None:
+                added_faces.append(added_face)
 
-        # if we couldn't add face : switch to the next growth strategy
-        if added_face is None:
+            """
+            # TODO: TO BE DELETED,
+            # we should find a much faster and cleaner way to do plot animation
+            global AX
+            AX = self.seeder.plan.plot(AX, save=False,
+                                       options=('fill', 'border', 'half-edge', 'face'))
+            self.seeder.plot(AX)
+            plt.pause(0.000001)
+            AX.clear()
+            #################
+            """
+
+        if not added_faces:
             self.growth_method_index += 1
 
-        return added_face
+        return added_faces
 
     def add_component(self, component: PlanComponent):
         """
@@ -252,11 +273,10 @@ class Seed:
         :param ax:
         :return:
         """
-        seed_distance_to_edge = 15
+        seed_distance_to_edge = 15  # per convention
         point = barycenter(self.edge.start.coords, self.edge.end.coords, 0.5)
         point = move_point(point, self.edge.normal, seed_distance_to_edge)
-        ax.plot([point[0]], [point[1]], 'ro', color='r')
-        return ax
+        return plot_point([point[0]], [point[1]], ax, save=False)
 
 
 if __name__ == '__main__':
@@ -271,18 +291,20 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Noisy_A145.json')
+        plan = reader.create_plan_from_file('Sartrouville_RDC.json')
 
         new_plan = sequence_grid.apply_to(plan)
 
         seeder = Seeder(new_plan)
         seeder.add_condition(edge_length(50.0), 'duct')
-
         seeder.grow()
 
-        ax = new_plan.plot(save=False, options=('fill', 'border', 'half-edge', 'face'))
+        print(seeder)
+
+        ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
         seeder.plot(ax)
         plt.show()
+        plt.pause(10)
 
         assert new_plan.check()
 
