@@ -86,18 +86,20 @@ class LinearCategory(Category):
 
 classic_seed_category = SeedCategory('classic',
                                      Size(min_area=20000, max_area=150000,
-                                          max_width=300, max_depth=400),
+                                          max_width=350, max_depth=400),
                                      (GROWTH_METHODS['horizontal_growth'],
                                       GROWTH_METHODS['vertical_growth'],
+                                      GROWTH_METHODS['free_growth'],
                                       GROWTH_METHODS['done']))
 
 duct_seed_category = SeedCategory('duct',
                                   Size(min_area=20000, max_area=80000,
                                        max_width=200, max_depth=300),
                                   (GROWTH_METHODS['horizontal_growth'],
-                                   GROWTH_METHODS['vertical_growth'],
                                    GROWTH_METHODS['surround_growth'],
+                                   GROWTH_METHODS['vertical_growth'],
                                    GROWTH_METHODS['horizontal_growth'],
+                                   GROWTH_METHODS['free_growth'],
                                    GROWTH_METHODS['done']))
 
 seed_categories = {

@@ -29,7 +29,7 @@ class GrowthMethod:
         yield from self.action(args[0])
 
 
-# Grow methods
+# Growth methods
 
 def oriented_faces(direction: str, epsilon: float = 10.0) -> GrowthSelector:
     """
@@ -81,9 +81,22 @@ def surround_faces(seed: 'Seed') -> Generator['Face', None, None]:
         break
 
 
+def any_faces(seed: 'Seed') -> Generator['Face', None, None]:
+    """
+    Returns any face around the seed space
+    :param seed:
+    :return:
+    """
+    for edge in seed.space.edges:
+        if edge.pair.face and edge.pair.face.space is not seed.space:
+            yield edge.pair.face
+            break
+
+
 GROWTH_METHODS = {
     'horizontal_growth': GrowthMethod('horizontal', oriented_faces('horizontal')),
     'vertical_growth': GrowthMethod('horizontal', oriented_faces('vertical')),
     'surround_growth': GrowthMethod('surround', surround_faces),
+    'free_growth': GrowthMethod('free', any_faces),
     'done': GrowthMethod('done')
 }

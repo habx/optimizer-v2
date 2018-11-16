@@ -52,6 +52,33 @@ def plot_save(save: bool = True, show: bool = False):
         plt.show()
 
 
+def plot_point(x_coords: Sequence[float],
+               y_coords: Sequence[float],
+               _ax=None,
+               color: str = 'r',
+               save: Optional[bool] = None):
+    """
+    Plots a point
+    :param x_coords:
+    :param y_coords:
+    :param _ax:
+    :param color:
+    :param save
+    :return:
+    """
+
+    if _ax is None:
+        fig, _ax = plt.subplots()
+        _ax.set_aspect('equal')
+        save = True if save is None else save
+
+    _ax.plot(x_coords, y_coords, 'ro', color=color)
+
+    plot_save(save)
+
+    return _ax
+
+
 def plot_edge(x_coords: Sequence[float],
               y_coords: Sequence[float],
               _ax=None,
@@ -112,7 +139,9 @@ def plot_polygon(_ax,
     if 'fill' in options:
         _ax.fill(data1, data2, alpha=0.3, color=color)
     if 'border' in options:
-        _ax.plot(data1, data2, 'k', color=color)
+        ls = ':' if 'dash' in options else 'solid'
+        lw = 0.5 if 'dash' in options else 1.0
+        _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
     if 'vertices' in options:
         _ax.plot(data1, data2, 'ro', color=color)
 

@@ -10,6 +10,8 @@ from libs.seeder import Seeder
 from libs.grid import edge_length, sequence_grid
 from libs.reader import BLUEPRINT_INPUT_FILES
 
+from libs.plot import plot_save
+
 
 @pytest.mark.parametrize("input_file", BLUEPRINT_INPUT_FILES)
 def test_grow_a_plan(input_file):
@@ -23,6 +25,8 @@ def test_grow_a_plan(input_file):
     seeder.add_condition(edge_length(50.0), 'duct')
     seeder.grow()
 
-    new_plan.plot(save=True, options=('fill', 'border'))
+    ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
+    seeder.plot(ax)
+    plot_save()
 
     assert new_plan.check()
