@@ -7,7 +7,7 @@ Test module for plan module
 import pytest
 
 from libs.plan import Plan, Space
-from libs.category import space_categories
+from libs.category import space_catalog
 import libs.logsetup as ls
 import libs.reader as reader
 
@@ -47,7 +47,7 @@ def test_add_duct_to_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(200, 0), (400, 0), (400, 400), (200, 400)]
 
-    duct_category = space_categories['duct']
+    duct_category = space_catalog('duct')
 
     # add border duct
     plan = Plan().from_boundary(perimeter)
@@ -106,7 +106,7 @@ def test_cut_to_inside_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     plan = Plan().from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
-    plan.insert_space_from_boundary(duct, space_categories['duct'])
+    plan.insert_space_from_boundary(duct, space_catalog('duct'))
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[7])
 
     assert plan.check()
@@ -219,7 +219,7 @@ def test_insert_separating_wall():
     wall = [(250, 0), (300, 0), (300, 500), (250, 500)]
     plan = Plan('Plan_test_wall').from_boundary(perimeter)
 
-    plan.insert_space_from_boundary(wall, category=space_categories['loadBearingWall'])
+    plan.insert_space_from_boundary(wall, category=space_catalog('loadBearingWall'))
 
     assert plan.check()
 

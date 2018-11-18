@@ -7,7 +7,7 @@ import os
 import json
 
 import libs.plan as plan
-from libs.category import space_categories, linear_categories
+from libs.category import space_catalog, linear_catalog
 from libs.specification import Specification, Item, Size
 
 from libs.utils.geometry import (
@@ -218,12 +218,12 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
 
     for fixed_item in fixed_items:
-        if fixed_item[1] in space_categories:
+        if fixed_item[1] in space_catalog:
             my_plan.insert_space_from_boundary(fixed_item[0],
-                                               category=space_categories[fixed_item[1]])
-        if fixed_item[1] in linear_categories:
+                                               category=space_catalog[fixed_item[1]])
+        if fixed_item[1] in linear_catalog:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
-                                  category=linear_categories[fixed_item[1]])
+                                  category=linear_catalog[fixed_item[1]])
 
     return my_plan
 
@@ -258,12 +258,12 @@ def create_specification_from_file(input_file: str):
     specification = Specification(input_file)
     for item in spec_dict['setup']:
         _category = item['type']
-        if _category not in space_categories:
+        if _category not in space_catalog:
             raise ValueError('Space type not present in space categories: {0}'.format(_category))
         required_area = item['requiredArea']
         size = Size(required_area['min'], required_area['max'])
         variant = item['variant']
-        new_item = Item(space_categories[_category], variant, size)
+        new_item = Item(space_catalog[_category], variant, size)
         specification.add_item(new_item)
 
     return specification

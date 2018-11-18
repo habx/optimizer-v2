@@ -7,6 +7,8 @@ from typing import Sequence, Optional
 from libs.size import Size
 from libs.growth import GrowthMethod, GROWTH_METHODS
 
+from libs.utils.catalog import Catalog
+
 
 CATEGORIES_COLORS = {
     'duct': 'k',
@@ -82,8 +84,6 @@ class LinearCategory(Category):
         self.mutable = mutable
 
 
-# TODO : we should create a catalog class that encapsulates the different categories
-
 classic_seed_category = SeedCategory('classic',
                                      Size(min_area=20000, max_area=150000,
                                           max_width=350, max_depth=400),
@@ -102,32 +102,30 @@ duct_seed_category = SeedCategory('duct',
                                    GROWTH_METHODS['free_growth'],
                                    GROWTH_METHODS['done']))
 
-seed_categories = {
-    'classic': classic_seed_category,
-    'duct': duct_seed_category
-}
 
-linear_categories = {
-    'window': LinearCategory('window', False, seed_categories['classic'], True, True),
-    'door': LinearCategory('door', aperture=True),
-    'doorWindow': LinearCategory('doorWindow', False, seed_categories['classic'], True),
-    'frontDoor': LinearCategory('frontDoor', False, seed_categories['classic'], True),
-    'wall': LinearCategory('wall'),
-    'externalWall': LinearCategory('externalWall', False, width=2.0)
-}
+seed_catalog = Catalog('seeds').add(classic_seed_category, duct_seed_category)
 
-space_categories = {
-    'empty': SpaceCategory('empty'),
-    'seed': SpaceCategory('seed'),
-    'duct': SpaceCategory('duct', False, seed_categories['duct']),
-    'loadBearingWall': SpaceCategory('loadBearingWall', False),
-    'chamber': SpaceCategory('chamber'),
-    'bedroom': SpaceCategory('bedroom'),
-    'living': SpaceCategory('living'),
-    'entrance': SpaceCategory('entrance'),
-    'kitchen': SpaceCategory('kitchen'),
-    'bathroom': SpaceCategory('bathroom'),
-    'wcBathroom': SpaceCategory('wcBathroom'),
-    'livingKitchen': SpaceCategory('livingKitchen'),
-    'wc': SpaceCategory('wc')
-}
+linear_catalog = Catalog('linears').add(
+    LinearCategory('window', False, seed_catalog['classic'], True, True),
+    LinearCategory('door', aperture=True),
+    LinearCategory('doorWindow', False, seed_catalog['classic'], True),
+    LinearCategory('frontDoor', False, seed_catalog['classic'], True),
+    LinearCategory('wall'),
+    LinearCategory('externalWall', False, width=2.0)
+)
+
+space_catalog = Catalog('spaces').add(
+    SpaceCategory('empty'),
+    SpaceCategory('seed'),
+    SpaceCategory('duct', False, seed_catalog['duct']),
+    SpaceCategory('loadBearingWall', False),
+    SpaceCategory('chamber'),
+    SpaceCategory('bedroom'),
+    SpaceCategory('living'),
+    SpaceCategory('entrance'),
+    SpaceCategory('kitchen'),
+    SpaceCategory('bathroom'),
+    SpaceCategory('wcBathroom'),
+    SpaceCategory('livingKitchen'),
+    SpaceCategory('wc')
+)

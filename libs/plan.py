@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
 
 from libs.mesh import Mesh, Face, Edge, Vertex
-from libs.category import space_categories, LinearCategory, SpaceCategory
+from libs.category import LinearCategory, SpaceCategory, space_catalog
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
@@ -142,7 +142,7 @@ class Plan:
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = space_categories['empty']):
+                                   category: SpaceCategory = space_catalog('empty')):
         """
         Inserts a new space inside the reference face of the space.
         By design, will not insert a space overlapping several faces of the receiving space.
@@ -233,7 +233,7 @@ class Space(PlanComponent):
     Space Class
     """
     def __init__(self, plan: Plan, edge: Edge,
-                 category: SpaceCategory = space_categories['empty']):
+                 category: SpaceCategory = space_catalog('empty')):
         super().__init__(plan, edge)
         self.category = category
         # set the circular reference
@@ -760,7 +760,7 @@ class Space(PlanComponent):
 
     def insert_space(self,
                      boundary: Sequence[Coords2d],
-                     category: SpaceCategory = space_categories['empty']) ->'Space':
+                     category: SpaceCategory = space_catalog['empty']) ->'Space':
         """
         Adds a new space inside the first face of the space
         :param boundary:

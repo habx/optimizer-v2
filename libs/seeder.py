@@ -8,8 +8,9 @@ import logging
 
 import matplotlib.pyplot as plt
 
-from libs.category import space_categories
+from libs.category import space_catalog
 from libs.plan import Space, PlanComponent, Plan
+from libs.mesh import COORD_EPSILON
 from libs.plot import plot_point
 
 from libs.utils.geometry import barycenter, move_point
@@ -144,6 +145,7 @@ class Seed:
         # growth methods / should be stored in the space category
         self.growth_methods = plan_component.category.seed_category.methods
         self.growth_method_index = 0
+        self.max_size = self.get_components_max_size()
 
     def __repr__(self):
         return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
@@ -159,17 +161,26 @@ class Seed:
         """
         return self.space.bounding_box(self.edge.unit_vector)
 
-    @property
-    def check_size(self) -> bool:
+    def check_size(self,
+                   size: Optional[Tuple[float, float]] = None,
+                   epsilon: float = COORD_EPSILON) -> bool:
         """
         Returns True if the space size is within the provided limits
         :return:
         """
-        max_size = self.max_size
-        return self.size[0] <= max_size[0] and self.size[1] <= max_size[1]
+        size = size or self.max_size
+        return self.size[0] <= size[0] + epsilon and self.size[1] <= size[1] + epsilon
 
-    @property
-    def max_size(self) -> Tuple[float, float]:
+    def update_max_size(self):
+        """
+        Updates the seed max sizes if one of its dimension is superior to the maximum values
+        This is needed because the first face might have a large width or depth than the maximum
+        size value
+        :return:
+        """
+        self.max_size = max(self.size[0], self.max_size[0]), max(self.size[1], self.max_size[1])
+
+    def get_components_max_size(self) -> Tuple[float, float]:
         """
         Returns the max size for the seed space according to its component
         :return:
@@ -211,7 +222,7 @@ class Seed:
             initial_space.remove_face(face)
             self.space.add_face(face)
             # check size
-            if self.check_size:
+            if self.check_size():
                 added_face = face
             else:
                 self.space.remove_face(face)
@@ -232,8 +243,9 @@ class Seed:
         # initialize first face
         if self.space is None:
             self.edge.face.space.remove_face(self.edge.face)
-            self.space = Space(self.seeder.plan, self.edge, space_categories['seed'])
+            self.space = Space(self.seeder.plan, self.edge, space_catalog['seed'])
             self.seeder.plan.add_space(self.space)
+            self.update_max_size()
             return [self.edge.face]
 
         added_faces = []
@@ -284,6 +296,8 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import sequence_grid, edge_length
 
+    from libs.shuffle import simple_shuffle
+
     logging.getLogger().setLevel(logging.DEBUG)
 
     def grow_a_plan():
@@ -291,7 +305,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Sartrouville_RDC.json')
+        plan = reader.create_plan_from_file('Antony_A33.json')
 
         new_plan = sequence_grid.apply_to(plan)
 
@@ -304,8 +318,13 @@ if __name__ == '__main__':
         ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
         seeder.plot(ax)
         plt.show()
-        plt.pause(10)
 
         assert new_plan.check()
+
+        simple_shuffle.apply_to(seeder)
+
+        ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
+        seeder.plot(ax)
+        plt.show()
 
     grow_a_plan()
