@@ -146,17 +146,29 @@ duct_seed_category = SeedCategory(
     )
 )
 
+front_door_seed_category = SeedCategory(
+    'front_door',
+    (CONSTRAINTS['max_size_xs'],),
+    (
+        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
+        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+    )
+)
 
-seed_catalog = Catalog('seeds').add(classic_seed_category, duct_seed_category)
+
+seed_catalog = Catalog('seeds').add(
+    classic_seed_category,
+    duct_seed_category,
+    front_door_seed_category)
 
 linear_catalog = Catalog('linears').add(
     LinearCategory('window', False, seed_catalog['classic'], True, True),
     LinearCategory('door', aperture=True),
     LinearCategory('doorWindow', False, seed_catalog['classic'], True),
-    LinearCategory('frontDoor', False, seed_catalog['classic'], True),
+    LinearCategory('frontDoor', False, seed_catalog['front_door'], True),
     LinearCategory('wall'),
-    LinearCategory('externalWall', False, width=2.0)
-)
+    LinearCategory('externalWall', False, width=2.0))
 
 space_catalog = Catalog('spaces').add(
     SpaceCategory('empty'),
@@ -171,5 +183,4 @@ space_catalog = Catalog('spaces').add(
     SpaceCategory('bathroom'),
     SpaceCategory('wcBathroom'),
     SpaceCategory('livingKitchen'),
-    SpaceCategory('wc')
-)
+    SpaceCategory('wc'))

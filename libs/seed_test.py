@@ -5,7 +5,7 @@ Seeder Module Tests
 import pytest
 
 import libs.reader as reader
-from libs.seeder import Seeder
+from libs.seed import Seeder
 
 from libs.grid import GRIDS
 from libs.reader import BLUEPRINT_INPUT_FILES

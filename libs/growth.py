@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Callable, Generator, Sequence, Union
 from libs.utils.geometry import ccw_angle, pseudo_equal, opposite_vector
 
 if TYPE_CHECKING:
-    from libs.seeder import Seed
+    from libs.seed import Seed
     from libs.mesh import Face
     from libs.plan import Space
     from libs.selector import Selector

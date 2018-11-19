@@ -246,7 +246,6 @@ class Seed:
         modified_spaces = self.growth_method.apply_to(self.space, (self,),
                                                       (self.max_size_constraint,))
 
-
         # TODO: TO BE DELETED,
         # we should find a much faster and cleaner way to do plot animation
         if PLOT_STEPS:
@@ -288,8 +287,6 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import edge_length
-
-    from libs.shuffle import simple_shuffle
 
     logging.getLogger().setLevel(logging.DEBUG)
 

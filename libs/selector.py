@@ -30,7 +30,7 @@ from libs.mesh import MIN_ANGLE, ANGLE_EPSILON
 if TYPE_CHECKING:
     from libs.mesh import Edge, Face
     from libs.plan import Space
-    from libs.seeder import Seed
+    from libs.seed import Seed
 
 EdgeQuery = Callable[[Union['Space', 'face'], Any], Generator['Edge', bool, None]]
 EdgeQueryFactory = Callable[..., EdgeQuery]
@@ -104,7 +104,7 @@ class SelectorFactory:
 # Selector Catalog
 
 
-# queries
+# Queries
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -149,6 +149,40 @@ def boundary(face_or_space: Union['Face', 'Space'], *_) -> Generator['Edge', boo
     """
     yield from face_or_space.edges
 
+
+# Query factories
+
+
+def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
+    """
+    EdgeQuery factory
+    Returns an edge query that yields edges facing the direction or the normal
+    of the reference edge of a face or a space
+    (with epsilon error on angle)
+    :param direction:
+    :param epsilon:
+    :return: an EdgeQuery
+    """
+    if direction not in ('horizontal', 'vertical'):
+        raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
+
+    def _selector(space_or_face: Union['Space', 'Face'], *_) -> Generator['Edge', bool, None]:
+        vectors = ((space_or_face.edge.unit_vector, opposite_vector(space_or_face.edge.unit_vector))
+                   if direction == 'horizontal' else
+                   (space_or_face.edge.normal,))
+
+        for vector in vectors:
+            edges_list = [edge for edge in space_or_face.edges
+                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)]
+            for edge in edges_list:
+                face = edge.pair.face
+                if face is None:
+                    continue
+                yield edge
+
+    return _selector
+
+
 # predicates
 
 
@@ -162,27 +196,14 @@ def not_space_boundary(edge: 'Edge') -> bool:
     return not edge.is_space_boundary
 
 
-# predicates factories
-
-
-def is_not(predicate: Predicate) -> Predicate:
+def adjacent_to_other_space(edge: 'Edge') -> bool:
     """
-    Returns the opposite predicate
-    :return:
-    """
-    def _predicate(edge: 'Edge') -> bool:
-        return not predicate(edge)
-
-    return _predicate
-
-
-def factorize(*predicates: Predicate) -> Sequence[PredicateFactory]:
-    """
-    Returns the predicate (synthetic sugar)
-    :param predicates:
-    :return: predicateFactory
-    """
-    return [lambda: predicate for predicate in predicates]
+        Predicate
+        Returns True if the edge is adjacent to another space
+        :param edge:
+        :return:
+        """
+    return edge.pair.face and edge.pair.face.space is not edge.space
 
 
 def not_adjacent_to_seed(edge: 'Edge') -> bool:
@@ -201,6 +222,29 @@ def adjacent_empty_space(edge: 'Edge') -> bool:
     :return:
     """
     return edge.pair.space and edge.pair.space.category.name == 'empty'
+
+
+# predicate factories
+
+
+def factorize(*predicates: Predicate) -> Sequence[PredicateFactory]:
+    """
+    Returns the predicate (synthetic sugar)
+    :param predicates:
+    :return: predicateFactory
+    """
+    return [lambda: predicate for predicate in predicates]
+
+
+def is_not(predicate: Predicate) -> Predicate:
+    """
+    Returns the opposite predicate
+    :return:
+    """
+    def _predicate(edge: 'Edge') -> bool:
+        return not predicate(edge)
+
+    return _predicate
 
 
 def edge_angle(min_angle: Optional[float] = None,
@@ -336,6 +380,9 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     return _predicate
 
 
+# Catalog Selectors
+
+
 SELECTORS.add(
 
     Selector(boundary, 'boundary'),
@@ -353,74 +400,32 @@ SELECTORS.add(
 
     Selector(boundary, [edge_angle(90.0 + ANGLE_EPSILON, 180.0 - ANGLE_EPSILON, previous=True)],
              'previous_angle_convex_non_ortho'),
+
     Selector(boundary, [edge_angle(270.0 - ANGLE_EPSILON, 270.0 + ANGLE_EPSILON, previous=True)],
              'previous_angle_salient_ortho'),
+
     Selector(boundary, [close_to_linear('window', 'doorWindow', min_distance=90.0),
-                        not_space_boundary],
-             'close_to_window'),
+                        not_space_boundary], 'close_to_window'),
 
     Selector(boundary, [touches_linear('window', 'doorWindow', position='between')],
              'between_windows'),
+
     Selector(boundary, [edge_angle(180.0 - ANGLE_EPSILON, 180.0 + ANGLE_EPSILON),
                         is_not(touches_linear('window', 'doorWindow')),
-                        is_not(is_linear('window', 'doorWindow'))],
-             'aligned_edges'),
-    Selector(boundary, [edge_length(min_length=150.0)],
-             'edge_min_150')
+                        is_not(is_linear('window', 'doorWindow'))], 'aligned_edges'),
+
+    Selector(boundary, [edge_length(min_length=150.0)], 'edge_min_150'),
+
+    Selector(fixed_space_boundary, (adjacent_empty_space,), 'boundary_other_empty_space'),
+
+    Selector(seed_component_boundary, name='surround_seed_component')
 )
 
 
-# space selectors
-
-def oriented_edges(direction: str, epsilon: float = 10.0) -> EdgeQuery:
-    """
-    EdgeQuery factory
-    Returns an edge query that yields edges facing the direction or the normal
-    of the reference edge of a face or a space
-    (with epsilon error on angle)
-    :param direction:
-    :param epsilon:
-    :return: an EdgeQuery
-    """
-    if direction not in ('horizontal', 'vertical'):
-        raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
-
-    def _selector(space_or_face: Union['Space', 'Face'], *_) -> Generator['Edge', bool, None]:
-        vectors = ((space_or_face.edge.unit_vector, opposite_vector(space_or_face.edge.unit_vector))
-                   if direction == 'horizontal' else
-                   (space_or_face.edge.normal,))
-
-        for vector in vectors:
-            edges_list = [edge for edge in space_or_face.edges
-                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)]
-            for edge in edges_list:
-                face = edge.pair.face
-                if face is None:
-                    continue
-                yield edge
-
-    return _selector
+# Catalog Selector factories
 
 
-def adjacent_to_other_space(edge: 'Edge') -> bool:
-    """
-        Predicate
-        Returns True if the edge is adjacent to another space
-        :param edge:
-        :return:
-        """
-    return edge.pair.face and edge.pair.face.space is not edge.space
+SELECTORS.add_factory(
 
-
-oriented_edges_selector = SelectorFactory(oriented_edges,
-                                          factorize(adjacent_empty_space,),
-                                          name='oriented_edges')
-SELECTORS.add_factory(oriented_edges_selector)
-
-boundary_other_empty_space = Selector(fixed_space_boundary, (adjacent_empty_space,),
-                                      'boundary_other_empty_space')
-
-SELECTORS.add(boundary_other_empty_space)
-
-surround_seed_component = Selector(seed_component_boundary, name='surround_seed_component')
-SELECTORS.add(surround_seed_component)
+    SelectorFactory(oriented_edges, factorize(adjacent_empty_space,), name='oriented_edges')
+)
