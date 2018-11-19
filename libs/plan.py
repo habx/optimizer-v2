@@ -6,7 +6,7 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-from typing import Optional, List, Tuple, Sequence, Generator
+from typing import Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
@@ -227,7 +227,7 @@ class PlanComponent:
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
-        self.category = None
+        self.category: Union[SpaceCategory, LinearCategory] = None
 
 
 class Space(PlanComponent):
@@ -299,7 +299,7 @@ class Space(PlanComponent):
         yield from _get_adjacent_faces(face)
 
     @property
-    def edges(self) -> Generator[Edge, None, None]:
+    def edges(self) -> Generator[Edge, Edge, None]:
         """
         The boundary edges of the space
         :return: an iterator
@@ -377,6 +377,14 @@ class Space(PlanComponent):
         """
         vector = edge.unit_vector if edge else None
         return Size(self.area, *self.bounding_box(vector))
+
+    @property
+    def mutable(self):
+        """
+        Returns True if the space can be modified
+        :return:
+        """
+        return self.category.mutable
 
     def is_boundary(self, edge: Edge) -> bool:
         """

@@ -3,11 +3,13 @@
 Size class
 """
 from typing import Optional
+import logging
 
 from libs.utils.geometry import pseudo_equal
 
 
-EPSILON_SIZE = 1.0
+COORD_EPSILON = 1.0
+FLOAT_DECIMAL = 2
 
 
 class Size:
@@ -17,15 +19,17 @@ class Size:
     def __init__(self,
                  area: Optional[float] = None,
                  width: Optional[float] = None,
-                 depth: Optional[float] = None):
-        self.area = float(area) if area else None
-        self.width = float(width) if width else None
-        self.depth = float(depth) if depth else None
+                 depth: Optional[float] = None,
+                 epsilon: float = COORD_EPSILON):
+        self.area = round(float(area), FLOAT_DECIMAL) if area else None
+        self.width = round(float(width), FLOAT_DECIMAL) if width else None
+        self.depth = round(float(depth), FLOAT_DECIMAL) if depth else None
+        self.epsilon = epsilon
 
     def __repr__(self):
         return 'Size: area {0}, width {1}, depth {2}'.format(self.area, self.width, self.depth)
 
-    def is_equal(self, other: 'Size', epsilon: float = EPSILON_SIZE):
+    def is_equal(self, other: 'Size', epsilon: float = COORD_EPSILON):
         """
         Returns True if the size are equal
         :param other:
@@ -78,15 +82,24 @@ class Size:
         is_less = True
         if self.area is not None:
             if other.area is not None:
-                is_less = is_less and self.area <= other.area
+                le_area = self.area <= other.area + other.epsilon**2
+                if not le_area:
+                    logging.debug('Max area reached : {0} > {1}'.format(self.area, other.area))
+                is_less = is_less and le_area
 
         if self.width is not None:
             if other.width is not None:
-                is_less = is_less and self.width <= other.width
+                le_width = self.width <= other.width + other.epsilon
+                if not le_width:
+                    logging.debug('Max width reached : {0} > {1}'.format(self.width, other.width))
+                is_less = is_less and le_width
 
         if self.depth is not None:
             if other.depth is not None:
-                is_less = is_less and self.depth <= other.depth
+                le_depth = self.depth <= other.depth + other.epsilon
+                if not le_depth:
+                    logging.debug('Max depth reached : {0} > {1}'.format(self.depth, other.depth))
+                is_less = is_less and le_depth
 
         return is_less
 
@@ -94,15 +107,15 @@ class Size:
         is_greater = True
         if self.area is not None:
             if other.area is not None:
-                is_greater = is_greater and self.area >= other.area
+                is_greater = is_greater and self.area >= other.area - other.epsilon**2
 
         if self.width is not None:
             if other.width is not None:
-                is_greater = is_greater and self.width >= other.width
+                is_greater = is_greater and self.width >= other.width - other.epsilon
 
         if self.depth is not None:
             if other.depth is not None:
-                is_greater = is_greater and self.depth >= other.depth
+                is_greater = is_greater and self.depth >= other.depth - other.epsilon
 
         return is_greater
 

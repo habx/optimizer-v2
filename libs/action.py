@@ -55,7 +55,6 @@ class Action:
                         self.mutation.reverse(edge, modified_spaces)
                         modified_spaces = []
                         break
-
                 all_modified_spaces += modified_spaces
                 if not self.repeat:
                     break

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from libs.plan import Space
     from libs.seeder import Seed
 
-EdgeQuery = Callable[[Union['Space', 'face'], Any], Generator['Edge', None, None]]
+EdgeQuery = Callable[[Union['Space', 'face'], Any], Generator['Edge', bool, None]]
 EdgeQueryFactory = Callable[..., EdgeQuery]
 Predicate = Callable[['Edge'], bool]
 PredicateFactory = Callable[..., Predicate]
@@ -57,9 +57,9 @@ class Selector:
 
     def yield_from(self,
                    space_or_face: Union['Space', 'Edge'],
-                   *args) -> Generator['Edge', None, None]:
+                   *args) -> Generator['Edge', bool, None]:
         """
-        Runs the selector
+        Runs the selector and returns a generator
         :param space_or_face:
         :return:
         """
@@ -88,15 +88,16 @@ class SelectorFactory:
     def __call__(self,
                  query_args: Sequence,
                  predicates_args: Optional[Sequence[Sequence]] = None) -> Selector:
-
-        if self.predicate_factories and len(self.predicate_factories) != len(predicates_args):
+        predicates_args = predicates_args or []
+        if predicates_args and len(self.predicate_factories) != len(predicates_args):
             raise ValueError('Arguments must be provided for each predicate factory: ' +
                              '{0}'.format(predicates_args))
         name = self.name
         edge_query = self.edge_query_factory(*query_args)
         predicates = []
         for i in range(len(self.predicate_factories)):
-            predicates.append(self.predicate_factories[i](predicates_args[i]))
+            predicates_args = predicates_args[i] if i < len(predicates_args) else []
+            predicates.append(self.predicate_factories[i](*predicates_args))
         return Selector(edge_query, predicates, name=name)
 
 
@@ -106,18 +107,19 @@ class SelectorFactory:
 # queries
 
 
-def space_boundary(space: 'Space', *args) -> Generator['Edge', None, None]:
+def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns any face around the seed space
+    Returns any face around the seed space. The list is fixed and won't be affected by
+    changes to the space edges
     :param space:
     :return:
     """
     for edge in list(space.edges):
         if edge.pair.face and edge.pair.face.space is not space:
-            yield edge.pair.face
+            yield edge.pair
 
 
-def seed_component_boundary(space: 'Space', seed: 'Seed', *args) -> Generator['Edge', None, None]:
+def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge of the space adjacent to a face close to the component of the seed
     :param space:
@@ -127,7 +129,7 @@ def seed_component_boundary(space: 'Space', seed: 'Seed', *args) -> Generator['E
     component = seed.components[0]  # per convention we use the first component of the seed
     for edge in component.edges:
         face = edge.pair.face
-        if face is None or face.space is space:
+        if face is None or face.space is space or face.space.category.name == 'seed':
             continue
         # find a shared edge with the space
         for face_edge in face.edges:
@@ -139,7 +141,7 @@ def seed_component_boundary(space: 'Space', seed: 'Seed', *args) -> Generator['E
         yield face_edge.pair
 
 
-def boundary(face_or_space: Union['Face', 'Space'], *args) -> Generator['Edge', None, None]:
+def boundary(face_or_space: Union['Face', 'Space'], *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges of the face
     :param face_or_space:
@@ -172,6 +174,33 @@ def is_not(predicate: Predicate) -> Predicate:
         return not predicate(edge)
 
     return _predicate
+
+
+def factorize(*predicates: Predicate) -> Sequence[PredicateFactory]:
+    """
+    Returns the predicate (synthetic sugar)
+    :param predicates:
+    :return: predicateFactory
+    """
+    return [lambda: predicate for predicate in predicates]
+
+
+def not_adjacent_to_seed(edge: 'Edge') -> bool:
+    """
+    return True if the edge.pair does not belong to a space of category seed
+    :param edge:
+    :return:
+    """
+    return edge.pair.space is None or edge.pair.space.category.name != 'seed'
+
+
+def adjacent_empty_space(edge: 'Edge') -> bool:
+    """
+    Return True if the edge pair belongs to a space of the 'empty' category
+    :param edge:
+    :return:
+    """
+    return edge.pair.space and edge.pair.space.category.name == 'empty'
 
 
 def edge_angle(min_angle: Optional[float] = None,
@@ -356,7 +385,7 @@ def oriented_edges(direction: str, epsilon: float = 10.0) -> EdgeQuery:
     if direction not in ('horizontal', 'vertical'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
-    def _selector(space_or_face: Union['Space', 'Face'], *args) -> Generator['Edge', None, None]:
+    def _selector(space_or_face: Union['Space', 'Face'], *_) -> Generator['Edge', bool, None]:
         vectors = ((space_or_face.edge.unit_vector, opposite_vector(space_or_face.edge.unit_vector))
                    if direction == 'horizontal' else
                    (space_or_face.edge.normal,))
@@ -373,22 +402,25 @@ def oriented_edges(direction: str, epsilon: float = 10.0) -> EdgeQuery:
     return _selector
 
 
-oriented_edges_selector = SelectorFactory(oriented_edges, name='oriented_edges')
-SELECTORS.add_factory(oriented_edges_selector)
-
-
 def adjacent_to_other_space(edge: 'Edge') -> bool:
     """
-    Predicate
-    Returns True if the edge is adjacent to another space
-    :param edge:
-    :return:
-    """
+        Predicate
+        Returns True if the edge is adjacent to another space
+        :param edge:
+        :return:
+        """
     return edge.pair.face and edge.pair.face.space is not edge.space
 
 
-boundary_other_space = Selector(boundary, [adjacent_to_other_space], 'boundary_other_space')
-SELECTORS.add(boundary_other_space)
+oriented_edges_selector = SelectorFactory(oriented_edges,
+                                          factorize(adjacent_empty_space,),
+                                          name='oriented_edges')
+SELECTORS.add_factory(oriented_edges_selector)
+
+boundary_other_empty_space = Selector(fixed_space_boundary, (adjacent_empty_space,),
+                                      'boundary_other_empty_space')
+
+SELECTORS.add(boundary_other_empty_space)
 
 surround_seed_component = Selector(seed_component_boundary, name='surround_seed_component')
 SELECTORS.add(surround_seed_component)

@@ -138,9 +138,9 @@ CONSTRAINTS.add(few_corners_constraint)
 max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)
 CONSTRAINTS.add(max_size_constraint)
 
-max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(80000, 300, 450)}, max_size)
+max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 350, 450)}, max_size)
 CONSTRAINTS.add(max_size_s_constraint)
 
-max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(50000, 200, 300)},
+max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(150000, 200, 350)},
                                          max_size)
 CONSTRAINTS.add(max_size_xs_constraint)

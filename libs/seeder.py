@@ -21,12 +21,16 @@ if TYPE_CHECKING:
     from libs.mesh import Edge
     from libs.action import Action
 
-"""
+
 # TODO : to be deleted
-plt.ion()
-FIG, AX = plt.subplots()
-AX.set_aspect('equal')
-######################"""
+PLOT_STEPS = False
+if PLOT_STEPS:
+    plt.ion()
+    FIG, AX = plt.subplots()
+    AX.set_aspect('equal')
+######################
+
+EPSILON_MAX_SIZE = 10.0
 
 
 class Seeder:
@@ -178,8 +182,8 @@ class Seed:
         size value
         :return:
         """
-        self.max_size.width = max(self.size.width, self.max_size.width)
-        self.max_size.depth = max(self.size.depth, self.max_size.width)
+        self.max_size.width = max(self.size.width + EPSILON_MAX_SIZE, self.max_size.width)
+        self.max_size.depth = max(self.size.depth + EPSILON_MAX_SIZE, self.max_size.depth)
 
     def get_components_max_size(self) -> Size:
         """
@@ -242,17 +246,17 @@ class Seed:
         modified_spaces = self.growth_method.apply_to(self.space, (self,),
                                                       (self.max_size_constraint,))
 
-        """
+
         # TODO: TO BE DELETED,
         # we should find a much faster and cleaner way to do plot animation
-        global AX
-        AX = self.seeder.plan.plot(AX, save=False,
-                                   options=('fill', 'border', 'half-edge', 'face'))
-        self.seeder.plot(AX)
-        plt.pause(0.000001)
-        AX.clear()
+        if PLOT_STEPS:
+            global AX
+            AX = self.seeder.plan.plot(AX, save=False,
+                                       options=('fill', 'border', 'half-edge', 'face'))
+            self.seeder.plot(AX)
+            plt.pause(0.000001)
+            AX.clear()
         #################
-        """
 
         if not modified_spaces:
             self.growth_method_index += 1
@@ -294,7 +298,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file('Antony_A33.json')
+        plan = reader.create_plan_from_file('Paris18_A302.json')
 
         new_plan = GRIDS['sequence_grid'].apply_to(plan)
 
@@ -307,6 +311,7 @@ if __name__ == '__main__':
         ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
         seeder.plot(ax)
         plt.show()
+        plt.pause(60)
 
         assert new_plan.check()
 

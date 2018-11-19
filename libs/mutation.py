@@ -90,6 +90,9 @@ def add_face(edge: 'Edge') -> Sequence['Space']:
     if edge.pair.face is None:
         return ()
 
+    if not edge.pair.space.mutable:
+        return ()
+
     space = edge.space
     other_space = edge.pair.space
     face = edge.pair.face

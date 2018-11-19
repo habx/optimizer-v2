@@ -131,7 +131,7 @@ classic_seed_category = SeedCategory(
     (
         Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
         Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_space'], MUTATIONS['add_face'])
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
     )
 )
 
@@ -142,7 +142,7 @@ duct_seed_category = SeedCategory(
         Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
         Action(SELECTORS['surround_seed_component'], MUTATIONS['add_face']),
         Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_space'], MUTATIONS['add_face'])
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
     )
 )
 

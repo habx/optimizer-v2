@@ -182,7 +182,7 @@ class Vertex:
         return self.edge.next.start
 
     @property
-    def edges(self) -> Generator['Edge', None, None]:
+    def edges(self) -> Generator['Edge', 'Edge', None]:
         """
         Returns all edges starting from the vertex
         :return: generator
@@ -190,8 +190,11 @@ class Vertex:
         yield self.edge
         edge = self.edge.previous.pair
         while edge is not self.edge:
-            yield edge
-            edge = edge.previous.pair
+            new_edge = (yield edge)
+            if new_edge:
+                edge = new_edge
+            else:
+                edge = edge.previous.pair
 
     @property
     def mesh(self) -> 'Mesh':
@@ -881,9 +884,15 @@ class Edge:
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
     @property
-    def siblings(self) -> Generator['Edge', None, None]:
+    def siblings(self) -> Generator['Edge', 'Edge', None]:
         """
-        Returns the siblings of the edge, starting with itself
+        Returns the siblings of the edge, starting with itself.
+        Note : an edge can be sent back to the generator, for example when the face has changed
+        example:   g = face.edge
+                    for edge in g:
+                    modify something:
+                    g.send(edge)
+
         :return: generator yielding each edge in the loop
         """
         yield self
@@ -895,11 +904,15 @@ class Edge:
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
             seen.append(edge)
-            yield edge
-            edge = edge.next
+            new_edge = (yield edge)
+            if new_edge:
+                seen = []
+                edge = new_edge
+            else:
+                edge = edge.next
 
     @property
-    def reverse_siblings(self) -> Generator['Edge', None, None]:
+    def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
         Returns the siblings of the edge, starting with itself
         looping in reverse
@@ -918,7 +931,7 @@ class Edge:
             edge = edge.previous
 
     @property
-    def space_siblings(self) -> Generator['Edge', None, None]:
+    def space_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
         Returns the siblings of the edge on the space boundary,
         starting with itself
@@ -942,7 +955,7 @@ class Edge:
             edge = edge.space_next
 
     @property
-    def aligned_siblings(self)-> Generator['Edge', None, None]:
+    def aligned_siblings(self)-> Generator['Edge', 'Edge', None]:
         """
         Returns the edges that are aligned with self and contiguous
         Starts with the edge itself, then all the next ones, then all the previous ones
@@ -1703,7 +1716,7 @@ class Face:
         self._space = value
 
     @property
-    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, None, None]:
+    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
         """
         Loops trough all the edges belonging to a face.
         We start at the edge stored in the face and follow each edge next until
@@ -1714,7 +1727,7 @@ class Face:
         :return: a generator
         """
         edge = from_edge or self.edge
-        yield from edge.siblings
+        return edge.siblings
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -1788,16 +1801,19 @@ class Face:
         return (edge for edge in self.edges if edge.pair.face is self)
 
     @property
-    def siblings(self) -> Generator['Face', None, None]:
+    def siblings(self) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
         :return:
         """
         seen = [self]
         yield self
-        for edge in self.edges:
+        generator = self.edges
+        for edge in generator:
             if edge.pair.face is not None and edge.pair.face not in seen:
-                yield edge.pair.face
+                new_edge = (yield edge.pair.face)
+                if new_edge:
+                    generator.send(new_edge)
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
