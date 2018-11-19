@@ -5,10 +5,11 @@ Seeder Module Tests
 import pytest
 
 import libs.reader as reader
-from libs.seeder import Seeder
+from libs.seed import Seeder
 
-from libs.grid import edge_length, sequence_grid
+from libs.grid import GRIDS
 from libs.reader import BLUEPRINT_INPUT_FILES
+from libs.selector import edge_length
 
 from libs.plot import plot_save
 
@@ -20,7 +21,7 @@ def test_grow_a_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-    new_plan = sequence_grid.apply_to(plan)
+    new_plan = GRIDS['sequence_grid'].apply_to(plan)
     seeder = Seeder(new_plan)
     seeder.add_condition(edge_length(50.0), 'duct')
     seeder.grow()

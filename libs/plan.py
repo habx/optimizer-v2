@@ -6,15 +6,17 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-from typing import Optional, List, Tuple, Sequence, Generator
+from typing import Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
 
 from libs.mesh import Mesh, Face, Edge, Vertex
-from libs.category import space_categories, LinearCategory, SpaceCategory
+from libs.category import LinearCategory, SpaceCategory, space_catalog
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
+from libs.size import Size
+
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
@@ -142,7 +144,7 @@ class Plan:
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = space_categories['empty']):
+                                   category: SpaceCategory = space_catalog('empty')):
         """
         Inserts a new space inside the reference face of the space.
         By design, will not insert a space overlapping several faces of the receiving space.
@@ -225,7 +227,7 @@ class PlanComponent:
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
-        self.category = None
+        self.category: Union[SpaceCategory, LinearCategory] = None
 
 
 class Space(PlanComponent):
@@ -233,7 +235,7 @@ class Space(PlanComponent):
     Space Class
     """
     def __init__(self, plan: Plan, edge: Edge,
-                 category: SpaceCategory = space_categories['empty']):
+                 category: SpaceCategory = space_catalog('empty')):
         super().__init__(plan, edge)
         self.category = category
         # set the circular reference
@@ -297,7 +299,7 @@ class Space(PlanComponent):
         yield from _get_adjacent_faces(face)
 
     @property
-    def edges(self) -> Generator[Edge, None, None]:
+    def edges(self) -> Generator[Edge, Edge, None]:
         """
         The boundary edges of the space
         :return: an iterator
@@ -366,6 +368,23 @@ class Space(PlanComponent):
             min_y = min(total_y, min_y)
 
         return max_x - min_x, max_y - min_y
+
+    @property
+    def size(self, edge: Optional[Edge] = None) -> Size:
+        """
+        Returns the size of the space
+        :return:
+        """
+        vector = edge.unit_vector if edge else None
+        return Size(self.area, *self.bounding_box(vector))
+
+    @property
+    def mutable(self):
+        """
+        Returns True if the space can be modified
+        :return:
+        """
+        return self.category.mutable
 
     def is_boundary(self, edge: Edge) -> bool:
         """
@@ -760,7 +779,7 @@ class Space(PlanComponent):
 
     def insert_space(self,
                      boundary: Sequence[Coords2d],
-                     category: SpaceCategory = space_categories['empty']) ->'Space':
+                     category: SpaceCategory = space_catalog['empty']) ->'Space':
         """
         Adds a new space inside the first face of the space
         :param boundary:

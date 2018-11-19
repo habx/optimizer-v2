@@ -42,11 +42,12 @@ class Item:
     The items of the specification
     """
     def __init__(self, category: SpaceCategory,
-                 variant: str, size: 'Size',
+                 variant: str, min_size: 'Size', max_size: 'Size',
                  adjacencies: Optional[List['Item']] = None):
         self.category = category
         self.variant = variant
-        self.size = size
+        self.min_size = min_size
+        self.max_size = max_size
         self.adjacencies = adjacencies
 
     def __repr__(self):
