@@ -2,12 +2,17 @@
 """
 Category module : describes the type of space or linear that can be used in a program or a plan.
 """
-from typing import Sequence, Optional
+from typing import TYPE_CHECKING, Sequence, Optional
 
-from libs.size import Size
-from libs.growth import GrowthMethod, GROWTH_METHODS
+from libs.action import Action
+from libs.constraint import CONSTRAINTS
+from libs.selector import SELECTORS
+from libs.mutation import MUTATIONS
 
 from libs.utils.catalog import Catalog
+
+if TYPE_CHECKING:
+    from libs.constraint import Constraint
 
 
 CATEGORIES_COLORS = {
@@ -27,10 +32,46 @@ class SeedCategory:
     """
     A category of seedable space or linear
     """
-    def __init__(self, name: str, size: Size, methods: Sequence[GrowthMethod]):
+    def __init__(self, name: str, constraints: Optional[Sequence['Constraint']] = None,
+                 operators: Optional[Sequence[Action]] = None):
+        constraints = constraints or []
         self.name = name
-        self.size = size
-        self.methods = methods
+        self.constraints = {constraint.name: constraint for constraint in constraints}
+        self.operators = operators or None
+
+    def __repr__(self):
+        return 'Seed: {0}'.format(self.name)
+
+    def param(self, param_name: str, constraint_name: Optional[str] = None):
+        """
+        Returns the constraints parameters of the given name
+        :param param_name:
+        :param constraint_name: optional, the name of the desired constraint. If not provided, will
+        search for all constraint parameters and return the first parameter with the provided name.
+        :return: the value of the parameter
+        """
+        if constraint_name is not None:
+            constraint = self.constraint(constraint_name)
+            return constraint.params[param_name]
+
+        for constraint in self.constraints:
+            if param_name in self.constraints[constraint].params:
+                return self.constraints[constraint].params[param_name]
+        else:
+            raise ValueError('Parameter {0} not present in any of the seed constraints {1}'
+                             .format(param_name, self))
+
+    def constraint(self, constraint_name: str):
+        """
+        retrieve a constraint by name
+        :param constraint_name:
+        :return:
+        """
+        if constraint_name not in self.constraints:
+            raise ValueError('Constraint {0} not present in seed category {1}'
+                             .format(constraint_name, self))
+
+        return self.constraints[constraint_name]
 
 
 class Category:
@@ -84,23 +125,26 @@ class LinearCategory(Category):
         self.mutable = mutable
 
 
-classic_seed_category = SeedCategory('classic',
-                                     Size(min_area=20000, max_area=150000,
-                                          max_width=350, max_depth=400),
-                                     (GROWTH_METHODS['horizontal_growth'],
-                                      GROWTH_METHODS['vertical_growth'],
-                                      GROWTH_METHODS['free_growth'],
-                                      GROWTH_METHODS['done']))
+classic_seed_category = SeedCategory(
+    'classic',
+    (CONSTRAINTS['max_size_s'],),
+    (
+        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
+        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
+        Action(SELECTORS['boundary_other_space'], MUTATIONS['add_face'])
+    )
+)
 
-duct_seed_category = SeedCategory('duct',
-                                  Size(min_area=20000, max_area=80000,
-                                       max_width=200, max_depth=300),
-                                  (GROWTH_METHODS['horizontal_growth'],
-                                   GROWTH_METHODS['surround_growth'],
-                                   GROWTH_METHODS['vertical_growth'],
-                                   GROWTH_METHODS['horizontal_growth'],
-                                   GROWTH_METHODS['free_growth'],
-                                   GROWTH_METHODS['done']))
+duct_seed_category = SeedCategory(
+    'duct',
+    (CONSTRAINTS['max_size_xs'],),
+    (
+        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
+        Action(SELECTORS['surround_seed_component'], MUTATIONS['add_face']),
+        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
+        Action(SELECTORS['boundary_other_space'], MUTATIONS['add_face'])
+    )
+)
 
 
 seed_catalog = Catalog('seeds').add(classic_seed_category, duct_seed_category)

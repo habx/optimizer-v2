@@ -3,20 +3,23 @@
 Space grower module
 A grower creates spaces in a plan from seeds point and according to a specification
 """
-from typing import List, Optional, Dict, Callable, Generator, Tuple, TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, List, Optional, Dict, Callable, Sequence
 import logging
+import copy
 
 import matplotlib.pyplot as plt
 
 from libs.category import space_catalog
 from libs.plan import Space, PlanComponent, Plan
-from libs.mesh import COORD_EPSILON
 from libs.plot import plot_point
+from libs.size import Size
+from libs.constraint import CONSTRAINTS
 
 from libs.utils.geometry import barycenter, move_point
 
 if TYPE_CHECKING:
-    from libs.mesh import Edge, Face
+    from libs.mesh import Edge
+    from libs.action import Action
 
 """
 # TODO : to be deleted
@@ -73,11 +76,11 @@ class Seeder:
 
         # grow the seeds
         while True:
-            faces_added = []
+            spaces_modified = []
             for seed in self.seeds:
-                faces_added += seed.grow()
+                spaces_modified += seed.grow()
             # stop to grow once we cannot grow anymore
-            if not faces_added:
+            if not spaces_modified:
                 break
 
     def add_seed(self, seed: 'Seed'):
@@ -103,10 +106,10 @@ class Seeder:
 
     def check_condition(self, category_name: str, edge: 'Edge') -> bool:
         """
-        Verify the condition
+        Verify the condition to create the seed
         :param category_name:
         :param edge:
-        :return:
+        :return: True if the condition is satisfied
         """
         if category_name != 'general' and not self.check_condition('general', edge):
             return False
@@ -142,34 +145,31 @@ class Seed:
         self.edge = edge  # the reference edge of the seed
         self.components = [plan_component] if PlanComponent else []  # the components of the seed
         self.space: Optional[Space] = None  # the seed space
-        # growth methods / should be stored in the space category
-        self.growth_methods = plan_component.category.seed_category.methods
+        self.growth_methods = plan_component.category.seed_category.operators
         self.growth_method_index = 0
         self.max_size = self.get_components_max_size()
+        self.max_size_constraint = self.create_max_size_constraint()
 
     def __repr__(self):
         return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
-                '{5}').format(self.components, str(self.space.area), str(self.size[0]),
-                              str(self.size[1]), self.space, self.edge)
+                '{5}').format(self.components, str(self.space.area), str(self.size.width),
+                              str(self.size.depth), self.space, self.edge)
 
     @property
-    def size(self) -> Tuple[float, float]:
+    def size(self) -> Size:
         """
-        Returns the width of the seed space
-        TODO : we should implement a size method for the space that will return a Size object
-        :return: width, depth
+        Returns the size of the space of the seed
+        :return: size
         """
-        return self.space.bounding_box(self.edge.unit_vector)
+        return self.space.size
 
     def check_size(self,
-                   size: Optional[Tuple[float, float]] = None,
-                   epsilon: float = COORD_EPSILON) -> bool:
+                   size: Size) -> bool:
         """
         Returns True if the space size is within the provided limits
         :return:
         """
-        size = size or self.max_size
-        return self.size[0] <= size[0] + epsilon and self.size[1] <= size[1] + epsilon
+        return self.size <= size
 
     def update_max_size(self):
         """
@@ -178,66 +178,57 @@ class Seed:
         size value
         :return:
         """
-        self.max_size = max(self.size[0], self.max_size[0]), max(self.size[1], self.max_size[1])
+        self.max_size.width = max(self.size.width, self.max_size.width)
+        self.max_size.depth = max(self.size.depth, self.max_size.width)
 
-    def get_components_max_size(self) -> Tuple[float, float]:
+    def get_components_max_size(self) -> Size:
         """
         Returns the max size for the seed space according to its component
         :return:
         """
         max_width = 0
         max_depth = 0
+        max_area = 0
         for component in self.components:
-            max_width = max(max_width, component.category.seed_category.size.max_width)
-            max_depth = max(max_depth, component.category.seed_category.size.max_depth)
+            max_area = max(max_area, component.category.seed_category.param('max_size').area)
+            max_width = max(max_width, component.category.seed_category.param('max_size').width)
+            max_depth = max(max_depth, component.category.seed_category.param('max_size').depth)
 
-        return max_width, max_depth
+        return Size(max_area, max_width, max_depth)
 
-    @property
-    def neighbors(self) -> Generator['Face', None, None]:
+    def create_max_size_constraint(self):
         """
-        Returns adjacent faces of the corresponding growth method
+        Creates a max_size constraint
         :return:
         """
-        yield from self.growth_method(self)
+        return copy.deepcopy(CONSTRAINTS['max_size']).set(max_size=self.max_size)
+
+    def update_max_size_constraint(self):
+        """
+        Updates the max_size constraint
+        :return:
+        """
+        self.update_max_size()
+        self.max_size_constraint.set(max_size=self.max_size)
 
     @property
-    def growth_method(self):
+    def growth_method(self) -> Optional['Action']:
         """
         Returns the current growth method
         :return:
         """
+        if self.growth_method_index >= len(self.growth_methods):
+            return None
         return self.growth_methods[self.growth_method_index]
 
-    def add_face(self, face: 'Face') -> 'Face':
-        """
-        Adds a face to the seed space
-        :param face:
-        :return:
-        """
-        added_face = None
-
-        if face.space.category.name == 'empty':
-            initial_space = face.space
-            initial_space.remove_face(face)
-            self.space.add_face(face)
-            # check size
-            if self.check_size():
-                added_face = face
-            else:
-                self.space.remove_face(face)
-                initial_space.add_face(face)
-
-        return added_face
-
-    def grow(self) -> Sequence[Optional['Face']]:
+    def grow(self) -> Sequence['Space']:
         """
         Tries to grow the seed space by one face
         Returns the list of the faces added
         :param self:
         :return:
         """
-        if self.growth_method.name == 'done':
+        if self.growth_method is None:
             return []
 
         # initialize first face
@@ -245,31 +236,28 @@ class Seed:
             self.edge.face.space.remove_face(self.edge.face)
             self.space = Space(self.seeder.plan, self.edge, space_catalog['seed'])
             self.seeder.plan.add_space(self.space)
-            self.update_max_size()
-            return [self.edge.face]
+            self.update_max_size_constraint()
+            return [self.space]
 
-        added_faces = []
-        for face in self.neighbors:
-            added_face = self.add_face(face)
-            if added_face is not None:
-                added_faces.append(added_face)
+        modified_spaces = self.growth_method.apply_to(self.space, (self,),
+                                                      (self.max_size_constraint,))
 
-            """
-            # TODO: TO BE DELETED,
-            # we should find a much faster and cleaner way to do plot animation
-            global AX
-            AX = self.seeder.plan.plot(AX, save=False,
-                                       options=('fill', 'border', 'half-edge', 'face'))
-            self.seeder.plot(AX)
-            plt.pause(0.000001)
-            AX.clear()
-            #################
-            """
+        """
+        # TODO: TO BE DELETED,
+        # we should find a much faster and cleaner way to do plot animation
+        global AX
+        AX = self.seeder.plan.plot(AX, save=False,
+                                   options=('fill', 'border', 'half-edge', 'face'))
+        self.seeder.plot(AX)
+        plt.pause(0.000001)
+        AX.clear()
+        #################
+        """
 
-        if not added_faces:
+        if not modified_spaces:
             self.growth_method_index += 1
 
-        return added_faces
+        return modified_spaces
 
     def add_component(self, component: PlanComponent):
         """
@@ -294,7 +282,8 @@ class Seed:
 if __name__ == '__main__':
 
     import libs.reader as reader
-    from libs.grid import sequence_grid, edge_length
+    from libs.grid import GRIDS
+    from libs.selector import edge_length
 
     from libs.shuffle import simple_shuffle
 
@@ -307,7 +296,7 @@ if __name__ == '__main__':
         """
         plan = reader.create_plan_from_file('Antony_A33.json')
 
-        new_plan = sequence_grid.apply_to(plan)
+        new_plan = GRIDS['sequence_grid'].apply_to(plan)
 
         seeder = Seeder(new_plan)
         seeder.add_condition(edge_length(50.0), 'duct')
@@ -321,10 +310,6 @@ if __name__ == '__main__':
 
         assert new_plan.check()
 
-        simple_shuffle.apply_to(seeder)
-
-        ax = new_plan.plot(save=False, options=('fill', 'border', 'face'))
-        seeder.plot(ax)
-        plt.show()
+        # simple_shuffle.apply_to(seeder)
 
     grow_a_plan()

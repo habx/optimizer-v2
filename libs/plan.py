@@ -15,6 +15,8 @@ from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import LinearCategory, SpaceCategory, space_catalog
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
+from libs.size import Size
+
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
@@ -366,6 +368,15 @@ class Space(PlanComponent):
             min_y = min(total_y, min_y)
 
         return max_x - min_x, max_y - min_y
+
+    @property
+    def size(self, edge: Optional[Edge] = None) -> Size:
+        """
+        Returns the size of the space
+        :return:
+        """
+        vector = edge.unit_vector if edge else None
+        return Size(self.area, *self.bounding_box(vector))
 
     def is_boundary(self, edge: Edge) -> bool:
         """

@@ -19,7 +19,7 @@ ReverseEdgeTransformation = Callable[['Edge', Sequence['Space']], Sequence['Spac
 MutationFactoryFunction = Callable[..., EdgeTransformation]
 
 
-catalog = Catalog('mutations')
+MUTATIONS = Catalog('mutations')
 
 
 class Mutation:
@@ -123,7 +123,7 @@ def remove_face(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
     return space, other_space
 
 
-catalog.add(Mutation(add_face, remove_face))
+MUTATIONS.add(Mutation(add_face, remove_face, 'add_face'))
 
 
 # Cuts Mutation
@@ -143,7 +143,7 @@ def _remove_edge(edge: 'Edge') -> Sequence['Space']:
     return [remaining_face.space] if remaining_face else []
 
 
-catalog.add(Mutation(_remove_edge, name='remove_edge'))
+MUTATIONS.add(Mutation(_remove_edge, name='remove_edge'))
 
 
 def _ortho_cut(edge: 'Edge') -> Sequence['Space']:
@@ -151,7 +151,7 @@ def _ortho_cut(edge: 'Edge') -> Sequence['Space']:
     return _space_modified_by_cut(cut_data)
 
 
-catalog.add(Mutation(_ortho_cut, name='ortho_projection_cut'))
+MUTATIONS.add(Mutation(_ortho_cut, name='ortho_projection_cut'))
 
 
 def barycenter_cut(coeff: float,
@@ -171,7 +171,7 @@ def barycenter_cut(coeff: float,
     return _action
 
 
-catalog.add_factory(MutationFactory(barycenter_cut, 'barycenter_cut'))
+MUTATIONS.add_factory(MutationFactory(barycenter_cut, 'barycenter_cut'))
 
 
 def translation_cut(dist: float,
@@ -198,4 +198,4 @@ def translation_cut(dist: float,
     return _action
 
 
-catalog.add_factory(MutationFactory(translation_cut, 'translation_cut'))
+MUTATIONS.add_factory(MutationFactory(translation_cut, 'translation_cut'))

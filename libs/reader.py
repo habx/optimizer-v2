@@ -261,9 +261,10 @@ def create_specification_from_file(input_file: str):
         if _category not in space_catalog:
             raise ValueError('Space type not present in space categories: {0}'.format(_category))
         required_area = item['requiredArea']
-        size = Size(required_area['min'], required_area['max'])
+        size_min = Size(area=required_area['min'])
+        size_max = Size(area=required_area['max'])
         variant = item['variant']
-        new_item = Item(space_catalog[_category], variant, size)
+        new_item = Item(space_catalog[_category], variant, size_min, size_max)
         specification.add_item(new_item)
 
     return specification

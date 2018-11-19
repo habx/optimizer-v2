@@ -3,13 +3,16 @@
 Grow methods module
 """
 
-from typing import Optional, Callable, Generator, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Callable, Generator, Sequence, Union
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, opposite_vector
 
 if TYPE_CHECKING:
     from libs.seeder import Seed
     from libs.mesh import Face
+    from libs.plan import Space
+    from libs.selector import Selector
+    from libs.mutation import Mutation
 
 
 GrowthSelector = Callable[['Seed'], Generator['Face', None, None]]
@@ -19,11 +22,15 @@ class GrowthMethod:
     """
     A method for growing a seed
     """
-    def __init__(self, name: str, action: Optional[GrowthSelector] = None):
+    def __init__(self, name: str, action: Optional[GrowthSelector] = None,
+                 selector: Optional['Selector'] = None,
+                 mutation: Optional['Mutation'] = None):
         self.name = name
         self.action = action  # an action must take a seed as an argument and return a face
+        self.selector = selector
+        self.mutation = mutation
 
-    def __call__(self, *args, **kwargs) -> Generator['Face', None, None]:
+    def __call__(self, *args, **kwargs) -> Sequence['Space']:
         if self.action is None:
             return
         yield from self.action(args[0])
@@ -44,9 +51,9 @@ def oriented_faces(direction: str, epsilon: float = 10.0) -> GrowthSelector:
 
     def _selector(seed: 'Seed') -> Generator['Face', None, None]:
         space = seed.space
-        vectors = ((space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
+        vectors = ((seed.edge.unit_vector, opposite_vector(seed.edge.unit_vector))
                    if direction == 'horizontal' else
-                   (space.edge.normal,))
+                   (seed.edge.normal,))
 
         for vector in vectors:
             edges_list = [edge for edge in space.edges

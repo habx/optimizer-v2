@@ -53,7 +53,7 @@ class Catalog:
     def add_factory(self, *factories: Any) -> 'Catalog':
         """
         Adds a factory item
-        :param value:
+        :param factories:
         :return:
         """
         for item in factories:
@@ -76,7 +76,9 @@ class Catalog:
         :return:
         """
         if item_name not in self._items:
-            return default
+            if default is not None:
+                return default
+            raise ValueError('Item {0} not found in catalog {1}'.format(item_name, self.name))
         return self._items[item_name]
 
     def __getitem__(self, item_name):
@@ -86,7 +88,7 @@ class Catalog:
         :return:
         """
         if item_name not in self._items:
-            return None
+            raise ValueError('Item {0} not found in catalog {1}'.format(item_name, self.name))
         return self._items[item_name]
 
     def __contains__(self, key):
