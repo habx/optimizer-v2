@@ -312,6 +312,4 @@ if __name__ == '__main__':
 
         assert new_plan.check()
 
-        # simple_shuffle.apply_to(seeder)
-
     grow_a_plan()
