@@ -1183,64 +1183,7 @@ if __name__ == '__main__':
 
     # floor_plan()
 
-    def merge_middle_b_space():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
-        plan = Plan('my plan').from_boundary(perimeter)
-        list(plan.mesh.faces[0].edges)[4].barycenter_cut(0)
-
-        duct = [(200, 200), (300, 200), (300, 300)]
-        list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
-
-        plan.empty_space.remove_face(plan.mesh.faces[0])
-        plan.empty_space.add_face(plan.mesh.faces[0])
-
-        print(list(plan.spaces[0].edges))
-        print(list(plan.spaces[1].edges))
-
-        plan.spaces[0].merge(plan.spaces[1])
-
-        plan.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-    # merge_middle_b_space()
 
 
-    def remove_u_space():
-        """
-        Test.
-        :return:
-        """
-
-        perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
-
-        # add border duct
-        plan = Plan().from_boundary(perimeter)
-
-        # add single touching point
-        point_duct = [(0, 800), (0, 500), (500, 500),(500, 1000), (200, 1000), (200, 800)]
-        plan.mesh.faces[0].insert_face_from_boundary(point_duct)
-        hole_face = plan.mesh.faces[1]
-
-        plan.empty_space.remove_face(hole_face)
-        plan.empty_space.add_face(hole_face)
-
-        plan.plot(save=False)
-        plt.show()
-
-        plan.spaces[0].merge(plan.spaces[1])
-
-        plan.plot(save=False)
-        plt.show()
-
-        assert plan.check()
-
-
-    remove_u_space()
 
 
