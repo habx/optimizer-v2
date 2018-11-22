@@ -109,3 +109,10 @@ class Action:
                 else:
                     total_score += constraint.score(space)
         return total_score
+
+    def flush(self):
+        """
+        removes the cache
+        :return:
+        """
+        self._seen = set()

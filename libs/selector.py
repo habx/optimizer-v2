@@ -172,6 +172,54 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
             if edge.next_ortho() is edge.next:
                 yield edge.pair
 
+
+def corner_stone(edge: 'Edge') -> bool:
+    """
+    Returns True if the removal of the edge's face from the space
+    will cut it in several spaces
+    """
+
+    def _get_adjacent_faces(_face: 'Face') -> Generator['Face', None, None]:
+        """
+            Recursive function to retrieve all the faces of the space
+            :param _face:
+            :return:
+            """
+        for _edge in _face.edges:
+            # if the edge is a boundary of the space do not propagate
+            if _edge.is_space_boundary:
+                continue
+            new_face = _edge.pair.face
+            if new_face and new_face.space is removed_face.space and new_face not in seen:
+                seen.append(new_face)
+                yield new_face
+                yield from _get_adjacent_faces(new_face)
+
+    removed_face = edge.pair.face
+
+    if removed_face is None or removed_face.space is None:
+        return False
+
+    adjacent_faces = set([_edge.pair.face for _edge in removed_face.edges
+                          if _edge.pair.face and (_edge.pair.space is removed_face.space)])
+
+    # only face in the space
+    if len(adjacent_faces) < 2:
+        return False
+
+    found_isolated_face = False
+
+    for face in adjacent_faces:
+        seen = [removed_face, face]
+        for other_face in _get_adjacent_faces(face):
+            if other_face in adjacent_faces:
+                break
+        else:
+            found_isolated_face = True
+            break
+
+    return found_isolated_face
+
 # Query factories
 
 
@@ -225,7 +273,7 @@ def adjacent_to_other_space(edge: 'Edge') -> bool:
         :param edge:
         :return:
         """
-    return edge.pair.face and edge.pair.face.space is not edge.space
+    return edge.pair.face and edge.pair.face.space is not edge.space and edge.space.mutable
 
 
 def not_adjacent_to_seed(edge: 'Edge') -> bool:
@@ -444,7 +492,7 @@ SELECTORS.add(
 
     Selector(seed_duct, name='seed_duct'),
 
-    Selector(boundary, (adjacent_to_other_space,), 'other_space_boundary')
+    Selector(boundary, (adjacent_to_other_space, is_not(corner_stone)), 'other_space_boundary')
 )
 
 

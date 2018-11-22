@@ -126,7 +126,6 @@ def few_corners(params: Dict) -> scoreFunction:
             if ccw_angle(edge.vector, edge.space_next.vector) >= 20.0:
                 number_of_corners += 1
 
-        logging.debug(math.fabs(number_of_corners - min_corners))
         return math.fabs(number_of_corners - min_corners)
 
     return _score

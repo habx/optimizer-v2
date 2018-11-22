@@ -278,6 +278,10 @@ class Seed:
         if self.growth_action is None:
             return []
 
+        for growth_method in self.growth_methods:
+            for action in growth_method.actions:
+                action.flush()
+
         # initialize first face
         if self.space is None:
             empty_space = self.edge.face.space
@@ -419,7 +423,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[9]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.BLUEPRINT_INPUT_FILES[33]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -427,14 +431,12 @@ if __name__ == '__main__':
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder.plant()
-        seeder.grow(show=False)
+        seeder.grow()
+        few_corner_shuffle.run(plan, show=True)
 
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
         plt.show()
-
-        print(seeder)
-        few_corner_shuffle.run(plan, show=True)
 
         assert plan.check()
 

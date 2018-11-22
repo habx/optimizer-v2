@@ -20,5 +20,5 @@ def test_floor_plan_grid(input_file):
     plan = reader.create_plan_from_file(input_file)
     new_plan = GRIDS['sequence_grid'].apply_to(plan)
 
-    new_plan.plot_seeds()
+    new_plan.plot()
     assert new_plan.check()

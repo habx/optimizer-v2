@@ -34,7 +34,7 @@ class Shuffle:
         self.constraints = constraints
         # pseudo private
         self._action_index = 0
-        self._plot = Plot()
+        self._plot = None
 
     def run(self, plan: 'Plan', show: bool = False):
         """
@@ -44,12 +44,17 @@ class Shuffle:
         :return:
         """
 
+        for action in self.actions:
+            action.flush()
+
         if show:
             self._plot = Plot()
             plt.ion()
             self._plot.draw(plan)
             plt.show()
             plt.pause(0.0001)
+
+        self._action_index = 0
 
         while True:
 
@@ -58,7 +63,7 @@ class Shuffle:
             for space in plan.spaces:
                 modified_spaces = self.current_action.apply_to(space, self.current_selector_args,
                                                                constraints=self.constraints)
-                if modified_spaces:
+                if modified_spaces and show:
                     self._plot.update(modified_spaces)
 
                 all_modified_spaces += modified_spaces
