@@ -683,6 +683,32 @@ class Edge:
         """
         return pseudo_equal(self.next_angle, 90, ANGLE_EPSILON)
 
+    def next_ortho(self) -> 'Edge':
+        """
+        Returns the next orthogonal edge
+        :return:
+        """
+        angle = 0
+        for edge in self.siblings:
+            angle += ccw_angle(edge.vector, edge.next.vector)
+            if angle >= 90.0 - ANGLE_EPSILON:
+                return edge.next
+
+        raise Exception('The impossible has happened !!')
+
+    def previous_ortho(self) -> 'Edge':
+        """
+        Returns the previous orthogonal edge
+        :return:
+        """
+        angle = 0
+        for edge in self.reverse_siblings:
+            angle += ccw_angle(edge.previous.vector, edge.vector)
+            if angle >= 90.0 - ANGLE_EPSILON:
+                return edge.previous
+
+        raise Exception('The impossible has happened !!')
+
     @property
     def previous_is_ortho(self) -> bool:
         """

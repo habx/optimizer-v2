@@ -35,13 +35,12 @@ class Grid:
         :param plan:
         :return: a copy of the plan with the created grid
         """
-        _plan = copy.deepcopy(plan)
         for operator in self.operators:
-            self.iterate(_plan, operator)
+            self.iterate(plan, operator)
             # we simplify the mesh between each operator
             plan.mesh.simplify()
 
-        return _plan
+        return plan
 
     def iterate(self, plan: 'Plan', operator: Tuple['Selector', 'Mutation']):
         """
@@ -124,6 +123,44 @@ sequence_grid = Grid('sequence_grid', [
 
 GRIDS.add(sequence_grid)
 
+
+ortho_grid = Grid('ortho_grid', [
+    (
+        SELECTORS['previous_angle_salient_non_ortho'],
+        MUTATIONS['ortho_projection_cut']
+    ),
+    (
+        SELECTORS['next_angle_salient_non_ortho'],
+        MUTATIONS['ortho_projection_cut']
+    ),
+    (
+        SELECTORS['previous_angle_convex_non_ortho'],
+        MUTATIONS['ortho_projection_cut']
+    ),
+    (
+        SELECTORS['next_angle_convex_non_ortho'],
+        MUTATIONS['ortho_projection_cut']
+    ),
+    (
+       SELECTORS['previous_angle_salient_ortho'],
+       MUTATIONS['ortho_projection_cut']
+    ),
+    (
+        SELECTORS['between_windows'],
+        MUTATIONS.factory['barycenter_cut'](0.5)
+    ),
+    (
+        SELECTORS['edge_min_150'],
+        MUTATIONS.factory['barycenter_cut'](0.5)
+    ),
+    (
+        SELECTORS['aligned_edges'],
+        MUTATIONS.factory['barycenter_cut'](1.0)
+    )
+])
+
+GRIDS.add(ortho_grid)
+
 if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.INFO)
@@ -133,10 +170,10 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[17]  # 16: Edison_10
+        input_file = reader.BLUEPRINT_INPUT_FILES[9]  # 16: Edison_10 6: Antony_A22 9: Antony_B22
         plan = reader.create_plan_from_file(input_file)
 
-        new_plan = sequence_grid.apply_to(plan)
+        new_plan = ortho_grid.apply_to(plan)
         new_plan.check()
 
         new_plan.plot(save=False)

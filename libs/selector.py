@@ -150,6 +150,28 @@ def boundary(face_or_space: Union['Face', 'Space'], *_) -> Generator['Edge', boo
     yield from face_or_space.edges
 
 
+def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edge that can be seeded for a duct
+    """
+    if not space.category or space.category.name != 'duct':
+        raise ValueError('You should provide a duct to the query seed_duct!')
+
+    # case n°1 : duct is along a boundary, we only set two seed point
+    edge_along_plan = None
+    for edge in space.edges:
+        if edge.pair.face is None:
+            edge_along_plan = edge
+            break
+
+    if edge_along_plan:
+        yield edge_along_plan.next_ortho().pair
+        yield edge_along_plan.previous_ortho().pair
+    else:
+        for edge in space.edges:
+            if edge.next_ortho() is edge.next:
+                yield edge.pair
+
 # Query factories
 
 
@@ -418,7 +440,9 @@ SELECTORS.add(
 
     Selector(fixed_space_boundary, (adjacent_empty_space,), 'boundary_other_empty_space'),
 
-    Selector(seed_component_boundary, name='surround_seed_component')
+    Selector(seed_component_boundary, name='surround_seed_component'),
+
+    Selector(seed_duct, name='seed_duct')
 )
 
 

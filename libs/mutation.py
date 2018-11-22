@@ -32,6 +32,7 @@ class Mutation:
         self.name = name
         self._action = action
         self._reverse_action = reverse_action
+        self._modified_spaces: EdgeTransformation = None
 
     def __repr__(self):
         return 'Mutation: {0}'.format(self.name)
@@ -56,6 +57,17 @@ class Mutation:
         if self._reverse_action is None:
             raise Exception('This mutation can not be reversed ! : {0}'.format(self))
         return self._reverse_action(edge, spaces)
+
+    def will_modify(self, edge: 'Edge') -> Sequence['Space']:
+        """
+        Returns the spaces that will be modified by the mutation
+        :param edge:
+        :return:
+        """
+        if self._modified_spaces:
+            return self._modified_spaces(edge)
+
+        return edge.space, edge.pair.space
 
 
 class MutationFactory:

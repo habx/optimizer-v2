@@ -68,7 +68,7 @@ class Catalog:
             self._factories[item.name] = item
         return self
 
-    def __call__(self, item_name: str, default: Optional[Any] = None) -> Any:
+    def __call__(self, item_name: str, default_name: Optional[str] = None) -> Any:
         """
         Retrieves an item from the catalog
         :param item_name:
@@ -76,8 +76,8 @@ class Catalog:
         :return:
         """
         if item_name not in self._items:
-            if default is not None:
-                return default
+            if default_name is not None:
+                return self[default_name]
             raise ValueError('Item {0} not found in catalog {1}'.format(item_name, self.name))
         return self._items[item_name]
 

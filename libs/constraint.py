@@ -24,12 +24,21 @@ CONSTRAINTS = Catalog('constraints')
 class Constraint:
     """
     A type of constraint
+    An imperative constraint must be verified. A mutation cannot be applied if it will
+    break an imperative constraint.
+    If a constraint is not imperative, it will be considered an objective constraint.
+    In this case, a mutation will be applied if it will increase the score of the modified spaces
+    according to the constraint score function.
     """
-    def __init__(self, name: str, params: Dict[str, Any],
-                 score_factory: scoreFunctionFactory):
+    def __init__(self,
+                 name: str,
+                 params: Dict[str, Any],
+                 score_factory: scoreFunctionFactory,
+                 imperative: bool = True):
         self.name = name
         self.params = params
         self.score_factory = score_factory  # the min the better
+        self.imperative = imperative
 
     def __repr__(self):
         return 'Constraint: {0}'.format(self.name)
@@ -38,7 +47,8 @@ class Constraint:
               space_or_linear: Union['Space', 'Linear'],
               other: Optional['Constraint'] = None) -> bool:
         """
-        Returns True if the constraint is satisfied
+        Returns True if the constraint is satisfied. A constraint is deemed satisfied if
+        its score is inferior or equal to zero
         :param space_or_linear:
         :param other: an other constraint
         :return:
@@ -87,6 +97,8 @@ class LinearConstraint(Constraint):
     pass
 
 
+# score functions
+
 def is_square(space: 'Space') -> float:
     """
     Scores the area / perimeter ratio of a space. Will equal 100 if the space is a square.
@@ -95,6 +107,8 @@ def is_square(space: 'Space') -> float:
     """
     return space.area / ((space.perimeter / 4)**2) * 100
 
+
+# score functions factories
 
 def few_corners(params: Dict) -> scoreFunction:
     """
@@ -138,7 +152,8 @@ CONSTRAINTS.add(few_corners_constraint)
 max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)
 CONSTRAINTS.add(max_size_constraint)
 
-max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 300, 350)}, max_size)
+max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 400, 350)},
+                                        max_size)
 CONSTRAINTS.add(max_size_s_constraint)
 
 max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 250, 300)},

@@ -18,6 +18,8 @@ class Action:
     Action Class
     An action is the combination of a selector and a mutation. The action will loop trough the edges
     of a face or a space yielded by the selector and try to mutate it according to the mutation.
+    The mutation will be reversed if it breaks an imperative constraint of fails to improve
+    the score of an objective constraint.
     The repeat flag specifies whether to keep applying the mutation after an edge has
     been successfully mutated.
     """
@@ -45,19 +47,54 @@ class Action:
         :param constraints:
         :return:
         """
-        constraints = constraints or []
+        # separate imperative constraints from objective constraints
+        if constraints is not None:
+            imp_constraints = [constraint for constraint in constraints if constraint.imperative]
+            opt_constraints = [constraint for constraint in constraints
+                               if not constraint.imperative]
+        else:
+            imp_constraints = []
+            opt_constraints = []
+
         all_modified_spaces = []
         for edge in self.selector.yield_from(space_or_face, *selector_optional_args):
+            initial_score = self.score(self.mutation.will_modify(edge), opt_constraints)
             modified_spaces = self.mutation.apply_to(edge)
             if modified_spaces:
-                for constraint in constraints:
+
+                for constraint in imp_constraints:
                     if not constraint.check(modified_spaces[0]):
                         self.mutation.reverse(edge, modified_spaces)
                         modified_spaces = []
                         break
+
+                if initial_score is not None:
+                    new_score = self.score(modified_spaces, opt_constraints)
+                    if new_score <= initial_score:
+                        self.mutation.reverse(edge, modified_spaces)
+                        modified_spaces = []
+
                 all_modified_spaces += modified_spaces
                 if not self.repeat:
                     break
 
         return all_modified_spaces
 
+    @staticmethod
+    def score(modified_spaces: Sequence['Space'],
+              opt_constraints: Sequence['Constraint']) -> Optional[float]:
+        """
+        Computes the score of the modified spaces
+        TODO : better than a simple arithmetic sum
+        :param modified_spaces:
+        :param opt_constraints:
+        :return:
+        """
+        total_score = None
+        for constraint in opt_constraints:
+            for space in modified_spaces:
+                if total_score is None:
+                    total_score = constraint.score(space)
+                else:
+                    total_score += constraint.score(space)
+        return total_score
