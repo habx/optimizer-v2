@@ -442,7 +442,9 @@ SELECTORS.add(
 
     Selector(seed_component_boundary, name='surround_seed_component'),
 
-    Selector(seed_duct, name='seed_duct')
+    Selector(seed_duct, name='seed_duct'),
+
+    Selector(boundary, (adjacent_to_other_space,), 'other_space_boundary')
 )
 
 

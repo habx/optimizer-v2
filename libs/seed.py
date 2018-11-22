@@ -410,6 +410,7 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
+    from libs.shuffle import few_corner_shuffle
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -426,13 +427,14 @@ if __name__ == '__main__':
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder.plant()
-        seeder.grow(show=True)
+        seeder.grow(show=False)
 
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
         plt.show()
 
         print(seeder)
+        few_corner_shuffle.run(plan, show=True)
 
         assert plan.check()
 

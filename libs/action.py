@@ -80,7 +80,7 @@ class Action:
                         break
                 if initial_score is not None:
                     new_score = self.score(modified_spaces, opt_constraints)
-                    if new_score <= initial_score:
+                    if new_score >= initial_score:
                         self.mutation.reverse(edge, modified_spaces)
                         self._seen.add('{0}-{1}'.format(id(space_or_face), id(edge)))
                         modified_spaces = []

@@ -2,7 +2,16 @@
 """
 Shuffle Module
 """
-from typing import TYPE_CHECKING, List, Optional, Sequence, Any
+from typing import TYPE_CHECKING, Optional, Sequence, Any
+from libs.plot import Plot
+
+import matplotlib.pyplot as plt
+
+from libs.mutation import MUTATIONS
+from libs.selector import SELECTORS
+from libs.constraint import CONSTRAINTS
+from libs.action import Action
+
 
 if TYPE_CHECKING:
     from libs.action import Action
@@ -16,32 +25,51 @@ class Shuffle:
     """
     def __init__(self,
                  name: str,
-                 actions: List['Action'],
-                 selector_args: Sequence[Any],
-                 constraints: List['Constraint']):
+                 actions: Sequence['Action'],
+                 selector_args: Sequence[Sequence[Any]],
+                 constraints: Sequence['Constraint']):
         self.name = name
         self.actions = actions
         self.selectors_args = selector_args
         self.constraints = constraints
+        # pseudo private
         self._action_index = 0
+        self._plot = Plot()
 
-    def run(self, plan: 'Plan'):
+    def run(self, plan: 'Plan', show: bool = False):
         """
         Runs the shuffle on the provided plan
+        :param plan: the plan to modify
+        :param show: whether to show a live plotting of the plan
         :return:
         """
+
+        if show:
+            self._plot = Plot()
+            plt.ion()
+            self._plot.draw(plan)
+            plt.show()
+            plt.pause(0.0001)
+
         while True:
+
             all_modified_spaces = []
+
             for space in plan.spaces:
-                modified_spaces = self.current_action().apply_to(space, (),
-                                                                 constraints=self.constraints)
+                modified_spaces = self.current_action.apply_to(space, self.current_selector_args,
+                                                               constraints=self.constraints)
+                if modified_spaces:
+                    self._plot.update(modified_spaces)
+
                 all_modified_spaces += modified_spaces
+
             if not all_modified_spaces:
                 self._action_index += 1
-                if not self.current_action():
+                if not self.current_action:
                     break
 
-    def current_action(self) -> Optional[Action]:
+    @property
+    def current_action(self) -> Optional['Action']:
         """
         Returns the current action
         :return:
@@ -49,3 +77,17 @@ class Shuffle:
         if self._action_index >= len(self.actions):
             return None
         return self.actions[self._action_index]
+
+    @property
+    def current_selector_args(self) -> Sequence[Any]:
+        """
+        Returns the current selector arguments for the current action
+        :return:
+        """
+        if self._action_index >= len(self.selectors_args):
+            return []
+        return self.selectors_args[self._action_index]
+
+
+swap_action = Action(SELECTORS['other_space_boundary'], MUTATIONS['add_face'])
+few_corner_shuffle = Shuffle('few_corners', (swap_action,), (), (CONSTRAINTS['few_corners'],))

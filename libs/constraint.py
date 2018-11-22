@@ -8,8 +8,10 @@ A constraint computes a score
 """
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
+import logging
 
 from libs.utils.catalog import Catalog
+from libs.utils.geometry import ccw_angle
 from libs.size import Size
 
 if TYPE_CHECKING:
@@ -121,9 +123,10 @@ def few_corners(params: Dict) -> scoreFunction:
     def _score(space: 'Space') -> float:
         number_of_corners = 0
         for edge in space.edges:
-            if not edge.next_is_aligned:
+            if ccw_angle(edge.vector, edge.space_next.vector) >= 20.0:
                 number_of_corners += 1
 
+        logging.debug(math.fabs(number_of_corners - min_corners))
         return math.fabs(number_of_corners - min_corners)
 
     return _score
@@ -146,7 +149,8 @@ def max_size(params: Dict) -> scoreFunction:
     return _score
 
 
-few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners)
+few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners,
+                                         imperative=False)
 CONSTRAINTS.add(few_corners_constraint)
 
 max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)

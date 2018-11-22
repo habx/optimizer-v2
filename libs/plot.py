@@ -233,6 +233,8 @@ class Plot:
                      solid_capstyle='butt')
 
     def _draw_space(self, space):
+        if space.edge is None:
+            return
         color = space.category.color
         xy = space.as_sp.exterior.coords
         new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
@@ -240,6 +242,8 @@ class Plot:
         self.space_figs[id(space)] = new_patch
 
     def _draw_face(self, face):
+        if face.edge is None:
+            return
         color = face.space.category.color if face.space else 'r'
         xy = face.as_sp.exterior.xy
         new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
