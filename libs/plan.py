@@ -65,6 +65,18 @@ class Plan:
         """
         self.spaces.append(space)
 
+    def remove_space(self, space: 'Space'):
+        """
+        Removes a space from the plan
+        :param space:
+        :return:
+        """
+        if space not in self.spaces:
+            raise ValueError('Cannot remove from the plan a space that does not belong to it: {0}'
+                             .format(space))
+
+        self.spaces.remove(space)
+
     def add_linear(self, linear: 'Linear'):
         """
         Add a linear in the plan
@@ -580,11 +592,11 @@ class Space(PlanComponent):
         # finish by adding the space reference in the face object
         face.space = self
 
-    def remove_only_face(self, face: Face):
+    def remove_only_face(self, face: Face) -> Sequence['Space']:
         """
         Removes the only face of the space
         :param face:
-        :return:
+        :return: the modified space
         """
         if self.face is not face:
             raise ValueError('the face is not the reference face of the space:' +
@@ -595,9 +607,9 @@ class Space(PlanComponent):
         # remove space_next references inside the face
         for edge in face.edges:
             edge.space_next = None
-        return
+        return [self]
 
-    def remove_encapsulating_face(self, face: Face):
+    def remove_encapsulating_face(self, face: Face) -> Sequence['Space']:
         """
         Removes a face that encapsulates other faces
         This means that the face contains all the space boundary edges but is not the
@@ -649,6 +661,8 @@ class Space(PlanComponent):
             edge.space_next = None
         face.space = None
 
+        return [self]
+
     def change_reference(self, face: Face) -> bool:
         """
         Changes the face reference of the space.
@@ -669,10 +683,9 @@ class Space(PlanComponent):
 
         return False
 
-    def remove_face(self, face: Face):
+    def remove_face(self, face: Face) -> Sequence['Space']:
         """
         Remove a face from the space and adjust the edges list accordingly
-        # TODO : for performance purpose, create a method transfer face (which will remove the face
         from the first space and add it to the second one in the same time)
         :param face: face to remove from space
         """
@@ -721,7 +734,7 @@ class Space(PlanComponent):
                 edge.space_next = edge.next
                 edge = edge.next
             face.space = None
-            return
+            return [self]
 
         # CASE 2 : touching face
         # we will be temporarily breaking the space_next references
@@ -757,6 +770,7 @@ class Space(PlanComponent):
 
         # check for separated faces amongst the modified faces
         seen = [face, None]
+        modified_spaces = [self]
         for face_edge in face.edges:
             remaining_face = face_edge.pair.face
             if remaining_face in seen or remaining_face.space is not self:
@@ -776,6 +790,129 @@ class Space(PlanComponent):
                     for _face in self.get_adjacent_faces(remaining_face):
                         _face.space = new_space
                     self.plan.add_space(new_space)
+                    modified_spaces.append(new_space)
+
+        return modified_spaces
+
+    def merge(self, *spaces: 'Space') -> 'Space':
+        """
+        Merge the space with all the other provided spaces
+        :param spaces:
+        :return: self
+        """
+        for space in spaces:
+            self._merge(space)
+        return self
+
+    def _merge(self, space: 'Space') -> 'Space':
+        """
+        Merges two spaces together and return the remaining space
+        :param space:
+        :return:
+        """
+        # check it both space belong to the same plan
+        if self.plan is not space.plan:
+            raise ValueError('Cannot merge two spaces not belonging to the same plan')
+        # if the other space has no faces do nothing
+        if space.edge is None:
+            return self
+        # if the space has no faces yet just swap edge references
+        if self.edge is None:
+            self.edge = space.edge
+            space.edge = None
+            return self
+
+        logging.debug('Merging spaces: {0} - {1}'.format(self, space))
+
+        # we make sure the new face is adjacent to at least one of the space faces
+        adjacent_edges = []
+        for edge in space.edges:
+            if not adjacent_edges:
+                # first boundary edge found
+                if self.is_boundary(edge.pair):
+                    adjacent_edges.append(edge)
+            else:
+                # note : we only search for "contiguous" space boundaries
+                if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
+                        and edge.pair.space_next is adjacent_edges[-1].pair):
+                    adjacent_edges.append(edge)
+                else:
+                    break
+
+        if not adjacent_edges:
+            raise ValueError('Cannot merge two non adjacents spaces : {0} - {1}'
+                             .format(space, self))
+
+        # check for other shared space boundaries that are localised before the first edge in
+        # space_edges : (we go backward)
+        edge = adjacent_edges[0].pair.space_next.pair
+        while (edge.space is space and edge.space_next is adjacent_edges[0]
+               and edge not in adjacent_edges):
+            adjacent_edges.insert(0, edge)
+            edge = edge.pair.space_next.pair
+
+        if len(adjacent_edges) == len(list(space.edges)):
+            # the face is completely enclosed in the space
+            return self._merge_enclosed_space(space)
+
+        end_edge = adjacent_edges[-1]
+        start_edge = adjacent_edges[0]
+
+        end_edge.pair.space_previous.space_next = end_edge.space_next
+        start_edge.space_previous.space_next = start_edge.pair.space_next
+
+        # preserve space edge reference
+        # (if the reference edge of the space belongs to the boundary with
+        # the added face)
+        if self.edge.pair in adjacent_edges:
+            self.edge = end_edge.space_next  # per convention
+
+        # remove the old space references
+        for edge in adjacent_edges:
+            edge.pair.space_next = None
+            edge.space_next = None
+
+        # add the new space references inside the added space
+        for face in space.faces:
+            face.space = self
+
+        # finish by nulling the references of the merged space
+        space.edge = None
+
+        return self
+
+    def _merge_enclosed_space(self, space: 'Space') -> 'Space':
+
+        logging.debug('Merging an enclosed space: {0} - {1}'.format(space, self))
+        # find the space boundary edges linking the enclosed face to the rest of the space
+        touch_edges = []
+        change_reference_edge = False
+        for edge in space.edges:
+            if edge.pair is self.edge:
+                change_reference_edge = True
+            if edge.pair.space_previous is not edge.space_next.pair:
+                touch_edges.append((edge.pair.space_previous, edge.space_next.pair))
+
+        # if need be we change the space reference edge
+        if change_reference_edge:
+            logging.debug('Changing space reference edge: {0}'.format(self))
+            self.edge = touch_edges[0][0]
+
+        for edges in touch_edges:
+            edge_pair_space_previous, edge_next_pair = edges
+            edge_pair_space_previous.space_next = edge_next_pair.space_next
+            # check if we created a lone space edge
+            self._remove_lone_space_edge(edge_pair_space_previous)
+
+        for face in space.faces:
+            face.space = self
+        # remove space next references
+        for edge in list(space.edges):
+            edge.space_next = None
+            edge.pair.space_next = None
+
+        space.edge = None
+        return self
 
     def insert_space(self,
                      boundary: Sequence[Coords2d],
@@ -1045,3 +1182,65 @@ if __name__ == '__main__':
         assert plan.check()
 
     # floor_plan()
+
+    def merge_middle_b_space():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
+        plan = Plan('my plan').from_boundary(perimeter)
+        list(plan.mesh.faces[0].edges)[4].barycenter_cut(0)
+
+        duct = [(200, 200), (300, 200), (300, 300)]
+        list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
+
+        plan.empty_space.remove_face(plan.mesh.faces[0])
+        plan.empty_space.add_face(plan.mesh.faces[0])
+
+        print(list(plan.spaces[0].edges))
+        print(list(plan.spaces[1].edges))
+
+        plan.spaces[0].merge(plan.spaces[1])
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+    # merge_middle_b_space()
+
+
+    def remove_u_space():
+        """
+        Test.
+        :return:
+        """
+
+        perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+
+        # add border duct
+        plan = Plan().from_boundary(perimeter)
+
+        # add single touching point
+        point_duct = [(0, 800), (0, 500), (500, 500),(500, 1000), (200, 1000), (200, 800)]
+        plan.mesh.faces[0].insert_face_from_boundary(point_duct)
+        hole_face = plan.mesh.faces[1]
+
+        plan.empty_space.remove_face(hole_face)
+        plan.empty_space.add_face(hole_face)
+
+        plan.plot(save=False)
+        plt.show()
+
+        plan.spaces[0].merge(plan.spaces[1])
+
+        plan.plot(save=False)
+        plt.show()
+
+        assert plan.check()
+
+
+    remove_u_space()
+
+

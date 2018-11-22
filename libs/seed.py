@@ -17,7 +17,7 @@ import copy
 import matplotlib.pyplot as plt
 
 from libs.plan import Space, PlanComponent, Plan, Linear
-from libs.plot import plot_point
+from libs.plot import plot_point, Plot
 from libs.size import Size
 from libs.utils.catalog import Catalog
 from libs.action import Action
@@ -34,15 +34,6 @@ if TYPE_CHECKING:
     from libs.selector import Selector
     from libs.constraint import Constraint
 
-
-# TODO : to be deleted
-PLOT_STEPS = False
-if PLOT_STEPS:
-    plt.ion()
-    FIG, AX = plt.subplots()
-    AX.set_aspect('equal')
-######################
-
 EPSILON_MAX_SIZE = 10.0
 
 
@@ -55,6 +46,7 @@ class Seeder:
         self.seeds: List['Seed'] = []
         self.selectors: Dict[str, 'Selector'] = {}
         self.growth_methods = growth_methods
+        self.plot = None
 
     def __repr__(self):
         output = 'Seeder:\n'
@@ -93,18 +85,30 @@ class Seeder:
                 return True
         return False
 
-    def grow(self):
+    def grow(self, show: bool = False):
         """
         Creates the space for each seed
         :return:
         """
+        if show:
+            self.plot = Plot()
+            plt.ion()
+            self.plot.draw(self.plan)
+            self.plot_seeds(self.plot.ax)
+            plt.show()
+            plt.pause(0.0001)
+
         # grow the seeds
         while True:
-            spaces_modified = []
+            all_spaces_modified = []
             for seed in self.seeds:
-                spaces_modified += seed.grow()
+                spaces_modified = seed.grow()
+                all_spaces_modified += spaces_modified
+
+                if spaces_modified and show:
+                    self.plot.update(spaces_modified)
             # stop to grow once we cannot grow anymore
-            if not spaces_modified:
+            if not all_spaces_modified:
                 break
 
     def add_seed(self, seed_edge: 'Edge', component: PlanComponent):
@@ -148,7 +152,7 @@ class Seeder:
         """
         self.selectors[category_name] = selector
 
-    def plot(self, ax):
+    def plot_seeds(self, ax):
         """
         Plots the seeds point
         :param ax:
@@ -276,28 +280,22 @@ class Seed:
 
         # initialize first face
         if self.space is None:
-            self.edge.face.space.remove_face(self.edge.face)
+            empty_space = self.edge.face.space
+            if empty_space.category.name != 'empty':
+                raise ValueError('The seed should point towards an empty space')
+            empty_space.remove_face(self.edge.face)
             self.space = Space(self.seeder.plan, self.edge, SPACE_CATEGORIES['seed'])
             self.seeder.plan.add_space(self.space)
             self.update_max_size_constraint()
-            return [self.space]
+            return [self.space, empty_space]
 
         modified_spaces = self.growth_action.apply_to(self.space, (self,),
                                                       (self.max_size_constraint,))
 
-        # TODO: TO BE DELETED,
-        # we should find a much faster and cleaner way to do plot animation
-        if PLOT_STEPS:
-            global AX
-            AX = self.seeder.plan.plot(AX, save=False,
-                                       options=('fill', 'border', 'half-edge', 'face'))
-            self.seeder.plot(AX)
-            plt.pause(0.000001)
-            AX.clear()
-        #################
-
         if not modified_spaces:
             self.growth_action_index += 1
+        else:
+            pass
 
         return modified_spaces
 
@@ -428,14 +426,13 @@ if __name__ == '__main__':
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder.plant()
-        seeder.grow()
+        seeder.grow(show=False)
+
+        ax = plan.plot(save=False)
+        seeder.plot_seeds(ax)
+        plt.show()
 
         print(seeder)
-
-        ax = plan.plot(save=False, options=('fill', 'border', 'face'))
-        seeder.plot(ax)
-        plt.show()
-        plt.pause(60)
 
         assert plan.check()
 

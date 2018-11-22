@@ -115,10 +115,10 @@ def add_face(edge: 'Edge') -> Sequence['Space']:
     if other_space is None:
         raise ValueError('The pair edge has to belong to the boundary of a space')
 
-    other_space.remove_face(face)
+    modified_spaces = other_space.remove_face(face)
     space.add_face(face)
 
-    return space, other_space
+    return [space] + list(modified_spaces)
 
 
 def remove_face(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
@@ -132,10 +132,11 @@ def remove_face(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
     other_space = spaces[1]
     face = edge.pair.face
 
-    space.remove_face(face)
+    modified_spaces = space.remove_face(face)
     other_space.add_face(face)
+    other_space.merge(*spaces[2:])
 
-    return space, other_space
+    return list(modified_spaces) + [other_space]
 
 
 MUTATIONS.add(Mutation(add_face, remove_face, 'add_face'))

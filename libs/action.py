@@ -4,6 +4,7 @@ Operator module
 """
 
 from typing import TYPE_CHECKING, Sequence, Union, Optional, Any
+import logging
 
 if TYPE_CHECKING:
     from libs.plan import Space
@@ -61,22 +62,22 @@ class Action:
             initial_score = self.score(self.mutation.will_modify(edge), opt_constraints)
             modified_spaces = self.mutation.apply_to(edge)
             if modified_spaces:
-
                 for constraint in imp_constraints:
                     if not constraint.check(modified_spaces[0]):
+                        logging.debug('Constraint breached: {0} - {1}'
+                                      .format(constraint.name, modified_spaces[0]))
                         self.mutation.reverse(edge, modified_spaces)
                         modified_spaces = []
                         break
-
                 if initial_score is not None:
                     new_score = self.score(modified_spaces, opt_constraints)
                     if new_score <= initial_score:
                         self.mutation.reverse(edge, modified_spaces)
                         modified_spaces = []
 
-                all_modified_spaces += modified_spaces
-                if not self.repeat:
-                    break
+            all_modified_spaces += modified_spaces
+            if modified_spaces and self.repeat:
+                break
 
         return all_modified_spaces
 

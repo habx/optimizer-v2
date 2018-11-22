@@ -11,6 +11,8 @@ from typing import Optional
 from shapely.geometry import LineString
 from typing import Sequence
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+import numpy as np
 
 from libs.utils.custom_types import Vector2d, Coords2d
 from libs.utils.geometry import (
@@ -187,3 +189,78 @@ def random_color() -> str:
     :return: string
     """
     return '#%02X%02X%02X' % (randint(0, 255), randint(0, 255), randint(0, 255))
+
+
+class Plot:
+    """
+    Plot class
+    """
+    def __init__(self):
+        _fig = plt.figure()
+        _ax = _fig.add_subplot(111)
+        _ax.set_aspect('equal')
+        self.ax = _ax
+        self.fig = _fig
+        self.space_figs = {}
+        self.face_figs = {}
+
+    def draw(self, plan):
+        """
+        Draw a plan
+        :param plan:
+        :return:
+        """
+        for space in plan.spaces:
+            color = space.category.color
+            xy = space.as_sp.exterior.coords
+            new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
+            self.ax.add_patch(new_patch)
+            self.space_figs[id(space)] = new_patch
+
+            for face in space.faces:
+                xy = face.as_sp.exterior.xy
+                new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
+                self.face_figs[id(face)] = new_line
+
+    def update(self, spaces):
+        """
+        Updates the plan with the space data
+        :param spaces:
+        :return:
+        """
+        for space in spaces:
+            _id = id(space)
+            xy = space.as_sp.exterior.coords if space.edge is not None else None
+            if _id not in self.space_figs:
+                if xy is None:
+                    continue
+                color = space.category.color
+                new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
+                self.ax.add_patch(new_patch)
+                self.space_figs[_id] = new_patch
+            else:
+                if xy is None:
+                    self.space_figs[_id].set_visible(False)
+                else:
+                    self.space_figs[_id].set_xy(np.array(xy))
+                    self.space_figs[_id].set_visible(True)
+            """
+            for face in space.faces:
+                _id = id(face)
+                if _id not in self.face_figs:
+                    x, y = face.as_sp.exterior.xy
+                    new_line, = self.ax.plot(x, y, color=space.category.color, ls=':', lw=0.5)
+                    self.face_figs[_id] = new_line
+                else:
+                    self.face_figs[_id].set_color(space.category.color)
+            """
+
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+
+    def show(self):
+        """
+        Show the plot
+        :return:
+        """
+        self.fig.show()
