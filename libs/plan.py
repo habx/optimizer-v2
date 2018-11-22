@@ -9,7 +9,7 @@ Creates the following classes:
 from typing import Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, LineString
 
 from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
@@ -194,6 +194,20 @@ class Plan:
         else:
             raise ValueError('Could not insert the linear in the plan:' +
                              '[{0},{1}] - {2}'.format(point_1, point_2, category))
+
+    @property
+    def boundary_as_sp(self) -> Optional[LineString]:
+        """
+        Returns the boundary of the plan as a LineString
+        """
+        vertices = []
+        edge = None
+        for edge in self.mesh.boundary_edges:
+            vertices.append(edge.start.coords)
+        if edge is None:
+            return None
+        vertices.append(edge.end.coords)
+        return LineString(vertices)
 
     def plot(self, ax=None, show: bool = False, save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border')):
@@ -1114,6 +1128,21 @@ class Linear(PlanComponent):
         :return:
         """
         return (edge for edge in self.edge.space_siblings if edge.linear is self)
+
+    @property
+    def as_sp(self) -> Optional[LineString]:
+        """
+        Returns a shapely LineString
+        :return:
+        """
+        vertices = []
+        edge = None
+        for edge in self.edges:
+            vertices.append(edge.start.coords)
+        if edge is None:
+            return None
+        vertices.append(edge.end.coords)
+        return LineString(vertices)
 
     def add_edge(self, edge: Edge):
         """

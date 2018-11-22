@@ -114,9 +114,9 @@ def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :param space:
     :return:
     """
-    for edge in list(space.edges):
+    for edge in space.edges:
         if edge.pair.face and edge.pair.face.space is not space:
-            yield edge.pair
+            yield edge
 
 
 def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:

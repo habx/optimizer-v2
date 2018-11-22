@@ -210,17 +210,40 @@ class Plot:
         :param plan:
         :return:
         """
-        for space in plan.spaces:
-            color = space.category.color
-            xy = space.as_sp.exterior.coords
-            new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
-            self.ax.add_patch(new_patch)
-            self.space_figs[id(space)] = new_patch
+        self._draw_boundary(plan)
 
+        for space in plan.spaces:
+            self._draw_space(space)
             for face in space.faces:
-                xy = face.as_sp.exterior.xy
-                new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
-                self.face_figs[id(face)] = new_line
+                self._draw_face(face)
+
+        for linear in plan.linears:
+            self._draw_linear(linear)
+
+    def _draw_boundary(self, plan):
+        xy = zip(*plan.boundary_as_sp.coords)
+        self.ax.plot(*xy, 'k', color='k',
+                     linewidth=2.0, alpha=1.0,
+                     solid_capstyle='butt')
+
+    def _draw_linear(self, linear):
+        xy = zip(*linear.as_sp.coords)
+        self.ax.plot(*xy, 'k', color=linear.category.color,
+                     linewidth=linear.category.width, alpha=0.6,
+                     solid_capstyle='butt')
+
+    def _draw_space(self, space):
+        color = space.category.color
+        xy = space.as_sp.exterior.coords
+        new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
+        self.ax.add_patch(new_patch)
+        self.space_figs[id(space)] = new_patch
+
+    def _draw_face(self, face):
+        color = face.space.category.color if face.space else 'r'
+        xy = face.as_sp.exterior.xy
+        new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
+        self.face_figs[id(face)] = new_line
 
     def update(self, spaces):
         """
@@ -234,26 +257,13 @@ class Plot:
             if _id not in self.space_figs:
                 if xy is None:
                     continue
-                color = space.category.color
-                new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
-                self.ax.add_patch(new_patch)
-                self.space_figs[_id] = new_patch
+                self._draw_space(space)
             else:
                 if xy is None:
                     self.space_figs[_id].set_visible(False)
                 else:
                     self.space_figs[_id].set_xy(np.array(xy))
                     self.space_figs[_id].set_visible(True)
-            """
-            for face in space.faces:
-                _id = id(face)
-                if _id not in self.face_figs:
-                    x, y = face.as_sp.exterior.xy
-                    new_line, = self.ax.plot(x, y, color=space.category.color, ls=':', lw=0.5)
-                    self.face_figs[_id] = new_line
-                else:
-                    self.face_figs[_id].set_color(space.category.color)
-            """
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()

@@ -33,6 +33,8 @@ class Action:
         self.selector = selector
         self.mutation = mutation
         self.repeat = repeat
+        # we store the couple edge and space that we have already tried TODO : improve this
+        self._seen = set()
 
     def __repr__(self):
         return 'Operator: {0}, repeat={1}'.format(self.name, self.repeat)
@@ -59,6 +61,12 @@ class Action:
 
         all_modified_spaces = []
         for edge in self.selector.yield_from(space_or_face, *selector_optional_args):
+            # check if we already tried
+            _id = '{0}-{1}'.format(id(space_or_face), id(edge))
+            if _id in self._seen:
+                logging.debug('Already tried this edge with this space')
+                continue
+
             initial_score = self.score(self.mutation.will_modify(edge), opt_constraints)
             modified_spaces = self.mutation.apply_to(edge)
             if modified_spaces:
@@ -68,15 +76,17 @@ class Action:
                                       .format(constraint.name, modified_spaces[0]))
                         self.mutation.reverse(edge, modified_spaces)
                         modified_spaces = []
+                        self._seen.add('{0}-{1}'.format(id(space_or_face), id(edge)))
                         break
                 if initial_score is not None:
                     new_score = self.score(modified_spaces, opt_constraints)
                     if new_score <= initial_score:
                         self.mutation.reverse(edge, modified_spaces)
+                        self._seen.add('{0}-{1}'.format(id(space_or_face), id(edge)))
                         modified_spaces = []
 
             all_modified_spaces += modified_spaces
-            if modified_spaces and self.repeat:
+            if modified_spaces and not self.repeat:
                 break
 
         return all_modified_spaces

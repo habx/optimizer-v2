@@ -29,8 +29,10 @@ def test_grow_a_plan(input_file):
     seeder.plant()
     seeder.grow()
 
+    """
     ax = plan.plot(save=False, options=('fill', 'border', 'face'))
     seeder.plot_seeds(ax)
-    plot_save()
+    plot_save() 
+    """
 
     assert plan.check()

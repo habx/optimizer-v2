@@ -426,7 +426,7 @@ if __name__ == '__main__':
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder.plant()
-        seeder.grow(show=False)
+        seeder.grow(show=True)
 
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
