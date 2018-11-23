@@ -6,7 +6,7 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union
+from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString
@@ -21,6 +21,9 @@ from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import dot_product, normal_vector, pseudo_equal
+
+if TYPE_CHECKING:
+    from libs.seed import Seed
 
 
 class Plan:
@@ -1189,6 +1192,27 @@ class Linear(PlanComponent):
                 is_valid = False
 
         return is_valid
+
+
+class SeedSpace(Space):
+    """"
+    A space use to seed a plan
+    """
+    def __init__(self, plan: Plan, edge: Edge, seed: 'Seed'):
+        super().__init__(plan, edge, SPACE_CATEGORIES['seed'])
+        self.seed = seed
+
+    def face_component(self, face: 'Face') -> bool:
+        """
+        Returns True if the face is linked to a component of the Space
+        :param face:
+        :return:
+        """
+        for edge in face.edges:
+            if edge in self.seed.edges:
+                return True
+        else:
+            return False
 
 
 if __name__ == '__main__':

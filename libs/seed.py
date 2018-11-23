@@ -16,7 +16,7 @@ import copy
 
 import matplotlib.pyplot as plt
 
-from libs.plan import Space, PlanComponent, Plan, Linear
+from libs.plan import Space, PlanComponent, Plan, Linear, SeedSpace
 from libs.plot import plot_point, Plot
 from libs.size import Size
 from libs.utils.catalog import Catalog
@@ -81,7 +81,7 @@ class Seeder:
         """
         for seed in self.seeds:
             if seed.edge.face is edge.face:
-                seed.add_component(component)
+                seed.add_component(edge, component)
                 return True
         return False
 
@@ -163,6 +163,17 @@ class Seeder:
 
         return ax
 
+    def get_seed_from_space(self, space: 'Space') -> Optional['Seed']:
+        """
+        Return the seed corresponding to the space
+        :param space:
+        :return:
+        """
+        for seed in self.seeds:
+            if space is seed.space:
+                return seed
+        return None
+
 
 class Seed:
     """
@@ -174,9 +185,9 @@ class Seed:
                  edge: 'Edge',
                  plan_component: Optional[PlanComponent] = None):
         self.seeder = seeder
-        self.edge = edge  # the reference edge of the seed
+        self.edges = [edge]  # the reference edge of the seed
         self.components = [plan_component] if PlanComponent else []  # the components of the seed
-        self.space: Optional[Space] = None  # the seed space
+        self.space: Optional[SeedSpace] = None  # the seed space
         # per convention we apply the growth method corresponding
         # to the first component category name
         self.growth_methods = self.get_growth_methods()
@@ -196,6 +207,14 @@ class Seed:
         :return: size
         """
         return self.space.size
+
+    @property
+    def edge(self):
+        """
+        Returns the first edge of the seed
+        :return:
+        """
+        return self.edges[0]
 
     def check_size(self,
                    size: Size) -> bool:
@@ -288,7 +307,7 @@ class Seed:
             if empty_space.category.name != 'empty':
                 raise ValueError('The seed should point towards an empty space')
             empty_space.remove_face(self.edge.face)
-            self.space = Space(self.seeder.plan, self.edge, SPACE_CATEGORIES['seed'])
+            self.space = SeedSpace(self.seeder.plan, self.edge, self)
             self.seeder.plan.add_space(self.space)
             self.update_max_size_constraint()
             return [self.space, empty_space]
@@ -303,12 +322,14 @@ class Seed:
 
         return modified_spaces
 
-    def add_component(self, component: PlanComponent):
+    def add_component(self, edge: 'Edge', component: PlanComponent):
         """
         Adds a plan component to the seed
+        :param edge
         :param component:
         :return:
         """
+        self.edges.append(edge)
         self.components.append(component)
         self.growth_methods = self.get_growth_methods()
         self.max_size = self.get_components_max_size()
@@ -414,7 +435,7 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
-    from libs.shuffle import few_corner_shuffle
+    from libs.shuffle import few_corner_shuffle, SHUFFLES
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -431,8 +452,8 @@ if __name__ == '__main__':
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder.plant()
-        seeder.grow()
-        few_corner_shuffle.run(plan, show=True)
+        seeder.grow(show=True)
+        SHUFFLES['square_shape'].run(plan, show=True)
 
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)

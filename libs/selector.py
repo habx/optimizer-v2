@@ -29,7 +29,7 @@ from libs.mesh import MIN_ANGLE, ANGLE_EPSILON
 
 if TYPE_CHECKING:
     from libs.mesh import Edge, Face
-    from libs.plan import Space
+    from libs.plan import Space, SeedSpace
     from libs.seed import Seed
 
 EdgeQuery = Callable[[Union['Space', 'face'], Any], Generator['Edge', bool, None]]
@@ -117,6 +117,21 @@ def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     for edge in space.edges:
         if edge.pair.face and edge.pair.face.space is not space:
             yield edge
+
+
+def safe_boundary_edge(space: 'SeedSpace', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges not pointing to the initial face of seed space
+    """
+    for edge in space.edges:
+        space = edge.pair.space
+        face = edge.pair.face
+        if not space or space.category.name != 'seed':
+            yield edge
+            continue
+        if space.face_component(face):
+            continue
+        yield edge
 
 
 def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
@@ -492,7 +507,8 @@ SELECTORS.add(
 
     Selector(seed_duct, name='seed_duct'),
 
-    Selector(boundary, (adjacent_to_other_space, is_not(corner_stone)), 'other_space_boundary')
+    Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),
+             'other_space_boundary')
 )
 
 
