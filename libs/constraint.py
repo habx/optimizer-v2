@@ -8,7 +8,6 @@ A constraint computes a score
 """
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
-import logging
 
 from libs.utils.catalog import Catalog
 from libs.utils.geometry import ccw_angle
@@ -99,18 +98,22 @@ class LinearConstraint(Constraint):
     pass
 
 
-# score functions
+# score functions factories
 
-def is_square(space: 'Space') -> float:
+def square_shape(params: Dict) -> scoreFunction:
     """
-    Scores the area / perimeter ratio of a space. Will equal 100 if the space is a square.
-    :param space:
+    Scores the area / perimeter ratio of a space.
+    :param params:
     :return:
     """
-    return space.area / ((space.perimeter / 4)**2) * 100
+    max_ratio = params['max_ratio']
 
+    def _score(space: 'Space') -> float:
+        rectangle_area = space.size.depth * space.size.width
+        return max((rectangle_area - space.area)/rectangle_area, 0.0)
 
-# score functions factories
+    return _score
+
 
 def few_corners(params: Dict) -> scoreFunction:
     """
@@ -126,7 +129,10 @@ def few_corners(params: Dict) -> scoreFunction:
             if ccw_angle(edge.vector, edge.space_next.vector) >= 20.0:
                 number_of_corners += 1
 
-        return math.fabs(number_of_corners - min_corners)
+        if number_of_corners == 0:
+            return 0
+
+        return math.fabs((number_of_corners - min_corners)/number_of_corners)
 
     return _score
 
@@ -162,3 +168,7 @@ CONSTRAINTS.add(max_size_s_constraint)
 max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 250, 300)},
                                          max_size)
 CONSTRAINTS.add(max_size_xs_constraint)
+
+square_shape = SpaceConstraint('square_shape', {'max_ratio': 100.0}, square_shape, imperative=False)
+
+CONSTRAINTS.add(square_shape)
