@@ -142,6 +142,18 @@ def remove_face(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
 MUTATIONS.add(Mutation(add_face, remove_face, 'add_face'))
 
 
+def add_aligned_face(edge: 'Edge') -> Sequence['Space']:
+    """
+    Adds all the faces of the aligned edges
+    • checks if the edge is just after a corner
+    • gather all the next aligned edges
+    • for each edge add the corresponding faces
+    :param edge:
+    :return:
+    """
+    pass
+
+
 # Cuts Mutation
 
 
@@ -172,7 +184,7 @@ MUTATIONS.add(Mutation(_ortho_cut, name='ortho_projection_cut'))
 
 def barycenter_cut(coeff: float,
                    angle: float = 90.0,
-                   traverse: str = 'relative') -> EdgeTransformation:
+                   traverse: str = 'no') -> EdgeTransformation:
     """
     Action Factory
     :param coeff:

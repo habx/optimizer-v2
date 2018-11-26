@@ -380,6 +380,9 @@ class Space(PlanComponent):
         :param vector:
         :return:
         """
+        if self.edge is None:
+            return 0.0, 0.0
+
         vector = vector or self.edge.unit_vector
         total_x = 0
         max_x = 0

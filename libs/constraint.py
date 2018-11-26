@@ -103,12 +103,12 @@ class LinearConstraint(Constraint):
 def square_shape(params: Dict) -> scoreFunction:
     """
     Scores the area / perimeter ratio of a space.
-    :param params:
     :return:
     """
-    max_ratio = params['max_ratio']
-
     def _score(space: 'Space') -> float:
+        if (space is None or space.size is None or
+                space.size.depth is None or space.size.width is None):
+            return 0.0
         rectangle_area = space.size.depth * space.size.width
         return max((rectangle_area - space.area)/rectangle_area, 0.0)
 
@@ -143,7 +143,7 @@ def max_size(params: Dict) -> scoreFunction:
     :param params
     :return:
     """
-    _max_size = params['max_size']
+    _max_size: Size = params['max_size']
 
     def _score(space: 'Space') -> float:
         if space.size <= _max_size:

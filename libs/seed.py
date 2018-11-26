@@ -444,7 +444,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[33]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.BLUEPRINT_INPUT_FILES[27]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)

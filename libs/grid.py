@@ -3,7 +3,6 @@
 Grid module
 """
 from typing import Tuple, Sequence, Union, TYPE_CHECKING
-import copy
 import logging
 import matplotlib.pyplot as plt
 
@@ -33,7 +32,7 @@ class Grid:
         """
         Returns the modified plan with the created grid
         :param plan:
-        :return: a copy of the plan with the created grid
+        :return: the plan with the created grid
         """
         for operator in self.operators:
             self.iterate(plan, operator)
@@ -107,6 +106,10 @@ sequence_grid = Grid('sequence_grid', [
         MUTATIONS.factory['barycenter_cut'](0.5)
     ),
     (
+        SELECTORS['between_edges_between_windows'],
+        MUTATIONS.factory['barycenter_cut'](0.5)
+    ),
+    (
         SELECTORS['aligned_edges'],
         MUTATIONS.factory['barycenter_cut'](1.0)
     ),
@@ -143,14 +146,26 @@ ortho_grid = Grid('ortho_grid', [
     ),
     (
        SELECTORS['previous_angle_salient_ortho'],
-       MUTATIONS['ortho_projection_cut']
+       MUTATIONS.factory['barycenter_cut'](0)
+    ),
+    (
+        SELECTORS['next_angle_salient_ortho'],
+        MUTATIONS.factory['barycenter_cut'](1.0)
+    ),
+    (
+        SELECTORS['edge_min_500'],
+        MUTATIONS.factory['barycenter_cut'](0.5)
     ),
     (
         SELECTORS['between_windows'],
         MUTATIONS.factory['barycenter_cut'](0.5)
     ),
     (
-        SELECTORS['edge_min_150'],
+        SELECTORS['between_edges_between_windows'],
+        MUTATIONS.factory['barycenter_cut'](0.5)
+    ),
+    (
+        SELECTORS['edge_min_300'],
         MUTATIONS.factory['barycenter_cut'](0.5)
     ),
     (
@@ -170,7 +185,9 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[9]  # 16: Edison_10 6: Antony_A22 9: Antony_B22
+        input_file = reader.BLUEPRINT_INPUT_FILES[24]
+        # 16: Edison_10 6: Antony_A22 9: Antony_B22
+        #
         plan = reader.create_plan_from_file(input_file)
 
         new_plan = ortho_grid.apply_to(plan)
