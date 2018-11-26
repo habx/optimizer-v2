@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
-ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
@@ -639,6 +639,16 @@ class Edge:
         return ccw_angle(self.next.vector, self.opposite_vector)
 
     @property
+    def space_next_angle(self) -> float:
+        """
+        returns the counter clockwise angle between the next edge and this one
+        :return: angle in degree
+        """
+        if not self.is_space_boundary:
+            raise ValueError('Only space boundaries car have an next_space_angle')
+        return ccw_angle(self.space_next.vector, self.opposite_vector)
+
+    @property
     def previous_angle(self) -> float:
         """
         returns the counter clockwise angle in degrees
@@ -646,6 +656,17 @@ class Edge:
         :return: angle in degree
         """
         return ccw_angle(self.vector, self.previous.opposite_vector)
+
+    @property
+    def space_previous_angle(self) -> float:
+        """
+        returns the counter clockwise angle in degrees
+        between the edge and the previous one
+        :return: angle in degree
+        """
+        if not self.is_space_boundary:
+            raise ValueError('Only space boundaries car have a previous_space_angle')
+        return ccw_angle(self.vector, self.space_previous.opposite_vector)
 
     @property
     def next_is_outward(self) -> bool:

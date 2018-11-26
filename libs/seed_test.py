@@ -23,8 +23,6 @@ def test_grow_a_plan(input_file):
     """
     plan = reader.create_plan_from_file(input_file)
 
-    GRIDS['sequence_grid'].apply_to(plan)
-
     seeder = Seeder(plan, GROWTH_METHODS)
     seeder.add_condition(SELECTORS['seed_duct'], 'duct')
     GRIDS['ortho_grid'].apply_to(plan)

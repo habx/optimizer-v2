@@ -25,7 +25,7 @@ from typing import Sequence, Union, Generator, Callable, Any, Optional, TYPE_CHE
 from libs.utils.catalog import Catalog
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal
 
-from libs.mesh import MIN_ANGLE, ANGLE_EPSILON
+from libs.mesh import MIN_ANGLE
 
 if TYPE_CHECKING:
     from libs.mesh import Edge, Face
@@ -38,6 +38,8 @@ Predicate = Callable[['Edge'], bool]
 PredicateFactory = Callable[..., Predicate]
 
 SELECTORS = Catalog('selectors')
+
+ANGLE_EPSILON = 5.0
 
 
 class Selector:
@@ -332,9 +334,34 @@ def is_not(predicate: Predicate) -> Predicate:
     return _predicate
 
 
+def is_previous(predicate: Predicate) -> Predicate:
+    """
+    Applies the predicate to the previous edge
+    :param predicate:
+    :return:
+    """
+    def _predicate(edge: 'Edge') -> bool:
+        return predicate(edge.previous)
+
+    return _predicate
+
+
+def is_next(predicate: Predicate) -> Predicate:
+    """
+    Applies the predicate to the next edge
+    :param predicate:
+    :return:
+    """
+    def _predicate(edge: 'Edge') -> bool:
+        return predicate(edge.next)
+
+    return _predicate
+
+
 def edge_angle(min_angle: Optional[float] = None,
                max_angle: Optional[float] = None,
-               previous: bool = False) -> Predicate:
+               previous: bool = False,
+               space: bool = False) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if an edge angle with its next edge
@@ -342,19 +369,28 @@ def edge_angle(min_angle: Optional[float] = None,
     :param min_angle:
     :param max_angle:
     :param previous : whether to check for the angle to the next edge or to the previous edge
+    :param space: whether to check for angle between to space siblings
     :return: boolean
     """
     if min_angle is None and max_angle is None:
         raise ValueError('A min or a max angle must be provided to the angle predicate factory')
 
     def _predicate(edge: 'Edge') -> bool:
+
+        if space:
+            if not edge.is_space_boundary:
+                return False
+            _angle = edge.space_next_angle if not previous else edge.space_previous_angle
         _angle = edge.next_angle if not previous else edge.previous_angle
         if min_angle is not None and max_angle is not None:
-            return min_angle <= _angle <= max_angle
+            if min_angle != max_angle:
+                return min_angle + ANGLE_EPSILON <= _angle <= max_angle - ANGLE_EPSILON
+            else:
+                return min_angle - ANGLE_EPSILON <= _angle <= max_angle + ANGLE_EPSILON
         if min_angle is not None:
-            return _angle >= min_angle
+            return _angle >= min_angle + ANGLE_EPSILON
         if max_angle is not None:
-            return _angle <= max_angle
+            return _angle <= max_angle - ANGLE_EPSILON
         return True
 
     return _predicate
@@ -376,6 +412,32 @@ def edge_length(min_length: float = None, max_length: float = None) -> Predicate
             return edge.length >= min_length
         if max_length is not None:
             return edge.length <= max_length
+
+    return _predicate
+
+
+def aligned_edges_length(min_length: float = None, max_length: float = None) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge an all following aligned edges have a total length
+    inferior or equal to the provided max length, or a superior length to the provided min_length
+    or both
+    :param min_length:
+    :param max_length
+    :return:
+    """
+    def _predicate(edge: 'Edge') -> bool:
+
+        length = 0
+        for aligned_edge in edge.aligned_siblings:
+            length += aligned_edge.length
+
+        if min_length is not None and max_length is not None:
+            return min_length <= length <= max_length
+        if min_length is not None:
+            return length >= min_length
+        if max_length is not None:
+            return length <= max_length
 
     return _predicate
 
@@ -412,7 +474,7 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
         if position == 'before':
             return edge.next.linear and edge.next.linear.category.name in category_names
         if position == 'after':
-            return edge.next.linear and edge.next.linear.category.name in category_names
+            return edge.previous.linear and edge.previous.linear.category.name in category_names
         if position == 'between':
             if edge.previous.linear and edge.previous.linear.category.name in category_names:
                 if edge.next.linear and edge.next.linear.category.name in category_names:
@@ -474,20 +536,31 @@ SELECTORS.add(
 
     Selector(seed_component_boundary, 'seed_component_boundary'),
 
-    Selector(boundary, [edge_angle(180.0 + ANGLE_EPSILON, 270.0 - ANGLE_EPSILON, previous=True)],
+    Selector(boundary, [edge_angle(180.0, 270.0, previous=True),
+                        aligned_edges_length(min_length=150.0),
+                        is_previous(aligned_edges_length(min_length=150.0))],
              'previous_angle_salient_non_ortho'),
 
-    Selector(boundary, [edge_angle(180.0 + ANGLE_EPSILON, 270.0 - ANGLE_EPSILON)],
+    Selector(boundary, [edge_angle(180.0, 270.0),
+                        aligned_edges_length(min_length=150.0),
+                        is_next(aligned_edges_length(min_length=150.0))],
              'next_angle_salient_non_ortho'),
 
-    Selector(boundary, [edge_angle(90.0 + ANGLE_EPSILON, 180.0 - ANGLE_EPSILON)],
+    Selector(boundary, [edge_angle(90.0, 180.0),
+                        aligned_edges_length(min_length=150.0),
+                        is_next(aligned_edges_length(min_length=150.0))],
              'next_angle_convex_non_ortho'),
 
-    Selector(boundary, [edge_angle(90.0 + ANGLE_EPSILON, 180.0 - ANGLE_EPSILON, previous=True)],
+    Selector(boundary, [edge_angle(90.0, 180.0, previous=True),
+                        aligned_edges_length(min_length=100.0),
+                        is_previous(aligned_edges_length(min_length=150.0))],
              'previous_angle_convex_non_ortho'),
 
-    Selector(boundary, [edge_angle(270.0 - ANGLE_EPSILON, 270.0 + ANGLE_EPSILON, previous=True)],
+    Selector(boundary, [edge_angle(270.0, 270.0, previous=True, space=True)],
              'previous_angle_salient_ortho'),
+
+    Selector(boundary, [edge_angle(270.0, 270.0, space=True)],
+             'next_angle_salient_ortho'),
 
     Selector(boundary, [close_to_linear('window', 'doorWindow', min_distance=90.0),
                         not_space_boundary], 'close_to_window'),
@@ -495,11 +568,19 @@ SELECTORS.add(
     Selector(boundary, [touches_linear('window', 'doorWindow', position='between')],
              'between_windows'),
 
-    Selector(boundary, [edge_angle(180.0 - ANGLE_EPSILON, 180.0 + ANGLE_EPSILON),
-                        is_not(touches_linear('window', 'doorWindow')),
-                        is_not(is_linear('window', 'doorWindow'))], 'aligned_edges'),
+    Selector(boundary, [is_previous(touches_linear('window', 'doorWindow', position='after')),
+                        is_next(touches_linear('window', 'doorWindow'))],
+             'between_edges_between_windows'),
+
+    Selector(boundary, [edge_angle(180.0, 180.0),
+                        is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
+                        is_not(is_linear('window', 'doorWindow', 'frontDoor'))], 'aligned_edges'),
 
     Selector(boundary, [edge_length(min_length=150.0)], 'edge_min_150'),
+
+    Selector(boundary, [edge_length(min_length=300.0)], 'edge_min_300'),
+
+    Selector(boundary, [edge_length(min_length=500.0)], 'edge_min_500'),
 
     Selector(fixed_space_boundary, (adjacent_empty_space,), 'boundary_other_empty_space'),
 
