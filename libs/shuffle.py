@@ -2,6 +2,11 @@
 """
 Shuffle Module
 """
+
+import sys
+import os
+sys.path.append(os.path.abspath('../'))
+
 from typing import TYPE_CHECKING, Optional, Sequence, Any
 from libs.plot import Plot
 

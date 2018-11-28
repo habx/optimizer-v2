@@ -9,6 +9,9 @@ not vertices themselves (to be confirmed). This would maybe enable mesh refresh 
 But it seems like a hard problem. Might no be doable.
 + we should split the mesh module in several files
 """
+import sys
+import os
+sys.path.append(os.path.abspath('../'))
 
 import math
 import logging

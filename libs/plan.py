@@ -6,6 +6,11 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
+
+import sys
+import os
+sys.path.append(os.path.abspath('../'))
+
 from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt

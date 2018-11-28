@@ -10,6 +10,12 @@ After being planted the seeds can be grown according to provided actions.
 These actions are stored in the seed category of the space or linear
 
 """
+
+import sys
+import os
+
+sys.path.append(os.path.abspath('../'))
+
 from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
 import logging
 import copy
@@ -41,6 +47,7 @@ class Seeder:
     """
     Seeder Class
     """
+
     def __init__(self, plan: Plan, growth_methods: Catalog):
         self.plan = plan
         self.seeds: List['Seed'] = []
@@ -65,6 +72,10 @@ class Seeder:
                 if isinstance(component, Space):
                     for edge in self.space_seed_edges(component):
                         seed_edge = edge
+                        # print("Space", Space)
+                        # print("component", component)
+                        # print("SEED_EDGE", seed_edge)
+                        # sys.exit("TESTING")
                         self.add_seed(seed_edge, component)
 
                 if isinstance(component, Linear):
@@ -107,6 +118,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
+                    input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -180,6 +192,7 @@ class Seed:
     Seed class
     An edge from which to grow a space
     """
+
     def __init__(self,
                  seeder: Seeder,
                  edge: 'Edge',
@@ -350,6 +363,7 @@ class GrowthMethod:
     """
     A category of a seed
     """
+
     def __init__(self, name: str, constraints: Optional[Sequence['Constraint']] = None,
                  actions: Optional[Sequence['Action']] = None):
         constraints = constraints or []
@@ -423,21 +437,19 @@ front_door_seed_category = GrowthMethod(
     )
 )
 
-
 GROWTH_METHODS = Catalog('seeds').add(
     classic_seed_category,
     duct_seed_category,
     front_door_seed_category)
 
-
 if __name__ == '__main__':
-
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
     from libs.shuffle import few_corner_shuffle, SHUFFLES
 
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     def grow_a_plan():
         """
@@ -460,5 +472,6 @@ if __name__ == '__main__':
         plt.show()
 
         assert plan.check()
+
 
     grow_a_plan()

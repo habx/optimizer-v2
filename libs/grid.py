@@ -2,6 +2,11 @@
 """
 Grid module
 """
+
+import sys
+import os
+sys.path.append(os.path.abspath('../'))
+
 from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
