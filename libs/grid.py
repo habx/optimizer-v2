@@ -190,7 +190,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[24]
+        input_file = reader.BLUEPRINT_INPUT_FILES[0]
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
         plan = reader.create_plan_from_file(input_file)
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         new_plan = ortho_grid.apply_to(plan)
         new_plan.check()
 
-        new_plan.plot(save=False)
+        new_plan.plot(save=True)
         plt.show()
 
     create_a_grid()
