@@ -14,6 +14,8 @@ These actions are stored in the seed category of the space or linear
 import sys
 import os
 
+import argparse
+
 sys.path.append(os.path.abspath('../'))
 
 from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
@@ -118,7 +120,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    input("Press Enter to continue...")
+                    #input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -448,6 +450,14 @@ if __name__ == '__main__':
     from libs.selector import SELECTORS
     from libs.shuffle import few_corner_shuffle, SHUFFLES
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--plan_index", help="choose plan index",
+                        default=0)
+
+    args = parser.parse_args()
+    plan_index = int(args.plan_index)
+    print("plan_index", plan_index, 'type of var', type(plan_index))
+
     logging.getLogger().setLevel(logging.DEBUG)
 
 
@@ -456,7 +466,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[27]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -467,7 +477,7 @@ if __name__ == '__main__':
         seeder.grow(show=True)
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        ax = plan.plot(save=False)
+        ax = plan.plot(save=True)
         seeder.plot_seeds(ax)
         plt.show()
 
