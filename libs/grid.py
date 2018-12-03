@@ -6,7 +6,7 @@ from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
 
-import libs.reader as reader
+from libs import reader
 from libs.utils.catalog import Catalog
 from libs.mutation import MUTATIONS
 from libs.selector import SELECTORS
@@ -179,13 +179,14 @@ GRIDS.add(ortho_grid)
 if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.INFO)
+    from libs import reader_test
 
     def create_a_grid():
         """
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[24]
+        input_file = reader_test.BLUEPRINT_INPUT_FILES[24]
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
         plan = reader.create_plan_from_file(input_file)

@@ -6,7 +6,7 @@ from typing import Dict, Sequence, Tuple, List
 import os
 import json
 
-import libs.plan as plan
+from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
 
@@ -20,54 +20,9 @@ from libs.utils.geometry import (
 from libs.utils.custom_types import Coords2d, FourCoords2d
 
 
-BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
-BLUEPRINT_INPUT_FILES = [
-    "Levallois_A3_505.json",
-    "Levallois_Parisot.json",
-    "Levallois_Tisnes.json",
-    "Levallois_Creuze.json",
-    "Levallois_Meyronin.json",
-    "Levallois_Letourneur.json",
-    "Antony_A22.json",
-    "Antony_A33.json",
-    "Antony_B14.json",
-    "Antony_B22.json",
-    "Bussy_A001.json",
-    "Bussy_A101.json",
-    "Bussy_A202.json",
-    "Bussy_B002.json",
-    "Bussy_B104.json",
-    "Bussy_Regis.json",
-    "Edison_10.json",
-    "Edison_20.json",
-    "Massy_C102.json",
-    "Massy_C204.json",
-    "Massy_C303.json",
-    "Noisy_A145.json",
-    "Noisy_A318.json",
-    "Paris18_A301.json",
-    "Paris18_A302.json",
-    "Paris18_A402.json",
-    "Paris18_A501.json",
-    "Paris18_A502.json",
-    "Sartrouville_RDC.json",
-    "Sartrouville_R1.json",
-    "Sartrouville_R2.json",
-    "Sartrouville_A104.json",
-    "Vernouillet_A002.json",
-    "Vernouillet_A003.json",
-    "Vernouillet_A105.json"
-]
 LOAD_BEARING_WALL_WIDTH = 15.0
-
+BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
-SPECIFICATION_INPUT_FILES = [
-    "Antony_A22_setup.json",
-    "Antony_A33_setup.json",
-    "Antony_B14_setup.json",
-    "Antony_B22_setup.json",
-    "Bussy_A001_setup.json"
-]
 
 
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
