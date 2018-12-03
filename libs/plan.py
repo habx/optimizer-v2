@@ -1234,7 +1234,8 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Vernouillet_A002.json"
+        # input_file = "Vernouillet_A002.json"
+        input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
@@ -1242,9 +1243,5 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-    # floor_plan()
 
-
-
-
-
+    floor_plan()

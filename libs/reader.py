@@ -6,6 +6,10 @@ from typing import Dict, Sequence, Tuple, List
 import os
 import json
 
+import sys
+
+sys.path.append(os.path.abspath('../'))
+
 import libs.plan as plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
@@ -17,8 +21,7 @@ from libs.utils.geometry import (
     normal_vector,
     move_point
 )
-from libs.utils.custom_types import Coords2d, FourCoords2d
-
+from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
 
 BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 BLUEPRINT_INPUT_FILES = [
@@ -123,6 +126,39 @@ def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) ->
     return point_1, point_2, point_3, point_4
 
 
+def _get_external_space_perimeter(external_space_coords: List) -> ListCoords2d:
+    """
+    Returns a list with the perimeter of external space.
+    :param external_space_coords:
+    :return: list
+    """
+    list_points = []
+    for point in external_space_coords:
+        list_points.append(tuple((point[0], point[1])))
+
+    list_points = tuple(list_points)
+
+    return list_points
+
+
+def _get_external_spaces(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
+    """
+    Returns a list with the perimeter of external space.
+    :param input_floor_plan_dict:
+    :return: list
+    """
+    apartment = input_floor_plan_dict['apartment']
+    external_spaces = apartment['externalSpaces']
+
+    output = []
+    for external_space in external_spaces:
+        if 'polygon' in external_space.keys():
+            coords = _get_external_space_perimeter(external_space['polygon'])
+            output.append((coords, external_space['type']))
+
+    return output
+
+
 def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
     """
     Returns a list with the perimeter of each fixed items.
@@ -217,6 +253,8 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     fixed_items = _get_load_bearings_walls(floor_plan_dict)
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
 
+    external_spaces = _get_external_spaces(floor_plan_dict)
+
     for fixed_item in fixed_items:
         if fixed_item[1] in SPACE_CATEGORIES:
             my_plan.insert_space_from_boundary(fixed_item[0],
@@ -224,6 +262,11 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
         if fixed_item[1] in LINEAR_CATEGORIES:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
                                   category=LINEAR_CATEGORIES[fixed_item[1]])
+
+    for external_space in external_spaces:
+      if external_space[1] in SPACE_CATEGORIES:
+          my_plan.insert_space_from_boundary(external_space[0],
+                                             category=SPACE_CATEGORIES[external_space[1]])
 
     return my_plan
 
@@ -271,13 +314,14 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
-
     def specification_read():
         """
         Test
         :return:
         """
         input_file = 'Bussy_A001_setup.json'
+        plan_test = create_plan_from_file("Groslay_A-00-01_oldformat.json")
+
         spec = create_specification_from_file(input_file)
         print(spec)
 
