@@ -21,8 +21,8 @@ from libs.utils.custom_types import Coords2d, FourCoords2d
 
 
 LOAD_BEARING_WALL_WIDTH = 15.0
-BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
-SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
+DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
+DEFAULT_SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
 
 
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
@@ -64,9 +64,9 @@ def _get_fixed_item_perimeter(fixed_item: Dict,
 def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) -> FourCoords2d:
     """
     Creates a rectangle from a segment and a width
-    :param segment: 
-    :param width: 
-    :return: 
+    :param segment:
+    :param width:
+    :return:
     """
     point_1, point_2 = segment
     vector = direction_vector(point_1, point_2)
@@ -142,7 +142,7 @@ def _get_load_bearings_walls(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coor
 
 
 def get_json_from_file(file_path: str = 'Antony_A22.json',
-                       input_folder: str = BLUEPRINT_INPUT_FOLDER) -> Dict:
+                       input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
     :return:
@@ -209,7 +209,7 @@ def create_specification_from_file(input_file: str):
     TODO : we should store the blueprint reference in the setup json
 
     """
-    spec_dict = get_json_from_file(input_file, SPECIFICATION_INPUT_FOLDER)
+    spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
     specification = Specification(input_file)
     for item in spec_dict['setup']:
         _category = item['type']
