@@ -21,14 +21,18 @@ class Category:
     """
     A category of a space or a linear
     """
+
     def __init__(self,
                  name: str,
                  mutable: bool = True,
                  seedable: bool = False,
-                 color: str = 'b'):
+                 external: bool = False,
+                 color: str = 'b'
+                 ):
         self.name = name
         self.mutable = mutable
         self.seedable = seedable
+        self.external = external
         self.color = CATEGORIES_COLORS.get(self.name, color)
 
     def __repr__(self) -> str:
@@ -48,6 +52,7 @@ class LinearCategory(Category):
     A category of a linear
     Examples : window, doorWindow, door, wall, entrance
     """
+
     def __init__(self,
                  name,
                  mutable: bool = True,
@@ -81,4 +86,9 @@ SPACE_CATEGORIES = Catalog('spaces').add(
     SpaceCategory('bathroom'),
     SpaceCategory('wcBathroom'),
     SpaceCategory('livingKitchen'),
-    SpaceCategory('wc'))
+    SpaceCategory('wc'),
+    SpaceCategory('balcony', mutable=False, external=True),
+    SpaceCategory('garden', mutable=False, external=True),
+    SpaceCategory('terrace', mutable=False, external=True),
+    SpaceCategory('loggia', mutable=False, external=True)
+)

@@ -120,7 +120,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    #input("Press Enter to continue...")
+                    # input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -467,6 +467,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
+        # input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)

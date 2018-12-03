@@ -6,15 +6,15 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-
-import sys
-import os
-sys.path.append(os.path.abspath('../'))
-
 from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString
+
+import os
+import sys
+
+sys.path.append(os.path.abspath('../'))
 
 from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
@@ -38,6 +38,7 @@ class Plan:
     • spaces : rooms or ducts or pillars etc.
     • linears : windows, doors, walls etc.
     """
+
     def __init__(self, name: str = 'unnamed_plan', mesh: Optional[Mesh] = None,
                  spaces: Optional[List['Space']] = None, linears: Optional[List['Linear']] = None):
         self.name = name
@@ -258,6 +259,7 @@ class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
+
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
@@ -268,6 +270,7 @@ class Space(PlanComponent):
     """
     Space Class
     """
+
     def __init__(self, plan: Plan, edge: Edge,
                  category: SpaceCategory = SPACE_CATEGORIES('empty')):
         super().__init__(plan, edge)
@@ -715,9 +718,9 @@ class Space(PlanComponent):
         :param face: face to remove from space
         """
         # TODO : we should remove the face not in self.faces check for performance purposes
-        if face.space is not self or face not in self.faces:
-            raise ValueError('Cannot remove a face' +
-                             ' that does not belong to the space:{0}'.format(face))
+        # if face.space is not self or face not in self.faces:
+        #    raise ValueError('Cannot remove a face' +
+        #                     ' that does not belong to the space:{0}'.format(face))
 
         # 1 : check if the face includes the reference edge of the Space and change it
         reference_has_changed = self.change_reference(face)
@@ -954,10 +957,17 @@ class Space(PlanComponent):
         container_face = self.face
 
         # insert the face in the emptySpace
-        container_face.insert_face(face_of_space)
+        if not category.external:
+            container_face.insert_face(face_of_space)
+        else:
+            face_external = Face(self.edge.pair)
+            container_face.insert_external_face(face_external, face_of_space)
+            space_external = Space(self.plan, face_of_space.edge.pair, category=category)
+            self.plan.add_space(space_external)
 
         # remove the face of the fixed_item from the empty space
         self.remove_face(face_of_space)
+
 
         # create the space and add it to the plan
         space = Space(self.plan, face_of_space.edge, category=category)
@@ -1033,8 +1043,8 @@ class Space(PlanComponent):
         """
         edge = edge or self.edge
         vertex = (transformation.get['barycenter']
-                                .config(vertex=edge.end, coeff=coeff)
-                                .apply_to(edge.start))
+                  .config(vertex=edge.end, coeff=coeff)
+                  .apply_to(edge.start))
         return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None,
@@ -1059,6 +1069,7 @@ class Space(PlanComponent):
 
         if 'half-edge' in options:
             for edge in self.edges:
+                edge.pair.plot_half_edge(ax, color=color, save=save)
                 edge.plot_half_edge(ax, color=color, save=save)
 
         return ax
@@ -1102,6 +1113,7 @@ class Linear(PlanComponent):
     A linear is an object composed of one or several contiguous edges localized on the boundary
     of a space object
     """
+
     def __init__(self, plan: Plan, edge: Edge, category: LinearCategory):
         """
         Init
@@ -1206,6 +1218,7 @@ class SeedSpace(Space):
     """"
     A space use to seed a plan
     """
+
     def __init__(self, plan: Plan, edge: Edge, seed: 'Seed'):
         super().__init__(plan, edge, SPACE_CATEGORIES['seed'])
         self.seed = seed
@@ -1224,9 +1237,10 @@ class SeedSpace(Space):
 
 
 if __name__ == '__main__':
-
     import libs.reader as reader
+
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     @DecoratorTimer()
     def floor_plan():
@@ -1234,7 +1248,8 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Vernouillet_A002.json"
+        # input_file = "Vernouillet_A002.json"
+        input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
@@ -1242,9 +1257,5 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-    # floor_plan()
 
-
-
-
-
+    floor_plan()

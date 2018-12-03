@@ -26,6 +26,7 @@ class Transformation:
     """
     Transformation class
     """
+
     def __init__(self, name: str, action: Callable, params: Optional[Dict] = None):
         self.name = name
         self.params = params or {}
@@ -117,6 +118,10 @@ def _projection_action(source_vertex: 'Vertex',
     sp_line = source_vertex.sp_line(vector)
     temp_intersection_point = sp_edge.intersection(sp_line)
 
+    if temp_intersection_point.geom_type=="Point":
+        print("source_vertex", source_vertex, "edge", edge)
+        print("temp_intersection_point", temp_intersection_point)
+
     # we are only interested in a clean intersection
     # meaning only one Point
     if temp_intersection_point.geom_type != 'Point':
@@ -124,6 +129,7 @@ def _projection_action(source_vertex: 'Vertex',
 
     # return a new vertex at the intersection point
     return temp_intersection_point.coords[0]
+
 
 # transformations catalogue
 
@@ -134,10 +140,9 @@ get = {
     'projection': Transformation('projection', _projection_action)
 }
 
-
 if __name__ == '__main__':
-
     from libs.mesh import Vertex, Edge
+
 
     def compute_a_barycenter():
         """
@@ -152,7 +157,9 @@ if __name__ == '__main__':
 
         print(vertex_3)
 
+
     compute_a_barycenter()
+
 
     def translate_a_vertex():
         """
@@ -167,7 +174,9 @@ if __name__ == '__main__':
 
         print(vertex_3)
 
+
     translate_a_vertex()
+
 
     def project_a_vertex():
         """
@@ -185,5 +194,6 @@ if __name__ == '__main__':
                     .apply_to(vertex_3))
 
         print(vertex_4)
+
 
     project_a_vertex()
