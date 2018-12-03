@@ -74,10 +74,6 @@ class Seeder:
                 if isinstance(component, Space):
                     for edge in self.space_seed_edges(component):
                         seed_edge = edge
-                        # print("Space", Space)
-                        # print("component", component)
-                        # print("SEED_EDGE", seed_edge)
-                        # sys.exit("TESTING")
                         self.add_seed(seed_edge, component)
 
                 if isinstance(component, Linear):

@@ -9,6 +9,7 @@ Creates the following classes:
 
 import sys
 import os
+
 sys.path.append(os.path.abspath('../'))
 
 from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
@@ -38,6 +39,7 @@ class Plan:
     • spaces : rooms or ducts or pillars etc.
     • linears : windows, doors, walls etc.
     """
+
     def __init__(self, name: str = 'unnamed_plan', mesh: Optional[Mesh] = None,
                  spaces: Optional[List['Space']] = None, linears: Optional[List['Linear']] = None):
         self.name = name
@@ -258,16 +260,19 @@ class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
+
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
         self.category: Union[SpaceCategory, LinearCategory] = None
+    # self.exteriors
 
 
 class Space(PlanComponent):
     """
     Space Class
     """
+
     def __init__(self, plan: Plan, edge: Edge,
                  category: SpaceCategory = SPACE_CATEGORIES('empty')):
         super().__init__(plan, edge)
@@ -1033,8 +1038,8 @@ class Space(PlanComponent):
         """
         edge = edge or self.edge
         vertex = (transformation.get['barycenter']
-                                .config(vertex=edge.end, coeff=coeff)
-                                .apply_to(edge.start))
+                  .config(vertex=edge.end, coeff=coeff)
+                  .apply_to(edge.start))
         return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None,
@@ -1102,6 +1107,7 @@ class Linear(PlanComponent):
     A linear is an object composed of one or several contiguous edges localized on the boundary
     of a space object
     """
+
     def __init__(self, plan: Plan, edge: Edge, category: LinearCategory):
         """
         Init
@@ -1206,6 +1212,7 @@ class SeedSpace(Space):
     """"
     A space use to seed a plan
     """
+
     def __init__(self, plan: Plan, edge: Edge, seed: 'Seed'):
         super().__init__(plan, edge, SPACE_CATEGORIES['seed'])
         self.seed = seed
@@ -1226,7 +1233,9 @@ class SeedSpace(Space):
 if __name__ == '__main__':
 
     import libs.reader as reader
+
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     @DecoratorTimer()
     def floor_plan():
@@ -1234,11 +1243,16 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        # input_file = "Vernouillet_A002.json"
+        input_file = "Vernouillet_A002.json"
         input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
+
+        for space in plan.spaces:
+            if space.category.external:
+                print("external space :", space.category.name, " with area", space.area)
+
         plt.show()
 
         assert plan.check()

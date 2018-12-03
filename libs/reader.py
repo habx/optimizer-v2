@@ -25,6 +25,7 @@ from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
 
 BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 BLUEPRINT_INPUT_FILES = [
+    "Groslay_A-00-01_oldformat.json",
     "Levallois_A3_505.json",
     "Levallois_Parisot.json",
     "Levallois_Tisnes.json",
@@ -200,7 +201,7 @@ def _get_load_bearing_wall_perimeter(load_bearing_wall: List[int],
     wall_points = [point_dict_to_tuple(vertices[ix]) for ix in load_bearing_wall]
     normal = normal_vector(direction_vector(*wall_points))
     point_1 = move_point(wall_points[0], normal, 1)
-    point_2 = move_point(wall_points[1], normal,  1)
+    point_2 = move_point(wall_points[1], normal, 1)
 
     return _rectangle_from_segment((point_1, point_2), LOAD_BEARING_WALL_WIDTH)
 
@@ -255,6 +256,11 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
 
     external_spaces = _get_external_spaces(floor_plan_dict)
 
+    for external_space in external_spaces:
+        if external_space[1] in SPACE_CATEGORIES:
+            my_plan.insert_space_from_boundary(external_space[0],
+                                               category=SPACE_CATEGORIES[external_space[1]])
+
     for fixed_item in fixed_items:
         if fixed_item[1] in SPACE_CATEGORIES:
             my_plan.insert_space_from_boundary(fixed_item[0],
@@ -262,11 +268,6 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
         if fixed_item[1] in LINEAR_CATEGORIES:
             my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
                                   category=LINEAR_CATEGORIES[fixed_item[1]])
-
-    for external_space in external_spaces:
-      if external_space[1] in SPACE_CATEGORIES:
-          my_plan.insert_space_from_boundary(external_space[0],
-                                             category=SPACE_CATEGORIES[external_space[1]])
 
     return my_plan
 
@@ -320,9 +321,11 @@ if __name__ == '__main__':
         :return:
         """
         input_file = 'Bussy_A001_setup.json'
-        plan_test = create_plan_from_file("Groslay_A-00-01_oldformat.json")
+        input_file = "Groslay_A-00-01_oldformat.json"
+        plan_test = create_plan_from_file(input_file)
 
         spec = create_specification_from_file(input_file)
         print(spec)
+
 
     specification_read()
