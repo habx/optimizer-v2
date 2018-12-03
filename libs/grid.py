@@ -203,7 +203,8 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]
-        input_file="Groslay_A-00-01_oldformat.json"
+        #input_file="Groslay_A-00-01_oldformat.json"
+
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
         plan = reader.create_plan_from_file(input_file)
