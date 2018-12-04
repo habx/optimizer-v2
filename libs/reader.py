@@ -25,6 +25,7 @@ from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
 
 BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 BLUEPRINT_INPUT_FILES = [
+    "Groslay_A-00-01_oldformat.json",
     "Levallois_A3_505.json",
     "Levallois_Parisot.json",
     "Levallois_Tisnes.json",
@@ -112,9 +113,9 @@ def _get_fixed_item_perimeter(fixed_item: Dict,
 def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) -> FourCoords2d:
     """
     Creates a rectangle from a segment and a width
-    :param segment: 
-    :param width: 
-    :return: 
+    :param segment:
+    :param width:
+    :return:
     """
     point_1, point_2 = segment
     vector = direction_vector(point_1, point_2)
@@ -246,6 +247,7 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     :return: a plan object
     """
     floor_plan_dict = get_json_from_file(input_file)
+
     perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name).from_boundary(perimeter)
@@ -253,20 +255,21 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     fixed_items = _get_load_bearings_walls(floor_plan_dict)
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
 
-    external_spaces = _get_external_spaces(floor_plan_dict)
+    # TODO : ADAPT EXTERNAL SPACES FOR ALL PLANS - temporary dirty fix
+    if (input_file == "Groslay_A-00-01_oldformat.json"):
+        external_spaces = _get_external_spaces(floor_plan_dict)
+        for external_space in external_spaces:
+            if external_space[1] in SPACE_CATEGORIES:
+                my_plan.insert_space_from_boundary(external_space[0],
+                                                   category=SPACE_CATEGORIES[external_space[1]])
 
-    # for fixed_item in fixed_items:
-    #     if fixed_item[1] in SPACE_CATEGORIES:
-    #         my_plan.insert_space_from_boundary(fixed_item[0],
-    #                                            category=SPACE_CATEGORIES[fixed_item[1]])
-    #     if fixed_item[1] in LINEAR_CATEGORIES:
-    #         my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
-    #                               category=LINEAR_CATEGORIES[fixed_item[1]])
-
-    for external_space in external_spaces:
-      if external_space[1] in SPACE_CATEGORIES:
-          my_plan.insert_space_from_boundary(external_space[0],
-                                             category=SPACE_CATEGORIES[external_space[1]])
+    for fixed_item in fixed_items:
+        if fixed_item[1] in SPACE_CATEGORIES:
+            my_plan.insert_space_from_boundary(fixed_item[0],
+                                               category=SPACE_CATEGORIES[fixed_item[1]])
+        if fixed_item[1] in LINEAR_CATEGORIES:
+            my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
+                                  category=LINEAR_CATEGORIES[fixed_item[1]])
 
     return my_plan
 
@@ -320,7 +323,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = 'Bussy_A001_setup.json'
-        plan_test = create_plan_from_file("Groslay_A-00-01_oldformat.json")
+        plan_test = create_plan_from_file(input_file)
 
         spec = create_specification_from_file(input_file)
         print(spec)

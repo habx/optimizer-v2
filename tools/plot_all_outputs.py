@@ -53,7 +53,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     module = args.module
 
-    repo = "../output/plots/"
+    repo = "../output/plots/" + module + "/"
+    print("REPO IS", repo)
     StartHTML(repo, module)
 
     x = next(os.walk(repo))[2]

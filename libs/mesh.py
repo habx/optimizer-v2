@@ -9,10 +9,6 @@ not vertices themselves (to be confirmed). This would maybe enable mesh refresh 
 But it seems like a hard problem. Might no be doable.
 + we should split the mesh module in several files
 """
-import sys
-import os
-
-sys.path.append(os.path.abspath('../'))
 
 import math
 import logging
@@ -46,6 +42,7 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 if TYPE_CHECKING:
     from libs.plan import Space, Linear
 
+
 # MODULE CONSTANTS
 
 # arbitrary value for the length of the line :
@@ -63,7 +60,6 @@ class Vertex:
     """
     Vertex class
     """
-
     def __init__(self, x: float = 0, y: float = 0, edge: 'Edge' = None, mutable: bool = True):
         """
         A simple Vertex class with barycentric capability
@@ -313,9 +309,9 @@ class Vertex:
         the projected vertex
         """
         # check whether the face contains the vertex
-        # if not face.as_sp.intersects(self.as_sp):
-        #   raise ValueError('Can not project a vertex' +
-        #                    ' that is outside the face: {0} - {1}'.format(self, face))
+        if not face.as_sp.intersects(self.as_sp):
+            raise ValueError('Can not project a vertex' +
+                             ' that is outside the face: {0} - {1}'.format(self, face))
 
         # find the intersection
         closest_edge = None
@@ -330,69 +326,20 @@ class Vertex:
                 continue
 
             projected_vertex = (transformation.get['projection']
-                                .config(vector=vector, edge=edge)
-                                .apply_to(self))
+                                              .config(vector=vector, edge=edge)
+                                              .apply_to(self))
 
             if projected_vertex is None:
                 continue
 
             new_distance = projected_vertex.distance_to(self)
-            # print("new_distance", new_distance)
+
             # only keep the closest point
             if not smallest_distance or new_distance < smallest_distance:
                 smallest_distance = new_distance
                 closest_edge = edge
                 intersection_vertex = projected_vertex
 
-        return (intersection_vertex,
-                closest_edge,
-                smallest_distance) if smallest_distance else None
-
-    def project_point_external(self, face: 'Face', vector: Vector2d) -> Tuple['Vertex', 'Edge', float]:
-        """
-        Returns the projected point according to the vector direction
-        on the face boundary according to the provided vector.
-        Note: the vertex has to be inside the face.
-        Note: this does not split the edge the point is projected unto
-        :param face:
-        :param vector:
-        :return: a tuple containing the new vertex and the associated edge, and the distance from
-        the projected vertex
-        """
-        # check whether the face contains the vertex
-        # if not face.as_sp.intersects(self.as_sp):
-        #   raise ValueError('Can not project a vertex' +
-        #                    ' that is outside the face: {0} - {1}'.format(self, face))
-
-        # find the intersection
-        closest_edge = None
-        intersection_vertex = None
-        smallest_distance = None
-
-        # iterate trough every edge of the face but the laser_cut edge
-        for edge in face.edges_pair:
-
-            # do not project on edges that starts or end with the vertex
-            if self in (edge.start, edge.end):
-                continue
-
-            projected_vertex = (transformation.get['projection']
-                                .config(vector=vector, edge=edge)
-                                .apply_to(self))
-
-            if projected_vertex is None:
-                continue
-
-            new_distance = projected_vertex.distance_to(self)
-            print("new_distance", new_distance)
-            # only keep the closest point
-            if not smallest_distance or new_distance < smallest_distance:
-                smallest_distance = new_distance
-                closest_edge = edge
-                intersection_vertex = projected_vertex
-        print("SMALLEST DISTANCE", smallest_distance)
-        print("intersection_vertex", intersection_vertex)
-        print("closest_edge", closest_edge)
         return (intersection_vertex,
                 closest_edge,
                 smallest_distance) if smallest_distance else None
@@ -483,7 +430,7 @@ class Vertex:
         length = length or LINE_LENGTH
         vector = normalized_vector(vector)
         # to ensure proper intersection we shift slightly the start point
-        start_point = move_point(self.coords, vector, -1 / 2 * COORD_EPSILON)
+        start_point = move_point(self.coords, vector, -1/2 * COORD_EPSILON)
         end_point = (start_point[0] + vector[0] * length,
                      start_point[1] + vector[1] * length)
         return LineString([start_point, end_point])
@@ -493,7 +440,6 @@ class Edge:
     """
     Half Edge class
     """
-
     def __init__(self,
                  start: Optional[Vertex],
                  next_edge: Optional['Edge'],
@@ -928,8 +874,8 @@ class Edge:
             return 0, 0
 
         x, y = -self.vector[1], self.vector[0]
-        length = math.sqrt(x ** 2 + y ** 2)
-        return x / length, y / length
+        length = math.sqrt(x**2 + y**2)
+        return x/length, y/length
 
     @property
     def max_length(self) -> Optional[float]:
@@ -972,7 +918,7 @@ class Edge:
         """
         vector = self.unit_vector
         end_point = move_point(self.end.coords, vector, COORD_EPSILON)
-        start_point = move_point(self.start.coords, vector, -1 * COORD_EPSILON)
+        start_point = move_point(self.start.coords, vector, -1*COORD_EPSILON)
         return LineString([start_point, end_point])
 
     @property
@@ -1056,7 +1002,7 @@ class Edge:
             edge = edge.space_next
 
     @property
-    def aligned_siblings(self) -> Generator['Edge', 'Edge', None]:
+    def aligned_siblings(self)-> Generator['Edge', 'Edge', None]:
         """
         Returns the edges that are aligned with self and contiguous
         Starts with the edge itself, then all the next ones, then all the previous ones
@@ -1517,8 +1463,8 @@ class Edge:
         :return:
         """
         vertex = (transformation.get['barycenter']
-                  .config(vertex=self.end, coeff=coeff)
-                  .apply_to(self.start))
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.recursive_cut(vertex, angle, traverse=traverse)
 
     def barycenter_cut(self, coeff: float = 0.5,
@@ -1532,8 +1478,8 @@ class Edge:
         """
         # vertex = Vertex().barycenter(self.start, self.end, coeff)
         vertex = (transformation.get['barycenter']
-                  .config(vertex=self.end, coeff=coeff)
-                  .apply_to(self.start))
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.cut(vertex, angle)
 
     def ortho_cut(self) -> TwoEdgesAndAFace:
@@ -1557,8 +1503,8 @@ class Edge:
                 continue
 
             projected_vertex = (transformation.get['projection']
-                                .config(vector=vector, edge=edge)
-                                .apply_to(self.start))
+                                              .config(vector=vector, edge=edge)
+                                              .apply_to(self.start))
             # If we can not project orthogonally on the edge we continue
             if projected_vertex is None:
                 continue
@@ -1573,8 +1519,8 @@ class Edge:
                     continue
 
                 other_projected_vertex = (transformation.get['projection']
-                                          .config(vector=vector, edge=other_edge)
-                                          .apply_to(self.start))
+                                                        .config(vector=vector, edge=other_edge)
+                                                        .apply_to(self.start))
 
                 if other_projected_vertex is None:
                     continue
@@ -1695,8 +1641,8 @@ class Edge:
         """
         # vertex = Vertex().barycenter(self.start, self.end, coeff)
         vertex = (transformation.get['barycenter']
-                  .config(vertex=self.end, coeff=coeff)
-                  .apply_to(self.start))
+                                .config(vertex=self.end, coeff=coeff)
+                                .apply_to(self.start))
         return self.split(vertex)
 
     def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
@@ -1750,7 +1696,6 @@ class Face:
     """
     Face Class
     """
-
     def __init__(self,
                  edge: Optional[Edge],
                  enclosing_mesh: Optional['Mesh'] = None,
@@ -1830,20 +1775,6 @@ class Face:
         """
         edge = from_edge or self.edge
         return edge.siblings
-
-    @property
-    def edges_pair(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
-        """
-        Loops trough all the edges belonging to a face.
-        We start at the edge stored in the face and follow each edge next until
-        a full loop has been accomplished.
-        NB: if the edges of the face do not form a proper loop
-        the method will fail or loop for ever
-        :param from_edge: from which edge of the face the loop starts
-        :return: a generator
-        """
-        edge = from_edge or self.edge
-        return edge.pair.siblings
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -2146,83 +2077,6 @@ class Face:
 
         return [self]
 
-    def _insert_excluded_face(self, face_external, face: 'Face') -> List['Face']:
-        """
-        Insert a fully excluded face inside a containing face
-        Note: this method should always be called from insert_face
-        1. select a vertex from the face
-        2. find the nearest point on the perimeter of the nearest face
-        3. split the edge on the nearest point
-        4. create the edge between the two point
-        5. assign pair faces
-        :param face:
-        :return:
-        """
-        # create a fixed list of the enclosing face edges for ulterior navigation
-        main_directions = self.mesh.directions
-        vectors = [unit_vector(main_direction[0]) for main_direction in main_directions]
-
-        # find the closest vertex of the face to the boundary of the receiving face
-        # according to the mesh two main directions
-        min_distance = None
-        best_vertex = None
-        best_near_vertex = None
-        best_shared_edge = None
-        for vertex in face.vertices:
-            for vector in vectors:
-                edge = vertex.edge.pair.next
-                _correct_orientation = same_half_plane(vector, edge.normal)
-                _vector = vector if _correct_orientation else opposite_vector(vector)
-                # _vector = vector
-                intersection_data = vertex.project_point_external(self, _vector)
-
-                # print("intersection_data", intersection_data)
-
-                if intersection_data is None:
-                    continue
-                near_vertex, shared_edge, distance_to_vertex = intersection_data
-                # check whether we are projecting unto an immutable linear
-                if not shared_edge.is_mutable:
-                    print("MUTABILITY PBEM")
-                    continue
-                projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
-                # if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
-                #        and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
-                #    continue
-                if min_distance is None or distance_to_vertex < min_distance:
-                    best_vertex = vertex
-                    best_near_vertex = near_vertex
-                    best_shared_edge = shared_edge
-                    min_distance = distance_to_vertex
-
-        if min_distance is None:
-            raise Exception('Cannot find and intersection point to insert face !:{0}'.format(face))
-
-        # create a new edge linking the vertex of the face to the enclosing face
-        edge_shared = best_near_vertex.snap_to_edge(best_shared_edge)
-        best_near_vertex = edge_shared.start  # ensure existing vertex reference
-
-        # face_external = Face(self.edge.pair)
-
-        # new_edge = Edge(best_near_vertex, best_vertex.edge.previous.pair, self)
-        # new_edge.pair.face = self
-        new_edge = Edge(best_near_vertex, best_vertex.edge.previous.pair, face_external)
-        new_edge.pair.face = face_external
-        new_edge.pair.start = best_vertex
-        best_near_vertex.edge = new_edge
-        new_edge.pair.next = edge_shared
-        edge_shared.previous.next = new_edge
-        best_vertex.edge.pair.next = new_edge.pair
-
-        # space_external = Space(self.plan, face_external.edge, category='empty')
-        # self.plan.add_space(space_external)
-
-        print("-" * 48)
-        print("new_edge", new_edge)
-        print("-" * 48)
-
-        return [self]
-
     def _insert_touching_face(self, shared_edges: Sequence[Tuple[Edge, Edge]]) -> List['Face']:
         """
         Inserts a face inside another when the inserted face has one or several touching points
@@ -2356,60 +2210,6 @@ class Face:
         # case 3 : touching face
         return self._insert_touching_face(shared_edges)
 
-    def _insert_external_face(self,external_face: 'Face' ,face: 'Face') -> List['Face']:
-        """
-        Internal : inserts a face external to the plan, assuming the viability of the inserted face has been
-        previously checked
-        :param face:
-        :return:
-        """
-        # check if the face can be inserted
-        if self.crosses(face):
-            raise ValueError("Cannot insert a face that is" +
-                             " crossing the receiving face !:{0}".format(face))
-
-        # add all pair edges to face
-        face.add_exterior(self)
-
-        # create a fixed list of the face edges for ulterior navigation
-        self_edges = list(self.edges)
-
-        # split the face edges if they touch a vertex of the container face
-        # TODO : this is highly inefficient as we try to intersect every edge with every vertex
-
-        for vertex in self.vertices:
-            face_edges = list(face.edges)
-            new_edge = vertex.snap_to_edge(*face_edges)
-            if new_edge is not None:
-                logging.info('Snapped a vertex from the receiving face: {0}'.format(vertex))
-
-        # snap face vertices to edges of the container face
-        # for performance purpose we store the snapped vertices and the corresponding edge
-        shared_edges = []
-        face_edges = list(face.edges)
-        for edge in face_edges:
-            vertex = edge.start
-            vertex.start = edge  # we need to do this to ensure proper snapping direction
-            edge_shared = vertex.snap_to_edge(*self_edges)
-            if edge_shared is not None:
-                shared_edges.append((edge_shared, edge))
-                # after a split: update list of edges
-                self_edges = list(self.edges)
-
-        nb_shared_vertices = len(shared_edges)
-
-        return self._insert_excluded_face(external_face,face)
-
-        # # different use cases
-        # # case 1 : enclosed face
-        # if nb_shared_vertices == 0:
-        #     return self._insert_enclosed_face(face)
-        # # case 2 : same face
-        # if nb_shared_vertices == len(self_edges):
-        #     return self._insert_identical_face(face)
-        # # case 3 : touching face
-        # return self._insert_touching_face(shared_edges)
-
     def _insert_face_over_internal_edge(self,
                                         face: 'Face',
                                         internal_edges: List[Edge]) -> List['Face']:
@@ -2506,30 +2306,6 @@ class Face:
             return self._insert_face_over_internal_edge(face, internal_edges)
 
         return self._insert_face(face)
-
-    def insert_external_face(self, external_face: 'Face', face: 'Face') -> List['Face']:
-        """
-        Inserts the face if it fits inside the receiving face
-        Returns the list of the faces created inside the receiving face
-        including the receiving face
-        """
-        # check if the face can be inserted
-        if self.crosses(face):
-            raise ValueError("Cannot insert a face that is" +
-                             " crossing the receiving face !:{0}".format(face))
-
-        # add the new face to the mesh
-        self.mesh.add_face(face)
-        # add the space reference [SPACE]
-        face.space = self.space
-
-        # Check if the receiving face has an internal edge because this is a very special
-        # case and has to be treated differently
-        # internal_edges = list(self.internal_edges)
-        # if internal_edges:
-        #    return self._insert_face_over_internal_edge(face, internal_edges)
-
-        return self._insert_external_face(external_face,face)
 
     def insert_face_from_boundary(self, perimeter: List[Coords2d]) -> List['Face']:
         """
@@ -2697,7 +2473,6 @@ class Mesh:
     """
     Mesh Class
     """
-
     def __init__(self, faces: Optional[List[Face]] = None, boundary_edge: Optional[Edge] = None):
         self._faces = faces
         self._boundary_edge = boundary_edge
@@ -2706,7 +2481,7 @@ class Mesh:
         output = 'Mesh:\n'
         for face in self.faces:
             output += face.__repr__() + '\n'
-        return output + '-' * 24
+        return output + '-'*24
 
     @property
     def faces(self) -> List[Face]:
@@ -2879,7 +2654,6 @@ class Mesh:
 
         for edge in self.boundary_edges:
             if edge.face is not None:
-                print("edge_face",edge.face)
                 logging.error('Wrong edge in mesh boundary edges:{0}'.format(edge))
                 is_valid = False
 
@@ -2980,7 +2754,6 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
 
-
     def plot():
         """
         Plot a graph
@@ -2995,8 +2768,8 @@ if __name__ == '__main__':
         mesh.plot(save=False)
         plt.show()
 
-
     # plot()
+
 
     def merge_two_faces_edge():
         """
@@ -3020,7 +2793,6 @@ if __name__ == '__main__':
         new_face.clean()
         mesh.check()
 
-
     # merge_two_faces_edge()
 
     def simplify_mesh():
@@ -3038,7 +2810,6 @@ if __name__ == '__main__':
         plt.show()
 
         mesh.check()
-
 
     # simplify_mesh()
 
@@ -3061,6 +2832,5 @@ if __name__ == '__main__':
         plt.show()
 
         mesh.check()
-
 
     simplify_mesh_triangle()

@@ -6,6 +6,7 @@ Contains custom types for typing
 
 from typing import Tuple, Callable, Optional
 
+
 # Vector type and coords type
 Vector2d = Coords2d = Tuple[float, float]
 
