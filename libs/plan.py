@@ -1094,12 +1094,20 @@ class Space(PlanComponent):
         immutable_categories_associated = []
         for edge in self.edges:
             if edge.linear is not None:
-                immutable_categories_associated.append(edge.linear.category.name)
+                if not (edge.linear.category.name in immutable_categories_associated):
+                    immutable_categories_associated.append(edge.linear.category.name)
             if edge.pair.linear is not None:
-                immutable_categories_associated.append(edge.linear.category.name)
-            if edge.pair.face.space.category.mutable is False:
-                immutable_categories_associated.append(edge.pair.face.space.category.name)
+                if not (edge.pair.linear.category.name in immutable_categories_associated):
+                    immutable_categories_associated.append(edge.pair.linear.category.name)
+            if edge.pair.face is not None and edge.pair.face.space.category.mutable is False:
+                if not (edge.pair.face.space.category.name in immutable_categories_associated):
+                    immutable_categories_associated.append(edge.pair.face.space.category.name)
         return immutable_categories_associated
+
+    def neighboring_spaces(self) -> ['Space']:
+        neighboring_spaces = []
+        #TODO
+        return neighboring_spaces
 
 
 class Linear(PlanComponent):
