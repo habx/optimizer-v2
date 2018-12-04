@@ -40,7 +40,13 @@ class SpaceCategory(Category):
     A category of a space
     Examples: duct, chamber, kitchen, wc, bathroom, entrance
     """
-    pass
+    def __init__(self,
+                 name,
+                 mutable: bool = True,
+                 seedable: bool = False,
+                 circulation: bool = False):
+        super().__init__(name, mutable, seedable)
+        self.circulation = circulation
 
 
 class LinearCategory(Category):
@@ -57,7 +63,6 @@ class LinearCategory(Category):
         super().__init__(name, mutable, seedable)
         self.aperture = aperture
         self.width = width
-        self.mutable = mutable
 
 
 LINEAR_CATEGORIES = Catalog('linears').add(
@@ -75,10 +80,12 @@ SPACE_CATEGORIES = Catalog('spaces').add(
     SpaceCategory('loadBearingWall', mutable=False),
     SpaceCategory('chamber'),
     SpaceCategory('bedroom'),
-    SpaceCategory('living'),
-    SpaceCategory('entrance'),
+    SpaceCategory('living', circulation=True),
+    SpaceCategory('entrance', circulation=True),
     SpaceCategory('kitchen'),
     SpaceCategory('bathroom'),
-    SpaceCategory('wcBathroom'),
-    SpaceCategory('livingKitchen'),
-    SpaceCategory('wc'))
+    SpaceCategory('dining', circulation=True),
+    SpaceCategory('office'),
+    SpaceCategory('dressing'),
+    SpaceCategory('wc'),
+    SpaceCategory('corridor', circulation=True))

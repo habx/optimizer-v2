@@ -43,6 +43,8 @@ class Seeder:
     """
     def __init__(self, plan: Plan, growth_methods: Catalog):
         self.plan = plan
+        plan.plot(save=False)
+        plt.show()
         self.seeds: List['Seed'] = []
         self.selectors: Dict[str, 'Selector'] = {}
         self.growth_methods = growth_methods
@@ -198,7 +200,7 @@ class Seed:
     def __repr__(self):
         return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
                 '{5}').format(self.components, str(self.space.area), str(self.size.width),
-                              str(self.size.depth), self.space, self.edge)
+                              str(self.size.depth), self.space, self.edge) + '\n'
 
     @property
     def size(self) -> Size:
@@ -444,8 +446,9 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[27]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.BLUEPRINT_INPUT_FILES[5]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
+        print(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS)
         seeder.add_condition(SELECTORS['seed_duct'], 'duct')
@@ -455,7 +458,10 @@ if __name__ == '__main__':
         seeder.grow(show=True)
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        ax = plan.plot(save=False)
+        print(plan)
+        print(seeder)
+
+        ax = plan.plot(save=True)
         seeder.plot_seeds(ax)
         plt.show()
 

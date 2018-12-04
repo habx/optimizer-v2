@@ -41,9 +41,9 @@ class Plan:
         self.linears = linears or []
 
     def __repr__(self):
-        output = 'Plan ' + self.name + ': '
+        output = 'Plan ' + self.name + ':  \n'
         for space in self.spaces:
-            output += space.__repr__() + ' - '
+            output += space.__repr__() + ' - \n'
         return output
 
     def from_boundary(self, boundary: Sequence[Coords2d]):
@@ -1090,6 +1090,17 @@ class Space(PlanComponent):
 
         return is_valid
 
+    def immutable_categories_associated(self) -> [str]:
+        immutable_categories_associated = []
+        for edge in self.edges:
+            if edge.linear is not None:
+                immutable_categories_associated.append(edge.linear.category.name)
+            if edge.pair.linear is not None:
+                immutable_categories_associated.append(edge.linear.category.name)
+            if edge.pair.face.space.category.mutable is False:
+                immutable_categories_associated.append(edge.pair.face.space.category.name)
+        return immutable_categories_associated
+
 
 class Linear(PlanComponent):
     """
@@ -1196,7 +1207,6 @@ class Linear(PlanComponent):
 
         return is_valid
 
-
 class SeedSpace(Space):
     """"
     A space use to seed a plan
@@ -1229,15 +1239,15 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Vernouillet_A002.json"
+        input_file = "Levallois_Letourneur.json"
         plan = reader.create_plan_from_file(input_file)
-
+        print(plan)
         plan.plot(save=False)
         plt.show()
 
         assert plan.check()
 
-    # floor_plan()
+    floor_plan()
 
 
 

@@ -277,7 +277,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = 'Bussy_A001_setup.json'
+        input_file = 'Levallois_Letourneur_setup.json'
         spec = create_specification_from_file(input_file)
         print(spec)
 

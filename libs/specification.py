@@ -28,6 +28,26 @@ class Specification:
             i += 1
         return output
 
+    @property
+    def number_of_items(self):
+        """
+        Returns the number of rooms from the specification
+        :return:
+        """
+        return len(self.items)
+
+    @property
+    def typology(self):
+        """
+        Returns the typology of the specification
+        :return:
+        """
+        apartment_type = 1
+        for item in self.items:
+            if item.category.name in ['bedroom','office']:
+                apartment_type = apartment_type + 1
+        return apartment_type
+
     def add_item(self, value):
         """
         Adds a specification item to the specification
@@ -51,4 +71,4 @@ class Item:
         self.adjacencies = adjacencies
 
     def __repr__(self):
-        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.size.__repr__()
+        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.min_size.__repr__()
