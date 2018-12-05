@@ -72,7 +72,7 @@ class Shuffle:
                                                                constraints=self.constraints)
                 if modified_spaces and show:
                     self._plot.update(modified_spaces)
-
+                    #"press enter to continue...")
                 all_modified_spaces += modified_spaces
 
             if not all_modified_spaces:

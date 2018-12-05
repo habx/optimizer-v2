@@ -190,6 +190,43 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
                 yield edge.pair
 
 
+def seed_empty_test(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the space reference edge, for test purpose
+    """
+    if not space.category or space.category.name != 'empty':
+        raise ValueError('You should provide an empty component to the query seed_empty!')
+    yield space.edge
+
+
+
+def seed_empty_furthest_naive_couple(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the space reference edge, for test purpose
+    """
+    if not space.category or space.category.name != 'empty' or space.as_sp==None:
+        raise ValueError('You should provide an empty component to the query seed_empty!')
+    if space.as_sp.geom_type!='Polygon':
+        raise ValueError('The space on which action is led should be a polygon!')
+    kept_edges=[]
+    d_max=0
+
+    for edge in space.edges:
+        d_max_edge=0
+        edge_far=None
+        for edge_sibling in edge.siblings:
+            edge_start_sp=edge.start.as_sp
+            d_tmp=edge_sibling.start.as_sp.distance(edge_start_sp)
+            if d_tmp>d_max_edge:
+                d_max_edge=d_tmp
+                edge_far=edge_sibling
+        if d_max_edge>d_max:
+            kept_edges=[edge,edge_far]
+            d_max=d_max_edge
+
+    for edge in kept_edges:
+        yield edge
+
 def corner_stone(edge: 'Edge') -> bool:
     """
     Returns True if the removal of the edge's face from the space
@@ -587,6 +624,10 @@ SELECTORS.add(
     Selector(seed_component_boundary, name='surround_seed_component'),
 
     Selector(seed_duct, name='seed_duct'),
+
+    Selector(seed_empty_test, name='seed_empty_test'),
+
+    Selector(seed_empty_furthest_naive_couple, name='seed_empty_furthest_naive_couple'),
 
     Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),
              'other_space_boundary')

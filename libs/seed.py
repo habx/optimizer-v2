@@ -80,6 +80,19 @@ class Seeder:
                     seed_edge = component.edge
                     self.add_seed(seed_edge, component)
 
+    def plant_empty_space(self):
+        """
+        Creates the seeds
+        :return:
+        """
+        for component in self.plan.get_component():
+            if component.category.seedable and component.category.name == "empty":
+
+                if isinstance(component, Space):
+                    for edge in self.space_seed_edges(component):
+                        seed_edge = edge
+                        self.add_seed(seed_edge, component)
+
     def merge(self, edge: 'Edge', component: 'PlanComponent') -> bool:
         """
         Checks if a potential seed edge shares a face with a seed. If another seed is found,
@@ -452,9 +465,29 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     plan_index = int(args.plan_index)
-    print("plan_index", plan_index, 'type of var', type(plan_index))
 
     logging.getLogger().setLevel(logging.DEBUG)
+
+
+    def remove_empty_spaces(plan):
+        #TODO : if meaningful add this method to the methods of class plan
+        space_to_remove = []
+        for space in plan.spaces:
+            if space.edge is None:
+                space_to_remove.append(space)
+            else:
+                space.category.seedable = True  # make all remaining spaces seedable so as to grow seeds in the whole plan
+        for space in space_to_remove:
+            plan.remove_space(space)
+
+
+    def count_empty_spaces(plan):
+        #TODO : if meaningful add this method to the methods of class plan
+        num = 0
+        for space in plan.spaces:
+            if space.category.name == "empty":
+                num += 1
+        return num
 
 
     def grow_a_plan():
@@ -463,6 +496,10 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = "Antony_A22.json"
+        #input_file = "Levallois_Letourneur.json"
+        #input_file = "Noisy_A318.json"
+        #input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -471,12 +508,41 @@ if __name__ == '__main__':
 
         seeder.plant()
         seeder.grow(show=True)
+        ax = plan.plot(save=True)
         SHUFFLES['square_shape'].run(plan, show=True)
 
         ax = plan.plot(save=True)
         seeder.plot_seeds(ax)
+        plt.title("seeding points")
         plt.show()
+        input("STOP HERE")
 
+        logging.info("nb spaces before removal : {0}".format(len(plan.spaces)))
+
+        remove_empty_spaces(plan)
+
+        logging.info("nb spaces after removal : {0}".format(len(plan.spaces)))
+
+        num_empty_spaces = count_empty_spaces(plan)
+        while num_empty_spaces > 0:
+            seeder_empty_case = Seeder(plan, GROWTH_METHODS)
+            #seeder_empty_case.add_condition(SELECTORS['seed_empty_test'], 'empty')
+            seeder_empty_case.add_condition(SELECTORS['seed_empty_furthest_naive_couple'], 'empty')
+            seeder_empty_case.plant_empty_space()
+            seeder_empty_case.grow(show=True)
+            ax = plan.plot(save=True)
+            #SHUFFLES['square_shape'].run(plan, show=True)
+            seeder.plot_seeds(ax)
+            plt.title("seeding points")
+            plt.show()
+            input("STOP HERE")
+            remove_empty_spaces(plan)
+            num_empty_spaces = count_empty_spaces(plan)
+            print("num_empty_spaces", num_empty_spaces)
+            #input("press enter")
+
+        SHUFFLES['square_shape'].run(plan, show=True)
+        ax = plan.plot(save=True)
         assert plan.check()
 
 
