@@ -528,7 +528,9 @@ if __name__ == '__main__':
 
         plan.remove_null_spaces()
 
-        seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+#       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+#       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
+        seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_space_area_min_100000']
         seed_empty_area_max_100000 = SELECTORS['area_max=100000']
         seed_methods = [
             (
