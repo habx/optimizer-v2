@@ -1054,10 +1054,10 @@ class Edge:
         """
         return self.as_sp_dilated.intersects(vertex.as_sp)
 
-    def barycenter(self, coeff: float) -> Vector2d:
+    def barycenter(self, coeff: float) -> Vertex:
         """
         Returns True if the edge contains the vertex
-        :return: bool
+        :return: vertex
         """
         vertex = (transformation.get['barycenter']
                   .config(vertex=self.end, coeff=coeff)
