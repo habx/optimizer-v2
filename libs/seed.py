@@ -509,6 +509,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
+
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -545,7 +546,7 @@ if __name__ == '__main__':
         filler = Filler(plan, seed_methods)
         filler.apply_to(plan)
 
-        logging.info("num_mutable_spaces : {0}".format(plan.count_mutable_spaces()))
+        logging.debug("num_mutable_spaces : {0}".format(plan.count_mutable_spaces()))
 
         SHUFFLES['square_shape'].run(plan, show=True)
         plan.plot(save=True)
