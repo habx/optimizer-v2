@@ -4,12 +4,12 @@ Seeder Module Tests
 """
 import pytest
 
-import libs.reader as reader
+from libs import reader
 from libs.seed import Seeder, GROWTH_METHODS
 from libs.shuffle import few_corner_shuffle
 
 from libs.grid import GRIDS
-from libs.reader import BLUEPRINT_INPUT_FILES
+from libs.reader_test import BLUEPRINT_INPUT_FILES
 from libs.selector import SELECTORS
 
 from libs.plot import plot_save
@@ -33,6 +33,6 @@ def test_grow_a_plan(input_file):
 
     ax = plan.plot(save=False, options=('fill', 'border', 'face'))
     seeder.plot_seeds(ax)
-    plot_save() 
+    plot_save()
 
     assert plan.check()

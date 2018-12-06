@@ -6,7 +6,7 @@ from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
 
-import libs.reader as reader
+from libs import reader
 from libs.utils.catalog import Catalog
 from libs.mutation import MUTATIONS
 from libs.selector import SELECTORS
@@ -179,6 +179,7 @@ GRIDS.add(ortho_grid)
 if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.INFO)
+    from libs import reader_test
 
     def create_a_grid():
         """
