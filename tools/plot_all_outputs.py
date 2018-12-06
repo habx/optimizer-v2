@@ -3,10 +3,11 @@
 import os
 import argparse
 
+#plots all files in specified folder on same html page
 
-def StartHTML(repo, module):
+def startHTML(repo, module):
     output_filename = repo + 'summary_' + module + '.html'
-    Html_file = open(output_filename, "w")
+    html_file = open(output_filename, "w")
 
     html_str = """
     <html>
@@ -17,32 +18,32 @@ def StartHTML(repo, module):
         <body>
     """
 
-    Html_file.write(html_str)
-    Html_file.close()
+    html_file.write(html_str)
+    html_file.close()
 
 
 # Integration of .svg in the HTML page
-def PutSvgIntoHTML(image, repo, module):
+def putSvgIntoHTML(image, repo, module):
     output_filename = repo + 'summary_' + module + '.html'
-    Html_file = open(output_filename, "a")
+    html_file = open(output_filename, "a")
     html_str = "<img src=" + image + " alt=/>"
-    Html_file.write(html_str)
-    Html_file.close()
+    html_file.write(html_str)
+    html_file.close()
 
 
 # End of the HTML page
 
-def EndHTML(repo, module):
+def endHTML(repo, module):
     output_filename = repo + 'summary_' + module + '.html'
-    Html_file = open(output_filename, "a")
+    html_file = open(output_filename, "a")
 
     html_str = """
         </body>
     </html>
      """
 
-    Html_file.write(html_str)
-    Html_file.close()
+    html_file.write(html_str)
+    html_file.close()
 
 
 if __name__ == '__main__':
@@ -55,11 +56,11 @@ if __name__ == '__main__':
 
     repo = "../output/plots/" + module + "/"
     print("REPO IS", repo)
-    StartHTML(repo, module)
+    startHTML(repo, module)
 
     x = next(os.walk(repo))[2]
     for current_x in x:
         print("current_x", current_x)
-        if (current_x.endswith(".svg")):
-            PutSvgIntoHTML(current_x, repo, module)
-    EndHTML(repo, module)
+        if current_x.endswith(".svg"):
+            putSvgIntoHTML(current_x, repo, module)
+    endHTML(repo, module)
