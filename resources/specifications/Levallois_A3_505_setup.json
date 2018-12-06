@@ -33,12 +33,20 @@
       "type": "bedroom"
     },
     {
-      "variant": "m",
+      "type": "living",
       "requiredArea": {
-        "min": 360000,
-        "max": 440000
+        "min": 250000,
+        "max": 350000
       },
-      "type": "livingKitchen"
+      "variant": "s"
+    },
+    {
+      "type": "kitchen",
+      "requiredArea": {
+        "min": 90000,
+        "max": 140000
+      },
+      "variant": "s"
     },
     {
       "type": "entrance",

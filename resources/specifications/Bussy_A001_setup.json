@@ -12,8 +12,16 @@
       "type": "livingKitchen",
       "variant": "xs",
       "requiredArea": {
-        "min": 160000,
-        "max": 240000
+        "min": 100000,
+        "max": 150000
+      }
+    },
+    {
+      "type": "kitchen",
+      "variant": "xs",
+      "requiredArea": {
+        "min": 60000,
+        "max": 90000
       }
     },
     {

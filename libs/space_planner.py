@@ -57,8 +57,6 @@ class ConstraintSolver:
     def solve(self):
         """
         search and solution
-        :param j_space:
-        :return: ct: ortools.Constraint
         """
         # Decision builder
         db = self.solver.Phase(self.positions_flat, self.solver.INT_VAR_DEFAULT, self.solver.ASSIGN_RANDOM_VALUE)
@@ -90,7 +88,7 @@ class ConstraintSolver:
         print("branches:", self.solver.Branches())
         print("WallTime:", self.solver.WallTime())
 
-    def space_attribution_constraint(self, j_space: int) -> ortools.Constraint:
+    def attribution_constraint(self, j_space: int) -> ortools.Constraint:
         """
         Each space has to be associated with an item and one time only
         :param j_space:
@@ -122,9 +120,9 @@ class ConstraintSolver:
             self.items_positions[i_item][j] * space.area for j, space in enumerate(self.spaces)) >= min_area)
         return ct
 
-    def space_adjacency_constraint(self, i_item: int) -> ortools.Constraint:
+    def inside_adjacency_constraint(self, i_item: int) -> ortools.Constraint:
         """
-        Space adjacency constraint
+        Space adjacency constraint inside a given item
         :param i_item:
         :return: ct:  ortools.Constraint
         """
@@ -138,7 +136,7 @@ class ConstraintSolver:
 
     def item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
         """
-        Item adjacency constraint
+        Item adjacency constraint :
         :param i_item:
         :param category: str
         :return: ct:  ortools.Constraint
@@ -152,9 +150,9 @@ class ConstraintSolver:
         ct = (item_adjacency >= 1)
         return ct
 
-    def category_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
+    def components_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
         """
-        Category adjacency constraint
+        components adjacency constraint
         :param i_item:
         :param category: str
         :return: ct:  ortools.Constraint
@@ -162,6 +160,18 @@ class ConstraintSolver:
         ct = (self.solver.Sum(
             self.items_positions[i_item][j] for j, space in enumerate(self.spaces)
             if category in space.immutable_categories_associated()) >= 1)
+        return ct
+
+    def component_non_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
+        """
+        components non adjacency constraint
+        :param i_item:
+        :param category: str
+        :return: ct: ortools.Constraint
+        """
+        ct = (self.solver.Sum(
+            self.items_positions[i_item][j] for j, space in enumerate(self.spaces)
+            if category in space.components_associated()) == 0)
         return ct
 
     def cat1_or_cat2_adjacency_constraint(self, i_item: int, cat1: str, cat2: str) -> ortools.Constraint:
@@ -175,18 +185,6 @@ class ConstraintSolver:
         ct1 = self.category_adjacency_constraint(i_item, cat1)
         ct2 = self.category_adjacency_constraint(i_item, cat2)
         ct = self.or_(ct1, ct2)
-        return ct
-
-    def category_no_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
-        """
-        Category no adjacency constraint
-        :param i_item:
-        :param category: str
-        :return: ct: ortools.Constraint
-        """
-        ct = (self.solver.Sum(
-            self.items_positions[i_item][j] for j, space in enumerate(self.spaces)
-            if category in space.immutable_categories_associated()) == 0)
         return ct
 
     def or_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
@@ -210,12 +208,27 @@ class ConstraintSolver:
         return ct
 
 
+SPACE_PLANNER_CONSTRAINTS = Catalog('space_planner_constraints')
+
+class SpacePlannerConstraint:
+    """
+    Space planner constraint Class
+    """
+    def __init__(self, name: str, sp: 'SpacePlanner'):
+        self.name = name
+        self.sp = sp
+
+    def __repr__(self):
+        # TODO
+        output = 'SpacePlannerConstraint' + self.name
+        return output
+
 class SpacePlanner:
     """
     Space planner Class
     """
 
-    def __init__(self, name: str, spec: 'Specification'):
+    def __init__(self, name: str, spec: 'Specification', contraints: Catalog):
         self.name = name
         self.spec = spec
         logging.debug(spec)
@@ -275,6 +288,7 @@ class SpacePlanner:
 
 
 if __name__ == '__main__':
+
     import libs.reader as reader
     import libs.seed as seed
     from libs.selector import SELECTORS

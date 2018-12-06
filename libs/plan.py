@@ -1097,7 +1097,7 @@ class Space(PlanComponent):
 
         return is_valid
 
-    def immutable_categories_associated(self) -> [str]:
+    def components_associated(self) -> [str]:
         immutable_categories_associated = []
         for edge in self.edges:
             if edge.linear is not None:
