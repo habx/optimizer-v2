@@ -3,10 +3,6 @@
 Grid module
 """
 
-import sys
-import os
-
-sys.path.append(os.path.abspath('../'))
 import argparse
 
 from typing import Tuple, Sequence, Union, TYPE_CHECKING
@@ -203,8 +199,6 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]
-        #input_file="Groslay_A-00-01_oldformat.json"
-        #input_file = "Levallois_Creuze.json"
 
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
