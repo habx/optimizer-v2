@@ -44,10 +44,10 @@ class SpacePlanner:
         self.spec = spec
         print(spec)
         self.solver: ortools.Solver
-        self.planning_constraints: List['SpacePlannerConstraint'] = []
         self.items_positions: Dict[ortools.IntVar] = {}
-        self.nbr_solutions = 0
         self.positions_flat: List[ortools.IntVar] = []
+        self.nbr_solutions = 0
+        self.solutions: Dict[int] = {}
 
     def __repr__(self):
         # TODO
@@ -77,6 +77,7 @@ class SpacePlanner:
 
     def add_item_constraints(self) -> None:
         for i_item, item in enumerate(self.spec.items):
+            self._add_constraint(self._space_adjacency_constraint(i_item))
             if item.category.name == 'living':
                 self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
                 self._add_constraint(self._item_adjacency_constraint(i_item, 'kitchen'))
@@ -107,29 +108,36 @@ class SpacePlanner:
         # Maximum number of solutions
         num_sol = 50000
 
-        num_solutions = 0
-        items_positions_sol = []
         while self.solver.NextSolution():
-            sol_postions = []
+            sol_positions = []
             for i_item, item in enumerate(self.spec.items):  # Rooms
                 print(item.category, ":", [self.items_positions[i_item, j].Value() for j in range(len(self.spaces))])
-                sol_postions.append([])
+                sol_positions.append([])
                 for j_space in range(len(self.spaces)):  # empty and seed spaces
-                    sol_postions[i_item].append(self.items_positions[i_item, j_space].Value())
-                    items_positions_sol.append(sol_postions)
+                    sol_positions[i_item].append(self.items_positions[i_item, j_space].Value())
+                    self.solutions[self.nbr_solutions] = sol_positions
 
             # Number of solutions
-            num_solutions += 1
-            if num_solutions >= num_sol:
+            self.nbr_solutions += 1
+            if self.nbr_solutions >= num_sol:
                 break
 
         self.solver.EndSearch()
 
         print('Statistics')
-        print("num_solutions:", num_solutions)
+        print("num_solutions:", self.nbr_solutions)
         print("failures:", self.solver.Failures())
         print("branches:", self.solver.Branches())
         print("WallTime:", self.solver.WallTime())
+
+    def rooms_building(self):# -> Plan:
+        #plan_solution = copy.deepcopy(self.plan)
+
+        for j_space, space in enumerate(self.spaces):  # empty and seed spaces
+            for i_item, item in enumerate(self.spec.items):  # Rooms
+                if self.solutions[0][i_item][j_space] == 1:
+                    space.category = item.category
+
 
     def _space_attribution_constraint(self, j_space: int) -> ortools.Constraint:
         """
@@ -163,9 +171,22 @@ class SpacePlanner:
                 self.items_positions[i_item, j] * space.area for j, space in enumerate(self.spaces)) >= min_area)
         return ct
 
-    def _item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
+    def _space_adjacency_constraint(self, i_item: int) -> ortools.Constraint:
         """
         Space adjacency constraint
+        :param i_item:
+        :return: ct:  ortools.Constraint
+        """
+        nbr_spaces_in_i_item = sum(self.items_positions[i_item, j] for j in range(len(self.spaces)))
+        spaces_adjacency = self.solver.Sum(
+            self.solver.Sum(int(self.plan.adjacent_spaces(j_space,k_space)) * self.items_positions[i_item, j] * self.items_positions[i_item, k] for j, j_space in enumerate(self.spaces) if j > k)
+            for k, k_space in enumerate(self.spaces))
+        ct = (spaces_adjacency >= nbr_spaces_in_i_item-1)
+        return ct
+
+    def _item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
+        """
+        Item adjacency constraint
         :param i_item:
         :param category: str
         :return: ct:  ortools.Constraint
@@ -250,7 +271,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[6]  # 5 Levallois_Letourneur
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur
         plan = reader.create_plan_from_file(input_file)
 
         seeder = seed.Seeder(plan, seed.GROWTH_METHODS)
@@ -277,6 +298,11 @@ if __name__ == '__main__':
         space_planner.add_spaces_constraints()
         space_planner.add_item_constraints()
         space_planner.solve()
+        space_planner.rooms_building()
+
+        ax = plan.plot(save=True)
+        # seeder.plot_seeds(ax)
+        plt.show()
 
     space_planning()
 

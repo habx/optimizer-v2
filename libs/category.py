@@ -9,11 +9,26 @@ CATEGORIES_COLORS = {
     'loadBearingWall': 'k',
     'window': '#FFCB19',
     'doorWindow': '#FFCB19',
-    'entrance': 'r',
     'frontDoor': 'r',
     'empty': 'b',
     'space': 'b',
-    'seed': '#6a006a'
+    'seed': '#6a006a',
+    'living': 'aquamarine',
+    'dining': 'turquoise',
+    'kitchen': 'paleturquoise',
+    'bedroom': 'mistyrose',  ''
+    'wc': 'cornflowerblue',
+    'bathroom': 'lightskyblue',
+    'circulationSpace': 'lightgray',
+    'entrance': 'r',
+    'dressing': 'pink',
+    'laundry': 'lightsteelblue',
+    'office': 'darkseagreen',
+    'misc':'lightsteelblue',
+    'balcony': 'silver',
+    'terrace': 'silver',
+    'garden': 'green',
+    'loggia': 'silver'
 }
 
 
