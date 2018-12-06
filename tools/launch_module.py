@@ -1,7 +1,6 @@
 import os
 import argparse
 import sys
-sys.path.append(os.path.abspath('../'))
 import libs.reader as reader
 
 #launch specified module no all plan in blueprint
