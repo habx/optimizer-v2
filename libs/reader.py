@@ -6,10 +6,6 @@ from typing import Dict, Sequence, Tuple, List
 import os
 import json
 
-import sys
-
-sys.path.append(os.path.abspath('../'))
-
 import libs.plan as plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
@@ -256,7 +252,7 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
 
     # TODO : ADAPT EXTERNAL SPACES FOR ALL PLANS - temporary dirty fix
-    if (input_file == "Groslay_A-00-01_oldformat.json"):
+    if input_file == "Groslay_A-00-01_oldformat.json":
         external_spaces = _get_external_spaces(floor_plan_dict)
         for external_space in external_spaces:
             if external_space[1] in SPACE_CATEGORIES:
@@ -323,7 +319,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = 'Bussy_A001_setup.json'
-        plan_test = create_plan_from_file(input_file)
+        create_plan_from_file(input_file)
 
         spec = create_specification_from_file(input_file)
         print(spec)
