@@ -26,73 +26,33 @@ from libs.category import SPACE_CATEGORIES
 from ortools.constraint_solver import pywrapcp as ortools
 
 
-class SpacePlanner:
+class ConstraintSolver:
     """
-    Space planner Class
+    Constraint Solver
     """
-    def __init__(self, name: str, plan: 'Plan', spec: 'Specification'):
-        self.name = name
-        self.plan = plan
-        print(plan)
-        self.spaces: List['Space'] = []
-        for space in self.plan.get_spaces():  # empty and seed spaces
-            if space.mutable and space.edge is not None:
-                self.spaces.append(space)
-        print(self.spaces)
-        for j, space in enumerate(self.spaces):
-            print(space.immutable_categories_associated())
-        self.spec = spec
-        print(spec)
-        self.solver: ortools.Solver
-        self.items_positions: Dict[ortools.IntVar] = {}
-        self.positions_flat: List[ortools.IntVar] = []
-        self.nbr_solutions = 0
-        self.solutions: Dict[int] = {}
 
-    def __repr__(self):
-        # TODO
-        output = 'SpacePlanner' + self.name
-        return output
-
-    def init_solver(self) -> None:
-
+    def __init__(self, items_nbr: int, spaces_nbr: int):
+        self.items_nbr = items_nbr
+        self.spaces_nbr = spaces_nbr
         # Create the solver
-        self.solver = ortools.Solver("SpacePlanner" + self.name)
-
+        self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
-        for i_item in range(len(self.spec.items)):
-            for j_space in range(len(self.spaces)):
-                self.items_positions[i_item, j_space] = self.solver.IntVar(0, 1, 'items_positions[{0},{1}]'.format(i_item, j_space))
-
+        self.items_positions: List[List[ortools.IntVar]] = []
+        for i_item in range(self.items_nbr):
+            for j_space in range(self.spaces_nbr):
+                self.items_positions[i_item][j_space] = self.solver.IntVar(0, 1,
+                                                                           'items_positions[{0},{1}]'.format(i_item,
+                                                                                                             j_space))
         # For the decision builder
-        self.positions_flat = [self.items_positions[i_item, j_space] for i_item in range(len(self.spec.items)) for j_space in range(len(self.spaces))]
+        self.positions_flat: List[ortools.IntVar] = []
+        self.positions_flat = [self.items_positions[i_item][j_space] for i_item in range(self.items_nbr) for
+                               j_space in range(self.spaces_nbr)]
 
-    def _add_constraint(self, ct: ortools.Constraint) -> None:
+        self.solutions: Dict[int] = {}  # classe Solution : scoring
+
+    def add_constraint(self, ct: ortools.Constraint) -> None:
         print(ct)
         self.solver.Add(ct)
-
-    def add_spaces_constraints(self) -> None:
-        for j_space in range(len(self.spaces)):
-            self._add_constraint(self._space_attribution_constraint(j_space))
-
-    def add_item_constraints(self) -> None:
-        for i_item, item in enumerate(self.spec.items):
-            self._add_constraint(self._space_adjacency_constraint(i_item))
-            if item.category.name == 'living':
-                self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
-                self._add_constraint(self._item_adjacency_constraint(i_item, 'kitchen'))
-            if item.category.name == 'kitchen':
-                self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
-                self._add_constraint(self._category_adjacency_constraint(i_item, 'duct'))
-                self._add_constraint(self._item_adjacency_constraint(i_item, 'living'))
-            if item.category.name == 'entrance':
-                self._add_constraint(self._category_adjacency_constraint(i_item, 'frontDoor'))
-            if item.category.name == 'bathroom':
-                self._add_constraint(self._category_adjacency_constraint(i_item, 'duct'))
-            if item.category.name == 'wc':
-                self._add_constraint(self._category_adjacency_constraint(i_item, 'duct'))
-            if item.category.name == 'bedroom':
-                self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
 
     def solve(self):
         """
@@ -106,50 +66,41 @@ class SpacePlanner:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        num_sol = 50000
-
+        max_num_sol = 50000
+        nbr_solutions = 0
         while self.solver.NextSolution():
             sol_positions = []
-            for i_item, item in enumerate(self.spec.items):  # Rooms
-                print(item.category, ":", [self.items_positions[i_item, j].Value() for j in range(len(self.spaces))])
+            for i_item in range(self.items_nbr):  # Rooms
+                print(i_item, ":", [self.items_positions[i_item][j].Value() for j in range(self.spaces_nbr)])
                 sol_positions.append([])
-                for j_space in range(len(self.spaces)):  # empty and seed spaces
-                    sol_positions[i_item].append(self.items_positions[i_item, j_space].Value())
-                    self.solutions[self.nbr_solutions] = sol_positions
+                for j_space in range(self.spaces_nbr):  # empty and seed spaces
+                    sol_positions[i_item].append(self.items_positions[i_item][j_space].Value())
+                    self.solutions[nbr_solutions] = sol_positions
 
             # Number of solutions
-            self.nbr_solutions += 1
-            if self.nbr_solutions >= num_sol:
+            nbr_solutions += 1
+            if nbr_solutions >= max_num_sol:
                 break
 
         self.solver.EndSearch()
 
         print('Statistics')
-        print("num_solutions:", self.nbr_solutions)
+        print("num_solutions:", nbr_solutions)
         print("failures:", self.solver.Failures())
         print("branches:", self.solver.Branches())
         print("WallTime:", self.solver.WallTime())
 
-    def rooms_building(self):# -> Plan:
-        #plan_solution = copy.deepcopy(self.plan)
-
-        for j_space, space in enumerate(self.spaces):  # empty and seed spaces
-            for i_item, item in enumerate(self.spec.items):  # Rooms
-                if self.solutions[0][i_item][j_space] == 1:
-                    space.category = item.category
-
-
-    def _space_attribution_constraint(self, j_space: int) -> ortools.Constraint:
+    def space_attribution_constraint(self, j_space: int) -> ortools.Constraint:
         """
         Each space has to be associated with an item and one time only
         :param j_space:
         :return: ct: ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i, j_space] for i in range(len(self.spec.items))) == 1)
+            self.items_positions[i][j_space] for i in range(len(self.spec.items))) == 1)
         return ct
 
-    def _max_area_constraint(self, i_item: int, max_area: float) -> ortools.Constraint:
+    def max_area_constraint(self, i_item: int, max_area: float) -> ortools.Constraint:
         """
         Maximum area constraint
         :param i_item:
@@ -157,10 +108,10 @@ class SpacePlanner:
         :return: ct:  ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i_item, j] * space.area for j, space in enumerate(self.spaces)) <= max_area)
+            self.items_positions[i_item][j] * space.area for j, space in enumerate(self.spaces)) <= max_area)
         return ct
 
-    def _min_area_constraint(self, i_item: int, min_area: float) -> ortools.Constraint:
+    def min_area_constraint(self, i_item: int, min_area: float) -> ortools.Constraint:
         """
         Minimum area constraint
         :param i_item:
@@ -168,23 +119,24 @@ class SpacePlanner:
         :return: ct:  ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i_item, j] * space.area for j, space in enumerate(self.spaces)) >= min_area)
+            self.items_positions[i_item][j] * space.area for j, space in enumerate(self.spaces)) >= min_area)
         return ct
 
-    def _space_adjacency_constraint(self, i_item: int) -> ortools.Constraint:
+    def space_adjacency_constraint(self, i_item: int) -> ortools.Constraint:
         """
         Space adjacency constraint
         :param i_item:
         :return: ct:  ortools.Constraint
         """
-        nbr_spaces_in_i_item = sum(self.items_positions[i_item, j] for j in range(len(self.spaces)))
+        nbr_spaces_in_i_item = sum(self.items_positions[i_item][j] for j in range(len(self.spaces)))
         spaces_adjacency = self.solver.Sum(
-            self.solver.Sum(int(self.plan.adjacent_spaces(j_space,k_space)) * self.items_positions[i_item, j] * self.items_positions[i_item, k] for j, j_space in enumerate(self.spaces) if j > k)
+            self.solver.Sum(int(self.plan.adjacent_spaces(j_space, k_space)) * self.items_positions[i_item][j] *
+                            self.items_positions[i_item][k] for j, j_space in enumerate(self.spaces) if j > k)
             for k, k_space in enumerate(self.spaces))
-        ct = (spaces_adjacency >= nbr_spaces_in_i_item-1)
+        ct = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
         return ct
 
-    def _item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
+    def item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
         """
         Item adjacency constraint
         :param i_item:
@@ -194,12 +146,13 @@ class SpacePlanner:
         for j_item, item in enumerate(self.spec.items):
             if item.category.name == item_category:
                 item_adjacency = self.solver.Sum(
-                    self.solver.Sum(int(self.plan.adjacent_spaces(j_space,k_space)) * self.items_positions[i_item, j] * self.items_positions[j_item, k] for j, j_space in enumerate(self.spaces))
+                    self.solver.Sum(int(self.plan.adjacent_spaces(j_space, k_space)) * self.items_positions[i_item][j] *
+                                    self.items_positions[j_item][k] for j, j_space in enumerate(self.spaces))
                     for k, k_space in enumerate(self.spaces))
         ct = (item_adjacency >= 1)
         return ct
 
-    def _category_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
+    def category_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
         """
         Category adjacency constraint
         :param i_item:
@@ -207,11 +160,11 @@ class SpacePlanner:
         :return: ct:  ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i_item, j] for j, space in enumerate(self.spaces)
-                if category in space.immutable_categories_associated()) >= 1)
+            self.items_positions[i_item][j] for j, space in enumerate(self.spaces)
+            if category in space.immutable_categories_associated()) >= 1)
         return ct
 
-    def _cat1_or_cat2_adjacency_constraint(self, i_item: int, cat1: str, cat2: str) -> ortools.Constraint:
+    def cat1_or_cat2_adjacency_constraint(self, i_item: int, cat1: str, cat2: str) -> ortools.Constraint:
         """
         Category adjacency constraint
         :param i_item:
@@ -219,12 +172,12 @@ class SpacePlanner:
         :param cat2: category 2 str
         :return: ct:  ortools.Constraint
         """
-        ct1 = self._category_adjacency_constraint(i_item, cat1)
-        ct2 = self._category_adjacency_constraint(i_item, cat2)
-        ct = self._or(ct1, ct2)
+        ct1 = self.category_adjacency_constraint(i_item, cat1)
+        ct2 = self.category_adjacency_constraint(i_item, cat2)
+        ct = self.or_(ct1, ct2)
         return ct
 
-    def _category_no_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
+    def category_no_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
         """
         Category no adjacency constraint
         :param i_item:
@@ -232,11 +185,11 @@ class SpacePlanner:
         :return: ct: ortools.Constraint
         """
         ct = (self.solver.Sum(
-            self.items_positions[i_item, j] for j, space in enumerate(self.spaces)
+            self.items_positions[i_item][j] for j, space in enumerate(self.spaces)
             if category in space.immutable_categories_associated()) == 0)
         return ct
 
-    def _or(self, ct1: ortools.Constraint, ct2: ortools.Constraint)-> ortools.Constraint:
+    def or_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
         """
         Or between two constraints
         :param ct1
@@ -246,7 +199,7 @@ class SpacePlanner:
         ct = (self.solver.Max(ct1, ct2) == 1)
         return ct
 
-    def _and(self, ct1: ortools.Constraint, ct2: ortools.Constraint)-> ortools.Constraint:
+    def and_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
         """
         And between two constraints
         :param ct1
@@ -257,14 +210,79 @@ class SpacePlanner:
         return ct
 
 
-if __name__ == '__main__':
+class SpacePlanner:
+    """
+    Space planner Class
+    """
 
+    def __init__(self, name: str, spec: 'Specification'):
+        self.name = name
+        self.spec = spec
+        logging.debug(spec)
+        self.seed_spaces = []
+        for space in self.spec.plan.get_spaces():  # empty and seed spaces
+            if space.mutable and space.edge is not None:
+                self.seed_spaces.append(space)
+                logging.debug(self.seed_spaces)
+                logging.debug(space.immutable_categories_associated())
+        self.constraint_solver = ConstraintSolver(self.spec)
+
+    def __repr__(self):
+        # TODO
+        output = 'SpacePlanner' + self.name
+        return output
+
+    def add_spaces_constraints(self) -> None:
+        for j_space in range(len(self.seed_spaces)):
+            self.constraint_solver.add_constraint(self.constraint_solver.space_attribution_constraint(j_space))
+
+    def add_item_constraints(self) -> None:
+        for i_item, item in enumerate(self.spec.items):
+            self.constraint_solver.add_constraint(self.constraint_solver.space_adjacency_constraint(i_item))
+            if item.category.name == 'living':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.item_adjacency_constraint(i_item, 'kitchen'))
+            if item.category.name == 'kitchen':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.category_adjacency_constraint(i_item, 'duct'))
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.item_adjacency_constraint(i_item, 'living'))
+            if item.category.name == 'entrance':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.category_adjacency_constraint(i_item, 'frontDoor'))
+            if item.category.name == 'bathroom':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.category_adjacency_constraint(i_item, 'duct'))
+            if item.category.name == 'wc':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.category_adjacency_constraint(i_item, 'duct'))
+            if item.category.name == 'bedroom':
+                self.constraint_solver.add_constraint(
+                    self.constraint_solver.cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
+
+    def rooms_building(self):  # -> Plan:
+        # plan_solution = copy.deepcopy(self.plan)
+        self.constraint_solver.solve()
+
+        for j_space, space in enumerate(self.spaces):  # empty and seed spaces
+            for i_item, item in enumerate(self.spec.items):  # Rooms
+                if self.constraint_solver.solutions[0][i_item][j_space] == 1:
+                    space.category = item.category
+
+
+if __name__ == '__main__':
     import libs.reader as reader
     import libs.seed as seed
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
+
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     def space_planning():
         """
@@ -293,16 +311,14 @@ if __name__ == '__main__':
         input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
 
-        space_planner = SpacePlanner('test', plan, spec)
-        space_planner.init_solver()
+        space_planner = SpacePlanner('test', spec)
         space_planner.add_spaces_constraints()
         space_planner.add_item_constraints()
-        space_planner.solve()
         space_planner.rooms_building()
 
         ax = plan.plot(save=True)
         # seeder.plot_seeds(ax)
         plt.show()
 
-    space_planning()
 
+    space_planning()
