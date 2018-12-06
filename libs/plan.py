@@ -1260,7 +1260,6 @@ class SeedSpace(Space):
 
 
 if __name__ == '__main__':
-
     import libs.reader as reader
 
     logging.getLogger().setLevel(logging.DEBUG)
