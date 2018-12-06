@@ -79,9 +79,11 @@ class SpacePlanner:
         for i_item, item in enumerate(self.spec.items):
             if item.category.name == 'living':
                 self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
+                self._add_constraint(self._item_adjacency_constraint(i_item, 'kitchen'))
             if item.category.name == 'kitchen':
                 self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
                 self._add_constraint(self._category_adjacency_constraint(i_item, 'duct'))
+                self._add_constraint(self._item_adjacency_constraint(i_item, 'living'))
             if item.category.name == 'entrance':
                 self._add_constraint(self._category_adjacency_constraint(i_item, 'frontDoor'))
             if item.category.name == 'bathroom':
@@ -92,17 +94,18 @@ class SpacePlanner:
                 self._add_constraint(self._cat1_or_cat2_adjacency_constraint(i_item, 'doorWindow', 'window'))
 
     def solve(self):
-        #
-        # search and solution
-        #
-        print('solve')
+        """
+        search and solution
+        :param j_space:
+        :return: ct: ortools.Constraint
+        """
         # Decision builder
         db = self.solver.Phase(self.positions_flat, self.solver.INT_VAR_DEFAULT, self.solver.ASSIGN_RANDOM_VALUE)
 
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        num_sol = 50
+        num_sol = 50000
 
         num_solutions = 0
         items_positions_sol = []
@@ -112,7 +115,7 @@ class SpacePlanner:
                 print(item.category, ":", [self.items_positions[i_item, j].Value() for j in range(len(self.spaces))])
                 sol_postions.append([])
                 for j_space in range(len(self.spaces)):  # empty and seed spaces
-                    #sol_postions[i_item].append(self.items_positions[i_item, j_space].Value())
+                    sol_postions[i_item].append(self.items_positions[i_item, j_space].Value())
                     items_positions_sol.append(sol_postions)
 
             # Number of solutions
@@ -146,7 +149,7 @@ class SpacePlanner:
         :return: ct:  ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i_item, j]*space.area for j, space in enumerate(self.spaces)) <= max_area)
+                self.items_positions[i_item, j] * space.area for j, space in enumerate(self.spaces)) <= max_area)
         return ct
 
     def _min_area_constraint(self, i_item: int, min_area: float) -> ortools.Constraint:
@@ -157,19 +160,22 @@ class SpacePlanner:
         :return: ct:  ortools.Constraint
         """
         ct = (self.solver.Sum(
-                self.items_positions[i_item, j]*space.area for j, space in enumerate(self.spaces)) >= min_area)
+                self.items_positions[i_item, j] * space.area for j, space in enumerate(self.spaces)) >= min_area)
         return ct
 
-    def _space_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:
+    def _item_adjacency_constraint(self, i_item: int, item_category: str) -> ortools.Constraint:
         """
         Space adjacency constraint
         :param i_item:
         :param category: str
         :return: ct:  ortools.Constraint
         """
-        ct = (self.solver.Sum(
-                self.items_positions[i_item, j] for j, space in enumerate(self.spaces)
-                if category in space.immutable_categories_associated()) >= 1)
+        for j_item, item in enumerate(self.spec.items):
+            if item.category.name == item_category:
+                item_adjacency = self.solver.Sum(
+                    self.solver.Sum(int(self.plan.adjacent_spaces(j_space,k_space)) * self.items_positions[i_item, j] * self.items_positions[j_item, k] for j, j_space in enumerate(self.spaces))
+                    for k, k_space in enumerate(self.spaces))
+        ct = (item_adjacency >= 1)
         return ct
 
     def _category_adjacency_constraint(self, i_item: int, category: str) -> ortools.Constraint:

@@ -212,6 +212,13 @@ class Plan:
         vertices.append(edge.end.coords)
         return LineString(vertices)
 
+    def adjacent_spaces(self, space1: 'Space', space2: 'Space') -> bool:
+        for edge in space1.edges:
+            if edge.pair.face is not None and edge.pair.face.space == space2:
+                    return True
+        return False
+
+
     def plot(self, ax=None, show: bool = False, save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border')):
         """
@@ -1104,9 +1111,12 @@ class Space(PlanComponent):
                     immutable_categories_associated.append(edge.pair.face.space.category.name)
         return immutable_categories_associated
 
-    def neighboring_spaces(self) -> ['Space']:
+    def neighboring_mutable_spaces(self) -> ['Space']:
         neighboring_spaces = []
-        #TODO
+        for edge in self.edges:
+            if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
+                if not (edge.pair.face.space.category.name in neighboring_spaces):
+                    neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
 
