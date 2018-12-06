@@ -201,15 +201,6 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
                 yield edge.pair
 
 
-def seed_empty_test(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns the space reference edge, for test purpose
-    """
-    if not space.category or space.category.name != 'empty':
-        raise ValueError('You should provide an empty component to the query seed_empty!')
-    yield space.edge
-
-
 def space_area(min_area: float = None, max_area: float = None) -> Predicate:
     """
     Predicate factory
@@ -712,8 +703,6 @@ SELECTORS.add(
     Selector(seed_component_boundary, name='surround_seed_component'),
 
     Selector(seed_duct, name='seed_duct'),
-
-    Selector(seed_empty_test, name='seed_empty_test'),
 
     Selector(seed_empty_furthest_couple, name='seed_empty_furthest_couple'),
 
