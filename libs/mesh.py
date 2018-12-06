@@ -42,7 +42,6 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 if TYPE_CHECKING:
     from libs.plan import Space, Linear
 
-
 # MODULE CONSTANTS
 
 # arbitrary value for the length of the line :
@@ -60,6 +59,7 @@ class Vertex:
     """
     Vertex class
     """
+
     def __init__(self, x: float = 0, y: float = 0, edge: 'Edge' = None, mutable: bool = True):
         """
         A simple Vertex class with barycentric capability
@@ -326,8 +326,8 @@ class Vertex:
                 continue
 
             projected_vertex = (transformation.get['projection']
-                                              .config(vector=vector, edge=edge)
-                                              .apply_to(self))
+                                .config(vector=vector, edge=edge)
+                                .apply_to(self))
 
             if projected_vertex is None:
                 continue
@@ -430,7 +430,7 @@ class Vertex:
         length = length or LINE_LENGTH
         vector = normalized_vector(vector)
         # to ensure proper intersection we shift slightly the start point
-        start_point = move_point(self.coords, vector, -1/2 * COORD_EPSILON)
+        start_point = move_point(self.coords, vector, -1 / 2 * COORD_EPSILON)
         end_point = (start_point[0] + vector[0] * length,
                      start_point[1] + vector[1] * length)
         return LineString([start_point, end_point])
@@ -440,6 +440,7 @@ class Edge:
     """
     Half Edge class
     """
+
     def __init__(self,
                  start: Optional[Vertex],
                  next_edge: Optional['Edge'],
@@ -874,8 +875,8 @@ class Edge:
             return 0, 0
 
         x, y = -self.vector[1], self.vector[0]
-        length = math.sqrt(x**2 + y**2)
-        return x/length, y/length
+        length = math.sqrt(x ** 2 + y ** 2)
+        return x / length, y / length
 
     @property
     def max_length(self) -> Optional[float]:
@@ -918,7 +919,7 @@ class Edge:
         """
         vector = self.unit_vector
         end_point = move_point(self.end.coords, vector, COORD_EPSILON)
-        start_point = move_point(self.start.coords, vector, -1*COORD_EPSILON)
+        start_point = move_point(self.start.coords, vector, -1 * COORD_EPSILON)
         return LineString([start_point, end_point])
 
     @property
@@ -1002,7 +1003,7 @@ class Edge:
             edge = edge.space_next
 
     @property
-    def aligned_siblings(self)-> Generator['Edge', 'Edge', None]:
+    def aligned_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
         Returns the edges that are aligned with self and contiguous
         Starts with the edge itself, then all the next ones, then all the previous ones
@@ -1052,6 +1053,16 @@ class Edge:
         :return: bool
         """
         return self.as_sp_dilated.intersects(vertex.as_sp)
+
+    def barycenter(self, coeff: float) -> Vector2d:
+        """
+        Returns True if the edge contains the vertex
+        :return: bool
+        """
+        vertex = (transformation.get['barycenter']
+                  .config(vertex=self.end, coeff=coeff)
+                  .apply_to(self.start))
+        return vertex
 
     def collapse(self):
         """
@@ -1463,8 +1474,8 @@ class Edge:
         :return:
         """
         vertex = (transformation.get['barycenter']
-                                .config(vertex=self.end, coeff=coeff)
-                                .apply_to(self.start))
+                  .config(vertex=self.end, coeff=coeff)
+                  .apply_to(self.start))
         return self.recursive_cut(vertex, angle, traverse=traverse)
 
     def barycenter_cut(self, coeff: float = 0.5,
@@ -1478,8 +1489,8 @@ class Edge:
         """
         # vertex = Vertex().barycenter(self.start, self.end, coeff)
         vertex = (transformation.get['barycenter']
-                                .config(vertex=self.end, coeff=coeff)
-                                .apply_to(self.start))
+                  .config(vertex=self.end, coeff=coeff)
+                  .apply_to(self.start))
         return self.cut(vertex, angle)
 
     def ortho_cut(self) -> TwoEdgesAndAFace:
@@ -1503,8 +1514,8 @@ class Edge:
                 continue
 
             projected_vertex = (transformation.get['projection']
-                                              .config(vector=vector, edge=edge)
-                                              .apply_to(self.start))
+                                .config(vector=vector, edge=edge)
+                                .apply_to(self.start))
             # If we can not project orthogonally on the edge we continue
             if projected_vertex is None:
                 continue
@@ -1519,8 +1530,8 @@ class Edge:
                     continue
 
                 other_projected_vertex = (transformation.get['projection']
-                                                        .config(vector=vector, edge=other_edge)
-                                                        .apply_to(self.start))
+                                          .config(vector=vector, edge=other_edge)
+                                          .apply_to(self.start))
 
                 if other_projected_vertex is None:
                     continue
@@ -1641,8 +1652,8 @@ class Edge:
         """
         # vertex = Vertex().barycenter(self.start, self.end, coeff)
         vertex = (transformation.get['barycenter']
-                                .config(vertex=self.end, coeff=coeff)
-                                .apply_to(self.start))
+                  .config(vertex=self.end, coeff=coeff)
+                  .apply_to(self.start))
         return self.split(vertex)
 
     def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
@@ -1696,6 +1707,7 @@ class Face:
     """
     Face Class
     """
+
     def __init__(self,
                  edge: Optional[Edge],
                  enclosing_mesh: Optional['Mesh'] = None,
@@ -2473,6 +2485,7 @@ class Mesh:
     """
     Mesh Class
     """
+
     def __init__(self, faces: Optional[List[Face]] = None, boundary_edge: Optional[Edge] = None):
         self._faces = faces
         self._boundary_edge = boundary_edge
@@ -2481,7 +2494,7 @@ class Mesh:
         output = 'Mesh:\n'
         for face in self.faces:
             output += face.__repr__() + '\n'
-        return output + '-'*24
+        return output + '-' * 24
 
     @property
     def faces(self) -> List[Face]:
@@ -2754,6 +2767,7 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
 
+
     def plot():
         """
         Plot a graph
@@ -2768,8 +2782,8 @@ if __name__ == '__main__':
         mesh.plot(save=False)
         plt.show()
 
-    # plot()
 
+    # plot()
 
     def merge_two_faces_edge():
         """
@@ -2793,6 +2807,7 @@ if __name__ == '__main__':
         new_face.clean()
         mesh.check()
 
+
     # merge_two_faces_edge()
 
     def simplify_mesh():
@@ -2810,6 +2825,7 @@ if __name__ == '__main__':
         plt.show()
 
         mesh.check()
+
 
     # simplify_mesh()
 
@@ -2832,5 +2848,6 @@ if __name__ == '__main__':
         plt.show()
 
         mesh.check()
+
 
     simplify_mesh_triangle()

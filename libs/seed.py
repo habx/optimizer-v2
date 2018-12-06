@@ -11,18 +11,13 @@ These actions are stored in the seed category of the space or linear
 
 """
 
-import sys
-import os
-
-import argparse
-
-sys.path.append(os.path.abspath('../'))
-
 from typing import Tuple, TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
 import logging
 import copy
 
 import matplotlib.pyplot as plt
+
+import argparse
 
 from libs.plan import Space, PlanComponent, Plan, Linear, SeedSpace
 from libs.plot import plot_point, Plot
@@ -30,7 +25,6 @@ from libs.size import Size
 from libs.utils.catalog import Catalog
 from libs.action import Action
 
-from libs.category import SPACE_CATEGORIES
 from libs.constraint import CONSTRAINTS
 from libs.selector import SELECTORS
 from libs.mutation import MUTATIONS
@@ -78,8 +72,8 @@ class Filler:
                 seeder.add_condition(_selector, _category)
                 seeder.plant_category_space(_category)
                 seeder.grow()
-                self.plan.remove_none_edge_spaces()
-                num_spaces_to_fill = plan.count_category_spaces(_category)
+                self.plan.remove_null_spaces()
+                num_spaces_to_fill = plan.count_category_spaces("empty")
 
 
 class Seeder:
@@ -102,7 +96,7 @@ class Seeder:
 
     def plant_category_space(self, category):
         """
-        Creates the seeds in spaces with given category
+        Creates the seeds in spaces with a given category
         :return:
         """
         for component in self.plan.get_component():
@@ -497,7 +491,7 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
-    from libs.shuffle import few_corner_shuffle, SHUFFLES
+    from libs.shuffle import SHUFFLES
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -515,13 +509,6 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_A22.json"
-        # input_file = "Levallois_Letourneur.json"
-        # input_file = "Noisy_A318.json"
-        # input_file = "Groslay_A-00-01_oldformat.json"
-        # input_file = "Bussy_A101.json"
-        # input_file = "Sartrouville_RDC.json"
-        #input_file = "Vernouillet_A003.json"
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -537,9 +524,8 @@ if __name__ == '__main__':
         seeder.plot_seeds(ax)
         plt.title("seeding points")
         plt.show()
-        # input("STOP HERE")
 
-        plan.remove_none_edge_spaces()
+        plan.remove_null_spaces()
 
         seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
         seed_empty_area_max_100000 = SELECTORS['area_max=100000']

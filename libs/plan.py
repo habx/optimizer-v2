@@ -6,12 +6,6 @@ Creates the following classes:
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
 """
-
-import sys
-import os
-
-sys.path.append(os.path.abspath('../'))
-
 from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
 import logging
 import matplotlib.pyplot as plt
@@ -255,7 +249,7 @@ class Plan:
 
         return is_valid
 
-    def remove_none_edge_spaces(self):
+    def remove_null_spaces(self):
         """
         Remove from the plan spaces with no edge reference
         :return:
@@ -269,7 +263,7 @@ class Plan:
         for space in space_to_remove:
             self.remove_space(space)
 
-    def count_category_spaces(self,category):
+    def count_category_spaces(self, category):
         """
         count the number of spaces with given category
         :return:
@@ -301,7 +295,6 @@ class PlanComponent:
         self.plan = plan
         self.edge = edge
         self.category: Union[SpaceCategory, LinearCategory] = None
-    # self.exteriors
 
 
 class Space(PlanComponent):
@@ -1279,16 +1272,10 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Vernouillet_A002.json"
         input_file = "Groslay_A-00-01_oldformat.json"
-        # input_file = "Levallois_Creuze.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
-
-        for space in plan.spaces:
-            if space.category.external:
-                print("external space :", space.category.name, " with area", space.area)
 
         plt.show()
 

@@ -278,6 +278,7 @@ def seed_empty_furthest_couple(space: 'Space', *_) -> Generator['Edge', bool, No
     for edge in kept_edges:
         yield edge
 
+
 def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns for a given space the two edges that are most far from one another, based on their middle
@@ -294,8 +295,8 @@ def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', b
         d_max_edge = 0
         edge_far = None
         for edge_sibling in edge.space_siblings:
-            edge_start_sp = edge.start.as_sp
-            d_tmp = edge_sibling.start.as_sp.distance(edge_start_sp)
+            edge_start_middle_sp = edge.middle.as_sp
+            d_tmp = edge_sibling.middle.as_sp.distance(edge_start_middle_sp)
             if d_tmp > d_max_edge:
                 d_max_edge = d_tmp
                 edge_far = edge_sibling
@@ -305,6 +306,7 @@ def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', b
 
     for edge in kept_edges:
         yield edge
+
 
 def corner_stone(edge: 'Edge') -> bool:
     """
