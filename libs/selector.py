@@ -295,8 +295,8 @@ def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', b
         d_max_edge = 0
         edge_far = None
         for edge_sibling in edge.space_siblings:
-            edge_start_middle_sp = edge.middle.as_sp
-            d_tmp = edge_sibling.middle.as_sp.distance(edge_start_middle_sp)
+            edge_start_middle_sp = edge.barycenter(0.5).as_sp
+            d_tmp = edge_sibling.barycenter(0.5).as_sp.distance(edge_start_middle_sp)
             if d_tmp > d_max_edge:
                 d_max_edge = d_tmp
                 edge_far = edge_sibling
