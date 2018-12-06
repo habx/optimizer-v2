@@ -221,32 +221,12 @@ def space_area(min_area: float = None, max_area: float = None) -> Predicate:
     return _predicate
 
 
-def space_area_TEST(min_area: float = None, max_area: float = None) -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge belongs to a space with area in a range
-    :param min_area:
-    :param max_area
-    :return:
-    """
-
-    def _predicate(edge: 'Edge') -> bool:
-        if min_area is not None and max_area is not None:
-            return min_area <= edge.space.area <= max_area
-        if min_area is not None:
-            return edge.space.area >= min_area
-        if max_area is not None:
-            return edge.space.area <= max_area
-
-    return _predicate
-
-
 def seed_empty_furthest_couple(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns for a given space the two edges that are most far from one another, basde on their start vertex
     :return:
     """
-    if not space.category or space.category.name != 'empty' or space.as_sp == None:
+    if not space.category or space.category.name != 'empty' or space.as_sp is None:
         raise ValueError('You should provide an empty component, with a reference edge, to the query seed_empty!')
     if space.as_sp.geom_type != 'Polygon':
         raise ValueError('The space on which action is led should be a polygon!')
@@ -275,7 +255,7 @@ def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', b
     Returns for a given space the two edges that are most far from one another, based on their middle
     :return:
     """
-    if not space.category or space.category.name != 'empty' or space.as_sp == None:
+    if not space.category or space.category.name != 'empty' or space.as_sp is None:
         raise ValueError('You should provide an empty component, with a reference edge, to the query seed_empty!')
     if space.as_sp.geom_type != 'Polygon':
         raise ValueError('The space on which action is led should be a polygon!')
@@ -712,7 +692,7 @@ SELECTORS.add(
     Selector(seed_empty_furthest_couple_middle, [space_area(min_area=100000)],
              name='seed_empty_furthest_couple_middle_space_area_min_100000'),
 
-    Selector(boundary_unique, [space_area_TEST(max_area=100000)], name='area_max=100000'),
+    Selector(boundary_unique, [space_area(max_area=100000)], name='area_max=100000'),
 
     Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),
              'other_space_boundary')
