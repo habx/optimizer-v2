@@ -18,7 +18,7 @@ import argparse
 
 sys.path.append(os.path.abspath('../'))
 
-from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
+from typing import Tuple, TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
 import logging
 import copy
 
@@ -45,6 +45,43 @@ if TYPE_CHECKING:
 EPSILON_MAX_SIZE = 10.0
 
 
+class Filler:
+    """
+    Filler Class
+    """
+
+    def __init__(self, plan: Plan, seed_methods: List[Tuple['Selector', 'Catalog', str]], show: bool = False):
+        self.plan = plan
+        self.seed_methods = seed_methods
+        self.plot = None
+        self.show = show
+
+    def __repr__(self):
+        output = 'Filler:\n'
+        for seed_method in self.seed_methods:
+            _selector, _grow_method, _category = seed_method
+            output += '• ' + _selector.__repr__() + '\n'
+            output += '• ' + _grow_method.__repr__() + '\n'
+            output += '• ' + _category.__repr__() + '\n'
+        return output
+
+    def apply_to(self, plan):
+        """
+        Applies a succession of seed sets and growth
+        :return:
+        """
+        num_spaces_to_fill = plan.count_category_spaces("empty")
+        while num_spaces_to_fill > 0:
+            for seed_method in self.seed_methods:
+                _selector, _grow_method, _category = seed_method
+                seeder = Seeder(plan, _grow_method)
+                seeder.add_condition(_selector, _category)
+                seeder.plant_category_space(_category)
+                seeder.grow()
+                self.plan.remove_none_edge_spaces()
+                num_spaces_to_fill = plan.count_category_spaces(_category)
+
+
 class Seeder:
     """
     Seeder Class
@@ -63,6 +100,19 @@ class Seeder:
             output += '• ' + seed.__repr__() + '\n'
         return output
 
+    def plant_category_space(self, category):
+        """
+        Creates the seeds in spaces with given category
+        :return:
+        """
+        for component in self.plan.get_component():
+            if component.category.seedable and component.category.name == category:
+
+                if isinstance(component, Space):
+                    for edge in self.space_seed_edges(component):
+                        seed_edge = edge
+                        self.add_seed(seed_edge, component)
+
     def plant(self):
         """
         Creates the seeds
@@ -79,19 +129,6 @@ class Seeder:
                 if isinstance(component, Linear):
                     seed_edge = component.edge
                     self.add_seed(seed_edge, component)
-
-    def plant_empty_space(self):
-        """
-        Creates the seeds
-        :return:
-        """
-        for component in self.plan.get_component():
-            if component.category.seedable and component.category.name == "empty":
-
-                if isinstance(component, Space):
-                    for edge in self.space_seed_edges(component):
-                        seed_edge = edge
-                        self.add_seed(seed_edge, component)
 
     def merge(self, edge: 'Edge', component: 'PlanComponent') -> bool:
         """
@@ -129,7 +166,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    #input("Press Enter to continue...")
+                    # input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -453,6 +490,9 @@ GROWTH_METHODS = Catalog('seeds').add(
     duct_seed_category,
     front_door_seed_category)
 
+GROWTH_METHODS_CLASSIC = Catalog('seeds').add(
+    classic_seed_category)
+
 if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
@@ -469,27 +509,6 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
 
-    def remove_empty_spaces(plan):
-        #TODO : if meaningful add this method to the methods of class plan
-        space_to_remove = []
-        for space in plan.spaces:
-            if space.edge is None:
-                space_to_remove.append(space)
-            else:
-                space.category.seedable = True  # make all remaining spaces seedable so as to grow seeds in the whole plan
-        for space in space_to_remove:
-            plan.remove_space(space)
-
-
-    def count_empty_spaces(plan):
-        #TODO : if meaningful add this method to the methods of class plan
-        num = 0
-        for space in plan.spaces:
-            if space.category.name == "empty":
-                num += 1
-        return num
-
-
     def grow_a_plan():
         """
         Test
@@ -497,9 +516,12 @@ if __name__ == '__main__':
         """
         input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
         input_file = "Antony_A22.json"
-        #input_file = "Levallois_Letourneur.json"
-        #input_file = "Noisy_A318.json"
-        #input_file = "Groslay_A-00-01_oldformat.json"
+        # input_file = "Levallois_Letourneur.json"
+        # input_file = "Noisy_A318.json"
+        # input_file = "Groslay_A-00-01_oldformat.json"
+        # input_file = "Bussy_A101.json"
+        # input_file = "Sartrouville_RDC.json"
+        #input_file = "Vernouillet_A003.json"
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -508,41 +530,40 @@ if __name__ == '__main__':
 
         seeder.plant()
         seeder.grow(show=True)
-        ax = plan.plot(save=True)
+        plan.plot(save=False)
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        ax = plan.plot(save=True)
+        ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
         plt.title("seeding points")
         plt.show()
-        input("STOP HERE")
+        # input("STOP HERE")
 
-        logging.info("nb spaces before removal : {0}".format(len(plan.spaces)))
+        plan.remove_none_edge_spaces()
 
-        remove_empty_spaces(plan)
+        seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
+        seed_methods = [
+            (
+                seed_empty_furthest_couple,
+                GROWTH_METHODS_CLASSIC,
+                "empty"
+            ),
+            (
+                seed_empty_area_max_100000,
+                GROWTH_METHODS_CLASSIC,
+                "empty"
+            )
+        ]
 
-        logging.info("nb spaces after removal : {0}".format(len(plan.spaces)))
+        filler = Filler(plan, seed_methods)
+        filler.apply_to(plan)
 
-        num_empty_spaces = count_empty_spaces(plan)
-        while num_empty_spaces > 0:
-            seeder_empty_case = Seeder(plan, GROWTH_METHODS)
-            #seeder_empty_case.add_condition(SELECTORS['seed_empty_test'], 'empty')
-            seeder_empty_case.add_condition(SELECTORS['seed_empty_furthest_naive_couple'], 'empty')
-            seeder_empty_case.plant_empty_space()
-            seeder_empty_case.grow(show=True)
-            ax = plan.plot(save=True)
-            #SHUFFLES['square_shape'].run(plan, show=True)
-            seeder.plot_seeds(ax)
-            plt.title("seeding points")
-            plt.show()
-            input("STOP HERE")
-            remove_empty_spaces(plan)
-            num_empty_spaces = count_empty_spaces(plan)
-            print("num_empty_spaces", num_empty_spaces)
-            #input("press enter")
+        logging.info("num_mutable_spaces : {0}".format(plan.count_mutable_spaces()))
 
         SHUFFLES['square_shape'].run(plan, show=True)
-        ax = plan.plot(save=True)
+        plan.plot(save=True)
+
         assert plan.check()
 
 

@@ -255,6 +255,42 @@ class Plan:
 
         return is_valid
 
+    def remove_none_edge_spaces(self):
+        """
+        Remove from the plan spaces with no edge reference
+        :return:
+        """
+        space_to_remove = []
+        for space in self.spaces:
+            if space.edge is None:
+                space_to_remove.append(space)
+            else:
+                space.category.seedable = True  # make all remaining spaces seedable so as to grow seeds in the whole plan
+        for space in space_to_remove:
+            self.remove_space(space)
+
+    def count_category_spaces(self,category):
+        """
+        count the number of spaces with given category
+        :return:
+        """
+        num = 0
+        for space in self.spaces:
+            if space.category.name == category:
+                num += 1
+        return num
+
+    def count_mutable_spaces(plan):
+        """
+        count the number of mutable spaces
+        :return:
+        """
+        num = 0
+        for space in plan.spaces:
+            if space.category.mutable:
+                num += 1
+        return num
+
 
 class PlanComponent:
     """
@@ -1245,7 +1281,7 @@ if __name__ == '__main__':
         """
         input_file = "Vernouillet_A002.json"
         input_file = "Groslay_A-00-01_oldformat.json"
-        #input_file = "Levallois_Creuze.json"
+        # input_file = "Levallois_Creuze.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
