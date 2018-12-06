@@ -53,4 +53,5 @@ class Item:
         self.adjacencies = adjacencies
 
     def __repr__(self):
-        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + str(self.min_size) + ', ' + str(self.max_size).__repr__()
+        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + str(self.min_size) + ', ' + str(
+            self.max_size).__repr__()
