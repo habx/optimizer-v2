@@ -32,6 +32,7 @@ def test_grow_a_plan(input_file):
     few_corner_shuffle.run(plan, show=True)
 
     plan.remove_null_spaces()
+    plan.make_space_seedable("empty")
 
     seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
     seed_empty_area_max_100000 = SELECTORS['area_max=100000']
