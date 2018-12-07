@@ -9,6 +9,9 @@ to specified rules.
 After being planted the seeds can be grown according to provided actions.
 These actions are stored in the seed category of the space or linear
 
+Remaining empty spaces of the plan are seeded as well through a filler. Operation is performed
+until the space is totally filled
+
 """
 
 from typing import Tuple, TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
@@ -73,6 +76,7 @@ class Filler:
                 seeder.plant_category_space(_category)
                 seeder.grow()
                 self.plan.remove_null_spaces()
+                plan.make_space_seedable("empty")
                 num_spaces_to_fill = plan.count_category_spaces("empty")
 
 
@@ -527,9 +531,10 @@ if __name__ == '__main__':
         plt.show()
 
         plan.remove_null_spaces()
+        plan.make_space_seedable("empty")
 
-#       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
-#       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
+        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
         seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_space_area_min_100000']
         seed_empty_area_max_100000 = SELECTORS['area_max=100000']
         seed_methods = [
