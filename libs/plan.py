@@ -258,10 +258,17 @@ class Plan:
         for space in self.spaces:
             if space.edge is None:
                 space_to_remove.append(space)
-            else:
-                space.category.seedable = True  # make all remaining spaces seedable so as to grow seeds in the whole plan
         for space in space_to_remove:
             self.remove_space(space)
+
+    def make_space_seedable(self, category):
+        """
+        Make seedable spaces with specified category name
+        :return:
+        """
+        for space in self.spaces:
+            if space.category.name == category:
+                space.category.seedable = True
 
     def count_category_spaces(self, category):
         """
