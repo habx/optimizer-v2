@@ -1,11 +1,19 @@
 {
   "setup": [
     {
-      "type": "livingKitchen",
+      "type": "living",
       "variant": "m",
       "requiredArea": {
-        "min": 360000,
-        "max": 440000
+        "min": 200000,
+        "max": 300000
+      }
+    },
+        {
+      "type": "kitchen",
+      "variant": "m",
+      "requiredArea": {
+        "min": 100000,
+        "max": 200000
       }
     },
     {

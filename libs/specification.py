@@ -22,10 +22,12 @@ class Specification:
 
     def __repr__(self):
         output = 'Specification: ' + self.name + '\n'
-        i = 1
+        i = 0
         for item in self.items:
-            output += str(i) + ' • ' + item.__repr__() + '\n'
+            item.number = i
+            output += str(item.number) + ' • ' + item.__repr__() + '\n'
             i += 1
+
         return output
 
     @property
@@ -69,6 +71,7 @@ class Item:
         self.min_size = min_size
         self.max_size = max_size
         self.adjacencies = adjacencies
+        self.number = 0
 
     def __repr__(self):
         return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.min_size.__repr__()
