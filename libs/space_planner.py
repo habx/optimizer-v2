@@ -96,9 +96,12 @@ class ConstraintsManager:
         self.constraint_solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.seed_spaces))
         self.symmetry_breaker_memo = {}
 
-    def add_(self, constraint_func: Callable, **kwargs):
-        print(constraint_func)
-        print(kwargs)
+    def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs):
+        print('kwargs', kwargs)
+        if kwargs is not {}:
+            kwargs = {'item': item, **kwargs}
+        else:
+            kwargs = {'item': item}
         self.constraint_solver.add_constraint(constraint_func(self, **kwargs))
 
     def or_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
@@ -292,6 +295,10 @@ class SpacePlanner:
         self.constraints_manager = ConstraintsManager(self)
         self.SPACE_PLANNER_CONSTRAINTS = {}
         self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'] = {
+            'all': [
+                [inside_adjacency_constraint, {}],
+                [area_constraint, {'min_max': 'min'}]
+            ],
             'entrance': [
                 [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}]
             ],
@@ -299,7 +306,7 @@ class SpacePlanner:
                 [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
                 [components_adjacency_constraint,
                  {'category': ['doorWindow', 'window'], 'adj': False, 'addition_rule': 'And'}],
-                [symmetry_breaker_constraint, None]
+                [symmetry_breaker_constraint, {}]
             ],
             'living': [
                 [components_adjacency_constraint,
@@ -315,13 +322,13 @@ class SpacePlanner:
             'bathroom': [
                 [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
                 [area_constraint, {'min_max': 'max'}],
-                [symmetry_breaker_constraint, None]
+                [symmetry_breaker_constraint, {}]
             ],
             'bedroom': [
                 [components_adjacency_constraint,
                  {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
                 [area_constraint, {'min_max': 'max'}],
-                [symmetry_breaker_constraint, None]
+                [symmetry_breaker_constraint, {}]
             ]
         }
 
@@ -339,17 +346,11 @@ class SpacePlanner:
 
     def add_item_constraints(self) -> None:
         for item in self.spec.items:
-            self.constraints_manager.constraint_solver.add_constraint(
-                inside_adjacency_constraint(self.constraints_manager, item))
-            self.constraints_manager.constraint_solver.add_constraint(
-                area_constraint(self.constraints_manager, item, 'min'))
+            for constraint in self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints']['all']:
+                self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'][
                 item.category.name]:
-                if constraint[1] is not None:
-                    kwargs = {'item': item, **constraint[1]}
-                else:
-                    kwargs = {'item': item}
-                self.constraints_manager.add_(constraint[0], **kwargs)
+                self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
 
     def rooms_building(self):  # -> Plan:
         # plan_solution = copy.deepcopy(self.plan)
