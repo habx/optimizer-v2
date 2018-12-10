@@ -10,15 +10,10 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
-from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
+from typing import List, Dict, Callable
 import logging
-import copy
-
 import matplotlib.pyplot as plt
-
 from libs.specification import Specification, Item
-from libs.utils.catalog import Catalog
-
 from ortools.constraint_solver import pywrapcp as ortools
 
 
@@ -48,6 +43,7 @@ class ConstraintSolver:
         self.solutions: Dict[int] = {}  # classe Solution : scoring
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
+        print(ct)
         if ct is not None:
             self.solver.Add(ct)
 
@@ -88,7 +84,7 @@ class ConstraintSolver:
         print("WallTime:", self.solver.WallTime())
 
 
-class SP_Constraint:
+class ConstraintsManager:
     """
     Space planner constraint Class
     """
@@ -96,154 +92,185 @@ class SP_Constraint:
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
         self.name = name
         self.sp = sp
+
+        self.constraint_solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.seed_spaces))
         self.symmetry_breaker_memo = {}
 
-    def _add(self, ct: ortools.Constraint):
-        if ct is not None:
-            self.sp.constraint_solver.add_constraint(ct)
+    def add_(self, constraint_func: Callable, **kwargs):
+        print(constraint_func)
+        print(kwargs)
+        self.constraint_solver.add_constraint(constraint_func(self, **kwargs))
 
     def or_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
         """
         Or between two constraints
         :return: ct: Constraint
         """
-        ct = (self.sp.constraint_solver.solver.Max(ct1, ct2) == 1)
+        ct = (self.constraint_solver.solver.Max(ct1, ct2) == 1)
         return ct
 
-    def and_(self,  ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
+    def and_(self, ct1: ortools.Constraint, ct2: ortools.Constraint) -> ortools.Constraint:
         """
         And between two constraints
         :return: ct: ortools.Constraint
         """
-        ct = (self.sp.constraint_solver.solver.Min(ct1, ct2) == 1)
+        ct = (self.constraint_solver.solver.Min(ct1, ct2) == 1)
         return ct
 
 
-def space_attribution_constraint(spc: 'SP_Constraint', j_space: int) -> ortools.Constraint:
+def space_attribution_constraint(constraints_manager: 'ConstraintsManager',
+                                 j_space: int) -> ortools.Constraint:
     """
     Each space has to be associated with an item and one time only
-    :param j_space:
+    :param constraints_manager: 'ConstraintsManager'
+    :param j_space: int
     :return: ct: ortools.Constraint
     """
-    ct = (spc.sp.constraint_solver.solver.Sum(spc.sp.constraint_solver.positions[i, j_space]
-                                          for i in range(len(spc.sp.spec.items))) == 1)
+    ct = (constraints_manager.constraint_solver.solver.Sum(
+        constraints_manager.constraint_solver.positions[i, j_space]
+        for i in range(len(constraints_manager.sp.spec.items))) == 1)
     return ct
 
 
-def area_constraint(spc: 'SP_Constraint', item: Item, min_max: str) -> ortools.Constraint:
+def area_constraint(constraints_manager: 'ConstraintsManager', item: Item,
+                    min_max: str) -> ortools.Constraint:
     """
     Maximum area constraint
-    :param i_item:
-    :param max_area: float
-    :return: ct:  ortools.Constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :param min_max: str
+    :return: ct: ortools.Constraint
     """
+    ct = None
     if min_max == 'max':
-        ct = (spc.sp.constraint_solver.solver.Sum(
-            spc.sp.constraint_solver.positions[item.number, j] * int(space.area) for
+        ct = (constraints_manager.constraint_solver.solver.Sum(
+            constraints_manager.constraint_solver.positions[item.number, j] * int(space.area) for
             j, space in
-            enumerate(spc.sp.seed_spaces)) <= int(item.max_size.area * 4 / 3))
+            enumerate(constraints_manager.sp.seed_spaces)) <= int(item.max_size.area * 4 / 3))
     elif min_max == 'min':
-        ct = (spc.sp.constraint_solver.solver.Sum(
-            spc.sp.constraint_solver.positions[item.number, j] * int(space.area) for
+        ct = (constraints_manager.constraint_solver.solver.Sum(
+            constraints_manager.constraint_solver.positions[item.number, j] * int(space.area) for
             j, space in
-            enumerate(spc.sp.seed_spaces)) >= int(item.min_size.area * 2 / 3))
+            enumerate(constraints_manager.sp.seed_spaces)) >= int(item.min_size.area * 2 / 3))
     else:
         ValueError('AreaConstraint')
 
     return ct
 
 
-def symmetry_breaker_constraint(spc: 'SP_Constraint', item: Item, spc_factory : SP_Constraint) -> ortools.Constraint:
+def symmetry_breaker_constraint(constraints_manager: 'ConstraintsManager',
+                                item: Item) -> ortools.Constraint:
     """
     Symmetry Breaker constraint
-    :param item:
-    :return: ct:  ortools.Constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
     """
     ct = None
-    if not (item.category.name in spc_factory.symmetry_breaker_memo):
-        spc_factory.symmetry_breaker_memo[item.category.name] = item.number
+    if not (item.category.name in constraints_manager.symmetry_breaker_memo):
+        constraints_manager.symmetry_breaker_memo[item.category.name] = item.number
     else:
-        for j in range(len(spc.sp.seed_spaces)):
-            for k in range(len(spc.sp.seed_spaces)):
+        for j in range(len(constraints_manager.sp.seed_spaces)):
+            for k in range(len(constraints_manager.sp.seed_spaces)):
                 if k < j:
-                    ct = (spc.sp.constraint_solver.positions[
-                              spc_factory.symmetry_breaker_memo[item.category.name], j] *
-                          spc.sp.constraint_solver.positions[item.number, k] == 0)
-                spc_factory.symmetry_breaker_memo[item.category.name] = item.number
+                    ct = (constraints_manager.constraint_solver.positions[
+                              constraints_manager.symmetry_breaker_memo[item.category.name], j] *
+                          constraints_manager.constraint_solver.positions[item.number, k] == 0)
+                constraints_manager.symmetry_breaker_memo[item.category.name] = item.number
 
-    print('memo', spc_factory.symmetry_breaker_memo)
+    print('memo', constraints_manager.symmetry_breaker_memo)
 
     return ct
 
 
-
-def inside_adjacency_constraint(spc: 'SP_Constraint', item: Item) -> ortools.Constraint:
+def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
+                                item: Item) -> ortools.Constraint:
     """
     Space adjacency constraint inside a given item
-    :param i_item:
-    :return: ct:  ortools.Constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
     """
     nbr_spaces_in_i_item = sum(
-        spc.sp.constraint_solver.positions[item.number, j] for j in
-        range(len(spc.sp.seed_spaces)))
-    spaces_adjacency = spc.sp.constraint_solver.solver.Sum(
-        spc.sp.constraint_solver.solver.Sum(
-            int(spc.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
-            spc.sp.constraint_solver.positions[item.number, j] *
-            spc.sp.constraint_solver.positions[item.number, k] for
-            j, j_space in enumerate(spc.sp.seed_spaces) if j > k)
-        for k, k_space in enumerate(spc.sp.seed_spaces))
+        constraints_manager.constraint_solver.positions[item.number, j] for j in
+        range(len(constraints_manager.sp.seed_spaces)))
+    spaces_adjacency = constraints_manager.constraint_solver.solver.Sum(
+        constraints_manager.constraint_solver.solver.Sum(
+            int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
+            constraints_manager.constraint_solver.positions[item.number, j] *
+            constraints_manager.constraint_solver.positions[item.number, k] for
+            j, j_space in enumerate(constraints_manager.sp.seed_spaces) if j > k)
+        for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
     ct = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
     return ct
 
 
-def item_adjacency_constraint(spc: 'SP_Constraint', item: Item, item_category: str) -> ortools.Constraint:
+def item_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: Item,
+                              item_category: str) -> ortools.Constraint:
     """
     Item adjacency constraint :
-    :param item_category: str
-    :return: ct:  ortools.Constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :param item_category : str
+    :return: ct: ortools.Constraint
     """
     item_adjacency = 0
-    for num, num_item in enumerate(spc.sp.spec.items):
+    for num, num_item in enumerate(constraints_manager.sp.spec.items):
         if num_item.category.name == item_category:
-            item_adjacency += spc.sp.constraint_solver.solver.Sum(
-                spc.sp.constraint_solver.solver.Sum(
-                    int(spc.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
-                    spc.sp.constraint_solver.positions[item.number, j] *
-                    spc.sp.constraint_solver.positions[num, k] for
-                    j, j_space in enumerate(spc.sp.seed_spaces))
-                for k, k_space in enumerate(spc.sp.seed_spaces))
+            item_adjacency += constraints_manager.constraint_solver.solver.Sum(
+                constraints_manager.constraint_solver.solver.Sum(
+                    int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
+                    constraints_manager.constraint_solver.positions[item.number, j] *
+                    constraints_manager.constraint_solver.positions[num, k] for
+                    j, j_space in enumerate(constraints_manager.sp.seed_spaces))
+                for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
     ct = (item_adjacency >= 1)
     return ct
 
 
-def components_adjacency_constraint(spc: 'SP_Constraint', item: Item, category: List[str], adj: bool) -> ortools.Constraint:
+def components_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: Item,
+                                    category: List[str],
+                                    adj: bool, addition_rule: str = '') -> ortools.Constraint:
     """
-    components adjacency constraint
+    Components adjacency constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :param category: List[str]
     :param adj: bool
-    :param category: str
-    :return: ct:  ortools.Constraint
+    :param addition_rule: str
+    :return: ct: ortools.Constraint
     """
-    adjacency_sum = spc.sp.constraint_solver.solver.Sum(
-        spc.sp.constraint_solver.positions[item.number, j] for j, space in
-        enumerate(spc.sp.seed_spaces)
-        if category in space.components_associated())
-    if adj:
-        return adjacency_sum >= 1
-    else:
-        return adjacency_sum == 0
+    ct = None
+    print('category', category)
+    print('adj', adj)
+    print('addition_rule', addition_rule)
+    for c, cat in enumerate(category):
+        adjacency_sum = constraints_manager.constraint_solver.solver.Sum(
+            constraints_manager.constraint_solver.positions[item.number, j] for j, space in
+            enumerate(constraints_manager.sp.seed_spaces) if
+            cat in space.components_associated())
+        if c == 0:
+            if adj:
+                ct = (adjacency_sum >= 1)
+            else:
+                ct = (adjacency_sum == 0)
+        else:
+            if adj:
+                if addition_rule == 'Or':
+                    ct = constraints_manager.or_(ct, (adjacency_sum >= 1))
+                elif addition_rule == 'And':
+                    ct = constraints_manager.and_(ct, (adjacency_sum >= 1))
+                else:
+                    ValueError('ComponentsAdjacencyConstraint')
+            else:
+                if addition_rule == 'Or':
+                    ct = constraints_manager.or_(ct, (adjacency_sum == 0))
+                elif addition_rule == 'And':
+                    ct = constraints_manager.and_(ct, (adjacency_sum == 0))
+                else:
+                    ValueError('ComponentsAdjacencyConstraint')
 
-
-SPACE_PLANNER_CONSTRAINTS = Catalog('space_planner_constraints')
-
-T1_T2_SP_CONSTRAINTS = Catalog('T1_T2_sp_constraints')
-LIVING_T1_T2 = {'living',
-                [Or_(self,
-                     ComponentsAdjacencyConstraint(self, item, ['doorWindow'], True).constraint,
-                     ComponentsAdjacencyConstraint(self, item, ['window'], True).constraint),
-                 ItemAdjacencyConstraint(self, item, 'kitchen')]}
-
-T3_T4_SP_CONSTRAINTS = Catalog('T3_T4_sp_constraints')
+    return ct
 
 
 class SpacePlanner:
@@ -262,8 +289,43 @@ class SpacePlanner:
                 self.seed_spaces.append(space)
                 logging.debug(self.seed_spaces)
                 logging.debug(space.components_associated())
-        self.constraint_solver = ConstraintSolver(len(self.spec.items), len(self.seed_spaces))
-        self.spc = SP_Constraint(self)
+        self.constraints_manager = ConstraintsManager(self)
+        self.SPACE_PLANNER_CONSTRAINTS = {}
+        self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'] = {
+            'entrance': [
+                [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}]
+            ],
+            'wc': [
+                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+                [components_adjacency_constraint,
+                 {'category': ['doorWindow', 'window'], 'adj': False, 'addition_rule': 'And'}],
+                [symmetry_breaker_constraint, None]
+            ],
+            'living': [
+                [components_adjacency_constraint,
+                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
+                [item_adjacency_constraint, {'item_category': 'kitchen'}]
+            ],
+            'kitchen': [
+                [components_adjacency_constraint,
+                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
+                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+                [item_adjacency_constraint, {'item_category': 'living'}]
+            ],
+            'bathroom': [
+                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+                [area_constraint, {'min_max': 'max'}],
+                [symmetry_breaker_constraint, None]
+            ],
+            'bedroom': [
+                [components_adjacency_constraint,
+                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
+                [area_constraint, {'min_max': 'max'}],
+                [symmetry_breaker_constraint, None]
+            ]
+        }
+
+        self.SPACE_PLANNER_CONSTRAINTS['T3_T4_sp_constraints'] = {}
 
     def __repr__(self):
         # TODO
@@ -272,54 +334,32 @@ class SpacePlanner:
 
     def add_spaces_constraints(self) -> None:
         for j_space in range(len(self.seed_spaces)):
-            space_attribution_constraint(self, j_space)
+            self.constraints_manager.constraint_solver.add_constraint(
+                space_attribution_constraint(self.constraints_manager, j_space))
 
     def add_item_constraints(self) -> None:
-        symmetry_breaker = SymmetryBreaker(self)
         for item in self.spec.items:
-            InsideAdjacencyConstraint(self, item)()
-            AreaConstraint(self, item, 'min')()
-            if item.category.name == 'entrance':
-                ComponentsAdjacencyConstraint(self, item, ['frontDoor'], True)()
-            if item.category.name == 'wc':
-                ComponentsAdjacencyConstraint(self, item, ['duct'], True)()
-                And_(self,
-                     ComponentsAdjacencyConstraint(self, item, ['doorWindow'], False).constraint,
-                     ComponentsAdjacencyConstraint(self, item, ['window'], False).constraint)()
-                self.constraint_solver.add_constraint(
-                    symmetry_breaker.symmetry_breaker_constraint(item))
-            if item.category.name == 'living':
-                Or_(self,
-                    ComponentsAdjacencyConstraint(self, item, ['doorWindow'], True).constraint,
-                    ComponentsAdjacencyConstraint(self, item, ['window'], True).constraint)()
-                ItemAdjacencyConstraint(self, item, 'kitchen')()
-            if item.category.name == 'kitchen':
-                Or_(self,
-                    ComponentsAdjacencyConstraint(self, item, ['doorWindow'], True).constraint,
-                    ComponentsAdjacencyConstraint(self, item, ['window'], True).constraint)()
-                ComponentsAdjacencyConstraint(self, item, ['duct'], True)()
-                ItemAdjacencyConstraint(self, item, 'living')()
-            if item.category.name == 'bathroom':
-                ComponentsAdjacencyConstraint(self, item, ['duct'], True)()
-                AreaConstraint(self, item, 'max')()
-                self.constraint_solver.add_constraint(
-                    symmetry_breaker.symmetry_breaker_constraint(item))
-            if item.category.name == 'bedroom':
-                Or_(self,
-                    ComponentsAdjacencyConstraint(self, item, ['doorWindow'], True).constraint,
-                    ComponentsAdjacencyConstraint(self, item, ['window'], True).constraint)()
-                AreaConstraint(self, item, 'max')()
-                self.constraint_solver.add_constraint(
-                    symmetry_breaker.symmetry_breaker_constraint(item))
+            self.constraints_manager.constraint_solver.add_constraint(
+                inside_adjacency_constraint(self.constraints_manager, item))
+            self.constraints_manager.constraint_solver.add_constraint(
+                area_constraint(self.constraints_manager, item, 'min'))
+            for constraint in self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'][
+                item.category.name]:
+                if constraint[1] is not None:
+                    kwargs = {'item': item, **constraint[1]}
+                else:
+                    kwargs = {'item': item}
+                self.constraints_manager.add_(constraint[0], **kwargs)
 
     def rooms_building(self):  # -> Plan:
         # plan_solution = copy.deepcopy(self.plan)
-        self.constraint_solver.solve()
+        self.constraints_manager.constraint_solver.solve()
 
-        if len(self.constraint_solver.solutions) >= 1:
+        if len(self.constraints_manager.constraint_solver.solutions) >= 1:
             for j_space, space in enumerate(self.seed_spaces):  # empty and seed spaces
                 for i_item, item in enumerate(self.spec.items):  # Rooms
-                    if self.constraint_solver.solutions[0][i_item][j_space] == 1:
+                    if self.constraints_manager.constraint_solver.solutions[0][i_item][
+                        j_space] == 1:
                         space.category = item.category
 
 
