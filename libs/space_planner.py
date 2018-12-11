@@ -16,6 +16,20 @@ import matplotlib.pyplot as plt
 from libs.specification import Specification, Item
 from ortools.constraint_solver import pywrapcp as ortools
 
+WINDOW_ROOMS = ('living', 'kitchen', 'office', 'dining', 'bedroom')
+
+DRESSING_NEIGHBOUR_ROOMS = ('entrance', 'bedroom', 'wc', 'bathroom')
+
+CIRCULATION_ROOMS = ('living', 'dining', 'entrance')
+
+DAY_ROOMS = ('living', 'dining', 'kitchen', 'cellar')
+PRIVATE_ROOMS = ('bedroom', 'bathroom', 'laundry', 'dressing', 'entrance', 'circulationSpace')
+
+WINDOW_CATEGORY = ('window', 'doorWindow')
+
+BIG_VARIANTS = ('m', 'l', 'xl')
+
+SMALL_VARIANTS = ('xs', 's')
 
 class ConstraintSolver:
     """
@@ -43,7 +57,6 @@ class ConstraintSolver:
         self.solutions: Dict[int] = {}  # classe Solution : scoring
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
-        print(ct)
         if ct is not None:
             self.solver.Add(ct)
 
@@ -209,31 +222,60 @@ def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
 
 
 def item_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: Item,
-                              item_category: str) -> ortools.Constraint:
+                              item_category: List[str], adj: bool = True,
+                              addition_rule: str = '') -> ortools.Constraint:
     """
     Item adjacency constraint :
     :param constraints_manager: 'ConstraintsManager'
     :param item: Item
-    :param item_category : str
+    :param item_category: List[str]
+    :param adj: bool
+    :param addition_rule: str
     :return: ct: ortools.Constraint
     """
-    item_adjacency = 0
-    for num, num_item in enumerate(constraints_manager.sp.spec.items):
-        if num_item.category.name == item_category:
-            item_adjacency += constraints_manager.constraint_solver.solver.Sum(
-                constraints_manager.constraint_solver.solver.Sum(
-                    int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
-                    constraints_manager.constraint_solver.positions[item.number, j] *
-                    constraints_manager.constraint_solver.positions[num, k] for
-                    j, j_space in enumerate(constraints_manager.sp.seed_spaces))
-                for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
-    ct = (item_adjacency >= 1)
+    ct = None
+    for c, cat in enumerate(item_category):
+        adjacency_sum = 0
+        for num, num_item in enumerate(constraints_manager.sp.spec.items):
+            if num_item.category.name == item_category:
+                adjacency_sum += constraints_manager.constraint_solver.solver.Sum(
+                    constraints_manager.constraint_solver.solver.Sum(
+                        int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
+                        constraints_manager.constraint_solver.positions[item.number, j] *
+                        constraints_manager.constraint_solver.positions[num, k] for
+                        j, j_space in enumerate(constraints_manager.sp.seed_spaces))
+                    for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
+        if c == 0:
+            if adj:
+                ct = (adjacency_sum >= 1)
+            else:
+                ct = (adjacency_sum == 0)
+        else:
+            if adj:
+                if addition_rule == 'Or':
+                    print('ct', ct)
+                    print('isinstance(ct)', Type(ct))
+                    print('adjacency_sum', adjacency_sum)
+                    print('isinstance(adjacency_sum)', Type(adjacency_sum))
+                    ct = constraints_manager.or_(ct, (adjacency_sum >= 1))
+                elif addition_rule == 'And':
+                    ct = constraints_manager.and_(ct, (adjacency_sum >= 1))
+                else:
+                    ValueError('ComponentsAdjacencyConstraint')
+            else:
+                if addition_rule == 'Or':
+                    ct = constraints_manager.or_(ct, (adjacency_sum == 0))
+                elif addition_rule == 'And':
+                    ct = constraints_manager.and_(ct, (adjacency_sum == 0))
+                else:
+                    ValueError('ComponentsAdjacencyConstraint')
+
     return ct
 
 
 def components_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: Item,
-                                    category: List[str],
-                                    adj: bool, addition_rule: str = '') -> ortools.Constraint:
+                                    category: List[str], adj: bool = True,
+                                    addition_rule: str = '') -> ortools.Constraint:
     """
     Components adjacency constraint
     :param constraints_manager: 'ConstraintsManager'
@@ -244,9 +286,6 @@ def components_adjacency_constraint(constraints_manager: 'ConstraintsManager', i
     :return: ct: ortools.Constraint
     """
     ct = None
-    print('category', category)
-    print('adj', adj)
-    print('addition_rule', addition_rule)
     for c, cat in enumerate(category):
         adjacency_sum = constraints_manager.constraint_solver.solver.Sum(
             constraints_manager.constraint_solver.positions[item.number, j] for j, space in
@@ -293,51 +332,18 @@ class SpacePlanner:
                 logging.debug(self.seed_spaces)
                 logging.debug(space.components_associated())
         self.constraints_manager = ConstraintsManager(self)
-        self.SPACE_PLANNER_CONSTRAINTS = {}
-        self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'] = {
-            'all': [
-                [inside_adjacency_constraint, {}],
-                [area_constraint, {'min_max': 'min'}]
-            ],
-            'entrance': [
-                [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}]
-            ],
-            'wc': [
-                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
-                [components_adjacency_constraint,
-                 {'category': ['doorWindow', 'window'], 'adj': False, 'addition_rule': 'And'}],
-                [symmetry_breaker_constraint, {}]
-            ],
-            'living': [
-                [components_adjacency_constraint,
-                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
-                [item_adjacency_constraint, {'item_category': 'kitchen'}]
-            ],
-            'kitchen': [
-                [components_adjacency_constraint,
-                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
-                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
-                [item_adjacency_constraint, {'item_category': 'living'}]
-            ],
-            'bathroom': [
-                [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
-                [area_constraint, {'min_max': 'max'}],
-                [symmetry_breaker_constraint, {}]
-            ],
-            'bedroom': [
-                [components_adjacency_constraint,
-                 {'category': ['doorWindow', 'window'], 'adj': True, 'addition_rule': 'Or'}],
-                [area_constraint, {'min_max': 'max'}],
-                [symmetry_breaker_constraint, {}]
-            ]
-        }
-
-        self.SPACE_PLANNER_CONSTRAINTS['T3_T4_sp_constraints'] = {}
+        self.item_constraints = {}
+        self.init_item_constraints_list()
 
     def __repr__(self):
         # TODO
         output = 'SpacePlanner' + self.name
         return output
+
+    def init_item_constraints_list(self) -> None:
+        self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
+        # if self.spec.typology in [1, 2]:
+        #     self.item_constraints = T1_T2_constraints
 
     def add_spaces_constraints(self) -> None:
         for j_space in range(len(self.seed_spaces)):
@@ -346,10 +352,9 @@ class SpacePlanner:
 
     def add_item_constraints(self) -> None:
         for item in self.spec.items:
-            for constraint in self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints']['all']:
+            for constraint in self.item_constraints['all']:
                 self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
-            for constraint in self.SPACE_PLANNER_CONSTRAINTS['T1_T2_sp_constraints'][
-                item.category.name]:
+            for constraint in self.item_constraints[item.category.name]:
                 self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
 
     def rooms_building(self):  # -> Plan:
@@ -359,10 +364,113 @@ class SpacePlanner:
         if len(self.constraints_manager.constraint_solver.solutions) >= 1:
             for j_space, space in enumerate(self.seed_spaces):  # empty and seed spaces
                 for i_item, item in enumerate(self.spec.items):  # Rooms
-                    if self.constraints_manager.constraint_solver.solutions[0][i_item][
-                        j_space] == 1:
+                    if self.constraints_manager.constraint_solver.solutions[0][i_item][j_space] == 1:
                         space.category = item.category
 
+
+GENERAL_ITEMS_CONSTRAINTS = {
+    'all': [
+        [inside_adjacency_constraint, {}],
+        [area_constraint, {'min_max': 'min'}]
+    ],
+    'entrance': [
+        [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}]
+    ],
+    'wc': [
+        [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    'bathroom': [
+        [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+        [components_adjacency_constraint, {'category': ['doorWindow'], 'adj': False}],
+        [area_constraint, {'min_max': 'max'}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    'living': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
+        [item_adjacency_constraint,
+         {'item_category': ('kitchen', 'dining'), 'adj': True, 'addition_rule': 'Or'}]
+    ],
+    'dining': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
+        [item_adjacency_constraint, {'item_category': 'kitchen'}]
+    ],
+    'kitchen': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
+        [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+        [item_adjacency_constraint,
+         {'item_category': ('living', 'dining'), 'adj': True, 'addition_rule': 'Or'}]
+    ],
+    'bedroom': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
+        [area_constraint, {'min_max': 'max'}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    'office': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
+        [area_constraint, {'min_max': 'max'}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    'dressing': [
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    'laundry': [
+        [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
+        [components_adjacency_constraint,
+         {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
+        [symmetry_breaker_constraint, {}]
+    ]
+}
+
+
+T3_MORE_ITEMS_CONSTRAINTS = {
+    'all': [
+
+    ],
+    'entrance': [
+
+    ],
+    'wc': [
+        [item_adjacency_constraint,
+         {'item_category': PRIVATE_ROOMS, 'adj': True, 'addition_rule': 'Or'}]
+    ],
+    'bathroom': [
+        [item_adjacency_constraint,
+         {'item_category': PRIVATE_ROOMS, 'adj': True, 'addition_rule': 'Or'}]
+    ],
+    'living': [
+
+    ],
+    'dining': [
+
+    ],
+    'kitchen': [
+
+    ],
+    'bedroom': [
+
+    ],
+    'office': [
+
+    ],
+    'dressing': [
+        [item_adjacency_constraint,
+         {'item_category': PRIVATE_ROOMS, 'adj': True, 'addition_rule': 'Or'}]
+    ],
+    'laundry': [
+        [item_adjacency_constraint,
+         {'item_category': PRIVATE_ROOMS, 'adj': True, 'addition_rule': 'Or'}]
+    ]
+}
 
 if __name__ == '__main__':
     import libs.reader as reader
