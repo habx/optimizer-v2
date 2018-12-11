@@ -27,6 +27,7 @@ class Grid:
     """
     Creates a grid inside a plan.
     """
+
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation']]):
         self.name = name
         self.operators = operators or []
@@ -190,7 +191,6 @@ if __name__ == '__main__':
     print("plan_index", plan_index, 'type of var', type(plan_index))
 
     logging.getLogger().setLevel(logging.INFO)
-    from libs import reader_test
 
 
     def create_a_grid():
@@ -198,7 +198,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
 
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
