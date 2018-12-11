@@ -1,6 +1,5 @@
 import os
 import argparse
-import sys
 import libs.reader as reader
 
 #launch specified module no all plan in blueprint
@@ -12,8 +11,7 @@ if __name__ == '__main__':
                         default="grid")
     args = parser.parse_args()
     module = args.module
-
-    num_files = len(reader.BLUEPRINT_INPUT_FILES)
+    num_files = len(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
     for index_plan in range(num_files):
         print("index_plan", type(index_plan))
         command_lauch_grid = "python ../libs/" + module + ".py -p " + str(index_plan)

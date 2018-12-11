@@ -28,6 +28,7 @@ from libs.size import Size
 from libs.utils.catalog import Catalog
 from libs.action import Action
 
+from libs.category import SPACE_CATEGORIES
 from libs.constraint import CONSTRAINTS
 from libs.selector import SELECTORS
 from libs.mutation import MUTATIONS
@@ -512,7 +513,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.DEFAULT_BLUEPRINT_INPUT_FOLDER[plan_index]  # 9 Antony B22, 13 Bussy 002
 
         plan = reader.create_plan_from_file(input_file)
 
