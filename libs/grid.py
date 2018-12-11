@@ -9,7 +9,7 @@ from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
 
-import libs.reader as reader
+from libs import reader
 from libs.utils.catalog import Catalog
 from libs.mutation import MUTATIONS
 from libs.selector import SELECTORS
@@ -27,7 +27,6 @@ class Grid:
     """
     Creates a grid inside a plan.
     """
-
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation']]):
         self.name = name
         self.operators = operators or []
@@ -191,6 +190,7 @@ if __name__ == '__main__':
     print("plan_index", plan_index, 'type of var', type(plan_index))
 
     logging.getLogger().setLevel(logging.INFO)
+    from libs import reader_test
 
 
     def create_a_grid():

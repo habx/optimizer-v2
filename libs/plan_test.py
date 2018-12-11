@@ -9,12 +9,12 @@ import pytest
 from libs.plan import Plan, Space
 from libs.category import SPACE_CATEGORIES
 import libs.logsetup as ls
-import libs.reader as reader
+from libs import reader, reader_test
 
 
 ls.init()
 
-INPUT_FILES = reader.BLUEPRINT_INPUT_FILES
+INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
@@ -27,7 +27,7 @@ def test_floor_plan(input_file):
 
     for empty_space in plan.empty_spaces:
         boundary_edges = list(empty_space.edges)
-        
+
         for edge in boundary_edges:
             if edge.length > 30:
                 empty_space.barycenter_cut(edge, 0)

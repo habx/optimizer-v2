@@ -5,10 +5,10 @@ Test module for grid module
 
 import pytest
 
-import libs.reader as reader
+from libs import reader, reader_test
 from libs.grid import GRIDS
 
-INPUT_FILES = reader.BLUEPRINT_INPUT_FILES
+INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)

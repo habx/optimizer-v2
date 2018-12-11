@@ -4,12 +4,12 @@ Seeder Module Tests
 """
 import pytest
 
-import libs.reader as reader
-from libs.seed import Seeder, Filler, GROWTH_METHODS
+from libs import reader
+from libs.seed import Seeder,Filler, GROWTH_METHODS
 from libs.shuffle import few_corner_shuffle
 
 from libs.grid import GRIDS
-from libs.reader import BLUEPRINT_INPUT_FILES
+from libs.reader_test import BLUEPRINT_INPUT_FILES
 from libs.selector import SELECTORS
 
 from libs.plot import plot_save
