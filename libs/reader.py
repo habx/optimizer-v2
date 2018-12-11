@@ -24,6 +24,19 @@ DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 DEFAULT_SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
 
 
+def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
+    """
+    Returns a list containing names of all files contained in specified foler - for tests pruporse
+    :param folder path
+    :return:
+    """
+    list_files = []
+    for filename in os.listdir(path):
+        list_files.append(filename)
+
+    return list_files
+
+
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
     """
     Returns a vertices list of the perimeter points of an apartment

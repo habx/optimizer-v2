@@ -198,7 +198,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[plan_index]
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]  # 9 Antony B22, 13 Bussy 002
 
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         new_plan = ortho_grid.apply_to(plan)
         new_plan.check()
 
-        new_plan.plot(save=True)
+        new_plan.plot(save=False)
         plt.show()
 
 
