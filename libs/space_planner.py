@@ -15,6 +15,8 @@ import logging
 import matplotlib.pyplot as plt
 from libs.specification import Specification, Item
 from ortools.constraint_solver import pywrapcp as ortools
+import copy
+import numpy as np
 
 WINDOW_ROOMS = ('living', 'kitchen', 'office', 'dining', 'bedroom')
 
@@ -30,6 +32,7 @@ WINDOW_CATEGORY = ('window', 'doorWindow')
 BIG_VARIANTS = ('m', 'l', 'xl')
 
 SMALL_VARIANTS = ('xs', 's')
+
 
 class ConstraintSolver:
     """
@@ -108,6 +111,30 @@ class ConstraintsManager:
 
         self.constraint_solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.seed_spaces))
         self.symmetry_breaker_memo = {}
+
+        # A + A^2 + ... + A^(nbr_fi_in_room-1) (x Room position matrix)
+        self.fi_adjacency = []
+        for i, i_space in enumerate(self.sp.seed_spaces):
+            self.fi_adjacency.append([])
+            for j, j_space in enumerate(self.sp.seed_spaces):
+                if j != i:
+                    self.fi_adjacency[i].append(0)
+                else:
+                    self.fi_adjacency[i].append(1)
+
+        for i, i_space in enumerate(self.sp.seed_spaces):
+            for j, j_space in enumerate(self.sp.seed_spaces):
+                if j < i:
+                    if self.sp.spec.plan.adjacent_spaces(i_space, j_space):
+                        self.fi_adjacency[i][j] = 1
+                        self.fi_adjacency[j][i] = 1
+                    else:
+                        self.fi_adjacency[i][j] = 0
+                        self.fi_adjacency[j][i] = 0
+                elif i == j:
+                    self.fi_adjacency[i][i] = 1
+
+        print('fi_adjacency', self.fi_adjacency)
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs):
         print('kwargs', kwargs)
@@ -217,7 +244,73 @@ def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
             constraints_manager.constraint_solver.positions[item.number, k] for
             j, j_space in enumerate(constraints_manager.sp.seed_spaces) if j > k)
         for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
-    ct = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
+    ct1 = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
+
+    for k, k_space in enumerate(constraints_manager.sp.seed_spaces):
+        A = constraints_manager.constraint_solver.positions[item.number, k] * sum(
+            int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
+            constraints_manager.constraint_solver.positions[item.number, j] for
+            j, j_space in enumerate(constraints_manager.sp.seed_spaces) if k != j)
+        ct2 = constraints_manager.constraint_solver.solver.Max(
+            A >= constraints_manager.constraint_solver.positions[item.number, k],
+            nbr_spaces_in_i_item == 1)
+
+    ct = (constraints_manager.constraint_solver.solver.Max(ct1, ct2) == 1)
+
+    return ct
+
+
+def adjacency_test(constraints_manager: 'ConstraintsManager',
+                   item: Item) -> ortools.Constraint:
+
+
+    max_nbr_fi_into_room = len(constraints_manager.sp.seed_spaces) - len(
+        constraints_manager.sp.spec.items) + 1
+
+    # Room position matrix to work only with the room's graph
+    room_position_matrix = []
+    for i in range(len(constraints_manager.sp.seed_spaces)):
+        room_position_matrix.append([])
+        for j in range(len(constraints_manager.sp.seed_spaces)):
+            room_position_matrix[i].append(
+                constraints_manager.constraint_solver.positions[item.number, i] *
+                constraints_manager.constraint_solver.positions[item.number, j])
+
+    ways = []
+    for i in range(max_nbr_fi_into_room):
+        if i >= 1:
+            current_ways = np.dot(constraints_manager.fi_adjacency.copy(), room_position_matrix.copy())
+            for a in range(i):
+                if a == 0:
+                    A = np.dot(constraints_manager.fi_adjacency.copy(), room_position_matrix.copy())
+                else:
+                    # print '--------- A ----------'
+                    # print A
+                    A = np.dot(A.copy(), np.dot(constraints_manager.fi_adjacency.copy(), room_position_matrix.copy()))
+                    current_ways += A.copy()
+            inside = current_ways.copy()
+            ways.append(inside)
+
+    # constraints
+    # number of fixed items
+    nbr_of_fi = sum(constraints_manager.constraint_solver.positions[item.number, i] for i in
+                    range(len(constraints_manager.sp.seed_spaces)))
+    ct = None
+    for nbr_fi_into_room in range(max_nbr_fi_into_room + 1):
+        if nbr_fi_into_room >= 2:
+            constraint = sum(
+                min(1, ways[nbr_fi_into_room - 2][i][j] *
+                    constraints_manager.constraint_solver.positions[item.number, i] *
+                    constraints_manager.constraint_solver.positions[item.number, j]) for j in
+                range(len(constraints_manager.sp.seed_spaces)) for i in
+                range(len(constraints_manager.sp.seed_spaces)))
+            adjacency_constraint = constraints_manager.constraint_solver.solver.Max(
+                nbr_of_fi != nbr_fi_into_room, constraint == nbr_fi_into_room * nbr_fi_into_room)
+            if ct == None:
+                ct = (adjacency_constraint == 1)
+            else:
+                ct = constraints_manager.constraint_solver.Max(ct, adjacency_constraint == 1)
+
     return ct
 
 
@@ -234,10 +327,10 @@ def item_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: I
     :return: ct: ortools.Constraint
     """
     ct = None
-    for c, cat in enumerate(item_category):
+    for cat in item_category:
         adjacency_sum = 0
         for num, num_item in enumerate(constraints_manager.sp.spec.items):
-            if num_item.category.name == item_category:
+            if num_item.category.name == cat:
                 adjacency_sum += constraints_manager.constraint_solver.solver.Sum(
                     constraints_manager.constraint_solver.solver.Sum(
                         int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
@@ -245,30 +338,27 @@ def item_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: I
                         constraints_manager.constraint_solver.positions[num, k] for
                         j, j_space in enumerate(constraints_manager.sp.seed_spaces))
                     for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
-        if c == 0:
-            if adj:
-                ct = (adjacency_sum >= 1)
-            else:
-                ct = (adjacency_sum == 0)
-        else:
-            if adj:
-                if addition_rule == 'Or':
-                    print('ct', ct)
-                    print('isinstance(ct)', Type(ct))
-                    print('adjacency_sum', adjacency_sum)
-                    print('isinstance(adjacency_sum)', Type(adjacency_sum))
-                    ct = constraints_manager.or_(ct, (adjacency_sum >= 1))
-                elif addition_rule == 'And':
-                    ct = constraints_manager.and_(ct, (adjacency_sum >= 1))
+        if adjacency_sum is not 0:
+            if ct is None:
+                if adj:
+                    ct = (adjacency_sum >= 1)
                 else:
-                    ValueError('ComponentsAdjacencyConstraint')
+                    ct = (adjacency_sum == 0)
             else:
-                if addition_rule == 'Or':
-                    ct = constraints_manager.or_(ct, (adjacency_sum == 0))
-                elif addition_rule == 'And':
-                    ct = constraints_manager.and_(ct, (adjacency_sum == 0))
+                if adj:
+                    if addition_rule == 'Or':
+                        ct = constraints_manager.or_(ct, (adjacency_sum >= 1))
+                    elif addition_rule == 'And':
+                        ct = constraints_manager.and_(ct, (adjacency_sum >= 1))
+                    else:
+                        ValueError('ComponentsAdjacencyConstraint')
                 else:
-                    ValueError('ComponentsAdjacencyConstraint')
+                    if addition_rule == 'Or':
+                        ct = constraints_manager.or_(ct, (adjacency_sum == 0))
+                    elif addition_rule == 'And':
+                        ct = constraints_manager.and_(ct, (adjacency_sum == 0))
+                    else:
+                        ValueError('ComponentsAdjacencyConstraint')
 
     return ct
 
@@ -342,8 +432,12 @@ class SpacePlanner:
 
     def init_item_constraints_list(self) -> None:
         self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
-        # if self.spec.typology in [1, 2]:
-        #     self.item_constraints = T1_T2_constraints
+        if self.spec.typology >= 3:
+            for item in self.spec.items:
+                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                    self.item_constraints[item.category.name].append(constraint)
+
+        print('CONSTRAINTS', self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
         for j_space in range(len(self.seed_spaces)):
@@ -352,6 +446,7 @@ class SpacePlanner:
 
     def add_item_constraints(self) -> None:
         for item in self.spec.items:
+            print('add_item_constraints', item.category.name)
             for constraint in self.item_constraints['all']:
                 self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in self.item_constraints[item.category.name]:
@@ -364,17 +459,19 @@ class SpacePlanner:
         if len(self.constraints_manager.constraint_solver.solutions) >= 1:
             for j_space, space in enumerate(self.seed_spaces):  # empty and seed spaces
                 for i_item, item in enumerate(self.spec.items):  # Rooms
-                    if self.constraints_manager.constraint_solver.solutions[0][i_item][j_space] == 1:
+                    if self.constraints_manager.constraint_solver.solutions[0][i_item][
+                        j_space] == 1:
                         space.category = item.category
 
 
 GENERAL_ITEMS_CONSTRAINTS = {
     'all': [
-        [inside_adjacency_constraint, {}],
+        [adjacency_test, {}],
         [area_constraint, {'min_max': 'min'}]
     ],
     'entrance': [
-        [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}]
+        [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}],
+        [area_constraint, {'min_max': 'max'}]
     ],
     'wc': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
@@ -430,7 +527,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ]
 }
-
 
 T3_MORE_ITEMS_CONSTRAINTS = {
     'all': [
