@@ -1115,7 +1115,7 @@ class Space(PlanComponent):
         neighboring_spaces = []
         for edge in self.edges:
             if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
-                if not (edge.pair.face.space.category.name in neighboring_spaces):
+                if not (edge.pair.face.space in neighboring_spaces):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
