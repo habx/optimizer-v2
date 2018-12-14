@@ -2,7 +2,7 @@ import os
 import argparse
 import libs.reader as reader
 
-#launch specified module no all plan in blueprint
+# launch specified module no all plan in blueprint
 
 if __name__ == '__main__':
 
@@ -11,8 +11,10 @@ if __name__ == '__main__':
                         default="grid")
     args = parser.parse_args()
     module = args.module
-    num_files = len(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
+    files = reader.get_list_from_folder()
+    files = [x for x in files if x.endswith('.json')]
+    num_files = len(files)
     for index_plan in range(num_files):
-        print("index_plan", type(index_plan))
+        print("current plan ",files[index_plan])
         command_lauch_grid = "python ../libs/" + module + ".py -p " + str(index_plan)
         os.system(command_lauch_grid)
