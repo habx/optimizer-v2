@@ -62,8 +62,9 @@ class SpaceCategory(Category):
                  name,
                  mutable: bool = True,
                  seedable: bool = False,
+                 external: bool = False,
                  circulation: bool = False):
-        super().__init__(name, mutable, seedable)
+        super().__init__(name, mutable, seedable, external)
         self.circulation = circulation
 
 
