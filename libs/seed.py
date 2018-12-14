@@ -26,7 +26,6 @@ from libs.size import Size
 from libs.utils.catalog import Catalog
 from libs.action import Action
 
-from libs.category import SPACE_CATEGORIES
 from libs.constraint import CONSTRAINTS
 from libs.selector import SELECTORS
 from libs.mutation import MUTATIONS
