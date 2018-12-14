@@ -15,6 +15,7 @@ class Specification:
     """
     The wishes of the user describing its flan
     """
+
     def __init__(self, name: str = '', plan: Plan = None, items: Optional[List['Item']] = None):
         self.name = name
         self.plan = plan
@@ -63,6 +64,7 @@ class Item:
     """
     The items of the specification
     """
+
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
                  adjacencies: Optional[List['Item']] = None):

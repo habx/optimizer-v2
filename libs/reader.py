@@ -17,12 +17,24 @@ from libs.utils.geometry import (
     normal_vector,
     move_point
 )
-from libs.utils.custom_types import Coords2d, FourCoords2d
-
+from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
 DEFAULT_SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
+
+
+def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
+    """
+    Returns a list containing names of all files contained in specified foler - for tests pruporse
+    :param folder path
+    :return:
+    """
+    list_files = []
+    for filename in os.listdir(path):
+        list_files.append(filename)
+
+    return list_files
 
 
 def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
@@ -78,6 +90,39 @@ def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) ->
     return point_1, point_2, point_3, point_4
 
 
+def _get_external_space_perimeter(external_space_coords: List) -> ListCoords2d:
+    """
+    Returns a list with the perimeter of external space.
+    :param external_space_coords:
+    :return: list
+    """
+    list_points = []
+    for point in external_space_coords:
+        list_points.append(tuple((point[0], point[1])))
+
+    list_points = tuple(list_points)
+
+    return list_points
+
+
+def _get_external_spaces(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
+    """
+    Returns a list with the perimeter of external space.
+    :param input_floor_plan_dict:
+    :return: list
+    """
+    apartment = input_floor_plan_dict['apartment']
+    external_spaces = apartment['externalSpaces']
+
+    output = []
+    for external_space in external_spaces:
+        if 'polygon' in external_space.keys():
+            coords = _get_external_space_perimeter(external_space['polygon'])
+            output.append((coords, external_space['type']))
+
+    return output
+
+
 def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
     """
     Returns a list with the perimeter of each fixed items.
@@ -119,7 +164,7 @@ def _get_load_bearing_wall_perimeter(load_bearing_wall: List[int],
     wall_points = [point_dict_to_tuple(vertices[ix]) for ix in load_bearing_wall]
     normal = normal_vector(direction_vector(*wall_points))
     point_1 = move_point(wall_points[0], normal, 1)
-    point_2 = move_point(wall_points[1], normal,  1)
+    point_2 = move_point(wall_points[1], normal, 1)
 
     return _rectangle_from_segment((point_1, point_2), LOAD_BEARING_WALL_WIDTH)
 
@@ -165,12 +210,21 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
     :return: a plan object
     """
     floor_plan_dict = get_json_from_file(input_file)
+
     perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name).from_boundary(perimeter)
 
     fixed_items = _get_load_bearings_walls(floor_plan_dict)
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
+
+    # TODO : ADAPT EXTERNAL SPACES FOR ALL PLANS - temporary dirty fix
+    if input_file == "Groslay_A-00-01_oldformat.json":
+        external_spaces = _get_external_spaces(floor_plan_dict)
+        for external_space in external_spaces:
+            if external_space[1] in SPACE_CATEGORIES:
+                my_plan.insert_space_from_boundary(external_space[0],
+                                                   category=SPACE_CATEGORIES[external_space[1]])
 
     for fixed_item in fixed_items:
         if fixed_item[1] in SPACE_CATEGORIES:
@@ -226,7 +280,6 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
-
     def specification_read():
         """
         Test
@@ -234,5 +287,6 @@ if __name__ == '__main__':
         """
         input_file = 'Levallois_Letourneur_setup.json'
         spec = create_specification_from_file(input_file)
+
 
     specification_read()

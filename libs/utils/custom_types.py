@@ -16,5 +16,8 @@ SpaceCutCb = Callable[[Tuple['Edge', 'Edge']], bool]
 # rectangular points
 FourCoords2d = Tuple[Coords2d, Coords2d, Coords2d, Coords2d]
 
+# any number of points
+ListCoords2d = Tuple[Coords2d, ...]
+
 # edge, edge, face
 TwoEdgesAndAFace = Optional[Tuple['Edge', 'Edge', Optional['Face']]]

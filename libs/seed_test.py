@@ -5,7 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS
+from libs.seed import Seeder,Filler, GROWTH_METHODS
 from libs.shuffle import few_corner_shuffle
 
 from libs.grid import GRIDS
@@ -31,8 +31,31 @@ def test_grow_a_plan(input_file):
     seeder.grow()
     few_corner_shuffle.run(plan, show=True)
 
+    plan.remove_null_spaces()
+    plan.make_space_seedable("empty")
+
+    seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+    seed_empty_area_max_100000 = SELECTORS['area_max=100000']
+    seed_methods = [
+        (
+            seed_empty_furthest_couple,
+            GROWTH_METHODS,
+            "empty"
+        ),
+        (
+            seed_empty_area_max_100000,
+            GROWTH_METHODS,
+            "empty"
+        )
+    ]
+
+    filler = Filler(plan, seed_methods)
+    filler.apply_to(plan)
+
     ax = plan.plot(save=False, options=('fill', 'border', 'face'))
     seeder.plot_seeds(ax)
     plot_save()
+
+    plan.remove_null_spaces()
 
     assert plan.check()

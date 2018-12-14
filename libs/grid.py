@@ -2,6 +2,7 @@
 """
 Grid module
 """
+
 from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
@@ -24,6 +25,7 @@ class Grid:
     """
     Creates a grid inside a plan.
     """
+
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation']]):
         self.name = name
         self.operators = operators or []
@@ -73,6 +75,7 @@ class Grid:
                 return True
         return False
 
+
 # grid
 
 
@@ -94,8 +97,8 @@ sequence_grid = Grid('sequence_grid', [
         MUTATIONS['ortho_projection_cut']
     ),
     (
-       SELECTORS['previous_angle_salient_ortho'],
-       MUTATIONS['ortho_projection_cut']
+        SELECTORS['previous_angle_salient_ortho'],
+        MUTATIONS['ortho_projection_cut']
     ),
     (
         SELECTORS['close_to_window'],
@@ -126,7 +129,6 @@ sequence_grid = Grid('sequence_grid', [
 
 GRIDS.add(sequence_grid)
 
-
 ortho_grid = Grid('ortho_grid', [
     (
         SELECTORS['previous_angle_salient_non_ortho'],
@@ -145,8 +147,8 @@ ortho_grid = Grid('ortho_grid', [
         MUTATIONS['ortho_projection_cut']
     ),
     (
-       SELECTORS['previous_angle_salient_ortho'],
-       MUTATIONS.factory['barycenter_cut'](0)
+        SELECTORS['previous_angle_salient_ortho'],
+        MUTATIONS.factory['barycenter_cut'](0)
     ),
     (
         SELECTORS['next_angle_salient_ortho'],
@@ -177,16 +179,27 @@ ortho_grid = Grid('ortho_grid', [
 GRIDS.add(ortho_grid)
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-p", "--plan_index", help="choose plan index",
+                        default=0)
+
+    args = parser.parse_args()
+    plan_index = int(args.plan_index)
+    print("plan_index", plan_index, 'type of var', type(plan_index))
 
     logging.getLogger().setLevel(logging.INFO)
-    from libs import reader_test
+
 
     def create_a_grid():
         """
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[5]
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+
         # 16: Edison_10 6: Antony_A22 9: Antony_B22
         #
         plan = reader.create_plan_from_file(input_file)
@@ -196,5 +209,6 @@ if __name__ == '__main__':
 
         new_plan.plot(save=False)
         plt.show()
+
 
     create_a_grid()

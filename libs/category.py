@@ -40,10 +40,13 @@ class Category:
                  name: str,
                  mutable: bool = True,
                  seedable: bool = False,
-                 color: str = 'b'):
+                 external: bool = False,
+                 color: str = 'b'
+                 ):
         self.name = name
         self.mutable = mutable
         self.seedable = seedable
+        self.external = external
         self.color = CATEGORIES_COLORS.get(self.name, color)
 
     def __repr__(self) -> str:
@@ -103,4 +106,9 @@ SPACE_CATEGORIES = Catalog('spaces').add(
     SpaceCategory('office'),
     SpaceCategory('dressing'),
     SpaceCategory('wc'),
-    SpaceCategory('corridor', circulation=True))
+    SpaceCategory('corridor', circulation=True),
+    SpaceCategory('balcony', mutable=False, external=True),
+    SpaceCategory('garden', mutable=False, external=True),
+    SpaceCategory('terrace', mutable=False, external=True),
+    SpaceCategory('loggia', mutable=False, external=True)
+)
