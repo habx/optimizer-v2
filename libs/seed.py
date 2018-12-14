@@ -496,6 +496,7 @@ if __name__ == '__main__':
     from libs.selector import SELECTORS
     from libs.shuffle import SHUFFLES
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
@@ -511,7 +512,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
 
         plan = reader.create_plan_from_file(input_file)
 
