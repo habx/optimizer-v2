@@ -15,9 +15,6 @@ import logging
 import matplotlib.pyplot as plt
 from libs.specification import Specification, Item
 from ortools.constraint_solver import pywrapcp as ortools
-import copy
-import numpy as np
-import pandas as pd  # dataframe
 
 WINDOW_ROOMS = ('living', 'kitchen', 'office', 'dining', 'bedroom')
 
@@ -73,7 +70,6 @@ class ConstraintSolver:
         :return: None
         """
         if ct is not None:
-            print('ct', ct)
             self.solver.Add(ct)
 
     def solve(self) -> None:
@@ -93,8 +89,7 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                print(i_item, ":",
-                      [self.positions[i_item, j].Value() for j in range(self.spaces_nbr)])
+                logging.debug("{0}: {1}".format(i_item, [self.positions[i_item, j].Value() for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.positions[i_item, j_space].Value())
@@ -107,11 +102,11 @@ class ConstraintSolver:
 
         self.solver.EndSearch()
 
-        print('Statistics')
-        print("num_solutions:", nbr_solutions)
-        print("failures:", self.solver.Failures())
-        print("branches:", self.solver.Branches())
-        print("WallTime:", self.solver.WallTime())
+        logging.debug('Statistics')
+        logging.debug("num_solutions: {0}".format(nbr_solutions))
+        logging.debug("failures: {0}".format(self.solver.Failures()))
+        logging.debug("branches: {0}".format(self.solver.Branches()))
+        logging.debug("WallTime: {0}".format(self.solver.WallTime()))
 
 
 class ConstraintsManager:
@@ -127,39 +122,6 @@ class ConstraintsManager:
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self.init_windows_length()
-        print('windows_length', self.windows_length)
-        self.spaces_adjacency = []
-        self.init_spaces_adjacency()
-
-    def init_spaces_adjacency(self) -> None:
-        """
-        spaces adjacency matrix init
-        :return: None
-        """
-        for i, i_space in enumerate(self.sp.seed_spaces):
-            self.spaces_adjacency.append([])
-            for j, j_space in enumerate(self.sp.seed_spaces):
-                if j != i:
-                    self.spaces_adjacency[i].append(0)
-                else:
-                    self.spaces_adjacency[i].append(1)
-
-        for i, i_space in enumerate(self.sp.seed_spaces):
-            for j, j_space in enumerate(self.sp.seed_spaces):
-                if j < i:
-                    if self.sp.spec.plan.adjacent_spaces(i_space, j_space):
-                        self.spaces_adjacency[i][j] = 1
-                        self.spaces_adjacency[j][i] = 1
-                    else:
-                        self.spaces_adjacency[i][j] = 0
-                        self.spaces_adjacency[j][i] = 0
-
-        fi_adjacency_matrix = pd.DataFrame(self.spaces_adjacency,
-                                           index=range(len(self.sp.seed_spaces)),
-                                           columns=range(len(self.sp.seed_spaces)))
-
-        self.spaces_adjacency = np.array(self.spaces_adjacency)
-        self.spaces_adjacency.shape
 
     def init_windows_length(self) -> None:
         for item in self.sp.spec.items:
@@ -179,7 +141,6 @@ class ConstraintsManager:
         :param constraint_func: Callable
         :return: None
         """
-        print('kwargs', kwargs)
         if kwargs is not {}:
             kwargs = {'item': item, **kwargs}
         else:
@@ -248,7 +209,7 @@ def area_constraint(constraints_manager: 'ConstraintsManager', item: Item,
 
 
 def windows_constraint(constraints_manager: 'ConstraintsManager', item: Item) \
-        -> ortools.Constraint:
+        -> None:
     """
     Windows length constraint
     :param constraints_manager: 'ConstraintsManager'
@@ -257,17 +218,15 @@ def windows_constraint(constraints_manager: 'ConstraintsManager', item: Item) \
     """
     ct = None
     for j_item in constraints_manager.sp.spec.items:
-        if j_item.number < item.number:
-            if item.required_area < j_item.required_area:
-                if ct is None:
-                    ct = constraints_manager.windows_length[str(item.number)] <= \
+        if item.required_area < j_item.required_area:
+            if ct is None:
+                ct = constraints_manager.windows_length[str(item.number)] <= \
+                     constraints_manager.windows_length[str(j_item.number)]
+            else:
+                new_ct = constraints_manager.windows_length[str(item.number)] <= \
                          constraints_manager.windows_length[str(j_item.number)]
-                else:
-                    new_ct = constraints_manager.windows_length[str(item.number)] <= \
-                         constraints_manager.windows_length[str(j_item.number)]
-                    ct = constraints_manager.constraint_solver.solver.Min(ct, new_ct)
+                ct = constraints_manager.constraint_solver.solver.Min(ct, new_ct)
 
-    print('windows_constraint', ct)
     if ct is None:
         return ct
     else:
@@ -294,8 +253,6 @@ def symmetry_breaker_constraint(constraints_manager: 'ConstraintsManager',
                           constraints_manager.constraint_solver.positions[item.number, k] == 0)
                 constraints_manager.symmetry_breaker_memo[item.category.name] = item.number
 
-    print('memo', constraints_manager.symmetry_breaker_memo)
-
     return ct
 
 
@@ -319,89 +276,26 @@ def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
         for k, k_space in enumerate(constraints_manager.sp.seed_spaces))
     ct1 = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
 
+    ct2 = None
     for k, k_space in enumerate(constraints_manager.sp.seed_spaces):
         A = constraints_manager.constraint_solver.positions[
                 item.number, k] * constraints_manager.constraint_solver.solver.Sum(
             int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
             constraints_manager.constraint_solver.positions[item.number, j] for
             j, j_space in enumerate(constraints_manager.sp.seed_spaces) if k != j)
-        ct2 = constraints_manager.constraint_solver.solver.Max(
-            A >= constraints_manager.constraint_solver.positions[item.number, k],
-            nbr_spaces_in_i_item == 1)
+        if ct2 is None:
+            ct2 = constraints_manager.constraint_solver.solver.Max(
+                A >= constraints_manager.constraint_solver.positions[item.number, k],
+                nbr_spaces_in_i_item == 1)
+        else:
+            ct2 = constraints_manager.constraint_solver.solver.Min(ct2,
+                    constraints_manager.constraint_solver.solver.Max(
+                    A >= constraints_manager.constraint_solver.positions[item.number, k],
+                    nbr_spaces_in_i_item == 1))
 
     ct = (constraints_manager.constraint_solver.solver.Min(ct1, ct2) == 1)
 
     return ct
-
-
-def adjacency_test(constraints_manager: 'ConstraintsManager',
-                   item: Item) -> ortools.Constraint:
-    # A + A^2 + ... + A^(nbr_fi_in_room-1) (x Room position matrix)
-    max_nbr_spaces_into_room = len(constraints_manager.sp.seed_spaces) - len(
-        constraints_manager.sp.spec.items) + 1
-    print('max_nbr_spaces_into_room', max_nbr_spaces_into_room)
-
-    # Room position matrix to work only with the room's graph
-    room_position_matrix = []
-    for i in range(len(constraints_manager.sp.seed_spaces)):
-        room_position_matrix.append([])
-        for j in range(len(constraints_manager.sp.seed_spaces)):
-            room_position_matrix[i].append(
-                constraints_manager.spaces_adjacency[i, j] *
-                constraints_manager.constraint_solver.positions[item.number, i] *
-                constraints_manager.constraint_solver.positions[item.number, j])
-
-    room_position_matrix = np.array(room_position_matrix)
-    room_position_matrix.shape
-    print('room_position_matrix', room_position_matrix)
-    print('spaces_adjacency', constraints_manager.spaces_adjacency)
-
-    ways = []
-    matrix = room_position_matrix.copy()
-    current_ways = matrix
-    for i in range(max_nbr_spaces_into_room):
-        if i == 1:
-            ways.append(current_ways)
-        else:
-            matrix = np.dot(matrix.copy(), room_position_matrix.copy())
-            current_ways += matrix.copy()
-            inside = current_ways.copy()
-            ways.append(inside)
-
-    # constraints
-    # number of fixed items
-    nbr_of_spaces = constraints_manager.constraint_solver.solver.Sum(
-        constraints_manager.constraint_solver.positions[item.number, i] for i in
-        range(len(constraints_manager.sp.seed_spaces)))
-    ct = None
-    for nbr_spaces_into_room in range(max_nbr_spaces_into_room + 1):
-        if nbr_spaces_into_room >= 2:
-            constraint = constraints_manager.constraint_solver.solver.Sum(min(1,
-                                                                              ways[
-                                                                                  nbr_spaces_into_room - 2][
-                                                                                  i][
-                                                                                  j] *
-                                                                              constraints_manager.constraint_solver.positions[
-                                                                                  item.number, i] *
-                                                                              constraints_manager.constraint_solver.positions[
-                                                                                  item.number, j])
-                                                                          for j in
-                                                                          range(len(
-                                                                              constraints_manager.sp.seed_spaces))
-                                                                          for i in
-                                                                          range(len(
-                                                                              constraints_manager.sp.seed_spaces)))
-            adjacency_constraint = constraints_manager.constraint_solver.solver.Max(
-                nbr_of_spaces != nbr_spaces_into_room,
-                constraint == nbr_spaces_into_room * nbr_spaces_into_room)
-            if ct is None:
-                ct = adjacency_constraint
-            else:
-                ct = constraints_manager.constraint_solver.solver.Min(ct, adjacency_constraint)
-    if ct is None:
-        return ct
-    else:
-        return ct == 1
 
 
 def item_adjacency_constraint(constraints_manager: 'ConstraintsManager', item: Item,
@@ -538,7 +432,7 @@ class SpacePlanner:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
                     self.item_constraints[item.category.name].append(constraint)
 
-        print('CONSTRAINTS', self.item_constraints)
+        logging.debug('CONSTRAINTS', self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
         """
@@ -555,7 +449,6 @@ class SpacePlanner:
         :return: None
         """
         for item in self.spec.items:
-            print('add_item_constraints', item.category.name)
             for constraint in self.item_constraints['all']:
                 self.constraints_manager.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in self.item_constraints[item.category.name]:
@@ -572,8 +465,7 @@ class SpacePlanner:
         if len(self.constraints_manager.constraint_solver.solutions) >= 1:
             for j_space, space in enumerate(self.seed_spaces):  # empty and seed spaces
                 for i_item, item in enumerate(self.spec.items):  # Rooms
-                    if self.constraints_manager.constraint_solver.solutions[0][i_item][
-                        j_space] == 1:
+                    if self.constraints_manager.constraint_solver.solutions[0][i_item][j_space] == 1:
                         space.category = item.category
 
 
@@ -615,7 +507,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
-        # [area_constraint, {'min_max': 'max'}],
+        #[area_constraint, {'min_max': 'max'}],
         [item_adjacency_constraint,
          {'item_category': ('living', 'dining'), 'adj': True, 'addition_rule': 'Or'}]
     ],
@@ -688,7 +580,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
 
 if __name__ == '__main__':
     import libs.reader as reader
-    import libs.seed as seed
+    import libs.seed
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
@@ -702,10 +594,10 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur
+        input_file = 'Levallois_Letourneur.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
-        seeder = seed.Seeder(plan, seed.GROWTH_METHODS)
+        seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
         seeder.add_condition(SELECTORS['seed_duct'], 'duct')
         GRIDS['ortho_grid'].apply_to(plan)
 
@@ -713,15 +605,43 @@ if __name__ == '__main__':
         seeder.grow(show=True)
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        print(plan)
-        print(seeder)
+        logging.debug(plan)
+        logging.debug(seeder)
 
         ax = plan.plot(save=True)
         # seeder.plot_seeds(ax)
         plt.show()
+        seed_empty_furthest_couple_middle = SELECTORS[
+            'seed_empty_furthest_couple_middle_space_area_min_100000']
+        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
+        seed_methods = [
+            (
+                seed_empty_furthest_couple_middle,
+                libs.seed.GROWTH_METHODS_FILL,
+                "empty"
+            ),
+            (
+                seed_empty_area_max_100000,
+                libs.seed.GROWTH_METHODS_SMALL_SPACE_FILL,
+                "empty"
+            )
+        ]
+
+        filler = libs.seed.Filler(plan, seed_methods)
+        filler.apply_to(plan)
+        plan.remove_null_spaces()
+        fuse_selector = SELECTORS['fuse_small_cell']
+
+        logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
+
+        filler.fusion(fuse_selector)
+
+        logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
+
+        SHUFFLES['square_shape'].run(plan, show=True)
         assert plan.check()
 
-        input_file = 'Antony_A22_setup.json'
+        input_file = 'Levallois_Letourneur_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
 
