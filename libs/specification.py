@@ -77,3 +77,12 @@ class Item:
 
     def __repr__(self):
         return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.min_size.__repr__()
+
+    @property
+    def required_area(self) -> float:
+        """
+        Returns the required size of the item
+        :return:
+        """
+        return (self.min_size.area + self.max_size.area)/2
+

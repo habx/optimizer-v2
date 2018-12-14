@@ -73,6 +73,7 @@ class ConstraintSolver:
         :return: None
         """
         if ct is not None:
+            print('ct', ct)
             self.solver.Add(ct)
 
     def solve(self) -> None:
@@ -124,9 +125,9 @@ class ConstraintsManager:
 
         self.constraint_solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.seed_spaces))
         self.symmetry_breaker_memo = {}
-        self.openings_length = {}
-        self.init_openings_length()
-        print('openings_length', self.openings_length)
+        self.windows_length = {}
+        self.init_windows_length()
+        print('windows_length', self.windows_length)
         self.spaces_adjacency = []
         self.init_spaces_adjacency()
 
@@ -160,15 +161,16 @@ class ConstraintsManager:
         self.spaces_adjacency = np.array(self.spaces_adjacency)
         self.spaces_adjacency.shape
 
-    def init_openings_length(self) -> None:
+    def init_windows_length(self) -> None:
         for item in self.sp.spec.items:
             length = 0
             for j, space in enumerate(self.sp.seed_spaces):
                 for component in space.components_associated():
                     if component.category.name == 'window' \
                             or component.category.name == 'doorWindow':
-                        length += self.constraint_solver.positions[item.number, j] * int(component.length)
-            self.openings_length[str(item.number)] = length
+                        length += self.constraint_solver.positions[item.number, j] * int(
+                            component.length)
+            self.windows_length[str(item.number)] = length
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -243,6 +245,33 @@ def area_constraint(constraints_manager: 'ConstraintsManager', item: Item,
         ValueError('AreaConstraint')
 
     return ct
+
+
+def windows_constraint(constraints_manager: 'ConstraintsManager', item: Item) \
+        -> ortools.Constraint:
+    """
+    Windows length constraint
+    :param constraints_manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    for j_item in constraints_manager.sp.spec.items:
+        if j_item.number < item.number:
+            if item.required_area < j_item.required_area:
+                if ct is None:
+                    ct = constraints_manager.windows_length[str(item.number)] <= \
+                         constraints_manager.windows_length[str(j_item.number)]
+                else:
+                    new_ct = constraints_manager.windows_length[str(item.number)] <= \
+                         constraints_manager.windows_length[str(j_item.number)]
+                    ct = constraints_manager.constraint_solver.solver.Min(ct, new_ct)
+
+    print('windows_constraint', ct)
+    if ct is None:
+        return ct
+    else:
+        return ct == 1
 
 
 def symmetry_breaker_constraint(constraints_manager: 'ConstraintsManager',
@@ -551,6 +580,7 @@ class SpacePlanner:
 GENERAL_ITEMS_CONSTRAINTS = {
     'all': [
         [inside_adjacency_constraint, {}],
+        [windows_constraint, {}],
         [area_constraint, {'min_max': 'min'}]
     ],
     'entrance': [

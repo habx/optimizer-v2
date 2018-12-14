@@ -1166,7 +1166,7 @@ class Space(PlanComponent):
         Return the name of the components associated to the space
         :return: [Plan Component name]
         """
-        return [component.name for component in self.components_associated()]
+        return [component.category.name for component in self.components_associated()]
 
     def neighboring_mutable_spaces(self) -> ['Space']:
         """
