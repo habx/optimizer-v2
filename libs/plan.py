@@ -33,6 +33,7 @@ class Plan:
     • spaces : rooms or ducts or pillars etc.
     • linears : windows, doors, walls etc.
     """
+
     def __init__(self, name: str = 'unnamed_plan', mesh: Optional[Mesh] = None,
                  spaces: Optional[List['Space']] = None, linears: Optional[List['Linear']] = None):
         self.name = name
@@ -248,11 +249,55 @@ class Plan:
 
         return is_valid
 
+    def remove_null_spaces(self):
+        """
+        Remove from the plan spaces with no edge reference
+        :return:
+        """
+        space_to_remove = []
+        for space in self.spaces:
+            if space.edge is None:
+                space_to_remove.append(space)
+        for space in space_to_remove:
+            self.remove_space(space)
+
+    def make_space_seedable(self, category):
+        """
+        Make seedable spaces with specified category name
+        :return:
+        """
+        for space in self.spaces:
+            if space.category.name == category:
+                space.category.seedable = True
+
+    def count_category_spaces(self, category) -> int:
+        """
+        count the number of spaces with given category
+        :return:
+        """
+        num = 0
+        for space in self.spaces:
+            if space.category.name == category:
+                num += 1
+        return num
+
+    def count_mutable_spaces(self) -> int:
+        """
+        count the number of mutable spaces
+        :return:
+        """
+        num = 0
+        for space in self.spaces:
+            if space.category.mutable:
+                num += 1
+        return num
+
 
 class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
+
     def __init__(self, plan: Plan, edge: Edge):
         self.plan = plan
         self.edge = edge
@@ -263,6 +308,7 @@ class Space(PlanComponent):
     """
     Space Class
     """
+
     def __init__(self, plan: Plan, edge: Edge,
                  category: SpaceCategory = SPACE_CATEGORIES('empty')):
         super().__init__(plan, edge)
@@ -1028,8 +1074,8 @@ class Space(PlanComponent):
         """
         edge = edge or self.edge
         vertex = (transformation.get['barycenter']
-                                .config(vertex=edge.end, coeff=coeff)
-                                .apply_to(edge.start))
+                  .config(vertex=edge.end, coeff=coeff)
+                  .apply_to(edge.start))
         return self.cut(edge, vertex, angle, traverse, max_length=max_length)
 
     def plot(self, ax=None,
@@ -1097,6 +1143,7 @@ class Linear(PlanComponent):
     A linear is an object composed of one or several contiguous edges localized on the boundary
     of a space object
     """
+
     def __init__(self, plan: Plan, edge: Edge, category: LinearCategory):
         """
         Init
@@ -1201,6 +1248,7 @@ class SeedSpace(Space):
     """"
     A space use to seed a plan
     """
+
     def __init__(self, plan: Plan, edge: Edge, seed: 'Seed'):
         super().__init__(plan, edge, SPACE_CATEGORIES['seed'])
         self.seed = seed
@@ -1219,9 +1267,10 @@ class SeedSpace(Space):
 
 
 if __name__ == '__main__':
-
     import libs.reader as reader
+
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     @DecoratorTimer()
     def floor_plan():
@@ -1229,17 +1278,14 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Vernouillet_A002.json"
+        input_file = "Groslay_A-00-01_oldformat.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
+
         plt.show()
 
         assert plan.check()
 
-    # floor_plan()
 
-
-
-
-
+    floor_plan()

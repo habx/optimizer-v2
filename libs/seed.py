@@ -9,8 +9,12 @@ to specified rules.
 After being planted the seeds can be grown according to provided actions.
 These actions are stored in the seed category of the space or linear
 
+Remaining empty spaces of the plan are seeded as well through a filler. Operation is performed
+until the space is totally filled
+
 """
-from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
+
+from typing import Tuple, TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
 import logging
 import copy
 
@@ -37,10 +41,49 @@ if TYPE_CHECKING:
 EPSILON_MAX_SIZE = 10.0
 
 
+class Filler:
+    """
+    Filler Class
+    """
+
+    def __init__(self, plan: Plan, seed_methods: List[Tuple['Selector', 'Catalog', str]], show: bool = False):
+        self.plan = plan
+        self.seed_methods = seed_methods
+        self.plot = None
+        self.show = show
+
+    def __repr__(self):
+        output = 'Filler:\n'
+        for seed_method in self.seed_methods:
+            _selector, _grow_method, _category = seed_method
+            output += '• ' + _selector.__repr__() + '\n'
+            output += '• ' + _grow_method.__repr__() + '\n'
+            output += '• ' + _category.__repr__() + '\n'
+        return output
+
+    def apply_to(self, plan):
+        """
+        Applies a succession of seed sets and growth
+        :return:
+        """
+        num_spaces_to_fill = plan.count_category_spaces("empty")
+        while num_spaces_to_fill > 0:
+            for seed_method in self.seed_methods:
+                _selector, _grow_method, _category = seed_method
+                seeder = Seeder(plan, _grow_method)
+                seeder.add_condition(_selector, _category)
+                seeder.plant_category_space(_category)
+                seeder.grow()
+                self.plan.remove_null_spaces()
+                plan.make_space_seedable("empty")
+                num_spaces_to_fill = plan.count_category_spaces("empty")
+
+
 class Seeder:
     """
     Seeder Class
     """
+
     def __init__(self, plan: Plan, growth_methods: Catalog):
         self.plan = plan
         self.seeds: List['Seed'] = []
@@ -53,6 +96,19 @@ class Seeder:
         for seed in self.seeds:
             output += '• ' + seed.__repr__() + '\n'
         return output
+
+    def plant_category_space(self, category):
+        """
+        Creates the seeds in spaces with a given category
+        :return:
+        """
+        for component in self.plan.get_component():
+            if component.category.seedable and component.category.name == category:
+
+                if isinstance(component, Space):
+                    for edge in self.space_seed_edges(component):
+                        seed_edge = edge
+                        self.add_seed(seed_edge, component)
 
     def plant(self):
         """
@@ -107,6 +163,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
+                    # input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -180,6 +237,7 @@ class Seed:
     Seed class
     An edge from which to grow a space
     """
+
     def __init__(self,
                  seeder: Seeder,
                  edge: 'Edge',
@@ -350,6 +408,7 @@ class GrowthMethod:
     """
     A category of a seed
     """
+
     def __init__(self, name: str, constraints: Optional[Sequence['Constraint']] = None,
                  actions: Optional[Sequence['Action']] = None):
         constraints = constraints or []
@@ -423,28 +482,39 @@ front_door_seed_category = GrowthMethod(
     )
 )
 
-
 GROWTH_METHODS = Catalog('seeds').add(
     classic_seed_category,
     duct_seed_category,
     front_door_seed_category)
 
+GROWTH_METHODS_CLASSIC = Catalog('seeds').add(
+    classic_seed_category)
 
 if __name__ == '__main__':
-
     import libs.reader as reader
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
-    from libs.shuffle import few_corner_shuffle, SHUFFLES
+    from libs.shuffle import SHUFFLES
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--plan_index", help="choose plan index",
+                        default=0)
+
+    args = parser.parse_args()
+    plan_index = int(args.plan_index)
 
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     def grow_a_plan():
         """
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[27]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+
         plan = reader.create_plan_from_file(input_file)
 
         seeder = Seeder(plan, GROWTH_METHODS)
@@ -453,12 +523,43 @@ if __name__ == '__main__':
 
         seeder.plant()
         seeder.grow(show=True)
+        plan.plot(save=False)
         SHUFFLES['square_shape'].run(plan, show=True)
 
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
+        plt.title("seeding points")
         plt.show()
 
+        plan.remove_null_spaces()
+        plan.make_space_seedable("empty")
+
+        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
+        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
+        seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_space_area_min_100000']
+        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
+        seed_methods = [
+            (
+                seed_empty_furthest_couple,
+                GROWTH_METHODS_CLASSIC,
+                "empty"
+            ),
+            (
+                seed_empty_area_max_100000,
+                GROWTH_METHODS_CLASSIC,
+                "empty"
+            )
+        ]
+
+        filler = Filler(plan, seed_methods)
+        filler.apply_to(plan)
+
+        logging.debug("num_mutable_spaces : {0}".format(plan.count_mutable_spaces()))
+
+        SHUFFLES['square_shape'].run(plan, show=True)
+        plan.plot(save=True)
+
         assert plan.check()
+
 
     grow_a_plan()

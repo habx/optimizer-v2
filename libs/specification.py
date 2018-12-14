@@ -15,6 +15,7 @@ class Specification:
     """
     The wishes of the user describing its flan
     """
+
     def __init__(self, name: str = '', plan: Plan = None, items: Optional[List['Item']] = None):
         self.name = name
         self.plan = plan
@@ -41,6 +42,7 @@ class Item:
     """
     The items of the specification
     """
+
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
                  adjacencies: Optional[List['Item']] = None):
@@ -51,4 +53,5 @@ class Item:
         self.adjacencies = adjacencies
 
     def __repr__(self):
-        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.size.__repr__()
+        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + str(self.min_size) + ', ' + str(
+            self.max_size).__repr__()
