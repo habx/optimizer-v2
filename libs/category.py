@@ -73,6 +73,7 @@ class LinearCategory(Category):
     A category of a linear
     Examples : window, doorWindow, door, wall, entrance
     """
+
     def __init__(self,
                  name,
                  mutable: bool = True,

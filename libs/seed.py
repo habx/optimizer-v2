@@ -26,7 +26,6 @@ from libs.size import Size
 from libs.utils.catalog import Catalog
 from libs.action import Action
 
-from libs.category import SPACE_CATEGORIES
 from libs.constraint import CONSTRAINTS
 from libs.selector import SELECTORS
 from libs.mutation import MUTATIONS
@@ -61,7 +60,28 @@ class Filler:
             output += '• ' + _category.__repr__() + '\n'
         return output
 
-    def apply_to(self, plan):
+    def fusion(self, selector: 'Selector'):
+        """
+        Fuse spaces according to a given selector
+        :return:
+        """
+        continue_merge = True
+        while continue_merge:
+            continue_merge = False
+            merged_done = False
+            for space in self.plan.spaces:
+                for edge in selector.yield_from(space):
+                    if edge.space != edge.pair.space:
+                        space.merge(edge.pair.space)
+                        self.plan.remove_null_spaces()
+                        merged_done = True
+                        continue_merge = True
+                        break
+                if merged_done:
+                    logging.debug("space has been merged: {0}".format(id(space)))
+                    break
+
+    def apply_to(self, plan: Plan):
         """
         Applies a succession of seed sets and growth
         :return:
@@ -451,6 +471,24 @@ class GrowthMethod:
         return self.constraints[constraint_name]
 
 
+fill_seed_category = GrowthMethod(
+    'default',
+    (CONSTRAINTS['max_size'],),
+    (
+        Action(SELECTORS['homogeneous'], MUTATIONS['add_face']),
+    )
+)
+
+fill_small_seed_category = GrowthMethod(
+    'default',
+    (CONSTRAINTS['max_size'],),
+    (
+        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
+        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+    )
+)
+
 classic_seed_category = GrowthMethod(
     'default',
     (CONSTRAINTS['max_size_s'],),
@@ -487,8 +525,11 @@ GROWTH_METHODS = Catalog('seeds').add(
     duct_seed_category,
     front_door_seed_category)
 
-GROWTH_METHODS_CLASSIC = Catalog('seeds').add(
-    classic_seed_category)
+GROWTH_METHODS_FILL = Catalog('seeds').add(
+    fill_seed_category)
+
+GROWTH_METHODS_SMALL_SPACE_FILL = Catalog('seeds').add(
+    fill_small_seed_category)
 
 if __name__ == '__main__':
     import libs.reader as reader
@@ -534,27 +575,31 @@ if __name__ == '__main__':
         plan.remove_null_spaces()
         plan.make_space_seedable("empty")
 
-        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
-        #       seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
-        seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple_space_area_min_100000']
+        seed_empty_furthest_couple_middle = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
         seed_empty_area_max_100000 = SELECTORS['area_max=100000']
         seed_methods = [
             (
-                seed_empty_furthest_couple,
-                GROWTH_METHODS_CLASSIC,
+                seed_empty_furthest_couple_middle,
+                GROWTH_METHODS_FILL,
                 "empty"
             ),
             (
                 seed_empty_area_max_100000,
-                GROWTH_METHODS_CLASSIC,
+                GROWTH_METHODS_SMALL_SPACE_FILL,
                 "empty"
             )
         ]
 
         filler = Filler(plan, seed_methods)
         filler.apply_to(plan)
+        plan.remove_null_spaces()
+        fuse_selector = SELECTORS['fuse_small_cell']
 
-        logging.debug("num_mutable_spaces : {0}".format(plan.count_mutable_spaces()))
+        logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
+
+        filler.fusion(fuse_selector)
+
+        logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
 
         SHUFFLES['square_shape'].run(plan, show=True)
         plan.plot(save=True)

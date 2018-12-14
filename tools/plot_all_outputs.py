@@ -3,7 +3,8 @@
 import os
 import argparse
 
-#plots all files in specified folder on same html page
+
+# plots all files in specified folder on same html page
 
 def startHTML(repo, module):
     output_filename = repo + 'summary_' + module + '.html'
