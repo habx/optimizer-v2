@@ -15,6 +15,6 @@ if __name__ == '__main__':
     files = [x for x in files if x.endswith('.json')]
     num_files = len(files)
     for index_plan in range(num_files):
-        print("current plan ",files[index_plan])
+        print("current plan ", files[index_plan])
         command_lauch_grid = "python ../libs/" + module + ".py -p " + str(index_plan)
         os.system(command_lauch_grid)
