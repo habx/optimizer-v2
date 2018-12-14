@@ -270,7 +270,7 @@ class Plan:
             if space.category.name == category:
                 space.category.seedable = True
 
-    def count_category_spaces(self, category):
+    def count_category_spaces(self, category) -> int:
         """
         count the number of spaces with given category
         :return:
@@ -281,13 +281,13 @@ class Plan:
                 num += 1
         return num
 
-    def count_mutable_spaces(plan):
+    def count_mutable_spaces(self) -> int:
         """
         count the number of mutable spaces
         :return:
         """
         num = 0
-        for space in plan.spaces:
+        for space in self.spaces:
             if space.category.mutable:
                 num += 1
         return num

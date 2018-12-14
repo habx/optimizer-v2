@@ -3,8 +3,6 @@
 Grid module
 """
 
-import argparse
-
 from typing import Tuple, Sequence, Union, TYPE_CHECKING
 import logging
 import matplotlib.pyplot as plt
@@ -181,6 +179,7 @@ ortho_grid = Grid('ortho_grid', [
 GRIDS.add(ortho_grid)
 
 if __name__ == '__main__':
+    import argparse
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-p", "--plan_index", help="choose plan index",

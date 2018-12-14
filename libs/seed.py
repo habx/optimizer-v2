@@ -20,8 +20,6 @@ import copy
 
 import matplotlib.pyplot as plt
 
-import argparse
-
 from libs.plan import Space, PlanComponent, Plan, Linear, SeedSpace
 from libs.plot import plot_point, Plot
 from libs.size import Size
@@ -497,7 +495,7 @@ if __name__ == '__main__':
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
     from libs.shuffle import SHUFFLES
-
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
