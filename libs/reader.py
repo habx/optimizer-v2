@@ -234,6 +234,5 @@ if __name__ == '__main__':
         """
         input_file = 'Levallois_Letourneur_setup.json'
         spec = create_specification_from_file(input_file)
-        print(spec)
 
     specification_read()

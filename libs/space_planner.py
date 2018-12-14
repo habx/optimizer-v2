@@ -285,7 +285,7 @@ def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
             A >= constraints_manager.constraint_solver.positions[item.number, k],
             nbr_spaces_in_i_item == 1)
 
-    ct = (constraints_manager.constraint_solver.solver.Max(ct1, ct2) == 1)
+    ct = (constraints_manager.constraint_solver.solver.Min(ct1, ct2) == 1)
 
     return ct
 
@@ -303,6 +303,7 @@ def adjacency_test(constraints_manager: 'ConstraintsManager',
         room_position_matrix.append([])
         for j in range(len(constraints_manager.sp.seed_spaces)):
             room_position_matrix[i].append(
+                constraints_manager.spaces_adjacency[i, j] *
                 constraints_manager.constraint_solver.positions[item.number, i] *
                 constraints_manager.constraint_solver.positions[item.number, j])
 
@@ -314,13 +315,12 @@ def adjacency_test(constraints_manager: 'ConstraintsManager',
     ways = []
     for i in range(max_nbr_spaces_into_room):
         if i >= 1:
-            current_ways = constraints_manager.spaces_adjacency.copy() * room_position_matrix.copy()
+            current_ways = room_position_matrix.copy()
             for a in range(i):
                 if a == 0:
-                    A = constraints_manager.spaces_adjacency.copy() * room_position_matrix.copy()
+                    A = room_position_matrix.copy()
                 else:
-                    A = np.dot(A.copy(), np.dot(constraints_manager.spaces_adjacency.copy(),
-                                                room_position_matrix.copy()))
+                    A = np.dot(A.copy(),room_position_matrix.copy())
                     current_ways += A.copy()
             inside = current_ways.copy()
             ways.append(inside)
@@ -534,13 +534,13 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint,
          {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
-        #[area_constraint, {'min_max': 'max'}],
+        [area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'bathroom': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint, {'category': ['doorWindow'], 'adj': False}],
-        #[area_constraint, {'min_max': 'max'}],
+        [area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'living': [

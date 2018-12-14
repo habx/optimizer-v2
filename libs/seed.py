@@ -43,8 +43,6 @@ class Seeder:
     """
     def __init__(self, plan: Plan, growth_methods: Catalog):
         self.plan = plan
-        plan.plot(save=False)
-        plt.show()
         self.seeds: List['Seed'] = []
         self.selectors: Dict[str, 'Selector'] = {}
         self.growth_methods = growth_methods
@@ -446,9 +444,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.BLUEPRINT_INPUT_FILES[5]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.BLUEPRINT_INPUT_FILES[27]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
-        print(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS)
         seeder.add_condition(SELECTORS['seed_duct'], 'duct')
@@ -458,10 +455,7 @@ if __name__ == '__main__':
         seeder.grow(show=True)
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        print(plan)
-        print(seeder)
-
-        ax = plan.plot(save=True)
+        ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
         plt.show()
 
