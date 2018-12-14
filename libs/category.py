@@ -13,7 +13,11 @@ CATEGORIES_COLORS = {
     'frontDoor': 'r',
     'empty': 'b',
     'space': 'b',
-    'seed': '#6a006a'
+    'seed': '#6a006a',
+    'balcony': 'silver',
+    'terrace': 'silver',
+    'garden': 'green',
+    'loggia': 'silver'
 }
 
 
@@ -52,6 +56,7 @@ class LinearCategory(Category):
     A category of a linear
     Examples : window, doorWindow, door, wall, entrance
     """
+
     def __init__(self,
                  name,
                  mutable: bool = True,
