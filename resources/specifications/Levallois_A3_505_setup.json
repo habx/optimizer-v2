@@ -6,7 +6,7 @@
         "min": 80000,
         "max": 120000
       },
-      "type": "wcBathroom"
+      "type": "bathroom"
     },
     {
       "variant": "s",
@@ -14,7 +14,7 @@
         "min": 50000,
         "max": 90000
       },
-      "type": "wcBathroom"
+      "type": "bathroom"
     },
     {
       "variant": "m",

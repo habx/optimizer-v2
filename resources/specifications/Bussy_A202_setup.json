@@ -33,7 +33,7 @@
       }
     },
     {
-      "type": "wcBathroom",
+      "type": "bathroom",
       "variant": "s",
       "requiredArea": {
         "min": 50000,

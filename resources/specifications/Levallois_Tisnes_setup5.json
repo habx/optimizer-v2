@@ -57,7 +57,7 @@
             "variant": "s"
         },
         {
-            "type": "livingKitchen",
+            "type": "living",
             "requiredArea": {
                 "min": 340000,
                 "max": 460000

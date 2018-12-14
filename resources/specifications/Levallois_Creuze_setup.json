@@ -9,7 +9,7 @@
       "variant": "m"
     },
     {
-      "type": "wcBathroom",
+      "type": "bathroom",
       "requiredArea": {
         "max": 120000,
         "min": 80000
@@ -17,7 +17,7 @@
       "variant": "m"
     },
     {
-      "type": "wcBathroom",
+      "type": "bathroom",
       "requiredArea": {
         "max": 90000,
         "min": 50000

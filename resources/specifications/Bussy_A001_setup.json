@@ -9,7 +9,7 @@
       }
     },
     {
-      "type": "livingKitchen",
+      "type": "living",
       "variant": "xs",
       "requiredArea": {
         "min": 100000,
