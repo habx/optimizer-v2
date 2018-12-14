@@ -124,6 +124,9 @@ class ConstraintsManager:
 
         self.constraint_solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.seed_spaces))
         self.symmetry_breaker_memo = {}
+        self.openings_length = {}
+        self.init_openings_length()
+        print('openings_length', self.openings_length)
         self.spaces_adjacency = []
         self.init_spaces_adjacency()
 
@@ -150,11 +153,22 @@ class ConstraintsManager:
                         self.spaces_adjacency[i][j] = 0
                         self.spaces_adjacency[j][i] = 0
 
-        fi_adjacency_matrix = pd.DataFrame(self.spaces_adjacency, index=range(len(self.sp.seed_spaces)),
+        fi_adjacency_matrix = pd.DataFrame(self.spaces_adjacency,
+                                           index=range(len(self.sp.seed_spaces)),
                                            columns=range(len(self.sp.seed_spaces)))
 
         self.spaces_adjacency = np.array(self.spaces_adjacency)
         self.spaces_adjacency.shape
+
+    def init_openings_length(self) -> None:
+        for item in self.sp.spec.items:
+            length = 0
+            for j, space in enumerate(self.sp.seed_spaces):
+                for component in space.components_associated():
+                    if component.category.name == 'window' \
+                            or component.category.name == 'doorWindow':
+                        length += self.constraint_solver.positions[item.number, j] * int(component.length)
+            self.openings_length[str(item.number)] = length
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -277,7 +291,8 @@ def inside_adjacency_constraint(constraints_manager: 'ConstraintsManager',
     ct1 = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
 
     for k, k_space in enumerate(constraints_manager.sp.seed_spaces):
-        A = constraints_manager.constraint_solver.positions[item.number, k] * constraints_manager.constraint_solver.solver.Sum(
+        A = constraints_manager.constraint_solver.positions[
+                item.number, k] * constraints_manager.constraint_solver.solver.Sum(
             int(constraints_manager.sp.spec.plan.adjacent_spaces(j_space, k_space)) *
             constraints_manager.constraint_solver.positions[item.number, j] for
             j, j_space in enumerate(constraints_manager.sp.seed_spaces) if k != j)
@@ -309,19 +324,18 @@ def adjacency_test(constraints_manager: 'ConstraintsManager',
 
     room_position_matrix = np.array(room_position_matrix)
     room_position_matrix.shape
-    print('room_position_matrix',room_position_matrix)
+    print('room_position_matrix', room_position_matrix)
     print('spaces_adjacency', constraints_manager.spaces_adjacency)
 
     ways = []
+    matrix = room_position_matrix.copy()
+    current_ways = matrix
     for i in range(max_nbr_spaces_into_room):
-        if i >= 1:
-            current_ways = room_position_matrix.copy()
-            for a in range(i):
-                if a == 0:
-                    A = room_position_matrix.copy()
-                else:
-                    A = np.dot(A.copy(),room_position_matrix.copy())
-                    current_ways += A.copy()
+        if i == 1:
+            ways.append(current_ways)
+        else:
+            matrix = np.dot(matrix.copy(), room_position_matrix.copy())
+            current_ways += matrix.copy()
             inside = current_ways.copy()
             ways.append(inside)
 
@@ -334,14 +348,20 @@ def adjacency_test(constraints_manager: 'ConstraintsManager',
     for nbr_spaces_into_room in range(max_nbr_spaces_into_room + 1):
         if nbr_spaces_into_room >= 2:
             constraint = constraints_manager.constraint_solver.solver.Sum(min(1,
-                                                                 ways[nbr_spaces_into_room - 2][i][
-                                                                     j] *
-                                                                 constraints_manager.constraint_solver.positions[
-                                                                     item.number, i] *
-                                                                 constraints_manager.constraint_solver.positions[
-                                                                     item.number, j]) for j in
-                range(len(constraints_manager.sp.seed_spaces)) for i in
-                range(len(constraints_manager.sp.seed_spaces)))
+                                                                              ways[
+                                                                                  nbr_spaces_into_room - 2][
+                                                                                  i][
+                                                                                  j] *
+                                                                              constraints_manager.constraint_solver.positions[
+                                                                                  item.number, i] *
+                                                                              constraints_manager.constraint_solver.positions[
+                                                                                  item.number, j])
+                                                                          for j in
+                                                                          range(len(
+                                                                              constraints_manager.sp.seed_spaces))
+                                                                          for i in
+                                                                          range(len(
+                                                                              constraints_manager.sp.seed_spaces)))
             adjacency_constraint = constraints_manager.constraint_solver.solver.Max(
                 nbr_of_spaces != nbr_spaces_into_room,
                 constraint == nbr_spaces_into_room * nbr_spaces_into_room)
@@ -421,7 +441,7 @@ def components_adjacency_constraint(constraints_manager: 'ConstraintsManager', i
         adjacency_sum = constraints_manager.constraint_solver.solver.Sum(
             constraints_manager.constraint_solver.positions[item.number, j] for j, space in
             enumerate(constraints_manager.sp.seed_spaces) if
-            cat in space.components_associated())
+            cat in space.components_category_associated())
         if c == 0:
             if adj:
                 ct = (adjacency_sum >= 1)
@@ -456,12 +476,8 @@ class SpacePlanner:
         self.spec = spec
         logging.debug(spec)
         self.seed_spaces = []
-        print('self.spec.plan.get_spaces()', self.spec.plan)
-        for space in self.spec.plan.get_spaces():  # empty and seed spaces
-            if space.mutable and space.edge is not None:
-                self.seed_spaces.append(space)
-                logging.debug(self.seed_spaces)
-                logging.debug(space.components_associated())
+        self.init_spaces_list()
+
         self.constraints_manager = ConstraintsManager(self)
         self.item_constraints = {}
         self.init_item_constraints_list()
@@ -471,9 +487,20 @@ class SpacePlanner:
         output = 'SpacePlanner' + self.name
         return output
 
+    def init_spaces_list(self) -> None:
+        """
+        Spaces list initialization
+        :return: None
+        """
+        for space in self.spec.plan.get_spaces():  # empty and seed spaces
+            if space.mutable and space.edge is not None:
+                self.seed_spaces.append(space)
+                logging.debug(self.seed_spaces)
+                logging.debug(space.components_associated())
+
     def init_item_constraints_list(self) -> None:
         """
-        constraints list initialization
+        Constraints list initialization
         :return: None
         """
         self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
@@ -558,7 +585,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {'category': WINDOW_CATEGORY, 'adj': True, 'addition_rule': 'Or'}],
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
-        #[area_constraint, {'min_max': 'max'}],
+        # [area_constraint, {'min_max': 'max'}],
         [item_adjacency_constraint,
          {'item_category': ('living', 'dining'), 'adj': True, 'addition_rule': 'Or'}]
     ],

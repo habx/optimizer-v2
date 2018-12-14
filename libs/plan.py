@@ -1143,21 +1143,36 @@ class Space(PlanComponent):
 
         return is_valid
 
-    def components_associated(self) -> [str]:
-        immutable_categories_associated = []
+    def components_associated(self) -> ['PlanComponent']:
+        """
+        Return the components associated to the space
+        :return: [PlanComponent]
+        """
+        immutable_associated = []
         for edge in self.edges:
             if edge.linear is not None:
-                if not (edge.linear.category.name in immutable_categories_associated):
-                    immutable_categories_associated.append(edge.linear.category.name)
+                if not (edge.linear.category.name in immutable_associated):
+                    immutable_associated.append(edge.linear)
             if edge.pair.linear is not None:
-                if not (edge.pair.linear.category.name in immutable_categories_associated):
-                    immutable_categories_associated.append(edge.pair.linear.category.name)
+                if not (edge.pair.linear.category.name in immutable_associated):
+                    immutable_associated.append(edge.pair.linear)
             if edge.pair.face is not None and edge.pair.face.space.category.mutable is False:
-                if not (edge.pair.face.space.category.name in immutable_categories_associated):
-                    immutable_categories_associated.append(edge.pair.face.space.category.name)
-        return immutable_categories_associated
+                if not (edge.pair.face.space.category.name in immutable_associated):
+                    immutable_associated.append(edge.pair.face.space)
+        return immutable_associated
+
+    def components_category_associated(self) -> [str]:
+        """
+        Return the name of the components associated to the space
+        :return: [Plan Component name]
+        """
+        return [component.name for component in self.components_associated()]
 
     def neighboring_mutable_spaces(self) -> ['Space']:
+        """
+        Return the neighboring mutable spaces
+        :return: ['Space']
+        """
         neighboring_spaces = []
         for edge in self.edges:
             if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
@@ -1225,6 +1240,18 @@ class Linear(PlanComponent):
             return None
         vertices.append(edge.end.coords)
         return LineString(vertices)
+
+    @property
+    def length(self) -> float:
+        """
+        Returns the length of the Linear.
+        :return:
+        """
+        _length = 0.0
+        for edge in self.edges:
+            _length += edge.length
+
+        return _length
 
     def add_edge(self, edge: Edge):
         """
