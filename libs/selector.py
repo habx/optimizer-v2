@@ -39,6 +39,7 @@ PredicateFactory = Callable[..., Predicate]
 
 SELECTORS = Catalog('selectors')
 
+EPSILON = 1.0
 ANGLE_EPSILON = 5.0
 
 
@@ -178,6 +179,60 @@ def boundary_unique(face_or_space: Union['Face', 'Space'], *_) -> Generator['Edg
     yield face_or_space.edge
 
 
+def boundary_unique_longest(face_or_space: Union['Face', 'Space'], *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the longest edge of the face_or_space that is not on the plan boundary
+    :param face_or_space:
+    :return:
+    """
+
+    ref_edge = face_or_space.edge
+    if ref_edge:
+        longest_edge = ref_edge
+        length = ref_edge.length
+        for edge in ref_edge.space_siblings:
+            if not edge.is_mesh_boundary and edge.pair:
+                if longest_edge.is_mesh_boundary:
+                    longest_edge = edge
+                elif pseudo_equal(edge.length, length, EPSILON) and edge.pair.space.area > longest_edge.pair.space.area:
+                    longest_edge = edge
+                elif edge.length > length:
+                    length = edge.length
+                    longest_edge = edge
+        yield longest_edge
+
+
+def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edge such that when edge.pair.face is added to the current space, area/perimeter is max
+    compared to other adds
+    #TODO : we should avoid using shapely for polygon fusion - try merge and reverse
+    :param space:
+    :return:
+    """
+
+    list_homogeneneous = []
+    ref_edge = space.edge
+    biggest_shape_factor = 0
+    edge_homogeneous_growth = None
+    if ref_edge and ref_edge.pair and ref_edge.pair.face:
+        union_sp_poly = space.as_sp.union(ref_edge.pair.face.as_sp)
+        biggest_shape_factor = (union_sp_poly.area / union_sp_poly.length)
+        edge_homogeneous_growth = ref_edge
+    for edge in ref_edge.space_siblings:
+        if edge.pair and edge.pair.face:
+            union_sp_poly = space.as_sp.union(edge.pair.face.as_sp)
+            current_shape_factor = (union_sp_poly.area / union_sp_poly.length)
+            if current_shape_factor > biggest_shape_factor:
+                biggest_shape_factor = current_shape_factor
+                edge_homogeneous_growth = edge
+    if edge_homogeneous_growth:
+        list_homogeneneous.append(edge_homogeneous_growth)
+
+    for edge in list_homogeneneous:
+        yield edge
+
+
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge that can be seeded for a duct
@@ -199,6 +254,21 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
         for edge in space.edges:
             if edge.next_ortho() is edge.next:
                 yield edge.pair
+
+
+def mutable() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge belongs to a mutable spac
+    :return:
+    """
+
+    def _predicate(edge: 'Edge') -> bool:
+        if not edge.space.mutable:
+            return False
+        return True
+
+    return _predicate
 
 
 def space_area(min_area: float = None, max_area: float = None) -> Predicate:
@@ -693,6 +763,10 @@ SELECTORS.add(
              name='seed_empty_furthest_couple_middle_space_area_min_100000'),
 
     Selector(boundary_unique, [space_area(max_area=100000)], name='area_max=100000'),
+
+    Selector(boundary_unique_longest, [space_area(max_area=30000), mutable()], name='fuse_small_cell'),
+
+    Selector(homogeneous, (adjacent_empty_space,), name='homogeneous'),
 
     Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),
              'other_space_boundary')
