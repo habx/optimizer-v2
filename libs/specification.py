@@ -23,13 +23,20 @@ class Specification:
 
     def __repr__(self):
         output = 'Specification: ' + self.name + '\n'
-        i = 0
         for item in self.items:
-            item.number = i
-            output += str(item.number) + ' • ' + item.__repr__() + '\n'
-            i += 1
+            output += str(item.id) + ' • ' + item.__repr__() + '\n'
 
         return output
+
+    def init_id(self) -> None:
+        """
+        Returns the number of rooms from the specification
+        :return:
+        """
+        i = 0
+        for item in self.items:
+            item.id = i
+            i += 1
 
     @property
     def number_of_items(self):
@@ -51,12 +58,13 @@ class Specification:
                 apartment_type = apartment_type + 1
         return apartment_type
 
-    def add_item(self, value):
+    def add_item(self, value: 'Item'):
         """
         Adds a specification item to the specification
         :param value:
         :return:
         """
+        value.id = len(self.items)
         self.items.append(value)
 
 
@@ -73,7 +81,7 @@ class Item:
         self.min_size = min_size
         self.max_size = max_size
         self.adjacencies = adjacencies
-        self.number = 0
+        self.id = 0
 
     def __repr__(self):
         return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.min_size.__repr__()

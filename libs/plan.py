@@ -213,13 +213,6 @@ class Plan:
         vertices.append(edge.end.coords)
         return LineString(vertices)
 
-    def adjacent_spaces(self, space1: 'Space', space2: 'Space') -> bool:
-        for edge in space1.edges:
-            if edge.pair.face is not None and edge.pair.face.space == space2:
-                    return True
-        return False
-
-
     def plot(self, ax=None, show: bool = False, save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border')):
         """
@@ -1179,6 +1172,16 @@ class Space(PlanComponent):
                 if not (edge.pair.face.space in neighboring_spaces):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
+
+    def adjacent_to(self, other: 'Space') -> bool:
+        """
+        Check the adjacency with an other space
+        :return:
+        """
+        for edge in self.edges:
+            if edge.pair.space is other:
+                return True
+        return False
 
 
 class Linear(PlanComponent):
