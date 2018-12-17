@@ -54,11 +54,12 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        self.positions = {(i_item, j_space): self.solver.IntVar(0, 1, 'positions[{0},{1}]'.format(i_item, j_space)) for i_item in range(self.items_nbr) for j_space in range(self.spaces_nbr)}
+        self.positions = {
+        (i_item, j_space): self.solver.IntVar(0, 1, 'positions[{0},{1}]'.format(i_item, j_space))
+        for i_item in range(self.items_nbr) for j_space in range(self.spaces_nbr)}
 
         self.positions_flat = [self.positions[i_item, j_space] for i_item in range(self.items_nbr)
-                               for
-                               j_space in range(self.spaces_nbr)]
+                               for j_space in range(self.spaces_nbr)]
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
         """
@@ -82,7 +83,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 50
+        max_num_sol = 5000000
         nbr_solutions = 0
         while self.solver.NextSolution():
             sol_positions = []
@@ -601,7 +602,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Levallois_Letourneur.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Bussy_Regis.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
@@ -647,8 +648,7 @@ if __name__ == '__main__':
 
         SHUFFLES['square_shape'].run(plan, show=True)
 
-
-        input_file = 'Levallois_Letourneur_setup.json'
+        input_file = 'Bussy_Regis_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
 

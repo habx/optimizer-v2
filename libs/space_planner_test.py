@@ -15,15 +15,15 @@ from libs.shuffle import SHUFFLES
 
 from libs.space_planner import SpacePlanner
 
-
-@pytest.mark.parametrize()
-def test_space_planner():
+test_files = [('Levallois_Letourneur.json','Levallois_Letourneur_setup.json')]
+@pytest.mark.parametrize("input_file, input_setup", test_files)
+def test_space_planner(input_file, input_setup):
     """
     Test
     :return:
     """
 
-    plan = reader.create_plan_from_file('Levallois_Letourneur.json')
+    plan = reader.create_plan_from_file(input_file)
 
     seeder = Seeder(plan, GROWTH_METHODS)
     seeder.add_condition(SELECTORS['seed_duct'], 'duct')
@@ -57,7 +57,7 @@ def test_space_planner():
 
     SHUFFLES['square_shape'].run(plan, show=False)
 
-    spec = reader.create_specification_from_file('Levallois_Letourneur_setup.json')
+    spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
 
     space_planner = SpacePlanner('test', spec)

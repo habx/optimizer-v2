@@ -1146,9 +1146,6 @@ class Space(PlanComponent):
             if edge.linear is not None:
                 if not (edge.linear.category.name in immutable_associated):
                     immutable_associated.append(edge.linear)
-            if edge.pair.linear is not None:
-                if not (edge.pair.linear.category.name in immutable_associated):
-                    immutable_associated.append(edge.pair.linear)
             if edge.pair.face is not None and edge.pair.face.space.category.mutable is False:
                 if not (edge.pair.face.space.category.name in immutable_associated):
                     immutable_associated.append(edge.pair.face.space)
