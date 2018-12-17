@@ -660,7 +660,7 @@ if __name__ == '__main__':
         ax = plan.plot(save=True)
         # seeder.plot_seeds(ax)
         plt.show()
-        assert plan.check()
+        assert spec.plan.check()
 
 
     space_planning()
