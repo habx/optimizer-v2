@@ -646,7 +646,7 @@ if __name__ == '__main__':
         logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
 
         SHUFFLES['square_shape'].run(plan, show=True)
-        assert plan.check()
+
 
         input_file = 'Levallois_Letourneur_setup.json'
         spec = reader.create_specification_from_file(input_file)
@@ -660,6 +660,7 @@ if __name__ == '__main__':
         ax = plan.plot(save=True)
         # seeder.plot_seeds(ax)
         plt.show()
+        assert plan.check()
 
 
     space_planning()
