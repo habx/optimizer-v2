@@ -259,13 +259,16 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def mutable() -> Predicate:
     """
     Predicate factory
-    Returns a predicate indicating if an edge belongs to a mutable spac
+    Returns a predicate indicating if an edge belongs to a mutable space
     :return:
     """
 
     def _predicate(edge: 'Edge') -> bool:
         if not edge.space.mutable:
             return False
+        if edge.pair:
+            if not edge.pair.space.mutable:
+                return False
         return True
 
     return _predicate

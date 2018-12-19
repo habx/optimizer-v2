@@ -2,6 +2,7 @@ matplotlib==2.2.2
 numpy==1.14.5
 shapely==1.6.4.post2
 dill==0.2.8.2
+Dijkstar==2.4.0
 
 # For tests and linting:
 pytest

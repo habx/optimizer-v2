@@ -11,7 +11,7 @@ import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString
 
-from libs.mesh import Mesh, Face, Edge, Vertex
+from libs.mesh import Mesh, Face, Edge, Space, Vertex
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
@@ -157,6 +157,18 @@ class Plan:
             if space.category.name != 'empty' and space.category.mutable:
                 return False
         return True
+
+    @property
+    def mutable_spaces(self) -> Generator[Space, Space, None]:
+        """
+        Mutables spaces of the plan
+        :return: an iterator
+        """
+        for space in self.spaces:
+            if space.mutable:
+                yield space
+
+
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
