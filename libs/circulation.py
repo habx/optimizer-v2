@@ -58,7 +58,7 @@ class Graph_manager:
     -how to deal with typing as graph type is not known?
     """
 
-    def __init__(self, plan: Plan, cost_rules: Dict, graph_lib: str = 'Dijkstar'):
+    def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'Dijkstar'):
         self.plan = plan
         self.graph_lib = graph_lib
         self.graph = None
@@ -69,8 +69,9 @@ class Graph_manager:
         output += 'graph library :' + self.graph_lib + '\n'
         return output
 
-    def build(self, plan: Plan):
+    def build(self):
         # runs through edges and adds branches to the graph, for each branch computes a weight
+        plan = self.plan
         self.graph = Graph(self.graph_lib)
         graph = self.graph
         graph.init(self.graph_lib)
@@ -188,7 +189,18 @@ if __name__ == '__main__':
 
         plan = build_plan(input_file)
 
-        for plan()
+        graph_manager = Graph_manager(plan=plan)
+        graph_manager.build(plan)
+
+        circulator = Circulator(plan=plan, graph_manager=graph_manager)
+
+        link_space = []
+        for space in plan.mutable_spaces:
+            link_space.append(space)
+            if (len(link_space) == 2):
+                break
+
+        path_min, cost_min = circulator.draw_path(link_space[0], link_space[1])
 
 
     generate_path()
