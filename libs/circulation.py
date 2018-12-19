@@ -19,8 +19,8 @@ class Circulator:
     """
     Circulator Class
     """
-    from libs.circulation import Graph_manager
-    def __init__(self, plan: Plan, graph_manager: Graph_manager):
+
+    def __init__(self, plan: Plan, graph_manager):
         self.plan = plan
         self.graph_manager = graph_manager
 
@@ -74,15 +74,17 @@ class Graph_manager:
         plan = self.plan
         self.graph = Graph(self.graph_lib)
         graph = self.graph
-        graph.init(self.graph_lib)
+        graph.init()
         seen = []
 
-        for edge in plan.mutable_spaces.edges:
-            if edge not in seen:
-                added_pair = graph.update(graph, edge)
-                seen.append(edge)
-                if added_pair:
-                    seen.append(edge.pair)
+        for space in plan.spaces:
+            if space.mutable:
+                for edge in space.edges:
+                    if edge not in seen:
+                        added_pair = self.update(edge)
+                        seen.append(edge)
+                        if added_pair:
+                            seen.append(edge.pair)
 
         graph.set_cost_function()
 
@@ -102,7 +104,7 @@ class Graph_manager:
     #         for edge in space.edges:
     #             if edge.
 
-    def cost(self, edge: Edge, cost_fixed_items: Dict):
+    def cost(self, edge: Edge, cost_fixed_items: Dict = None):
         cost = edge.length
         # # TODO : add list of rules for cost
         # if not edge.is_mutable and edge in cost_fixed_items.keys():
@@ -158,7 +160,7 @@ class Graph:
         else:
             raise ValueError('graph library does not exit')
         path = search_tree_result[0]
-        cost = search_tree_result[1]
+        cost = search_tree_result[3]
         return path, cost
 
 
@@ -190,17 +192,22 @@ if __name__ == '__main__':
         plan = build_plan(input_file)
 
         graph_manager = Graph_manager(plan=plan)
-        graph_manager.build(plan)
+        graph_manager.build()
 
         circulator = Circulator(plan=plan, graph_manager=graph_manager)
 
         link_space = []
-        for space in plan.mutable_spaces:
-            link_space.append(space)
-            if (len(link_space) == 2):
-                break
+        for space in plan.spaces:
+            if space.mutable:
+                link_space.append(space)
+                if (len(link_space) == 2):
+                    break
 
         path_min, cost_min = circulator.draw_path(link_space[0], link_space[1])
 
+        plan.plot(show=True)
+
+
+        input("press enter to end")
 
     generate_path()
