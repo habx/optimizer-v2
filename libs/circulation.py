@@ -7,11 +7,11 @@ used to detect isolated rooms and generate a path to connect them
 """
 
 import logging
-from libs.plan import Space, PlanComponent, Plan, Linear
+from libs.plan import Space, Plan, Linear
 from libs.mesh import Edge
 import dijkstar
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from tools.builds_plan import build_plan
 
 
@@ -24,7 +24,7 @@ class Circulator:
         self.plan = plan
         self.graph_manager = graph_manager
 
-    def draw_path(self, space1: Space, space2: Space) -> List[Edge]:
+    def draw_path(self, space1: Space, space2: Space) -> Tuple['List[Vertex]', float]:
         graph = self.graph_manager.graph
         cost_min = 10e50
         path_min = None
@@ -121,8 +121,8 @@ class Graph_manager:
 
 class Graph:
     """
-    Graph Class:
-    builds a graph,
+    Graph Graph:
+    function to build and deal with graph, implementation for given graph libaries
     """
 
     def __init__(self, graph_lib: str = 'Dijkstar'):
@@ -166,9 +166,6 @@ class Graph:
 
 if __name__ == '__main__':
     import libs.reader as reader
-    from libs.grid import GRIDS
-    from libs.selector import SELECTORS
-    from libs.shuffle import SHUFFLES
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -186,6 +183,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
+        plan_index = 2
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
@@ -200,14 +198,23 @@ if __name__ == '__main__':
         for space in plan.spaces:
             if space.mutable:
                 link_space.append(space)
-                if (len(link_space) == 2):
-                    break
+                # if (len(link_space) == 2):
+                #    break
+        ind_i = 5
+        ind_f = 9
+        path_min, cost_min = circulator.draw_path(link_space[ind_i], link_space[ind_f])
 
-        path_min, cost_min = circulator.draw_path(link_space[0], link_space[1])
+        logging.debug('path: {0}'.format(path_min))
+        logging.debug('spaces: {0} - {1}'.format(link_space[ind_i], link_space[ind_f]))
+        logging.debug('space center: {0} - {1}'.format(link_space[ind_i].as_sp.centroid.coords.xy,
+                                                       link_space[ind_f].as_sp.centroid.coords.xy))
+        plan.plot(show=True, path_min=path_min)
 
-        plan.plot(show=True)
-
-
-        input("press enter to end")
 
     generate_path()
+
+# TODO :
+# TODO : lier des espaces sachant la présence des couloirs existants
+# TODO : gestion des murs porteurs : ajout d'edge travesant en projetant les points des espaces? => considération obligatoire des espaces non mutables dans lee graphe?
+# TODO : ajout des règles par inamovible via liste
+# TODO : on pourrait dans le graphe ne manipuler que des edge -> la circulation finale est l'ensemble des edges sauf le dernier, et juste le start de l'edge s'il n'y en a qu'un
