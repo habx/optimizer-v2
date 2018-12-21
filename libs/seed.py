@@ -123,6 +123,11 @@ class Seeder:
         :return:
         """
         for component in self.plan.get_component():
+
+            if component.edge is None:
+                logging.debug("The plan contains an empty component: %s", component)
+                continue
+
             if component.category.seedable and component.category.name == category:
 
                 if isinstance(component, Space):
