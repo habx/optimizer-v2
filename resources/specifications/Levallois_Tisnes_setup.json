@@ -62,7 +62,7 @@
         "min": 360000,
         "max": 440000
       },
-      "type": "livingKitchen"
+      "type": "living"
     }
   ]
 }

@@ -73,7 +73,7 @@
             "variant": "s"
         },
         {
-            "type": "livingDining",
+            "type": "living",
             "requiredArea": {
                 "min": 500000,
                 "max": 600000

@@ -123,6 +123,11 @@ class Seeder:
         :return:
         """
         for component in self.plan.get_component():
+
+            if component.edge is None:
+                logging.debug("The plan contains an empty component: %s", component)
+                continue
+
             if component.category.seedable and component.category.name == category:
 
                 if isinstance(component, Space):
@@ -276,7 +281,7 @@ class Seed:
     def __repr__(self):
         return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
                 '{5}').format(self.components, str(self.space.area), str(self.size.width),
-                              str(self.size.depth), self.space, self.edge)
+                              str(self.size.depth), self.space, self.edge) + '\n'
 
     @property
     def size(self) -> Size:
