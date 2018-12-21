@@ -6,4 +6,4 @@ dill==0.2.8.2
 
 # For tests and linting:
 pytest
-pylint=2.2.2
+pylint==2.2.2
