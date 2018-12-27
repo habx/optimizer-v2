@@ -11,7 +11,7 @@ import logging
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString
 
-from libs.mesh import Mesh, Face, Edge, Space, Vertex
+from libs.mesh import Mesh, Face, Edge, Vertex
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
@@ -158,18 +158,6 @@ class Plan:
                 return False
         return True
 
-    @property
-    def mutable_spaces(self) -> Generator[Space, Space, None]:
-        """
-        Mutables spaces of the plan
-        :return: an iterator
-        """
-        for space in self.spaces:
-            if space.mutable:
-                yield space
-
-
-
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
                                    category: SpaceCategory = SPACE_CATEGORIES('empty')):
@@ -226,7 +214,7 @@ class Plan:
         return LineString(vertices)
 
     def plot(self, ax=None, show: bool = False, save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border')):
+             options: Tuple = ('face', 'edge', 'half-edge', 'fill', 'border'), path_min=None):
         """
         Plots a plan
         :return:
@@ -236,6 +224,21 @@ class Plan:
 
         for linear in self.linears:
             ax = linear.plot(ax, save=False)
+
+        if path_min:
+            if (len(path_min) == 1):
+                ax.scatter(path_min[0].start.x, path_min[0].start.y, marker='o', s=15, facecolor='blue')
+            else:
+                for i in range(len(path_min) - 1):
+                    v1 = path_min[i]
+                    v2 = path_min[i + 1]
+                    x_coords = [v1.x, v2.x]
+                    y_coords = [v1.y, v2.y]
+                    print("added vertex", x_coords, y_coords)
+
+                    ax = plot_edge(x_coords, y_coords, ax,
+                                   color="blue",
+                                   width=2, save=False)
 
         ax.set_title(self.name)
 
