@@ -1299,6 +1299,7 @@ class Linear(PlanComponent):
 
         return is_valid
 
+
 class SeedSpace(Space):
     """"
     A space use to seed a plan
