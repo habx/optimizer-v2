@@ -2,7 +2,7 @@
 """
 Testing module for the solver module
 """
-from cpsolver.solver import Solver
+from libs.cpsolver.solver import Solver
 
 
 def adjacency_matrix(size: int):

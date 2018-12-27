@@ -14,16 +14,16 @@ import logging
 
 from typing import Optional, Dict, Set
 
-from cpsolver.exception import Success, Conflict, Finished, Restart
-import cpsolver.pick as pick
-from cpsolver.constraint import (
+from libs.cpsolver.exception import Success, Conflict, Finished, Restart
+import libs.cpsolver.pick as pick
+from libs.cpsolver.constraint import (
     AreaConstraint,
     ComponentConstraint,
     ConnectivityConstraint,
     SymmetryBreakerConstraint
 )
-from cpsolver.variables import Cell, Value
-from cpsolver.node import DecisionNode
+from libs.cpsolver.variables import Cell, Value
+from libs.cpsolver.node import DecisionNode
 
 
 class Solver:

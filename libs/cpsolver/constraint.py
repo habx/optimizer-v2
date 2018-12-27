@@ -15,11 +15,11 @@ import logging
 
 import networkx as nx
 
-from cpsolver.exception import Conflict
+from libs.cpsolver.exception import Conflict
 
 if TYPE_CHECKING:
-    from cpsolver.solver import DecisionNode, Solver
-    from cpsolver.variables import Cell, Value
+    from libs.cpsolver.solver import DecisionNode, Solver
+    from libs.cpsolver.variables import Cell, Value
 
 
 class Constraint:

@@ -6,7 +6,7 @@ import math
 from typing import TYPE_CHECKING, Optional, Generator, Dict
 
 if TYPE_CHECKING:
-    from cpsolver.variables import Cell
+    from libs.cpsolver.variables import Cell
 
 
 class DecisionNode:

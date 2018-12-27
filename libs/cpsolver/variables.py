@@ -6,12 +6,12 @@ Contains Cell and Value classes
 import logging
 from typing import TYPE_CHECKING, Set
 
-from cpsolver.exception import Conflict
+from libs.cpsolver.exception import Conflict
 
 if TYPE_CHECKING:
-    from cpsolver.constraint import Constraint
-    from cpsolver.solver import DecisionNode
-    from cpsolver.solver import Solver
+    from libs.cpsolver.constraint import Constraint
+    from libs.cpsolver.solver import DecisionNode
+    from libs.cpsolver.solver import Solver
 
 
 class Value:

@@ -8,8 +8,8 @@ from random import randrange
 
 
 if TYPE_CHECKING:
-    from cpsolver.node import DecisionNode
-    from cpsolver.solver import Solver
+    from libs.cpsolver.node import DecisionNode
+    from libs.cpsolver.solver import Solver
 
 # Cell picking
 
