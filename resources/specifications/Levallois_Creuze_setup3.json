@@ -1,7 +1,7 @@
 {
     "setup": [
         {
-            "type": "wcBathroom",
+            "type": "bathroom",
             "requiredArea": {
                 "min": 60000,
                 "max": 80000
@@ -49,7 +49,7 @@
             "variant": "s"
         },
         {
-            "type": "wcBathroom",
+            "type": "bathroom",
             "requiredArea": {
                 "min": 60000,
                 "max": 80000
@@ -57,7 +57,7 @@
             "variant": "m"
         },
         {
-            "type": "livingKitchen",
+            "type": "living",
             "requiredArea": {
                 "min": 560000,
                 "max": 640000

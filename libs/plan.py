@@ -42,9 +42,9 @@ class Plan:
         self.linears = linears or []
 
     def __repr__(self):
-        output = 'Plan ' + self.name + ': '
+        output = 'Plan ' + self.name + ':  \n'
         for space in self.spaces:
-            output += space.__repr__() + ' - '
+            output += space.__repr__() + ' - \n'
         return output
 
     def from_boundary(self, boundary: Sequence[Coords2d]):
@@ -1151,6 +1151,50 @@ class Space(PlanComponent):
 
         return is_valid
 
+    def components_associated(self) -> ['PlanComponent']:
+        """
+        Return the components associated to the space
+        :return: [PlanComponent]
+        """
+        immutable_associated = []
+        for edge in self.edges:
+            if edge.linear is not None:
+                if not (edge.linear.category.name in immutable_associated):
+                    immutable_associated.append(edge.linear)
+            if edge.pair.face is not None and edge.pair.face.space.category.mutable is False:
+                if not (edge.pair.face.space.category.name in immutable_associated):
+                    immutable_associated.append(edge.pair.face.space)
+        return immutable_associated
+
+    def components_category_associated(self) -> [str]:
+        """
+        Return the name of the components associated to the space
+        :return: [Plan Component name]
+        """
+        return [component.category.name for component in self.components_associated()]
+
+    def neighboring_mutable_spaces(self) -> ['Space']:
+        """
+        Return the neighboring mutable spaces
+        :return: ['Space']
+        """
+        neighboring_spaces = []
+        for edge in self.edges:
+            if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
+                if not (edge.pair.face.space in neighboring_spaces):
+                    neighboring_spaces.append(edge.pair.face.space)
+        return neighboring_spaces
+
+    def adjacent_to(self, other: 'Space') -> bool:
+        """
+        Check the adjacency with an other space
+        :return:
+        """
+        for edge in self.edges:
+            if edge.pair.space is other:
+                return True
+        return False
+
 
 class Linear(PlanComponent):
     """
@@ -1212,6 +1256,18 @@ class Linear(PlanComponent):
         vertices.append(edge.end.coords)
         return LineString(vertices)
 
+    @property
+    def length(self) -> float:
+        """
+        Returns the length of the Linear.
+        :return:
+        """
+        _length = 0.0
+        for edge in self.edges:
+            _length += edge.length
+
+        return _length
+
     def add_edge(self, edge: Edge):
         """
         Add an edge to the linear
@@ -1257,7 +1313,6 @@ class Linear(PlanComponent):
                 is_valid = False
 
         return is_valid
-
 
 class SeedSpace(Space):
     """"

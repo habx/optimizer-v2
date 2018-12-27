@@ -49,12 +49,20 @@
             "variant": "m"
         },
         {
-            "type": "livingKitchen",
-            "requiredArea": {
-                "min": 500000,
-                "max": 600000
-            },
-            "variant": "xl"
+          "type": "living",
+          "requiredArea": {
+            "min": 300000,
+            "max": 400000
+          },
+          "variant": "l"
+        },
+        {
+          "type": "kitchen",
+          "requiredArea": {
+            "min": 150000,
+            "max": 250000
+          },
+          "variant": "l"
         },
         {
             "type": "entrance",

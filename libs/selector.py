@@ -325,11 +325,12 @@ def seed_empty_furthest_couple(space: 'Space', *_) -> Generator['Edge', bool, No
 
 def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns for a given space the two edges that are most far from one another, based on their middle
+    Returns for a given space the two edges that are most far from one another,
+    based on their middle
     :return:
     """
     if not space.category or space.category.name != 'empty' or space.as_sp is None:
-        raise ValueError('You should provide an empty component, with a reference edge, to the query seed_empty!')
+        raise ValueError('You should provide an empty component, with a reference edge!')
     if space.as_sp.geom_type != 'Polygon':
         raise ValueError('The space on which action is led should be a polygon!')
     kept_edges = []

@@ -9,7 +9,7 @@
       "variant": "m"
     },
     {
-      "type": "wcBathroom",
+      "type": "bathroom",
       "requiredArea": {
         "max": 120000,
         "min": 80000
@@ -17,7 +17,7 @@
       "variant": "m"
     },
     {
-      "type": "wcBathroom",
+      "type": "bathroom",
       "requiredArea": {
         "max": 90000,
         "min": 50000
@@ -73,12 +73,20 @@
       "variant": "s"
     },
     {
-      "type": "livingKitchen",
+      "type": "living",
       "requiredArea": {
-        "max": 440000,
-        "min": 360000
+        "min": 200000,
+        "max": 300000
       },
-      "variant": "m"
+      "variant": "s"
+    },
+    {
+      "type": "kitchen",
+      "requiredArea": {
+        "min": 140000,
+        "max": 160000
+      },
+      "variant": "l"
     }
   ]
 }
