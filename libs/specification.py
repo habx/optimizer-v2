@@ -55,7 +55,7 @@ class Specification:
         apartment_type = 1
         for item in self.items:
             if item.category.name in ['bedroom','office']:
-                apartment_type = apartment_type + 1
+                apartment_type += 1
         return apartment_type
 
     def add_item(self, value: 'Item'):

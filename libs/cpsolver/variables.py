@@ -4,7 +4,7 @@ Variables module
 Contains Cell and Value classes
 """
 import logging
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Set, Generator, Type
 
 from libs.cpsolver.exception import Conflict
 
@@ -52,6 +52,16 @@ class Value:
 
             if not value_changed:
                 break
+
+    def get_constraints(self, constraint_type: Type) -> Generator['Constraint', None, None]:
+        """
+        Returns constraint of a specific type
+        :param constraint_type:
+        :return:
+        """
+        for constraint in self.constraints:
+            if type(constraint) is constraint_type:
+                yield constraint
 
 
 class Cell:

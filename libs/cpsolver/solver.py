@@ -38,8 +38,8 @@ class Solver:
         # to store results
         self.params = params or {}
 
-        self.cell_props = {}
-        self._solutions: [[Cell]] = []
+        self.cells_props = {}
+        self._solutions: [['Cell']] = []
         self._fails = 0
         self._restart_num = 0
         self._tried_cells: [int] = []
@@ -55,11 +55,21 @@ class Solver:
         for solution in self._solutions:
             output += "Solution n°{}".format(i) + "\n"
             for cell in solution:
-                output += "C[{:02d}]:".format(cell.ix) + str(cell.value_ix()) + ("\n" if (cell.ix + 1) % num_col == 0 else " ")
+                output += ("C[{:02d}]:".format(cell.ix) + str(cell.value_ix()) +
+                           ("\n" if (cell.ix + 1) % num_col == 0 else " "))
             i += 1
 
-        logging.info(output)
+        logging.info(output + "\n")
         logging.info("Found %i solutions", i)
+
+    @property
+    def solutions(self) -> [['Cell']]:
+        """
+        Property
+        returns a list with the solutions
+        :return:
+        """
+        return self._solutions
 
     def with_restart(self):
         """
@@ -88,6 +98,13 @@ class Solver:
             value = Value(ix)
             self.values[ix] = value
 
+    def domain(self) -> [int]:
+        """
+        Returns the domain of possible values
+        :return:
+        """
+        return [key for key in self.values]
+
     def get_value(self, ix: int) -> Value:
         """
         Retrieve a value from its index
@@ -102,7 +119,7 @@ class Solver:
         """
         cell = Cell(domain, ix)
         self.cells[ix] = cell
-        self.cell_props[ix] = props
+        self.cells_props[ix] = props
 
     def get_props(self, ix: int, key: Optional[str] = None):
         """
@@ -112,9 +129,9 @@ class Solver:
         :return:
         """
         if key is None:
-            return self.cell_props[ix]
+            return self.cells_props[ix]
         else:
-            return self.cell_props[ix][key]
+            return self.cells_props[ix][key]
 
     def get_cell(self, ix: int) -> 'Cell':
         """
@@ -186,11 +203,32 @@ class Solver:
         output.sort()
         return output
 
+    def sanity_checks(self):
+        """
+        Verify invariants of the model
+        :return:
+        """
+        # check cells domain
+        for ix, cell in self.cells.items():
+            for value_ix in cell.domain:
+                assert value_ix in self.values, "Wrong domain for cell: {}".format(ix)
+        # check area constraints
+        total_area = sum(cell_props["area"] for _, cell_props in self.cells_props.items())
+        max_area = 0
+        min_area = 0
+        for ix, value in self.values.items():
+            for area_constraint in value.get_constraints(AreaConstraint):
+                max_area += getattr(area_constraint, "max")
+                min_area += getattr(area_constraint, "min")
+        assert total_area <= max_area, "Max area should be greater than the total area of the cells"
+        assert total_area >= min_area, "Min area should smaller than the total area of the cells"
+
     def solve(self) -> [[[int]]]:
         """
         Runs the solver
         :return:
         """
+        self.sanity_checks()
         self.node = DecisionNode(self.cells)  # root node
 
         max_solutions = self.params.get("num_solutions", 0)
@@ -307,8 +345,8 @@ class Solver:
         :return:
         """
         logging.debug(" ^ PREVIOUS ^ refuting value %i for cell %i",
-                      node.value_ix if node.value_ix else -1,
-                      node.cell.ix if node.cell else -1)
+                      node.value_ix if node.value_ix is not None else -1,
+                      node.cell.ix if node.cell is not None else -1)
 
         if node.is_root():
             raise Finished

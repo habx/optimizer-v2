@@ -81,7 +81,7 @@ def test_simple_problem():
     assert(len(my_solver.solve()) == 8)
 
 
-def solve_complex():
+def test_solve_complex():
     """
     Testing of a harder case :
     An apartment of 108 sqm

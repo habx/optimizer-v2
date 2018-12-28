@@ -222,7 +222,7 @@ class ConnectivityConstraint(Constraint):
                 bound_cell_ix = cell.ix
                 break
         else:
-            logging.debug("Subgraph wit no bound cell for value %i", value.ix)
+            logging.debug("Subgraph with no bound cell for value %i", value.ix)
             return has_changed
 
         connected_nodes = nx.node_connected_component(subgraph, bound_cell_ix)
