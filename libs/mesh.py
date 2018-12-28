@@ -12,6 +12,7 @@ But it seems like a hard problem. Might no be doable.
 
 import math
 import logging
+import uuid
 from operator import attrgetter, itemgetter
 from typing import Optional, Tuple, List, Sequence, Generator, TYPE_CHECKING
 import copy
@@ -1712,6 +1713,7 @@ class Face:
                  edge: Optional[Edge],
                  enclosing_mesh: Optional['Mesh'] = None,
                  space=None):
+        self._id = uuid.uuid4()
         # any edge of the face
         self._edge = edge
         self._mesh = enclosing_mesh
@@ -2487,7 +2489,7 @@ class Mesh:
     """
 
     def __init__(self, faces: Optional[List[Face]] = None, boundary_edge: Optional[Edge] = None):
-        self._faces = faces
+        self._faces = {face._id: face for face in faces} if faces else {}
         self._boundary_edge = boundary_edge
 
     def __repr__(self):
@@ -2502,7 +2504,7 @@ class Mesh:
         property
         :return: the faces of the mesh
         """
-        return self._faces
+        return list(face for _, face in self._faces.items())
 
     @faces.setter
     def faces(self, value: List[Face]):
@@ -2510,7 +2512,7 @@ class Mesh:
         property
         Sets the faces of the mesh
         """
-        self._faces = value
+        self._faces = {face._id: face for face in value} if value else {}
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -2602,10 +2604,7 @@ class Mesh:
         :return: self
         """
         face.mesh = self
-        if self.faces is None:
-            self.faces = [face]
-        else:
-            self.faces.append(face)
+        self._faces[face._id] = face
         return self
 
     def remove_face(self, face: Face):
@@ -2614,10 +2613,10 @@ class Mesh:
         :param face:
         :return: self
         """
-        if face not in self.faces:
+        if face._id not in self._faces:
             raise ValueError('Cannot remove the face that' +
                              ' is not already in the mesh, {0}'.format(face))
-        self.faces.remove(face)
+        del self._faces[face._id]
 
     def simplify(self):
         """
