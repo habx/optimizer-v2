@@ -308,6 +308,27 @@ class Plan:
         return num
 
 
+    def mutable_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+
+        for space in self.spaces:
+            if space.mutable :
+                yield space
+
+    def circulation_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+
+        for space in self.spaces:
+            if space.category.circulation :
+                yield space
+
+
 class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)

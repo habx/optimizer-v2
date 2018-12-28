@@ -612,7 +612,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Bussy_Regis.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
@@ -658,7 +658,7 @@ if __name__ == '__main__':
 
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        input_file = 'Bussy_Regis_setup.json'
+        input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
 
