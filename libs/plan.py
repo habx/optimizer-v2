@@ -5,6 +5,8 @@ Creates the following classes:
 • Plan : contains the description of a blue print
 • Space : a 2D space in an apartment blueprint : can be a room, or a pillar, or a duct.
 • Linear : a 1D object in an apartment. For example : a window, a door or a wall.
+TODO : remove infinity loops checks in production
+TODO : replace raise ValueError with assertions
 """
 from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
 import logging
@@ -372,7 +374,7 @@ class Space(PlanComponent):
             self._faces_id.append(value)
 
     @property
-    def edge(self) -> 'Edge':
+    def edge(self) -> Optional['Edge']:
         """
         Returns the reference edge of the space
         :return:
@@ -398,9 +400,13 @@ class Space(PlanComponent):
             return
 
         yield self.edge
+        seen = [self.edge]
         current_edge = self.next_edge(self.edge)
         while current_edge is not self.edge:
+            if current_edge in seen:
+                raise Exception("The space is badly formed %s at edge %s", self, self.edge)
             yield current_edge
+            seen.append(current_edge)
             current_edge = self.next_edge(current_edge)
 
     def next_edge(self, edge: 'Edge') -> 'Edge':
@@ -593,7 +599,7 @@ class Space(PlanComponent):
                     self.edge = edge
                     return
 
-        raise Exception("The space is badly shaped: {}".format(self))
+        raise Exception("The space is badly shaped: %s", self)
 
     def change_reference(self, face: Face) -> bool:
         """
@@ -617,12 +623,12 @@ class Space(PlanComponent):
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
-        Returns the faces of the space connected to the space
+        Returns the faces of the space connected to the provided face
+        Note: the face provided must belong to the space
         :param face:
         :return:
         """
-        if not self.has_face(face):
-            raise ValueError("The face must belong to the space")
+        assert self.has_face(face), "The face must belong to the space"
 
         def _propagate(current_face: Face) -> Generator[Face, None, None]:
             for adjacent_face in self.adjacent_faces(current_face):
@@ -634,15 +640,13 @@ class Space(PlanComponent):
         seen = [face]
         return _propagate(face)
 
-    def adjacent_faces(self,
-                       face: Face) -> Generator[Face, None, None]:
+    def adjacent_faces(self, face: Face) -> Generator[Face, None, None]:
         """
         Returns the adjacent faces in the space of the face
         :param face:
         :return:
         """
-        if not self.has_face(face):
-            raise ValueError("The face must belong to the space")
+        assert self.has_face(face), "The face must belong to the space"
 
         seen = [face]
         for edge in face.edges:
@@ -654,7 +658,9 @@ class Space(PlanComponent):
         """
         Remove a face from the space and adjust the edges list accordingly
         from the first space and add it to the second one in the same time)
-        TODO : we should check in case the removal of a face creates a not connected space
+        Note : the biggest challenge of this method is to verify whether the removal
+        of the specified face will split the space into several disconnected components.
+        A new space must be created for each new disconnected component.
         :param face: face to remove from space
         """
         # case 1 : try to change the face reference and check if the space has more
@@ -707,7 +713,8 @@ class Space(PlanComponent):
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
-        Merge the space with all the other provided spaces
+        Merge the space with all the other provided spaces.
+        Returns the merged space.
         :param spaces:
         :return: self
         """
@@ -742,6 +749,8 @@ class Space(PlanComponent):
         # so we need to check this and remove the deleted face from the space if needed
         if container_face not in created_faces:
             self._faces_id.remove(container_face.id)
+        # we must set the boundary in case the reference edge is no longer part of the space
+        self.set_boundary_edge()
 
     def insert_face_from_boundary(self, perimeter: Sequence[Coords2d]) -> 'Face':
         """
@@ -754,7 +763,7 @@ class Space(PlanComponent):
             self.insert_face(face_to_insert)
             return face_to_insert
         except OutsideFaceError:
-            self.plan.mesh.remove_face(face_to_insert)
+            self.plan.mesh.remove_face_fully(face_to_insert)
             raise
 
     def insert_space(self,
@@ -1075,7 +1084,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Bussy_Regis.json"
+        input_file = "Noisy_A145.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)

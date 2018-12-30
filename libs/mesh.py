@@ -2002,6 +2002,7 @@ class Face:
         :param face:
         :return:
         """
+        logging.debug("Inserting a face over an internal edge")
         # we slice the face if needed, we check each internal edges
         face_copy = copy.deepcopy(face)
         sliced_faces = [face_copy]
@@ -2089,7 +2090,7 @@ class Face:
             new_faces = self.insert_face(face_to_insert)
             return new_faces
         except OutsideFaceError:
-            self.mesh.remove_face(face_to_insert)
+            self.mesh.remove_face_fully(face_to_insert)
             raise
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
@@ -2272,7 +2273,7 @@ class Mesh:
                 self.add_edge(edge)
                 self.add_edge(edge.pair)
 
-    def remove_face(self, face: 'Face'):
+    def remove_face_fully(self, face: 'Face'):
         """
         Removes from the mesh the face
         :param face:
@@ -2286,6 +2287,18 @@ class Mesh:
             self.remove_edge(edge)
             self.remove_edge(edge.pair)
             self.remove_vertex(edge.start)
+
+        del self._faces[face._id]
+
+    def remove_face(self, face: 'Face'):
+        """
+        Removes from the mesh the face
+        :param face:
+        :return: self
+        """
+        if face._id not in self._faces:
+            raise ValueError('Cannot remove the face that' +
+                             ' is not already in the mesh, {0}'.format(face))
 
         del self._faces[face._id]
 
