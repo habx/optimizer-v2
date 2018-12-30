@@ -819,13 +819,12 @@ class Space(PlanComponent):
         if not self.is_boundary(edge):
             # Important : this prevent the cut of internal space boundary (for space with holes)
             logging.warning('WARNING: Cannot cut an edge that is not' +
-                            ' on the boundary of the space:{0}'.format(edge))
+                            ' on the boundary of the space: %s', edge)
             return None
 
         # TODO : not sure about this. Does not seem like the best approach.
         # probably best to slice non rectilinear space into smaller simpler spaces,
         # than apply a grid generation to these spaces
-        # max_length = max_length if max_length is not None else edge.max_length
 
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
@@ -833,6 +832,10 @@ class Space(PlanComponent):
             :param new_edges: Tuple of the new edges created by the cut
             """
             start_edge, end_edge, new_face = new_edges
+            # add the created face to the space
+            if new_face is not None:
+                self.add_face(new_face)
+
             return self.is_outside(end_edge.pair)
 
         return edge.recursive_cut(vertex, angle, traverse=traverse, callback=callback,
@@ -1084,11 +1087,21 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Noisy_A145.json"
+        input_file = "Paris18_A501.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
+        plt.show()
 
+        for empty_space in plan.empty_spaces:
+            boundary_edges = list(empty_space.edges)
+
+            for edge in boundary_edges:
+                if edge.length > 30:
+                    empty_space.barycenter_cut(edge, 0)
+                    empty_space.barycenter_cut(edge, 1)
+
+        plan.plot(save=False)
         plt.show()
 
         assert plan.check()

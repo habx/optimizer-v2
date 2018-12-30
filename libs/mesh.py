@@ -1178,6 +1178,19 @@ class Edge:
 
         return new_edges_and_face
 
+    def _angle_inside_face(self, angle: float) -> bool:
+        """
+        Returns True if the angle is inside the face of the edge.
+        Consider the direction starting from the end vertex of the edge.
+        :return:
+        """
+        angle_is_inside = 180 - MIN_ANGLE > angle > 180.0 - self.next_angle + MIN_ANGLE
+        if not angle_is_inside:
+            logging.debug('Cannot cut according to angle:{0} > {1} > {2}'.
+                          format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
+            return False
+        return True
+
     def cut(self,
             vertex: Vertex,
             angle: float = 90.0,
@@ -1198,7 +1211,7 @@ class Edge:
         if self.face is None:
             return None
 
-        # do not cut if the vertex is not inside the edge
+        # do not cut if the vertex is not inside the edge (Note this could be removed)
         if not self.contains(vertex):
             logging.info('Trying to cut an edge on an outside vertex:' +
                          ' {0} - {1}'.format(self, vertex))
@@ -1215,30 +1228,21 @@ class Edge:
         vertex = vertex.snap_to(self.start, self.end)
 
         # check for extremity cases
-        # 1. the vertex is the start of the edge
         if vertex is self.start:
-            angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
-            if not angle_is_inside:
-                logging.debug('Cannot cut according to angle:{0} < {1} < {2}'.
-                              format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
-                return None
-
             first_edge = self.previous
-        # 2. the vertex is the end of the edge
-        elif vertex is self.end:
-            angle_is_inside = 180 - MIN_ANGLE > angle > 180.0 - self.next_angle + MIN_ANGLE
-            if not angle_is_inside:
-                logging.debug('Cannot cut according to angle:{0} > {1} > {2}'.
-                              format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
-                return None
-        else:
-            # split the starting edge
-            first_edge.split(vertex)
-            # do not cut an edge that is not mutable
-            """if not self.is_mutable:
-                logging.info('Could not a cut an immutable linear:' +
-                             '{0}'.format(self.linear.category.name))
-                return None"""
+            angle = angle + 180.0 - self.previous_angle
+
+        if vertex is first_edge.end and not first_edge._angle_inside_face(angle):
+            return None
+
+        # split the starting edge
+        first_edge.split(vertex)
+
+        # do not cut an edge that is not mutable
+        """if not self.is_mutable:
+            logging.info('Could not a cut an immutable linear:' +
+                         '{0}'.format(self.linear.category.name))
+            return None"""
 
         # create a line to the edge at the vertex position
         line_vector = vector if vector is not None else unit_vector(ccw_angle(self.vector) + angle)

@@ -25,13 +25,13 @@ def test_floor_plan(input_file):
     """
     plan = reader.create_plan_from_file(input_file)
 
-    """for empty_space in plan.empty_spaces:
+    for empty_space in plan.empty_spaces:
         boundary_edges = list(empty_space.edges)
 
         for edge in boundary_edges:
             if edge.length > 30:
                 empty_space.barycenter_cut(edge, 0)
-                empty_space.barycenter_cut(edge, 1)"""
+                empty_space.barycenter_cut(edge, 1)
 
     assert plan.check()
 
