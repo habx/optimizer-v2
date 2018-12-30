@@ -140,7 +140,7 @@ class ConstraintsManager:
         for item in self.sp.spec.items:
             length = 0
             for j, space in enumerate(self.sp.seed_spaces):
-                for component in space.components_associated():
+                for component in space.immutable_components():
                     if (component.category.name == 'window'
                             or component.category.name == 'doorWindow'):
                         length += (self.solver.positions[item.id, j]
@@ -435,7 +435,7 @@ class SpacePlanner:
             if space.mutable and space.edge is not None:
                 self.seed_spaces.append(space)
                 logging.debug(self.seed_spaces)
-                logging.debug(space.components_associated())
+                logging.debug(space.immutable_components())
 
     def init_item_constraints_list(self) -> None:
         """
