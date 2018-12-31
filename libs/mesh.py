@@ -9,7 +9,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable
+from typing import Optional, Tuple, List, Sequence, Generator
 import copy
 
 from shapely.geometry.polygon import Polygon

@@ -642,14 +642,40 @@ class Space(PlanComponent):
         """
         Adds a face to the space
         :param face: face to add to space
+        We have to check for the edge case where we create a hole in the space by adding
+        a "U" shaped face
+        +------------+
+        |    Face    |
+        +--+------+--+
+        |  | Hole |  |
+        |  +------+  |
+        |    Space   |
+        +------------+
         """
         if self.face is None:
             return self.add_first_face(face)
+
+        check_for_hole = False
         # preserve edges references
         forbidden_edges = [edge.pair for edge in face.edges]
         self.change_reference_edges(forbidden_edges)
 
-        self._faces_id.append(face._id)
+        # sadly we have to check if a hole has been created
+        shared_edges = []
+        for edge in face.edges:
+            if edge.pair in self.edges:
+                if (shared_edges and
+                        (not self.next_edge(edge.pair) in shared_edges
+                         or self.next_edge(shared_edges[0]) is not edge.pair)):
+                    logging.debug("Found a discontinuity border")
+                    check_for_hole = True
+                    break
+                shared_edges.append(edge.pair)
+
+        self._faces_id.append(face.id)
+
+        if check_for_hole:
+            self.set_edges()
 
     def remove_face(self, face: Face) -> Sequence['Space']:
         """
@@ -886,7 +912,7 @@ class Space(PlanComponent):
         for face in created_faces:
             if face is container_face:
                 continue
-            self.add_face(face)
+            self._faces_id.append(face.id)
         # sometimes the container_face can be deleted by the insertion
         # so we need to check this and remove the deleted face from the space if needed
         if container_face not in created_faces:
