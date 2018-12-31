@@ -33,6 +33,8 @@ def test_floor_plan(input_file):
                 empty_space.barycenter_cut(edge, 0)
                 empty_space.barycenter_cut(edge, 1)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -94,6 +96,8 @@ def test_add_face():
 
     plan.empty_space.add_face(face_to_remove)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -107,7 +111,9 @@ def test_cut_to_inside_space():
     plan = Plan().from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES('duct'))
-    plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[7])
+    plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0])
+
+    plan.plot()
 
     assert plan.check()
 
@@ -131,6 +137,8 @@ def test_add_overlapping_face():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -152,6 +160,8 @@ def test_add_border_overlapping_face():
     plan.empty_space.insert_face_from_boundary(hole_2)
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
+
+    plan.plot()
 
     assert plan.check()
 
@@ -180,6 +190,8 @@ def test_add_face_touching_internal_edge():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -207,6 +219,8 @@ def test_add_two_face_touching_internal_edge_and_border():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -220,6 +234,8 @@ def test_insert_separating_wall():
     plan = Plan('Plan_test_wall').from_boundary(perimeter)
 
     plan.insert_space_from_boundary(wall, category=SPACE_CATEGORIES('loadBearingWall'))
+
+    plan.plot()
 
     assert plan.check()
 
@@ -240,6 +256,8 @@ def test_remove_middle_space():
 
     plan.empty_space.remove_face(middle_face)
     plan.empty_space.add_face(middle_face)
+
+    plan.plot()
 
     assert plan.check()
 
@@ -265,6 +283,8 @@ def test_remove_enclosing_space():
     plan.empty_space.remove_face(hole_face)
     plan.empty_space.add_face(hole_face)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -287,6 +307,8 @@ def test_remove_u_space():
     plan.empty_space.remove_face(hole_face)
     plan.empty_space.add_face(hole_face)
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -304,6 +326,8 @@ def test_remove_middle_b_space():
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
+
+    plan.plot()
 
     assert plan.check()
 
@@ -323,6 +347,8 @@ def test_remove_middle_u_space():
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -341,6 +367,8 @@ def test_remove_middle_c_space():
     plan.empty_space.remove_face(plan.mesh.faces[2])
     plan.empty_space.add_face(plan.mesh.faces[2])
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -357,6 +385,8 @@ def test_remove_d_space():
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
     plan.empty_space.add_face(plan.mesh.faces[1])
+
+    plan.plot()
 
     assert plan.check()
 
@@ -378,6 +408,8 @@ def test_remove_middle_e_space():
     plan.empty_space.add_face(plan.mesh.faces[0])
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
+
+    plan.plot()
 
     assert plan.check()
 
@@ -409,6 +441,8 @@ def test_remove_face_along_internal_edge():
     my_space.remove_face(plan.mesh.faces[0])
     my_space.add_face(plan.mesh.faces[0])
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -432,6 +466,8 @@ def test_remove_encapsulating_face():
     plan.mesh.faces[1].space.remove_face(plan.mesh.faces[1])
     new_space.add_face(plan.mesh.faces[1])
 
+    plan.plot()
+
     assert plan.check()
 
 
@@ -451,6 +487,8 @@ def test_merge_middle_b_space():
     plan.empty_space.add_face(plan.mesh.faces[0])
 
     plan.spaces[0].merge(plan.spaces[1])
+
+    plan.plot()
 
     assert plan.check()
 
@@ -475,5 +513,7 @@ def test_merge_u_space():
     plan.empty_space.add_face(hole_face)
 
     plan.spaces[0].merge(plan.spaces[1])
+
+    plan.plot()
 
     assert plan.check()

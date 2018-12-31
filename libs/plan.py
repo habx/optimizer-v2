@@ -325,7 +325,7 @@ class Space(PlanComponent):
     def __init__(self, plan: 'Plan', edge: 'Edge',
                  category: SpaceCategory = SPACE_CATEGORIES('empty')):
         super().__init__(plan)
-        self._edge_id = edge.id
+        self._edges_id = [edge.id] if edge else []
         # the new data structure is very simple : a space is a set of face id.
         # + a boundary edge reference
         self._faces_id = [edge.face._id] if edge.face else []
@@ -374,40 +374,46 @@ class Space(PlanComponent):
             self._faces_id.append(value)
 
     @property
-    def edge(self) -> Optional['Edge']:
+    def reference_edges(self) -> Generator['Edge', None, None]:
         """
-        Returns the reference edge of the space
+        Yields the reference edge of the space
         :return:
         """
-        return self.plan.mesh.get_edge(self._edge_id) if self._edge_id is not None else None
+        for edge_id in self._edges_id:
+            yield self.plan.mesh.get_edge(edge_id)
+
+    @property
+    def edge_is_none(self) -> bool:
+        """
+        Property
+        Returns True if the reference edge of the space is not set
+        :return:
+        """
+        return len(self._edges_id) == 0
+
+    @property
+    def edge(self) -> Optional['Edge']:
+        """
+        Returns the first reference edge.
+        Per convention, the first reference edge is on the outside boundary of the space
+        :return:
+        """
+        if self.edge_is_none:
+            return None
+
+        return self.plan.mesh.get_edge(self._edges_id[0])
 
     @edge.setter
     def edge(self, value: 'Edge'):
         """
-        Sets the reference edge
+        Sets the first reference edge
         :param value:
         :return:
         """
-        self._edge_id = value.id if value is not None else None
-
-    @property
-    def edges(self) -> Generator[Edge, Edge, None]:
-        """
-        The boundary edges of the space
-        :return: an iterator
-        """
-        if self.edge is None:
-            return
-
-        yield self.edge
-        seen = [self.edge]
-        current_edge = self.next_edge(self.edge)
-        while current_edge is not self.edge:
-            if current_edge in seen:
-                raise Exception("The space is badly formed %s at edge %s", self, self.edge)
-            yield current_edge
-            seen.append(current_edge)
-            current_edge = self.next_edge(current_edge)
+        if not self._edges_id:
+            self._edges_id = [value.id]
+        else:
+            self._edges_id[0] = value.id
 
     def next_edge(self, edge: 'Edge') -> 'Edge':
         """
@@ -441,6 +447,57 @@ class Space(PlanComponent):
 
         return previous_edge
 
+    def siblings(self, edge: 'Edge') -> Generator[Edge, None, None]:
+        """
+        Returns the boundary edges linked to the specified edge
+        :param edge:
+        :return:
+        """
+        yield edge
+        seen = [edge]
+        current_edge = self.next_edge(edge)
+        while current_edge is not edge:
+            if current_edge in seen:
+                raise Exception("The space is badly formed %s at edge %s", self, edge)
+            yield current_edge
+            seen.append(current_edge)
+            current_edge = self.next_edge(current_edge)
+
+    @property
+    def edges(self) -> Generator[Edge, None, None]:
+        """
+        The boundary edges of the space
+        :return: an iterator
+        """
+        for reference_edge in self.reference_edges:
+            yield from self.siblings(reference_edge)
+
+    @property
+    def exterior_edges(self) -> Generator[Edge, None, None]:
+        """
+        Returns the exterior perimeter of the space
+        :return:
+        """
+        yield from self.siblings(self.edge)
+
+    @property
+    def hole_edges(self) -> [Edge]:
+        """
+        Returns the internal reference edges
+        :return:
+        """
+        if not self.has_holes:
+            return []
+        return [self.plan.mesh.get_edge(edge_id) for edge_id in self._edges_id[1:]]
+
+    @property
+    def has_holes(self):
+        """
+        Returns True if the space has internal holes
+        :return:
+        """
+        return len(self._edges_id) > 0
+
     @property
     def area(self) -> float:
         """
@@ -472,10 +529,18 @@ class Space(PlanComponent):
         :return:
         """
         if self.edge is None:
-            return None
-        list_vertices = [edge.start.coords for edge in self.edges]
+            return
+
+        list_vertices = [edge.start.coords for edge in self.exterior_edges]
         list_vertices.append(list_vertices[0])
-        return Polygon(list_vertices)
+
+        holes = []
+        for hole_edge in self.hole_edges:
+            _vertices = [edge.start.coords for edge in self.siblings(hole_edge)]
+            _vertices.append(_vertices[0])
+            holes.append(_vertices)
+
+        return Polygon(list_vertices, holes)
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
@@ -483,7 +548,7 @@ class Space(PlanComponent):
         :param vector:
         :return:
         """
-        if self.edge is None:
+        if self.edge_is_none:
             return 0.0, 0.0
 
         vector = vector or self.edge.unit_vector
@@ -559,7 +624,7 @@ class Space(PlanComponent):
             raise ValueError('the space already has a face:' +
                              ' {0} - {1}'.format(self, face))
         logging.debug('Adding the first face of the Space: {0}'.format(self))
-        self.edge = face.edge
+        self._edges_id = [face.edge.id]
         self._faces_id.append(face._id)
 
     def add_face(self, face: Face):
@@ -569,7 +634,122 @@ class Space(PlanComponent):
         """
         if self.face is None:
             return self.add_first_face(face)
+        # preserve edges references
+        forbidden_edges = [edge.pair for edge in face.edges]
+        self.change_reference_edges(forbidden_edges)
+
         self._faces_id.append(face._id)
+
+    def remove_face(self, face: Face) -> Sequence['Space']:
+        """
+        Remove a face from the space and adjust the edges list accordingly
+        from the first space and add it to the second one in the same time)
+        Note : the biggest challenge of this method is to verify whether the removal
+        of the specified face will split the space into several disconnected components.
+        A new space must be created for each new disconnected component.
+        :param face: face to remove from space
+        """
+        logging.debug("Removing a face %s, from space %s", face, self)
+
+        # case 1 : the only face of the space
+        if len(self._faces_id) == 1:
+            return self.remove_only_face(face)
+
+        # case 2 : full enclosed face which will create a hole
+        for edge in face.edges:
+            if self.is_outside(edge.pair):
+                break
+        else:
+            logging.debug("Removing a full enclosed face. A hole is created")
+            self._faces_id.remove(face.id)
+            self._edges_id.append(face.edge.pair.id)
+            return [self]
+
+        # case 3 : standard case
+        forbidden_edges = list(face.edges)
+        self.change_reference_edges(forbidden_edges)
+
+        # case 2 : the space has more than 1 face. We must check if we are creating an
+        # unconnected space
+        adjacent_faces = list(self.adjacent_faces(face))
+
+        # if there is only one adjacent face to the removed one
+        # no need to check for connectivity
+        if len(adjacent_faces) == 1:
+            self._faces_id.remove(face.id)
+            return [self]
+
+        remaining_faces = adjacent_faces[:]
+        space_connected_components = []
+        created_spaces = [self]
+
+        self._faces_id.remove(face._id)
+
+        # we must check to see if we split the space by removing the face
+        # for each adjacent face inside the space check if they are still connected
+        self_boundary_face = None
+
+        while remaining_faces:
+
+            adjacent_face = remaining_faces[0]
+            connected_faces = [adjacent_face]
+
+            for connected_face in self.connected_faces(adjacent_face):
+                # try to reach the other adjacent faces
+                if connected_face in remaining_faces:
+                    remaining_faces.remove(connected_face)
+                connected_faces.append(connected_face)
+
+            remaining_faces.remove(adjacent_face)
+
+            if len(remaining_faces) != 0:
+                logging.debug("Found a disconnected component")
+                space_connected_components.append(connected_faces)
+            else:
+                logging.debug("Last component found")
+                self_boundary_face = adjacent_face
+                break
+
+        if len(space_connected_components) == 0:
+            return created_spaces
+
+        # we must create a new space per newly created space components
+        for component in space_connected_components:
+            # create a new space with the disconnected faces and add it to the plan
+            for _edge in component[0].edges:
+                if _edge.pair.face is face:
+                    boundary_edge = _edge
+                    break
+            else:
+                raise Exception("We should have found a boundary edge")
+
+            new_space = Space(self.plan, boundary_edge, self.category)
+            # remove the disconnected faces from the initial space
+            # and add them to the new space
+            for component_face in component:
+                self._faces_id.remove(component_face._id)
+                new_space.add_face_id(component_face._id)
+
+            # transfer internal edge reference from self to new spaces
+            for internal_reference_edge in self.hole_edges:
+                if not new_space.is_outside(internal_reference_edge):
+                    new_space._edges_id.append(internal_reference_edge.id)
+                    self._edges_id.remove(internal_reference_edge.id)
+
+            self.plan.add_space(new_space)
+            created_spaces.append(new_space)
+
+        # preserve self edge reference
+        if self.is_outside(self.edge):
+            for _edge in self_boundary_face.edges:
+                if _edge.pair.face is face:
+                    boundary_edge = _edge
+                    break
+            else:
+                raise Exception("We should have found a boundary edge")
+            self._edges_id[0] = boundary_edge.id
+
+        return created_spaces
 
     def remove_only_face(self, face: Face) -> Sequence['Space']:
         """
@@ -578,48 +758,56 @@ class Space(PlanComponent):
         :return: the modified space
         TODO : should we remove the empty space from the plan ?
         """
-        if self.face is not face:
-            raise ValueError('the face is not the reference face of the space:' +
-                             ' {0} - {1}'.format(self, face))
         logging.debug('Removing only face left in the Space: %s', self)
-        self.edge = None
+        self._edges_id = []
         self._faces_id.remove(face._id)
-
         return [self]
 
-    def set_boundary_edge(self):
+    def set_edges(self):
         """
-        Finds a boundary edge
+        Sets the reference edges of the space.
+        We need one edge for the exterior boundary, and one edge per hole inside the space
+        NOTE : Per convention the edge of the exterior is stored as the first element of the
+        _edges_id array.
         :return:
         """
-        for face_id in self._faces_id:
-            face = self.plan.mesh.get_face(face_id)
+        space_edges = []
+        self._edges_id = []
+        max_perimeter = 0.0
+        for face in self.faces:
             for edge in face.edges:
-                if self.is_boundary(edge):
-                    self.edge = edge
-                    return
+                if self.is_boundary(edge) and edge not in space_edges:
+                    # in order to determine which edge is the exterior one we have to
+                    # measure its perimeter
+                    perimeter = sum(_edge.length for _edge in self.siblings(edge))
+                    if perimeter > max_perimeter:
+                        max_perimeter = perimeter
+                        self._edges_id = [edge.id] + self._edges_id
+                    else:
+                        self._edges_id.append(edge.id)
 
-        raise Exception("The space is badly shaped: %s", self)
+                    space_edges = list(self.edges)
 
-    def change_reference(self, face: Face) -> bool:
+        assert len(self._edges_id), "The space is badly shaped: {}".format(self)
+
+    def change_reference_edges(self, forbidden_edges: ['Edge']):
         """
-        Changes the face reference of the space.
-        Returns True if the change is possible or unnecessary,
-        False if it is not possible to change the reference (meaning the face is the only left
-        in the space)
+        Changes the edge reference and returns True if succeeds
+        :param forbidden_edges:
         :return:
         """
-        # if the face does not include the edge reference of the space
-        # do nothing
-        if self.face is not face:
-            return True
-        # find an edge from another face in the Space boundary
-        # if another face is found, it becomes the face reference of the Space
-        for space_edge in self.edges:
-            if space_edge.face is not face:
-                self.edge = space_edge
-                return True
-        return False
+        i = 0
+        for edge in self.reference_edges:
+            if edge not in forbidden_edges:
+                continue
+            for other_edge in self.siblings(edge):
+                if other_edge not in forbidden_edges:
+                    self._edges_id[i] = other_edge.id
+                    break
+            else:
+                self._edges_id.remove(edge.id)
+                i -= 1
+            i += 1
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
@@ -653,63 +841,6 @@ class Space(PlanComponent):
             if self.has_face(edge.pair.face) and edge.pair.face not in seen:
                 yield edge.pair.face
                 seen.append(edge.pair.face)
-
-    def remove_face(self, face: Face) -> Sequence['Space']:
-        """
-        Remove a face from the space and adjust the edges list accordingly
-        from the first space and add it to the second one in the same time)
-        Note : the biggest challenge of this method is to verify whether the removal
-        of the specified face will split the space into several disconnected components.
-        A new space must be created for each new disconnected component.
-        :param face: face to remove from space
-        """
-        # case 1 : try to change the face reference and check if the space has more
-        # than one face
-        if not self.change_reference(face):
-            return self.remove_only_face(face)
-
-        # case 2 : the space has more than 1 face. We must check if we are creating an
-        # unconnected space
-        space_connected_components = []
-        created_spaces = [self]
-        adjacent_faces = list(self.adjacent_faces(face))
-        remaining_faces = adjacent_faces[:]
-
-        self._faces_id.remove(face._id)
-
-        # we must check to see if we split the space by removing the face
-        # for each adjacent face inside the space check if they are still connected
-        for adjacent_face in remaining_faces:
-            connected_faces = [adjacent_face]
-            for connected_face in self.connected_faces(adjacent_face):
-                # try to reach the initial face
-                if connected_face in adjacent_faces:
-                    remaining_faces.remove(connected_face)
-                connected_faces.append(connected_face)
-            remaining_faces.remove(adjacent_face)
-            if len(remaining_faces) != 0:
-                logging.debug("Found a disconnected component")
-                space_connected_components.append(connected_faces)
-
-        if len(space_connected_components) == 0:
-            return created_spaces
-
-        # we must create a new space per newly created space components
-        for component in space_connected_components:
-            # create a new space with the disconnected faces and add it to the plan
-            new_space = Space(self.plan, component[0].edge, self.category)
-            new_space.set_boundary_edge()
-            # remove the disconnected faces from the initial space
-            # and add them to the new space
-            for component_face in component:
-                self._faces_id.remove(component_face._id)
-                new_space.add_face_id(component_face._id)
-
-            self.plan.add_space(new_space)
-            created_spaces.append(new_space)
-
-        self.set_boundary_edge()  # ensure the correct edge reference
-        return created_spaces
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
@@ -750,7 +881,7 @@ class Space(PlanComponent):
         if container_face not in created_faces:
             self._faces_id.remove(container_face.id)
         # we must set the boundary in case the reference edge is no longer part of the space
-        self.set_boundary_edge()
+        self.set_edges()
 
     def insert_face_from_boundary(self, perimeter: Sequence[Coords2d]) -> 'Face':
         """
@@ -821,10 +952,6 @@ class Space(PlanComponent):
             logging.warning('WARNING: Cannot cut an edge that is not' +
                             ' on the boundary of the space: %s', edge)
             return None
-
-        # TODO : not sure about this. Does not seem like the best approach.
-        # probably best to slice non rectilinear space into smaller simpler spaces,
-        # than apply a grid generation to these spaces
 
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """

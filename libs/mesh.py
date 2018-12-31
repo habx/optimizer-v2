@@ -1052,13 +1052,13 @@ class Edge:
 
     def link(self, other: 'Edge') -> Optional['Face']:
         """
-        TODO : per convention we link the end of the edges and not the start.
-        Might no be the best convention.
+        Per convention we link the end of the edges and not the start.
+        TODO : Might no be the best convention.
 
         Creates an edge between two edges.
         We link the end vertices of each edge
         Note : we cannot linked two edges that are already linked
-        (that are the next edge of each other)
+        (meaning that they are the next edge of each other)
         :param other: the edge to link to
         :return: the created face, the initial face if modified, None if the mesh was not modified
         """
@@ -1131,31 +1131,27 @@ class Edge:
         # try to cut the edge
         new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length)
 
-        # if the vertex is at the end or the start of the edge
-        # we have to try to cut the other edge starting
-        # or ending to the same vertex
-        if vertex is self.start:
-            edge = self
-            while new_edges_and_face is None and edge.ccw is not self:
-                new_edges_and_face = self.ccw.cut(vertex, vector=vector, max_length=max_length)
-                edge = edge.ccw
-
-        if vertex is self.end:
-            edge = self
-            while new_edges_and_face is None and edge.pair.cw.pair is not self:
-                new_edges_and_face = self.pair.cw.pair.cut(vertex, vector=vector,
-                                                           max_length=max_length)
-                edge = edge.pair.cw.pair
-
+        # if the cut fail we stop
         if new_edges_and_face is None:
             return None
 
         new_edge_start, new_edge_end, new_face = new_edges_and_face
 
-        # call the callback
-        stop = False
-        if callback is not None:
-            stop = callback(new_edges_and_face)
+        # check if we have the correct new_edge_end
+        # a correct edge should enable a next cut
+        correct_edge: 'Edge' = new_edge_end
+        next_angle = ccw_angle(correct_edge.pair.vector, vector)
+        while (not correct_edge.pair._angle_inside_face(next_angle)
+               and correct_edge is not new_edge_end):
+            correct_edge = correct_edge.cw
+            next_angle = ccw_angle(correct_edge.pair.vector, vector)
+        new_edge_end = correct_edge
+
+        new_edges_and_face = new_edge_start, new_edge_end, new_face
+
+        # call the callback to check if the cut should continue
+        if callback and callback(new_edges_and_face):
+            return new_edges_and_face
 
         # check the distance
         if max_length is not None and new_edge_start is not None:
@@ -1164,18 +1160,13 @@ class Edge:
 
         # laser_cut the next edge if traverse option is set
         # if the new cut is unfruitful we do not return None but the last cut data
-        if traverse == 'absolute' and not stop:
-            return new_edge_end.pair.recursive_cut(new_edge_end.start, angle,
-                                                   vector=vector,
-                                                   max_length=max_length,
-                                                   callback=callback) or new_edges_and_face
-
-        if traverse == 'relative' and not stop:
-            return new_edge_end.pair.recursive_cut(new_edge_end.start, angle,
-                                                   traverse='relative',
-                                                   max_length=max_length,
-                                                   callback=callback) or new_edges_and_face
-
+        vector = vector if traverse == 'absolute' else None
+        new_edges_and_face = (new_edge_end.pair.recursive_cut(new_edge_end.start, angle,
+                                                              traverse=traverse,
+                                                              vector=vector,
+                                                              max_length=max_length,
+                                                              callback=callback)
+                              or new_edges_and_face)
         return new_edges_and_face
 
     def _angle_inside_face(self, angle: float) -> bool:
@@ -1245,7 +1236,7 @@ class Edge:
             return None"""
 
         # create a line to the edge at the vertex position
-        line_vector = vector if vector is not None else unit_vector(ccw_angle(self.vector) + angle)
+        line_vector = vector or unit_vector(ccw_angle(self.vector) + angle)
         closest_edge = first_edge.intersect(line_vector, max_length)
 
         # if no intersection can be found return None
