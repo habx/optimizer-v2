@@ -13,6 +13,9 @@ Vector2d = Coords2d = Tuple[float, float]
 # Callback for space
 SpaceCutCb = Callable[[Tuple['Edge', 'Edge']], bool]
 
+# Callback for edge
+EdgeCb = Callable[['Edge'], bool]
+
 # rectangular points
 FourCoords2d = Tuple[Coords2d, Coords2d, Coords2d, Coords2d]
 

@@ -870,7 +870,7 @@ class Space(PlanComponent):
         :param space:
         :return:
         """
-        self._faces_id |= space._faces_id
+        self._faces_id += space._faces_id
         return self
 
     def insert_face(self, face: 'Face'):
@@ -958,11 +958,19 @@ class Space(PlanComponent):
         :param max_length
         :return:
         """
+        # Important : this prevent the cut of internal space boundary (for space with holes)
         if not self.is_boundary(edge):
-            # Important : this prevent the cut of internal space boundary (for space with holes)
-            logging.warning('WARNING: Cannot cut an edge that is not' +
+            logging.warning('WARNING: Cannot cut an edge that is not'
                             ' on the boundary of the space: %s', edge)
             return None
+
+        def immutable(_edge: Edge) -> bool:
+            """
+            Returns true if the edge is immutable
+            :param _edge:
+            :return:
+            """
+            return not self.plan.is_mutable(_edge)
 
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
@@ -974,10 +982,13 @@ class Space(PlanComponent):
             if new_face is not None:
                 self.add_face(new_face)
 
-            return self.is_outside(end_edge.pair)
+            if self.is_outside(end_edge.pair):
+                return True
+
+            return False
 
         return edge.recursive_cut(vertex, angle, traverse=traverse, callback=callback,
-                                  max_length=max_length)
+                                  max_length=max_length, immutable=immutable)
 
     def barycenter_cut(self, edge: Optional[Edge] = None, coeff: float = 0.5,
                        angle: float = 90.0, traverse: str = 'absolute',

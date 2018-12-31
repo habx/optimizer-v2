@@ -9,7 +9,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator
+from typing import Optional, Tuple, List, Sequence, Generator, Callable
 import copy
 
 from shapely.geometry.polygon import Polygon
@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 import libs.transformation as transformation
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
-from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
+from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace, EdgeCb
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
     unit_vector,
@@ -1020,7 +1020,10 @@ class Edge:
         if self.start.edge is self:
             self.start.edge = other or self.ccw
 
-    def intersect(self, vector: Vector2d, max_length: Optional[float] = None) -> Optional['Edge']:
+    def intersect(self,
+                  vector: Vector2d,
+                  max_length: Optional[float] = None,
+                  immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
         """
         Finds the opposite point of the edge end on the face boundary
         according to a vector direction.
@@ -1029,6 +1032,7 @@ class Edge:
         before the intersection.
         :param vector:
         :param max_length: maximum authorized length of the cut
+        :param immutable
         :return: the laser_cut edge
         """
 
@@ -1042,6 +1046,10 @@ class Edge:
 
         # check if we've exceeded the max authorized length
         if max_length is not None and max_length < distance_to_edge:
+            return None
+
+        # check if we have the right to cut
+        if immutable and immutable(closest_edge):
             return None
 
         # split the destination edge
@@ -1103,7 +1111,8 @@ class Edge:
                       traverse: str = 'absolute',
                       vector: Optional[Vector2d] = None,
                       max_length: Optional[float] = None,
-                      callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
+                      callback: Optional[SpaceCutCb] = None,
+                      immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1115,6 +1124,7 @@ class Edge:
         if present we ignore the angle parameter
         :param max_length: max length for the total laser_cut
         :param callback: Optional
+        :param immutable
         :return: self
         """
         # do not cut an edge on the boundary
@@ -1129,7 +1139,8 @@ class Edge:
             vector = unit_vector(ccw_angle(self.vector) + angle)
 
         # try to cut the edge
-        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length)
+        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length,
+                                      immutable=immutable)
 
         # if the cut fail we stop
         if new_edges_and_face is None:
@@ -1165,7 +1176,8 @@ class Edge:
                                                               traverse=traverse,
                                                               vector=vector,
                                                               max_length=max_length,
-                                                              callback=callback)
+                                                              callback=callback,
+                                                              immutable=immutable)
                               or new_edges_and_face)
         return new_edges_and_face
 
@@ -1186,7 +1198,8 @@ class Edge:
             vertex: Vertex,
             angle: float = 90.0,
             vector: Optional[Vector2d] = None,
-            max_length: Optional[float] = None) -> TwoEdgesAndAFace:
+            max_length: Optional[float] = None,
+            immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
         """
         Will cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1195,11 +1208,16 @@ class Edge:
         :param vector: a vector indicating the absolute direction fo the laser_cut,
         if present we ignore the angle parameter
         :param max_length : the max_length authorized for the cut
+        :param immutable: a function that tells whether an edge can be cut
         :return: the new created edges
         """
 
         # do not cut an edge on the boundary
         if self.face is None:
+            return None
+
+        # do not cut an immutable edge
+        if immutable and immutable(self):
             return None
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
@@ -1229,15 +1247,9 @@ class Edge:
         # split the starting edge
         first_edge.split(vertex)
 
-        # do not cut an edge that is not mutable
-        """if not self.is_mutable:
-            logging.info('Could not a cut an immutable linear:' +
-                         '{0}'.format(self.linear.category.name))
-            return None"""
-
         # create a line to the edge at the vertex position
         line_vector = vector or unit_vector(ccw_angle(self.vector) + angle)
-        closest_edge = first_edge.intersect(line_vector, max_length)
+        closest_edge = first_edge.intersect(line_vector, max_length, immutable)
 
         # if no intersection can be found return None
         if closest_edge is None:
@@ -1385,7 +1397,9 @@ class Edge:
         first_edge, split_edge, new_face = cut_data
         return split_edge.next.recursive_ortho_cut(recursive=recursive)
 
-    def split(self, vertex: 'Vertex') -> Optional['Edge']:
+    def split(self,
+              vertex: 'Vertex',
+              immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
         """
         Splits the edge at a specific vertex.
         We create two new half-edges:
@@ -1396,6 +1410,7 @@ class Edge:
         new pair   old pair
 
         :param vertex: a vertex object where we should split
+        :param immutable: a function to check if the edge can be split
         :return: the newly created edge starting from the vertex
         """
         # check for vertices proximity and snap if needed
@@ -1409,8 +1424,8 @@ class Edge:
 
         # check for immutable edge
         # (we check after snapping because an immutable edge can be split at its extremities)
-        """if not self.is_mutable:
-            return None"""
+        if immutable and immutable(self):
+            return None
 
         # define edges names for clarity sake
         edge = self
