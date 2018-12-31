@@ -136,6 +136,17 @@ class Plan:
 
         return False
 
+    def is_mutable(self, edge: 'Edge') -> bool:
+        """
+        Returns True if the edge or its pair does not belong to an immutable linear
+        :param edge:
+        :return:
+        """
+        for linear in self.linears:
+            if linear.has_edge(edge):
+                return linear.category.mutable
+        return True
+
     @property
     def empty_spaces(self) -> Generator['Space', None, None]:
         """
@@ -1112,6 +1123,25 @@ class Linear(PlanComponent):
         """
         return (self.plan.mesh.get_edge(edge_id) for edge_id in self._edges_id)
 
+    def add_edge(self, edge: Edge):
+        """
+        Add an edge to the linear
+        :return:
+        """
+        if not self.plan.is_space_edge(edge):
+            raise ValueError('cannot add an edge to a linear' +
+                             ' that is not on the boundary of a space')
+        if edge.id not in self._edges_id:
+            self._edges_id.append(edge.id)
+
+    def has_edge(self, edge: 'Edge') -> bool:
+        """
+        Returns True if the edge belongs to the linear
+        :param edge:
+        :return:
+        """
+        return edge.id in self._edges_id
+
     @property
     def as_sp(self) -> Optional[LineString]:
         """
@@ -1138,17 +1168,6 @@ class Linear(PlanComponent):
             _length += edge.length
 
         return _length
-
-    def add_edge(self, edge: Edge):
-        """
-        Add an edge to the linear
-        :return:
-        """
-        if not self.plan.is_space_edge(edge):
-            raise ValueError('cannot add an edge to a linear' +
-                             ' that is not on the boundary of a space')
-        if edge.id not in self._edges_id:
-            self._edges_id.append(edge.id)
 
     def plot(self, ax=None, save: bool = None):
         """
