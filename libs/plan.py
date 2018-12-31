@@ -691,6 +691,8 @@ class Space(PlanComponent):
         """
         logging.debug("Removing a face %s, from space %s", face, self)
 
+        assert self.has_face(face), "Cannot remove a face not belonging to the space"
+
         # case 1 : the only face of the space
         if len(self._faces_id) == 1:
             return self.remove_only_face(face)
@@ -899,16 +901,21 @@ class Space(PlanComponent):
         :param space:
         :return:
         """
+        self_edges = list(self.edges)
+        forbidden_edges = [edge.pair for edge in space.exterior_edges if edge.pair in self_edges]
+        self.change_reference_edges(forbidden_edges)
         self._faces_id += space._faces_id
+        self.plan.remove_space(space)
         return self
 
-    def insert_face(self, face: 'Face'):
+    def insert_face(self, face: 'Face', container_face: Optional['Face'] = None):
         """
         Insert a face inside the space reference face
         :param face:
+        :param container_face
         :return:
         """
-        container_face = self.face
+        container_face = container_face or self.face
         created_faces = container_face.insert_face(face)
         self.add_face_id(face.id)
         # we need to add to the space the new faces eventually created by the insertion
@@ -930,12 +937,14 @@ class Space(PlanComponent):
         :return:
         """
         face_to_insert = self.plan.mesh.new_face_from_boundary(perimeter)
-        try:
-            self.insert_face(face_to_insert)
-            return face_to_insert
-        except OutsideFaceError:
-            self.plan.mesh.remove_face_fully(face_to_insert)
-            raise
+        for face in self.faces:
+            try:
+                self.insert_face(face_to_insert, face)
+                return face_to_insert
+            except OutsideFaceError:
+                self.plan.mesh.remove_face_fully(face_to_insert)
+
+        raise OutsideFaceError
 
     def insert_space(self,
                      boundary: Sequence[Coords2d],
@@ -948,6 +957,7 @@ class Space(PlanComponent):
         :return: the new space
         """
         face_of_space = self.insert_face_from_boundary(boundary)
+        self.add_face_id(face_of_space.id)
         self.remove_face(face_of_space)
         # create the space and add it to the plan
         space = Space(self.plan, face_of_space.edge, category=category)

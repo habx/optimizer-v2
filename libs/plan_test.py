@@ -471,7 +471,7 @@ def test_remove_face_along_internal_edge():
 
     duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
     plan.insert_space_from_boundary(duct)
-    list(plan.mesh.faces[1].edges)[-1].pair.barycenter_cut(1)
+    plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[-1].pair, 1)
     my_space = plan.empty_space
     my_space.remove_face(plan.mesh.faces[0])
     my_space.add_face(plan.mesh.faces[0])
@@ -491,15 +491,12 @@ def test_remove_encapsulating_face():
 
     duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
     plan.empty_space.insert_face_from_boundary(duct)
-    list(plan.mesh.faces[1].edges)[0].pair.barycenter_cut(1)
+    plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[0].pair, 1)
 
     my_space = plan.empty_space
-    my_space.remove_face(plan.mesh.faces[0])
-    new_space = Space(plan, plan.mesh.faces[0].edge)
+    my_space.remove_face(plan.mesh.faces[1])
+    new_space = Space(plan, plan.mesh.faces[1].edge)
     plan.add_space(new_space)
-
-    plan.mesh.faces[1].space.remove_face(plan.mesh.faces[1])
-    new_space.add_face(plan.mesh.faces[1])
 
     plan.plot()
 
@@ -513,15 +510,19 @@ def test_merge_middle_b_space():
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
     plan = Plan('my plan').from_boundary(perimeter)
-    list(plan.mesh.faces[0].edges)[4].barycenter_cut(0)
+
+    edge = list(plan.mesh.faces[0].edges)[4]
+    plan.empty_space.barycenter_cut(edge, 0)
+
+    plan.plot()
 
     duct = [(200, 200), (300, 200), (300, 300)]
-    list(plan.spaces[0].faces)[1].insert_face_from_boundary(duct)
+    plan.empty_space.insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
 
-    plan.spaces[0].merge(plan.spaces[1])
+    plan.spaces[1].merge(plan.spaces[0])
 
     plan.plot()
 
