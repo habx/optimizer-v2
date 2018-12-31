@@ -79,6 +79,25 @@ def test_add_duct_to_space():
     assert plan.check()
 
 
+def test_add_touching_duct_to_space():
+    """
+    Test
+    :return:
+    """
+
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    duct_category = SPACE_CATEGORIES('duct')
+
+    # add border duct
+    plan = Plan().from_boundary(perimeter)
+
+    # add touching duct
+    touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
+    plan.insert_space_from_boundary(touching_duct, duct_category)
+
+    assert plan.check()
+
+
 def test_add_face():
     """
     Test. Create a new face, remove it, then add it again.

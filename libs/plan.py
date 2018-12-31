@@ -432,6 +432,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
+        assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
@@ -448,6 +449,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
+        assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         previous_edge = edge.previous
         seen = []
         while not self.is_boundary(previous_edge):
@@ -469,7 +471,7 @@ class Space(PlanComponent):
         current_edge = self.next_edge(edge)
         while current_edge is not edge:
             if current_edge in seen:
-                raise Exception("The space is badly formed %s at edge %s", self, edge)
+                raise Exception("A reference edge is wrong for space %s at edge %s", self, edge)
             yield current_edge
             seen.append(current_edge)
             current_edge = self.next_edge(current_edge)
@@ -655,23 +657,24 @@ class Space(PlanComponent):
         if self.face is None:
             return self.add_first_face(face)
 
-        check_for_hole = False
-        # preserve edges references
-        forbidden_edges = [edge.pair for edge in face.edges]
-        self.change_reference_edges(forbidden_edges)
-
         # sadly we have to check if a hole has been created
+        check_for_hole = False
         shared_edges = []
+        boundary_edges = list(self.edges)
         for edge in face.edges:
-            if edge.pair in self.edges:
+            if edge.pair in boundary_edges:
+                shared_edge = edge.pair
                 if (shared_edges and
-                        (not self.next_edge(edge.pair) in shared_edges
-                         or self.next_edge(shared_edges[0]) is not edge.pair)):
+                        (self.next_edge(shared_edge) not in shared_edges
+                         and self.next_edge(shared_edges[0]) is not shared_edge)):
                     logging.debug("Found a discontinuity border")
                     check_for_hole = True
                     break
-                shared_edges.append(edge.pair)
+                shared_edges.append(shared_edge)
 
+        # preserve edges references
+        forbidden_edges = [edge.pair for edge in face.edges]
+        self.change_reference_edges(forbidden_edges)
         self._faces_id.append(face.id)
 
         if check_for_hole:
@@ -907,12 +910,12 @@ class Space(PlanComponent):
         """
         container_face = self.face
         created_faces = container_face.insert_face(face)
-        self.add_face(face)
+        self.add_face_id(face.id)
         # we need to add to the space the new faces eventually created by the insertion
         for face in created_faces:
             if face is container_face:
                 continue
-            self._faces_id.append(face.id)
+            self.add_face_id(face.id)
         # sometimes the container_face can be deleted by the insertion
         # so we need to check this and remove the deleted face from the space if needed
         if container_face not in created_faces:
@@ -1006,7 +1009,7 @@ class Space(PlanComponent):
             start_edge, end_edge, new_face = new_edges
             # add the created face to the space
             if new_face is not None:
-                self.add_face(new_face)
+                self.add_face_id(new_face.id)
 
             if self.is_outside(end_edge.pair):
                 return True
