@@ -118,4 +118,3 @@ class Size:
                 is_greater = is_greater and self.depth >= other.depth - other.epsilon
 
         return is_greater
-
