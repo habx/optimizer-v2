@@ -95,23 +95,13 @@ class Plan:
     def get_component(self,
                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
         """
-        Returns an iterator of the spaces contained in the place
+        Returns an iterator of the components contained in the plan.
+        Can be filtered according to a category name
         :param cat_name: the name of the category
         :return:
         """
-        for space in self.spaces:
-            if cat_name is not None:
-                if space.category.name == cat_name:
-                    yield space
-            else:
-                yield space
-
-        for linear in self.linears:
-            if cat_name is not None:
-                if linear.category.name == cat_name:
-                    yield linear
-            else:
-                yield linear
+        yield from self.get_spaces(cat_name)
+        yield from self.get_linears(cat_name)
 
     def get_spaces(self, category_name: Optional[str] = None) -> Generator['Space', None, None]:
         """
@@ -124,7 +114,18 @@ class Plan:
 
         return (space for space in self.spaces)
 
-    def is_space_edge(self, edge: 'Edge') -> bool:
+    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
+        """
+        Returns an iterator of the linears contained in the place
+        :param category_name:
+        :return:
+        """
+        if category_name is not None:
+            return (linear for linear in self.linears if linear.category.name == category_name)
+
+        return (linear for linear in self.linears)
+
+    def is_space_boundary(self, edge: 'Edge') -> bool:
         """
         Returns True if the edge is on the boundary of a space
         :param edge:
@@ -150,8 +151,7 @@ class Plan:
     @property
     def empty_spaces(self) -> Generator['Space', None, None]:
         """
-        The first empty space of the plan
-        Note : the empty space is only used for the creation of the plan
+        The empty spaces of the plan
         :return:
         """
         return self.get_spaces(category_name='empty')
@@ -187,8 +187,8 @@ class Plan:
                                    boundary: Sequence[Coords2d],
                                    category: SpaceCategory = SPACE_CATEGORIES('empty')):
         """
-        Inserts a new space inside the reference face of the space.
-        By design, will not insert a space overlapping several faces of the receiving space.
+        Inserts a new space inside the empty spaces of the plan.
+        By design, will not insert a space overlapping several faces of the receiving spaces.
         The new space is designed from the boundary. By default, the category is empty.
         :param boundary
         :param category
@@ -200,7 +200,7 @@ class Plan:
             except OutsideFaceError:
                 continue
         else:
-            # this should probably raise an exception but too many input blueprints are
+            # TODO: this should probably raise an exception but too many input blueprints are
             # incorrect due to wrong load bearing walls geometry, it would fail too many tests
             logging.error('Could not insert the space in the plan because it overlaps other non' +
                           ' empty spaces: {0}, {1}'.format(boundary, category))
@@ -219,8 +219,7 @@ class Plan:
                 empty_space.insert_linear(point_1, point_2, category)
                 break
             except OutsideVertexError:
-                logging.debug("Failed to insert the linear")
-                pass
+                continue
         else:
             raise ValueError('Could not insert the linear in the plan:' +
                              '[{0},{1}] - {2}'.format(point_1, point_2, category))
@@ -267,6 +266,7 @@ class Plan:
 
         for space in self.spaces:
             is_valid = is_valid and space.check()
+            # check that a face only belongs to one space and one space only
             for face_id in space._faces_id:
                 for other_space in self.spaces:
                     if other_space is space:
@@ -294,21 +294,23 @@ class Plan:
         for space in space_to_remove:
             self.remove_space(space)
 
-    def make_space_seedable(self, category):
+    def make_space_seedable(self, category_name: str):
         """
         Make seedable spaces with specified category name
+        TODO: this is bad. It will change the empty category for any space referencing it
+              (in any plan)
         :return:
         """
         for space in self.spaces:
-            if space.category.name == category:
+            if space.category.name == category_name:
                 space.category.seedable = True
 
-    def count_category_spaces(self, category) -> int:
+    def count_category_spaces(self, category_name: str) -> int:
         """
-        count the number of spaces with given category
+        count the number of spaces with the given category name
         :return:
         """
-        return sum(space.category.name == category for space in self.spaces)
+        return sum(space.category.name == category_name for space in self.spaces)
 
     def count_mutable_spaces(self) -> int:
         """
@@ -331,20 +333,41 @@ class PlanComponent:
 class Space(PlanComponent):
     """
     Space Class
+    A very simple data structure : a space is :
+    • a list of the id of the faces composing the space
+    • a list of the id of the reference edges of the space (an edge is a reference if is localised
+    on the boundary of the space). We store one an only one reference edge per boundary.
+    (ex. a space with no hole has one reference edge, a space with a hole has two reference edges :
+    one for the exterior boundary, one for the hole boundary).
+    Per convention, the first element of the edges id list is the reference edge of the exterior
+    boundary.
+    • a category
+    • a ref to its parent plan
     """
 
-    def __init__(self, plan: 'Plan', edge: 'Edge',
+    def __init__(self,
+                 plan: 'Plan',
+                 edge: Optional['Edge'],
                  category: SpaceCategory = SPACE_CATEGORIES('empty')):
         super().__init__(plan)
         self._edges_id = [edge.id] if edge else []
-        # the new data structure is very simple : a space is a set of face id.
-        # + a boundary edge reference
         self._faces_id = [edge.face._id] if edge.face else []
         self.category = category
 
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
         return output
+
+    def clone(self):
+        """
+        Creates a clone of the space
+        The plan and the category are passed by reference
+        the edges and faces id list are shallow copied (as they only contain immutable uuid).
+        :return:
+        """
+        new_space = Space(self.plan, None, self.category)
+        new_space._faces_id = self._faces_id[:]
+        new_space._edges_id = self._edges_id[:]
 
     @property
     def face(self) -> Face:
@@ -572,7 +595,7 @@ class Space(PlanComponent):
         max_y = 0
         min_y = 0
 
-        for space_edge in self.edges:
+        for space_edge in self.exterior_edges:
             total_x += dot_product(space_edge.vector, vector)
             max_x = max(total_x, max_x)
             min_x = min(total_x, min_x)
@@ -586,6 +609,7 @@ class Space(PlanComponent):
     def size(self, edge: Optional[Edge] = None) -> Size:
         """
         Returns the size of the space
+        Per convention the bounding box is used to estimate a width and a depth
         :return:
         """
         vector = edge.unit_vector if edge else None
@@ -627,19 +651,6 @@ class Space(PlanComponent):
 
         return not self.has_face(edge.face)
 
-    def add_first_face(self, face: Face):
-        """
-        Adds the first face of the space
-        :param face:
-        :return:
-        """
-        if self.face is not None:
-            raise ValueError('the space already has a face:' +
-                             ' {0} - {1}'.format(self, face))
-        logging.debug('Adding the first face of the Space: {0}'.format(self))
-        self._edges_id = [face.edge.id]
-        self._faces_id.append(face._id)
-
     def add_face(self, face: Face):
         """
         Adds a face to the space
@@ -654,9 +665,49 @@ class Space(PlanComponent):
         |    Space   |
         +------------+
         """
-        if self.face is None:
-            return self.add_first_face(face)
+        logging.debug("Adding a face %s, to space %s", face, self)
 
+        # case 1: adding the first face
+        if self.face is None:
+            logging.debug('Adding the first face of the Space: {0}'.format(self))
+            self._edges_id = [face.edge.id]
+            self._faces_id.append(face._id)
+            return
+
+        # case 2: adding an enclosing face
+        #     +-------------------+
+        #     |                   |
+        #     |       Face        |
+        #     |                   |
+        #     +----+---------+    |
+        #     |    |         |    |
+        #     |    |  Space  |    |
+        #     |    |         |    |
+        #     |    +---------+    |
+        #     |                   |
+        #     +-------------------+
+
+        face_edges = list(face.edges)
+        for edge in self.exterior_edges:
+            if edge.pair not in face_edges:
+                break
+            face_edges.remove(edge.pair)
+        else:
+            logging.debug("Adding a fully enclosing face")
+            # make sure we are not selecting an internal edge
+            for edge in face_edges:
+                if edge.pair not in face_edges:
+                    self._edges_id[0] = edge.id
+                    break
+            else:
+                raise Exception("This should never happen !")
+
+            self.add_face_id(face.id)
+
+
+
+
+        # case 3 : standard case
         # sadly we have to check if a hole has been created
         check_for_hole = False
         shared_edges = []
@@ -682,12 +733,14 @@ class Space(PlanComponent):
 
     def remove_face(self, face: Face) -> Sequence['Space']:
         """
-        Remove a face from the space and adjust the edges list accordingly
-        from the first space and add it to the second one in the same time)
+        Remove a face from the space
+
         Note : the biggest challenge of this method is to verify whether the removal
         of the specified face will split the space into several disconnected components.
         A new space must be created for each new disconnected component.
+
         :param face: face to remove from space
+        :returns the modified spaces (including the created spaces)
         """
         logging.debug("Removing a face %s, from space %s", face, self)
 
@@ -697,7 +750,19 @@ class Space(PlanComponent):
         if len(self._faces_id) == 1:
             return self.remove_only_face(face)
 
-        # case 2 : full enclosed face which will create a hole
+        # case 2 : fully enclosed face which will create a hole
+        #     +-------------------+
+        #     |                   |
+        #     |      Space        |
+        #     |                   |
+        #     +----+---------+    |
+        #     |    |         |    |
+        #     |    |  Face   |    |
+        #     |    |         |    |
+        #     |    +---------+    |
+        #     |                   |
+        #     +-------------------+
+
         for edge in face.edges:
             if self.is_outside(edge.pair):
                 break
@@ -707,12 +772,44 @@ class Space(PlanComponent):
             self._edges_id.append(face.edge.pair.id)
             return [self]
 
-        # case 3 : standard case
+        # case 3 : fully enclosing face
+        #     +-------------------+
+        #     |                   |
+        #     |       Face        |
+        #     |                   |
+        #     +----+---------+    |
+        #     |    |         |    |
+        #     |    |  Space  |    |
+        #     |    |         |    |
+        #     |    +---------+    |
+        #     |                   |
+        #     +-------------------+
+        # check if we are removing an enclosing face (this means that the removed face contains
+        # all the edges boundary (this is no good)
+
+        face_edges = list(face.edges)
+        for edge in self.exterior_edges:
+            if edge not in face_edges:
+                break
+            face_edges.remove(edge)
+        else:
+            logging.debug("Removing a fully enclosing face")
+            # make sure we are not selecting an internal edge
+            for edge in face_edges:
+                if edge.pair not in face_edges:
+                    self._edges_id[0] = edge.pair.id
+                    break
+            else:
+                raise Exception("This should never happen!!")
+            self._faces_id.remove(face.id)
+            return [self]
+
+        # case 4 : standard case
         forbidden_edges = list(face.edges)
         self.change_reference_edges(forbidden_edges)
 
-        # case 2 : the space has more than 1 face. We must check if we are creating an
-        # unconnected space
+        # We must check if we are creating one or several
+        # unconnected spaces
         adjacent_faces = list(self.adjacent_faces(face))
 
         # if there is only one adjacent face to the removed one
@@ -801,8 +898,10 @@ class Space(PlanComponent):
         TODO : should we remove the empty space from the plan ?
         """
         logging.debug('Removing only face left in the Space: %s', self)
+
         self._edges_id = []
         self._faces_id.remove(face._id)
+
         return [self]
 
     def set_edges(self):
@@ -811,7 +910,6 @@ class Space(PlanComponent):
         We need one edge for the exterior boundary, and one edge per hole inside the space
         NOTE : Per convention the edge of the exterior is stored as the first element of the
         _edges_id array.
-        :return:
         """
         space_edges = []
         self._edges_id = []
@@ -834,19 +932,24 @@ class Space(PlanComponent):
 
     def change_reference_edges(self, forbidden_edges: ['Edge']):
         """
-        Changes the edge reference and returns True if succeeds
-        :param forbidden_edges:
-        :return:
+        Changes the edge references of the space
+        If all the edges of the boundary are in the forbidden list, the reference is simply
+        removed from the list of edges id. It means that a hole is filled.
+        :param forbidden_edges: a list of edges that cannot be used as reference
+        (typically because they will cease to be on the boundary of the space)
         """
         i = 0
         for edge in self.reference_edges:
             if edge not in forbidden_edges:
+                i += 1
                 continue
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
+                    # we replace the edge id in place to preserve the list order
                     self._edges_id[i] = other_edge.id
                     break
             else:
+                assert i > 0, "Cannot remove the exterior reference edge !"
                 self._edges_id.remove(edge.id)
                 i -= 1
             i += 1
@@ -1151,7 +1254,7 @@ class Linear(PlanComponent):
 
     def __init__(self, plan: Plan, space: 'Space', edge: Edge, category: LinearCategory):
 
-        if not plan.is_space_edge(edge):
+        if not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
 
         if space.plan is not plan:
@@ -1178,7 +1281,7 @@ class Linear(PlanComponent):
         Add an edge to the linear
         :return:
         """
-        if not self.plan.is_space_edge(edge):
+        if not self.plan.is_space_boundary(edge):
             raise ValueError('cannot add an edge to a linear' +
                              ' that is not on the boundary of a space')
         if edge.id not in self._edges_id:

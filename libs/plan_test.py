@@ -285,7 +285,6 @@ def test_remove_enclosing_space():
     """
     Test. Add various space inside an emptySpace.
     We test different cases such as an internal duct, a touching duct etc.
-    TODO : split this in several tests.
     :return:
     """
 
