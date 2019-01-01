@@ -50,6 +50,16 @@ class Plan:
             output += space.__repr__() + ' - \n'
         return output
 
+    def clone(self) -> 'Plan':
+        """
+        Returns a copy of the plan
+        :return:
+        """
+        new_plan = Plan(self.name + '_copy', self.mesh)
+        new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
+        new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
+        return new_plan
+
     def from_boundary(self, boundary: Sequence[Coords2d]) -> 'Plan':
         """
         Creates a plan from a list of points
@@ -358,16 +368,17 @@ class Space(PlanComponent):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
         return output
 
-    def clone(self):
+    def clone(self, plan: 'Plan') -> 'Space':
         """
         Creates a clone of the space
         The plan and the category are passed by reference
         the edges and faces id list are shallow copied (as they only contain immutable uuid).
         :return:
         """
-        new_space = Space(self.plan, None, self.category)
+        new_space = Space(plan, None, self.category)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
+        return new_space
 
     @property
     def face(self) -> Face:
@@ -389,6 +400,14 @@ class Space(PlanComponent):
             return False
 
         return face._id in self._faces_id
+
+    def has_linear(self, linear: 'Linear') -> bool:
+        """
+        Returns True if the linear is on the space boundary
+        :param linear:
+        :return:
+        """
+        return linear.edge in self.edges
 
     @property
     def faces(self) -> Generator[Face, None, None]:
@@ -703,9 +722,6 @@ class Space(PlanComponent):
                 raise Exception("This should never happen !")
 
             self.add_face_id(face.id)
-
-
-
 
         # case 3 : standard case
         # sadly we have to check if a hole has been created
@@ -1079,7 +1095,7 @@ class Space(PlanComponent):
         vertex_1 = Vertex(self.plan.mesh, *point_1)
         vertex_2 = Vertex(self.plan.mesh, *point_2)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = Linear(self.plan, self, new_edge, category)
+        new_linear = Linear(self.plan, new_edge, category)
         self.plan.add_linear(new_linear)
 
         return new_linear
@@ -1206,7 +1222,7 @@ class Space(PlanComponent):
         immutable_associated = []
 
         for linear in self.plan.linears:
-            if linear.space is self and not linear.category.mutable:
+            if self.has_linear(linear) and not linear.category.mutable:
                 immutable_associated.append(linear)
 
         for space in self.plan.spaces:
@@ -1252,21 +1268,36 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    def __init__(self, plan: Plan, space: 'Space', edge: Edge, category: LinearCategory):
+    def __init__(self, plan: Plan, edge: Optional[Edge], category: LinearCategory):
 
-        if not plan.is_space_boundary(edge):
+        if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
-
-        if space.plan is not plan:
-            raise ValueError('cannot create a linear of a space not belonging to the same plan')
 
         super().__init__(plan)
         self.category = category
-        self.space = space
-        self._edges_id = [edge.id]
+        self._edges_id = [edge.id] if edge else []
 
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
+
+    def clone(self, plan: Plan) -> 'Linear':
+        """
+        Returns a copy of the linear
+        :return:
+        """
+        new_linear = Linear(plan, None, self.category)
+        new_linear._edges_id = self._edges_id[:]
+        return new_linear
+
+    @property
+    def edge(self) -> Optional['Edge']:
+        """
+        The first edge of the linear
+        :return:
+        """
+        if not self._edges_id:
+            return None
+        return self.plan.mesh.get_edge(self._edges_id[0])
 
     @property
     def edges(self) -> Generator[Edge, None, None]:
@@ -1343,11 +1374,6 @@ class Linear(PlanComponent):
         is_valid = True
         if len(list(self.edges)) == 1:
             return is_valid
-
-        for edge in self.edges:
-            if (self.space.next_edge(edge) not in self.edges
-                    or self.space.previous_edge(edge) not in self.edges):
-                return False
 
         return is_valid
 
