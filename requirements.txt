@@ -4,6 +4,7 @@ shapely==1.6.4.post2
 ortools==6.7.4973
 dill==0.2.8.2
 Dijkstar==2.4.0
+networkx==2.2
 
 # For tests and linting:
 pytest
