@@ -512,7 +512,7 @@ def test_face_clean():
     boundary_edge.face.edge = new_edge
     boundary_edge.previous.next = new_edge
     boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
-    new_face = Face(boundary_edge, mesh)
+    new_face = Face(mesh, boundary_edge)
     boundary_edge.face = new_face
     new_edge.pair.face = new_face
 

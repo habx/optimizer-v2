@@ -9,7 +9,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator
+from typing import Optional, Tuple, List, Sequence, Generator, Callable
 import copy
 
 from shapely.geometry.polygon import Polygon
@@ -46,8 +46,53 @@ COORD_DECIMAL = 4  # number of decimal of the points coordinates
 
 
 # MODULE CLASSES
+class MeshComponent:
+    """
+    An abstract class for mesh component : vertex, edge or face
+    """
+    def __init__(self, mesh: 'Mesh'):
+        self._id = uuid.uuid4()
+        self._mesh = mesh
+        mesh.add(self)
 
-class Vertex:
+    @property
+    def id(self) -> uuid.UUID:
+        """
+        property
+        returns the id of the vertex
+        :return:
+        """
+        return self._id
+
+    @property
+    def mesh(self) -> 'Mesh':
+        """
+        Property
+        returns the mesh of the vertex
+        :return:
+        """
+        return self._mesh
+
+    @mesh.setter
+    def mesh(self, value: 'Mesh'):
+        """
+        Sets the mesh of the vertex
+        :param value:
+        :return:
+        """
+        self._mesh = value
+        value.add(self)
+
+    def remove_from_mesh(self):
+        """
+        Removes the item from the mesh
+        :return:
+        """
+        self._mesh.remove(self)
+        self._mesh = None
+
+
+class Vertex(MeshComponent):
     """
     Vertex class
     """
@@ -65,10 +110,7 @@ class Vertex:
         :param y: float, y-axis coordinates
         :param edge: one edge starting from the vertex
         """
-        self._id = uuid.uuid4()
-        self._mesh = mesh
-        mesh.add_vertex(self)
-
+        super().__init__(mesh)
         self._x = float(np.around(float(x), decimals=COORD_DECIMAL))
         self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
         self._edge = edge
@@ -76,33 +118,6 @@ class Vertex:
 
     def __repr__(self):
         return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=id(self))
-
-    @property
-    def id(self):
-        """
-        property
-        returns the id of the vertex
-        :return:
-        """
-        return self._id
-
-    @property
-    def mesh(self):
-        """
-        Property
-        returns the mesh of the vertex
-        :return:
-        """
-        return self._mesh
-
-    @mesh.setter
-    def mesh(self, value: 'Mesh'):
-        """
-        Sets the mesh of the vertex
-        :param value:
-        :return:
-        """
-        self._mesh = value
 
     @property
     def x(self) -> float:
@@ -236,7 +251,8 @@ class Vertex:
                 # preserve references
                 edge.preserve_references()
                 edge.pair.next.preserve_references()
-                # remove edges
+
+                # remove edges (edge and edge.pair.next)
                 previous_edge.next = edge.next
                 edge.pair.next = edge.pair.next.next
 
@@ -333,8 +349,6 @@ class Vertex:
         (given by the pseudo equality is_equal)
         or self if no vertex is close enough
         example : vertex_to_snap = vertex_to_snap.snap_to(v1, v2, v3)
-        TODO : we need to change this, we should snap coordinates but not vertices themselves
-        TODO : This could enable live refresh of the mesh
         :param others: one or many vertices
         :return: a vertex
         """
@@ -408,7 +422,7 @@ class Vertex:
         return LineString([start_point, end_point])
 
 
-class Edge:
+class Edge(MeshComponent):
     """
     Half Edge class
     """
@@ -430,9 +444,7 @@ class Edge:
         :param next_edge: the next edge
         """
         # initializing the data structure
-        self._id = uuid.uuid4()
-        mesh.add_edge(self)
-
+        super().__init__(mesh)
         self._start = start
         self._next = next_edge
         self._face = face
@@ -941,17 +953,15 @@ class Edge:
         self.previous.next = self.next
         self.pair.previous.next = self.pair.next
 
-    def remove(self) -> Optional['Face']:
+    def remove(self) -> 'Face':
         """
         Removes the edge from the face. The corresponding faces are merged
-        1. remove the face from the mesh
+        1. remove the face of the edge from the mesh (except if the face is None, in which case
+        we remove the face of the edge pair)
         2. stitch the extremities of the removed edge
         3. attribute correct face to orphan edges
-        :return: the remaining face after the edge was removed, None if the edge cannot be removed
+        :return: the remaining face after the edge was removed
         """
-        """if not self.is_mutable:
-            logging.warning('Cannot remove an immutable edge')
-            return None"""
 
         other_face = self.pair.face
         remaining_face = self.face
@@ -968,7 +978,7 @@ class Edge:
             isolated_edge.preserve_references(isolated_edge.pair.next)
             isolated_edge.pair.preserve_references(isolated_edge.pair.next)
             isolated_edge.previous.next = isolated_edge.pair.next
-            isolated_edge.start.clean()
+            # isolated_edge.start.clean()
         else:
             if self.face is not None:
                 self.face.remove_from_mesh()
@@ -990,8 +1000,9 @@ class Edge:
             self.previous.next = self.pair.next
 
             # clean useless vertices
-            self.start.clean()
-            self.end.clean()
+            # TODO : the cleanup will delete edges and risk breaking a space edge ref
+            # self.start.clean()
+            # self.end.clean()
 
         # remove isolated edges
         for edge in remaining_face.edges:
@@ -1098,7 +1109,7 @@ class Edge:
         other.next = new_edge.pair
 
         # create a new face
-        new_face = Face(new_edge.pair, self.mesh)
+        new_face = Face(self.mesh, new_edge.pair)
         # assign all the edges from one side of the laser_cut to the new face
         for edge in new_edge.pair.siblings:
             edge.face = new_face
@@ -1146,6 +1157,10 @@ class Edge:
         if new_edges_and_face is None:
             return None
 
+        # do not continue to cut if not needed
+        if traverse not in ("absolute", "relative"):
+            return new_edges_and_face
+
         new_edge_start, new_edge_end, new_face = new_edges_and_face
 
         # check if we have the correct new_edge_end
@@ -1160,7 +1175,7 @@ class Edge:
 
         new_edges_and_face = new_edge_start, new_edge_end, new_face
 
-        # call the callback to check if the cut should continue
+        # call the callback to check if the cut should stop
         if callback and callback(new_edges_and_face):
             return new_edges_and_face
 
@@ -1375,28 +1390,6 @@ class Edge:
 
         return None
 
-    def recursive_ortho_cut(self, recursive: str = 'true') -> TwoEdgesAndAFace:
-        """
-        Applies a recursive ortho cut
-        TODO : pb with this is that it might change the initial face due to rotation and induce
-        infinite loops (example : spiral patterns)
-        :return:
-        """
-        # do not cut an edge on the boundary
-        if self.face is None:
-            return None
-
-        cut_data = self.ortho_cut()
-
-        if not recursive:
-            return cut_data
-
-        if cut_data is None:
-            return None
-
-        first_edge, split_edge, new_face = cut_data
-        return split_edge.next.recursive_ortho_cut(recursive=recursive)
-
     def split(self,
               vertex: 'Vertex',
               immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
@@ -1508,22 +1501,15 @@ class Edge:
             logging.warning('Created a very small edge: {0} - {1}'.format(self.start, self.end))
 
 
-class Face:
+class Face(MeshComponent):
     """
     Face Class
     """
 
-    def __init__(self,
-                 edge: Optional[Edge],
-                 mesh: Optional['Mesh'] = None):
+    def __init__(self, mesh: 'Mesh', edge: Optional[Edge] = None):
 
-        self._id = uuid.uuid4()
-        # any edge of the face
         self._edge = edge
-        self._mesh = mesh
-        # add new face to mesh
-        if mesh is not None:
-            mesh.add_face(self)
+        super().__init__(mesh)
 
     def __repr__(self):
         output = 'Face: ['
@@ -1705,7 +1691,7 @@ class Face:
         mesh = self.mesh
         if mesh is None:
             raise ValueError('Face has no mesh to remove it from: {0}'.format(self))
-        mesh.remove_face(self)
+        mesh._remove_face(self)
 
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
@@ -1921,7 +1907,7 @@ class Face:
 
             # else check for new face creation
             elif not previous_edge.pair.is_linked_to_face(self):
-                new_face = Face(previous_edge.pair, self.mesh)
+                new_face = Face(self.mesh, previous_edge.pair)
                 all_faces.append(new_face)
                 for orphan_edge in previous_edge.pair.siblings:
                     orphan_edge.face = new_face
@@ -2046,7 +2032,6 @@ class Face:
             container_faces_copy = copy.copy(container_faces)
             for container_face in container_faces_copy:
                 try:
-                    self.mesh.add_face(new_face)  # we need this for proper clean-up
                     new_inserted_faces = container_face._insert_face(new_face)
                     container_faces.remove(container_face)
                     container_faces += new_inserted_faces
@@ -2066,7 +2051,7 @@ class Face:
         for edge in remaining_face.edges:
             edge.face = face
         face.edge = remaining_face.edge
-        self.mesh.remove_face(remaining_face)
+        self.mesh._remove_face(remaining_face)
 
         # return the create faces
         created_faces = sorted(container_faces, key=attrgetter('area'), reverse=True)
@@ -2100,7 +2085,7 @@ class Face:
             new_faces = self.insert_face(face_to_insert)
             return new_faces
         except OutsideFaceError:
-            self.mesh.remove_face_fully(face_to_insert)
+            self.mesh.remove_face_and_children(face_to_insert)
             raise
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
@@ -2186,18 +2171,16 @@ class Face:
                     small_edge = edge
                 else:
                     # pick the best vertex to snap to, to preserve edges alignment
-                    end_aligned = pseudo_equal(ccw_angle(edge.pair.previous.opposite_vector,
-                                                         edge.next.vector), 180.0,
-                                               epsilon=ANGLE_EPSILON)
-                    start_aligned = pseudo_equal(ccw_angle(edge.previous.opposite_vector,
-                                                           edge.pair.next.vector), 180.0,
-                                                 epsilon=ANGLE_EPSILON)
+                    angle = ccw_angle(edge.pair.previous.opposite_vector, edge.next.vector)
+                    end_aligned = pseudo_equal(angle, 180.0, epsilon=ANGLE_EPSILON)
+
+                    angle = ccw_angle(edge.previous.opposite_vector, edge.pair.next.vector)
+                    start_aligned = pseudo_equal(angle, 180.0, epsilon=ANGLE_EPSILON)
 
                     if not end_aligned and start_aligned:
                         small_edge = edge.pair
 
                 small_edge.collapse()
-
                 modified_edges.append(small_edge)
                 modified_edges.append(small_edge.pair)
                 logging.debug('Snapping edge while simplifying face: {0}'.format(small_edge))
@@ -2240,8 +2223,9 @@ class Mesh:
 
     def __init__(self):
         self._faces = {}
-        self._edges = {}  # TODO : remove edges from the mesh when they are not referenced anymore
+        self._edges = {}
         self._vertices = {}
+        self._watcher: Optional[Callable[['MeshComponent', str], None]] = None
 
     def __repr__(self):
         output = 'Mesh:\n'
@@ -2249,41 +2233,68 @@ class Mesh:
             output += face.__repr__() + '\n'
         return output + '-' * 24
 
-    @property
-    def faces(self) -> List['Face']:
+    def add_watcher(self, watcher: Callable[['MeshComponent', str], None]):
         """
-        property
-        :return: the faces of the mesh
+        Adds a watcher to the mesh.
+        Each time a mesh component is added or removed, a call to the watcher is triggered.
+        The watcher must accept as argument a MeshComponent (eg: Vertex, Edge or Face) and a
+        string indicating the type of mesh modification : "add" or "remove"
+        :param watcher:
+        :return:
         """
-        return list(face for _, face in self._faces.items())
+        self._watcher = watcher
 
-    @faces.setter
-    def faces(self, value: List['Face']):
+    def add(self, component):
         """
-        property
-        Sets the faces of the mesh
+        Adds a mesh component to the mesh
+        :param component:
+        :return:
         """
-        self._faces = {face._id: face for face in value} if value else {}
+        if self._watcher:
+            self._watcher(component, "add")
 
-    def add_face(self, face: 'Face'):
+        if type(component) == Vertex:
+            self._add_vertex(component)
+
+        if type(component) == Face:
+            self._add_face(component)
+
+        if type(component) == Edge:
+            self._add_edge(component)
+
+    def remove(self, component):
+        """
+        Adds a mesh component to the mesh
+        :param component:
+        :return:
+        """
+        if self._watcher:
+            self._watcher(component, "remove")
+
+        if type(component) == Vertex:
+            self._remove_vertex(component)
+
+        if type(component) == Face:
+            self._remove_face(component)
+
+        if type(component) == Edge:
+            self._remove_edge(component)
+
+    def _add_face(self, face: 'Face'):
         """
         Adds a face to the mesh
         :param face:
         :return: self
         """
-        if face is None:
-            return
-
-        face.mesh = self
         self._faces[face._id] = face
 
         # also add all the face edges to the mesh
         if face.edge:
             for edge in face.edges:
-                self.add_edge(edge)
-                self.add_edge(edge.pair)
+                self.add(edge)
+                self.add(edge.pair)
 
-    def remove_face_fully(self, face: 'Face'):
+    def remove_face_and_children(self, face: 'Face'):
         """
         Removes from the mesh the face
         :param face:
@@ -2294,22 +2305,18 @@ class Mesh:
                              ' is not already in the mesh, {0}'.format(face))
 
         for edge in face.edges:
-            self.remove_edge(edge)
-            self.remove_edge(edge.pair)
-            self.remove_vertex(edge.start)
+            self.remove(edge)
+            self.remove(edge.pair)
+            self.remove(edge.start)
 
-        del self._faces[face._id]
+        self.remove(face)
 
-    def remove_face(self, face: 'Face'):
+    def _remove_face(self, face: 'Face'):
         """
         Removes from the mesh the face
         :param face:
         :return: self
         """
-        if face._id not in self._faces:
-            raise ValueError('Cannot remove the face that' +
-                             ' is not already in the mesh, {0}'.format(face))
-
         del self._faces[face._id]
 
     def get_face(self, _id: uuid.UUID) -> 'Face':
@@ -2319,6 +2326,62 @@ class Mesh:
         :return: a face
         """
         return self._faces[_id]
+
+    def _add_edge(self, edge: 'Edge'):
+        """
+        Adds an edge to the mesh
+        :param edge:
+        :return:
+        """
+        self._edges[edge.id] = edge
+
+    def _remove_edge(self, edge: 'Edge'):
+        """
+        Adds an edge to the mesh
+        :param edge:
+        :return:
+        """
+        del self._edges[edge.id]
+
+    def get_edge(self, edge_id: uuid.UUID) -> 'Edge':
+        """
+        Gets the edge of the provided id
+        :param edge_id:
+        :return:
+        """
+        return self._edges[edge_id]
+
+    def _add_vertex(self, vertex: Vertex):
+        """
+        Adds a vertex to the mesh storage
+        :param vertex:
+        :return:
+        """
+        self._vertices[vertex.id] = vertex
+
+    def _remove_vertex(self, vertex: Vertex):
+        """
+        Removes a vertex from the mesh structure
+        :param vertex:
+        :return:
+        """
+        del self._vertices[vertex.id]
+
+    def get_vertex(self, vertex_id: uuid.UUID) -> Vertex:
+        """
+        Returns the specified vertex
+        :param vertex_id:
+        :return:
+        """
+        return self._vertices[vertex_id]
+
+    @property
+    def faces(self) -> List['Face']:
+        """
+        property
+        :return: the faces of the mesh
+        """
+        return list(face for _, face in self._faces.items())
 
     def new_face_from_boundary(self, boundary: Sequence[Coords2d]) -> 'Face':
         """
@@ -2333,7 +2396,7 @@ class Mesh:
         if not sp_perimeter.is_simple:
             raise ValueError('The perimeter crosses itself:{0}'.format(boundary))
 
-        initial_face = Face(None, self)
+        initial_face = Face(self)
         initial_vertex = Vertex(self, boundary[0][0], boundary[0][1], mutable=False)
         initial_edge = Edge(self, initial_vertex, None, initial_face)
 
@@ -2369,58 +2432,6 @@ class Mesh:
         :return: the faces of the mesh
         """
         return list(edge for _, edge in self._edges.items())
-
-    def add_edge(self, edge: 'Edge'):
-        """
-        Adds an edge to the mesh
-        :param edge:
-        :return:
-        """
-        if edge is None:
-            return
-        edge.mesh = self
-        self._edges[edge.id] = edge
-
-    def remove_edge(self, edge: 'Edge'):
-        """
-        Adds an edge to the mesh
-        :param edge:
-        :return:
-        """
-        del self._edges[edge.id]
-
-    def get_edge(self, edge_id: uuid.UUID) -> 'Edge':
-        """
-        Gets the edge of the provided id
-        :param edge_id:
-        :return:
-        """
-        return self._edges[edge_id]
-
-    def add_vertex(self, vertex: Vertex):
-        """
-        Adds a vertex to the mesh storage
-        :param vertex:
-        :return:
-        """
-        vertex.mesh = self
-        self._vertices[vertex.id] = vertex
-
-    def remove_vertex(self, vertex: Vertex):
-        """
-        Removes a vertex from the mesh structure
-        :param vertex:
-        :return:
-        """
-        del self._vertices[vertex.id]
-
-    def get_vertex(self, vertex_id: uuid.UUID) -> Vertex:
-        """
-        Returns the specified vertex
-        :param vertex_id:
-        :return:
-        """
-        return self._vertices[vertex_id]
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -2484,6 +2495,17 @@ class Mesh:
             raise ValueError('An external edge must be specified for this mesh !')
 
         yield from self.boundary_edge.siblings
+
+    @property
+    def boundary_as_sp(self):
+        """"
+        Returns the mesh boundary as a Shapely LinearRing
+        """
+        vertices = []
+        edge = None
+        for edge in self.boundary_edges:
+            vertices.append(edge.start.coords)
+        return LinearRing(vertices) if edge else None
 
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:
@@ -2561,7 +2583,6 @@ class Mesh:
         logging.info('Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
 
-    # noinspection PyCompatibility
     def plot(self,
              ax=None,
              options=('fill', 'border', 'half-edges', 'boundary-edges', 'vertices'),
@@ -2653,7 +2674,7 @@ if __name__ == '__main__':
         boundary_edge.face.edge = new_edge
         boundary_edge.previous.next = new_edge
         boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
-        new_face = Face(boundary_edge, mesh)
+        new_face = Face(mesh, boundary_edge)
         boundary_edge.face = new_face
         new_edge.pair.face = new_face
 

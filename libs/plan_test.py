@@ -98,6 +98,27 @@ def test_add_touching_duct_to_space():
     assert plan.check()
 
 
+def test_remove_edge_from_space():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+
+    # add border duct
+    plan = Plan("Remove edge from space").from_boundary(perimeter)
+
+    # add touching duct
+    touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
+    plan.empty_space.insert_face_from_boundary(touching_duct)
+    edge = list(plan.mesh.faces[0].edges)[1]
+    plan.empty_space.remove_internal_edge(edge)
+
+    plan.plot()
+
+    assert plan.check()
+
+
 def test_add_face():
     """
     Test. Create a new face, remove it, then add it again.
