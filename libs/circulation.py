@@ -7,32 +7,45 @@ used to detect isolated rooms and generate a path to connect them
 """
 
 import logging
-from libs.plan import Space, Plan, Linear
+from libs.plan import Space, Plan, Vertex
 from libs.mesh import Edge
+from libs.plot import plot_save
 import dijkstar
 import libs.utils.graph as gr
 
 from typing import Dict, List, Tuple
+
 from tools.builds_plan import build_plan
 
+
 COST_INITIALIZATION = 10e50
+
+
+# TODO : deal with load bearing walls by defining locations where they can be crossed
+
+# TODO : ajout des règles par inamovible via liste
 
 
 class Circulator:
     """
     Circulator Class
+    contains utilities to detect isolated rooms connect them to circulation spaces
     """
 
     def __init__(self, plan: Plan, graph_manager):
         self.plan = plan
         self.graph_manager = graph_manager
-        # self.isolated_rooms = self.get_isolated_rooms()
         self.connectivity_graph = gr.Graph_nx()
 
     def draw_path(self, space1: Space, space2: Space) -> Tuple['List[Vertex]', float]:
+        """
+        Finds the shortest path between two spaces in the plan
+        :return list of vertices on the path and cost of the path
+        """
         graph = self.graph_manager.graph
         cost_min = COST_INITIALIZATION
         path_min = None
+        # tests all possible connections between both spaces
         for edge1 in space1.edges:
             for edge2 in space2.edges:
                 path, cost = graph.get_shortest_path(edge1, edge2)
@@ -40,147 +53,127 @@ class Circulator:
                     cost_min = cost
                     path_min = path
         self.graph_manager.connecting_paths.append(path_min)
+        # when a circulation has been set, it can be used to connect every other spaces without cost increase
         self.graph_manager.set_corridor_to_zero_cost(path_min)
         return path_min, cost_min
 
-    # todo : builds a graph of circulation rooms
-    # if graph is not connected connect each component
-
     def init_connectivity_graph(self):
-
+        """
+        builds a connectivity graph of the plan, each circulation space is a node
+        :return:
+        """
         circulation_spaces = []
         for space in self.plan.circulation_spaces():
             circulation_spaces.append(space)
 
-        for room in self.plan.circulation_spaces():
-            self.connectivity_graph.add_node(id(room))
+        for space in circulation_spaces:
+            self.connectivity_graph.add_node(space)
 
-        # building connectivity graph for circulation spaces
-
-        for room in circulation_spaces:
+        # builds connectivity graph for circulation spaces
+        for space in circulation_spaces:
             for other in circulation_spaces:
-                if other is not room and other.adjacent_to(room):
-                    self.connectivity_graph.add_edge(id(room), id(other))
+                if other is not space and other.adjacent_to(space):
+                    # if spaces are adjacent, they are connected in the graph
+                    self.connectivity_graph.add_edge(space, other)
             else:
                 self.set_circulation_path()
 
     def expand_connectivity_graph(self):
+        """
+        connects each non circulation space of the plan to a circulation space
+        :return:
+        """
         circulation_spaces = []
         for space in self.plan.circulation_spaces():
             circulation_spaces.append(space)
-        for room in self.plan.mutable_spaces():
-            if id(room) not in list(self.connectivity_graph.nodes()):
-                self.connectivity_graph.add_node(id(room))
+        for space in self.plan.mutable_spaces():
+            if space not in self.connectivity_graph.nodes():
+                self.connectivity_graph.add_node(space)
                 for other in circulation_spaces:
-                    if id(other) is not id(room) and other.adjacent_to(room):
-                        self.connectivity_graph.add_edge(id(room), id(other))
+                    if other is not space and other.adjacent_to(space):
+                        self.connectivity_graph.add_edge(space, other)
 
         for node in list(self.connectivity_graph.nodes()):
             if not self.connectivity_graph.node_connected(node):
-                room_node = self.get_space_from_id(node)
-                connected_room = self.connect_room_to_circulation_graph(room_node)
-                self.connectivity_graph.add_edge(id(connected_room), node)
-
-    def get_space_from_id(self, space_id):
-        for space in self.plan.spaces:
-            if id(space) is space_id:
-                return space
+                connected_room = self.connect_space_to_circulation_graph(node)
+                self.connectivity_graph.add_edge(connected_room, node)
 
     def set_circulation_path(self):
+        """
+        ensures circulation spaces are all connected
+        :return:
+        """
         father_node = None
         for room in self.plan.mutable_spaces():
             if room.category.name is 'entrance':
-                father_node = id(room)
+                father_node = room
                 break
         else:
             for room in self.plan.mutable_spaces():
                 if room.category.name is 'living':
-                    father_node = id(room)
+                    father_node = room
                     break
 
         if not father_node:
             return True
-
 
         for node in self.connectivity_graph.nodes():
             if not self.connectivity_graph.has_path(node, father_node):
                 self.draw_path(father_node, node)
                 self.connectivity_graph.add_edge(node, father_node)
 
-    def connect_room_to_circulation_graph(self, room):
+    def connect_space_to_circulation_graph(self, space):
+        """
+        connects the given space with a circulation space of the plan
+        :return:
+        """
         cost_min = COST_INITIALIZATION
-        path_min = None
         connected_room = None
         for other in self.plan.circulation_spaces():
-            if other is not room:
-                path, cost = self.draw_path(room, other)
+            if other is not space:
+                path, cost = self.draw_path(space, other)
                 if cost < cost_min:
                     cost = cost_min
-                    path_min = path
                     connected_room = other
-        # self.connecting_paths.append(path_min)
-        # self.isolated_rooms.remove(room)
-        # if connected_room in self.isolated_rooms():
-        #    self.isolated_rooms.remove(connected_room)
 
         return connected_room
 
     def connect(self):
+        """
+        detects isolated rooms and generate a path to connect them
+        :return:
+        """
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
 
-    #
-    # def get_isolated_rooms(self) -> List[Space]:
-    #     list_isolated = []
-    #     circulation_spaces = []
-    #     for space in self.plan.circulation_spaces():
-    #         circulation_spaces.append(space)
-    #
-    #     for room in self.plan.mutable_spaces():
-    #         if room not in circulation_spaces:
-    #             for circulation_space in circulation_spaces:
-    #                 if room.adjacent_to(circulation_space):
-    #                     break
-    #             else:
-    #                 list_isolated.append(room)
-    #
-    #     return list_isolated
-    #
-    # def connect(self):
-    #     # first connect circulation rooms that are isolated
-    #     while True:
-    #         for room in self.isolated_rooms:
-    #             if room in self.plan.circulation_spaces():
-    #                 self.connect_room_to_circulation_space(room)
-    #         else:
-    #             break
-    #     # connect other isolated rooms
-    #     while True:
-    #         for room in self.isolated_rooms:
-    #             self.connect_room_to_circulation_space(room)
-    #         else:
-    #             break
+    def plot(self, show: bool = False, save: bool = True):
+        """
+        plots plan with circulation paths
+        :return:
+        """
+        ax = self.plan.plot(show=show, save=False)
+        paths = self.graph_manager.connecting_paths
+        for path in paths:
+            if (len(path) == 1):
+                ax.scatter(path[0].start.x, path[0].start.y, marker='o', s=15, facecolor='blue')
+            else:
+                for i in range(len(path) - 1):
+                    v1 = path[i]
+                    v2 = path[i + 1]
+                    x_coords = [v1.x, v2.x]
+                    y_coords = [v1.y, v2.y]
+                    ax.plot(x_coords, y_coords, 'k',
+                            linewidth=2,
+                            color="blue",
+                            solid_capstyle='butt')
+        plot_save(save, show)
 
 
-"""
-TODO Circulator:
--checks which rooms are isolated
--generates a path between two isolated rooms based on a graph
--non dependant of the used graph library
-"""
-
-
-class Graph_manager:
+class GraphManager:
     """
     Graph_manager class
     builds and manages a graph that can be used by a circulator so as to compute shortest path between two spaces
-    indendant from the library used to build the graph
-    """
-
-    """
-    TODO Grapher:
-    -separation of a class graph?
-    -how to deal with typing as graph type is not known?
+    independant from the library used to build the graph
     """
 
     def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'Dijkstar'):
@@ -196,7 +189,10 @@ class Graph_manager:
         return output
 
     def build(self):
-        # runs through edges and adds branches to the graph, for each branch computes a weight
+        """
+        runs through space edges and adds branches to the graph, for each branch computes a weight
+        :return:
+        """
         plan = self.plan
         self.graph = Graph(self.graph_lib)
         graph = self.graph
@@ -215,6 +211,10 @@ class Graph_manager:
         graph.set_cost_function()
 
     def update(self, edge: Edge):
+        """
+        add edge to the graph and computes its cost
+        :return:
+        """
         added_pair = False
         graph = self.graph
         cost = self.cost(edge)
@@ -226,6 +226,10 @@ class Graph_manager:
         return added_pair
 
     def set_corridor_to_zero_cost(self, path):
+        """
+        sets the const of circulation edges to zero
+        :return:
+        """
         nb_vert = len(path)
         if nb_vert > 1:
             for v in range(nb_vert - 1):
@@ -240,7 +244,11 @@ class Graph_manager:
     #         for edge in space.edges:
     #             if edge.
 
-    def cost(self, edge: Edge, cost_fixed_items: Dict = None):
+    def cost(self, edge: Edge, cost_fixed_items: Dict = None) -> float:
+        """
+        computes the cost of an edge
+        :return: cost
+        """
         cost = edge.length
         # # TODO : add list of rules for cost
         # if not edge.is_mutable and edge in cost_fixed_items.keys():
@@ -250,7 +258,11 @@ class Graph_manager:
         #         cost += cost_fixed_items[edge.pair.space]
         return cost
 
-    def get_shortest_path(self, edge1: Edge, edge2: Edge):
+    def get_shortest_path(self, edge1: Edge, edge2: Edge) -> Tuple['List[Vertex]', float]:
+        """
+        get the shortest path between two edges
+        :return list of vertices on the path and cost of the path
+        """
         graph = self.graph
         return graph.get_shortest_path(self, edge1, edge2)
 
@@ -272,30 +284,50 @@ class Graph:
         return output
 
     def init(self):
+        """
+        graph initialization
+        :return:
+        """
         if self.graph_lib == 'Dijkstar':
             self.graph_struct = dijkstar.Graph()
         else:
             raise ValueError('graph library does not exit')
 
-    def add_edge_by_vert(self, vert1, vert2, cost):
+    def add_edge_by_vert(self, vert1: Vertex, vert2: Vertex, cost: float):
+        """
+        add edge to the graph
+        :return:
+        """
         if self.graph_lib == 'Dijkstar':
             self.graph_struct.add_edge(vert1, vert2, {'cost': cost})
         else:
             raise ValueError('graph library does not exit')
 
-    def add_edge(self, edge, cost):
+    def add_edge(self, edge: Edge, cost: float):
+        """
+        add edge to the graph
+        :return:
+        """
         if self.graph_lib == 'Dijkstar':
             self.graph_struct.add_edge(edge.start, edge.end, {'cost': cost})
         else:
             raise ValueError('graph library does not exit')
 
     def set_cost_function(self):
+        """
+        sets the graph cost function
+        :return:
+        """
         if self.graph_lib == 'Dijkstar':
             self.cost_function = lambda u, v, e, prev_e: e['cost']
         else:
             raise ValueError('graph library does not exit')
 
-    def get_shortest_path(self, edge1, edge2):
+    def get_shortest_path(self, edge1, edge2) -> Tuple['List[Vertex]', float]:
+        """
+        get the shortest path between two edges
+        :return list of vertices on the path and cost of the path
+        """
         if self.graph_lib == 'Dijkstar':
             search_tree_result = dijkstar.find_path(self.graph_struct, edge1.start, edge2.start,
                                                     cost_func=self.cost_function)
@@ -332,7 +364,7 @@ if __name__ == '__main__':
         input_file = "Antony_A22.json"
         plan = build_plan(input_file)
 
-        graph_manager = Graph_manager(plan=plan)
+        graph_manager = GraphManager(plan=plan)
         graph_manager.build()
 
         circulator = Circulator(plan=plan, graph_manager=graph_manager)
@@ -343,8 +375,8 @@ if __name__ == '__main__':
                 link_space.append(space)
                 # if (len(link_space) == 2):
                 #    break
-        ind_i = 5
-        ind_f = 9
+        ind_i = 0
+        ind_f = 3
 
         path_min, cost_min = circulator.draw_path(link_space[ind_i], link_space[ind_f])
 
@@ -352,37 +384,36 @@ if __name__ == '__main__':
         logging.debug('spaces: {0} - {1}'.format(link_space[ind_i], link_space[ind_f]))
         logging.debug('space center: {0} - {1}'.format(link_space[ind_i].as_sp.centroid.coords.xy,
                                                        link_space[ind_f].as_sp.centroid.coords.xy))
-        plan.plot(show=True, path_min=path_min)
+
+        logging.debug('connecting paths: {0}'.format(circulator.graph_manager.connecting_paths))
+
+        circulator.plot()
 
 
-    def connect_complete():
+    def connect_plan():
         """
         Test
         :return:
         """
-        import sys
         plan_index = 2
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
         input_file = "Antony_A22.json"
-        #input_file = "Vernouillet_A105.json"
+        # input_file = "Levallois_Parisot.json"
+        # input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)
 
-        graph_manager = Graph_manager(plan=plan)
+        graph_manager = GraphManager(plan=plan)
         graph_manager.build()
 
         circulator = Circulator(plan=plan, graph_manager=graph_manager)
 
         circulator.connect()
-        print("CONNECTING PATH")
-        print(circulator.graph_manager.connecting_paths)
+        logging.debug('connecting paths: {0}'.format(circulator.graph_manager.connecting_paths))
+
+        circulator.plot()
 
 
-    connect_complete()
-
-# TODO :
-# TODO : lier des espaces sachant la présence des couloirs existants
-# TODO : gestion des murs porteurs : ajout d'edge travesant en projetant les points des espaces? => considération obligatoire des espaces non mutables dans lee graphe?
-# TODO : ajout des règles par inamovible via liste
-# TODO : on pourrait dans le graphe ne manipuler que des edge -> la circulation finale est l'ensemble des edges sauf le dernier, et juste le start de l'edge s'il n'y en a qu'un
+    # generate_path()
+    connect_plan()
