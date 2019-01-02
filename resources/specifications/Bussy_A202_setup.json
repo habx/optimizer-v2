@@ -9,7 +9,7 @@
       }
     },
     {
-      "type": "livingn",
+      "type": "living",
       "variant": "s",
       "requiredArea": {
         "min": 200000,
