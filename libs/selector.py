@@ -215,12 +215,12 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
     ref_edge = space.edge
     biggest_shape_factor = 0
     edge_homogeneous_growth = None
-    if ref_edge and ref_edge.pair and ref_edge.pair.face:
+    if ref_edge and ref_edge.pair and ref_edge.pair.face and ref_edge.pair.space.category.name == 'empty':
         union_sp_poly = space.as_sp.union(ref_edge.pair.face.as_sp)
         biggest_shape_factor = (union_sp_poly.area / union_sp_poly.length)
         edge_homogeneous_growth = ref_edge
     for edge in ref_edge.space_siblings:
-        if edge.pair and edge.pair.face:
+        if edge.pair and edge.pair.face and edge.pair.space.category.name == 'empty':
             union_sp_poly = space.as_sp.union(edge.pair.face.as_sp)
             current_shape_factor = (union_sp_poly.area / union_sp_poly.length)
             if current_shape_factor > biggest_shape_factor:
@@ -770,7 +770,9 @@ SELECTORS.add(
 
     Selector(boundary_unique_longest, [space_area(max_area=30000), mutable()], name='fuse_small_cell'),
 
-    Selector(homogeneous, (adjacent_empty_space,), name='homogeneous'),
+    #Selector(homogeneous, (adjacent_empty_space,), name='homogeneous'),
+
+    Selector(homogeneous, name='homogeneous'),
 
     Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),
              'other_space_boundary')
