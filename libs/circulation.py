@@ -154,7 +154,7 @@ class Circulator:
         ax = self.plan.plot(show=show, save=False)
         paths = self.graph_manager.connecting_paths
         for path in paths:
-            if (len(path) == 1):
+            if len(path) == 1:
                 ax.scatter(path[0].start.x, path[0].start.y, marker='o', s=15, facecolor='blue')
             else:
                 for i in range(len(path) - 1):
@@ -357,11 +357,9 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan_index = 2
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        input_file = "Antony_A22.json"
         plan = build_plan(input_file)
 
         graph_manager = GraphManager(plan=plan)
@@ -395,7 +393,6 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan_index = 2
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
