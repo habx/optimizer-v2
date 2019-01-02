@@ -53,13 +53,14 @@ class Circulator:
             circulation_spaces.append(space)
 
         for room in self.plan.circulation_spaces():
-            self.connectivity_graph.add_node(room)
+            self.connectivity_graph.add_node(id(room))
 
         # building connectivity graph for circulation spaces
+
         for room in circulation_spaces:
             for other in circulation_spaces:
                 if other is not room and other.adjacent_to(room):
-                    self.connectivity_graph.add_edge(room, other)
+                    self.connectivity_graph.add_edge(id(room), id(other))
             else:
                 self.set_circulation_path()
 
@@ -68,33 +69,40 @@ class Circulator:
         for space in self.plan.circulation_spaces():
             circulation_spaces.append(space)
         for room in self.plan.mutable_spaces():
-            if room not in list(self.connectivity_graph.nodes()):
-                self.connectivity_graph.add_node(room)
+            if id(room) not in list(self.connectivity_graph.nodes()):
+                self.connectivity_graph.add_node(id(room))
                 for other in circulation_spaces:
-                    if other is not room and other.adjacent_to(room):
-                        self.connectivity_graph.add_edge(room, other)
+                    if id(other) is not id(room) and other.adjacent_to(room):
+                        self.connectivity_graph.add_edge(id(room), id(other))
 
         for node in list(self.connectivity_graph.nodes()):
             if not self.connectivity_graph.node_connected(node):
-                connected_room = self.connect_room_to_circulation_space(node)
-                self.connectivity_graph.add_edge(connected_room, node)
+                room_node = self.get_space_from_id(node)
+                connected_room = self.connect_room_to_circulation_graph(room_node)
+                self.connectivity_graph.add_edge(id(connected_room), node)
+
+    def get_space_from_id(self, space_id):
+        for space in self.plan.spaces:
+            if id(space) is space_id:
+                return space
 
     def set_circulation_path(self):
         father_node = None
         for room in self.plan.mutable_spaces():
             if room.category.name is 'entrance':
-                father_node = room
+                father_node = id(room)
                 break
         else:
             for room in self.plan.mutable_spaces():
                 if room.category.name is 'living':
-                    father_node = room
+                    father_node = id(room)
                     break
 
         if not father_node:
             return True
 
-        for node in list(self.connectivity_graph.nodes()):
+
+        for node in self.connectivity_graph.nodes():
             if not self.connectivity_graph.has_path(node, father_node):
                 self.draw_path(father_node, node)
                 self.connectivity_graph.add_edge(node, father_node)
@@ -352,11 +360,13 @@ if __name__ == '__main__':
         Test
         :return:
         """
+        import sys
         plan_index = 2
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
         input_file = "Antony_A22.json"
+        #input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)
 
         graph_manager = Graph_manager(plan=plan)
