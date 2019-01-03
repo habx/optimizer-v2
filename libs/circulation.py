@@ -396,7 +396,9 @@ if __name__ == '__main__':
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        input_file = "Antony_A22.json"
+        #input_file = "Noisy_A145.json"
+        #input_file = "Antony_A22.json"
+        #input_file = "Antony_A22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)

@@ -70,6 +70,11 @@ def build_plan(input_file) -> Plan:
     filler = Filler(plan, seed_methods)
     filler.apply_to(plan)
 
+    plan.remove_null_spaces()
+    fuse_selector = SELECTORS['fuse_small_cell']
+
+    filler.fusion(fuse_selector)
+
     ax = plan.plot(save=False, options=('fill', 'border', 'face'))
     seeder.plot_seeds(ax)
 
