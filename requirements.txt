@@ -3,6 +3,7 @@ numpy==1.14.5
 shapely==1.6.4.post2
 ortools==6.7.4973
 dill==0.2.8.2
+networkx==2.1
 
 # For tests and linting:
 pytest

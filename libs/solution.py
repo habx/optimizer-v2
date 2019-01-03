@@ -33,7 +33,7 @@ class Solution:
     Space planner Class
     """
 
-    def __init__(self, id: int, plan: 'Plan'):
+    def __init__(self, id: int, plan: 'Plan', spec: ''):
         self.id = id
         self.plan = plan
 
@@ -48,9 +48,6 @@ class Solution:
         Constraints list initialization
         :return: distance : float
         """
-
-
-
 
 if __name__ == '__main__':
     import libs.reader as reader
