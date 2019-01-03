@@ -91,7 +91,9 @@ def swap_face(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
     """
     assert len(spaces) >= 2, "At least two spaces must be provided"
     assert spaces[0].has_face(edge.face), "The edge must belong to the first space"
-    assert spaces[1].adjacent_to(edge.face), "The edge face must be adjacent to the second space"
+    if spaces[1].face:
+        assert (spaces[1].adjacent_to(edge.face),
+                "The edge face must be adjacent to the second space")
 
     face = edge.face
 

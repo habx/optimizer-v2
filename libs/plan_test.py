@@ -49,7 +49,7 @@ def test_add_duct_to_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(200, 0), (400, 0), (400, 400), (200, 400)]
 
-    duct_category = SPACE_CATEGORIES('duct')
+    duct_category = SPACE_CATEGORIES['duct']
 
     # add border duct
     plan = Plan().from_boundary(perimeter)
@@ -86,7 +86,7 @@ def test_add_touching_duct_to_space():
     """
 
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
-    duct_category = SPACE_CATEGORIES('duct')
+    duct_category = SPACE_CATEGORIES['duct']
 
     # add border duct
     plan = Plan().from_boundary(perimeter)
@@ -150,7 +150,7 @@ def test_cut_to_inside_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     plan = Plan().from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
-    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES('duct'))
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES['duct'])
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0])
 
     plan.plot()
@@ -273,7 +273,7 @@ def test_insert_separating_wall():
     wall = [(250, 0), (300, 0), (300, 500), (250, 500)]
     plan = Plan('Plan_test_wall').from_boundary(perimeter)
 
-    plan.insert_space_from_boundary(wall, category=SPACE_CATEGORIES('loadBearingWall'))
+    plan.insert_space_from_boundary(wall, category=SPACE_CATEGORIES['loadBearingWall'])
 
     plan.plot()
 

@@ -9,7 +9,6 @@ A constraint computes a score
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
 
-from libs.utils.catalog import Catalog
 from libs.utils.geometry import ccw_angle
 from libs.size import Size
 
@@ -18,8 +17,6 @@ if TYPE_CHECKING:
 
 scoreFunction = Callable[[Union['Space', 'Linear']], float]
 scoreFunctionFactory = Callable[..., scoreFunction]
-
-CONSTRAINTS = Catalog('constraints')
 
 
 class Constraint:
@@ -160,19 +157,22 @@ def max_size(params: Dict) -> scoreFunction:
 
 few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners,
                                          imperative=False)
-CONSTRAINTS.add(few_corners_constraint)
 
 max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)
-CONSTRAINTS.add(max_size_constraint)
 
 max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 400, 350)},
                                         max_size)
-CONSTRAINTS.add(max_size_s_constraint)
 
 max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 250, 300)},
                                          max_size)
-CONSTRAINTS.add(max_size_xs_constraint)
 
 square_shape = SpaceConstraint('square_shape', {'max_ratio': 100.0}, square_shape, imperative=False)
 
-CONSTRAINTS.add(square_shape)
+
+CONSTRAINTS = {
+    "few_corners": few_corners_constraint,
+    "max_size": max_size_constraint,
+    "max_size_s": max_size_s_constraint,
+    "max_size_xs": max_size_xs_constraint,
+    "square_shape": square_shape
+}

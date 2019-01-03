@@ -8,7 +8,6 @@ import logging
 import matplotlib.pyplot as plt
 
 from libs import reader
-from libs.utils.catalog import Catalog
 from libs.mutation import MUTATIONS, MUTATION_FACTORIES
 from libs.selector import SELECTORS
 
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from libs.mutation import Mutation
     from libs.selector import Selector
     from libs.plan import Plan, Space
-
-GRIDS = Catalog('grids')
 
 
 class Grid:
@@ -127,8 +124,6 @@ sequence_grid = Grid('sequence_grid', [
     )
 ])
 
-GRIDS.add(sequence_grid)
-
 ortho_grid = Grid('ortho_grid', [
     (
         SELECTORS["previous_angle_salient_non_ortho"],
@@ -176,7 +171,10 @@ ortho_grid = Grid('ortho_grid', [
     )
 ])
 
-GRIDS.add(ortho_grid)
+GRIDS = {
+    "ortho_grid": ortho_grid,
+    "sequence_grid": sequence_grid
+}
 
 if __name__ == '__main__':
 

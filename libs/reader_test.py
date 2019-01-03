@@ -7,7 +7,7 @@ import pytest
 import libs.logsetup as ls
 import libs.reader as reader
 
-ls.init()
+# ls.init()
 
 
 BLUEPRINT_INPUT_FILES = [

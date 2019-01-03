@@ -216,7 +216,7 @@ class Plan:
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = SPACE_CATEGORIES('empty')) -> 'Space':
+                                   category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':
         """
         Inserts a new space inside the empty spaces of the plan.
         By design, will not insert a space overlapping several faces of the receiving spaces.
@@ -350,6 +350,22 @@ class PlanComponent:
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
 
+    @property
+    def edge(self) -> 'Edge':
+        """
+        Returns the reference edge of the plan component
+        :return:
+        """
+        raise NotImplementedError
+
+    @property
+    def edges(self) -> Generator['Edge', None, None]:
+        """
+        Returns the edges of the plan component
+        :return:
+        """
+        raise NotImplementedError
+
 
 class Space(PlanComponent):
     """
@@ -369,7 +385,7 @@ class Space(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  edge: Optional['Edge'],
-                 category: SpaceCategory = SPACE_CATEGORIES('empty')):
+                 category: SpaceCategory = SPACE_CATEGORIES['empty']):
         super().__init__(plan)
         self._edges_id = [edge.id] if edge else []
         self._faces_id = [edge.face._id] if edge.face else []
@@ -490,6 +506,8 @@ class Space(PlanComponent):
         :param value:
         :return:
         """
+        if not self._edges_id:
+            self._edges_id = [value.id]
         self._edges_id[0] = value.id
 
     def add_edge(self, edge: 'Edge'):

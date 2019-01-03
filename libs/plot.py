@@ -244,7 +244,7 @@ class Plot:
     def _draw_face(self, face):
         if face.edge is None:
             return
-        color = face.space.category.color if face.space else 'r'
+        color = 'r'
         xy = face.as_sp.exterior.xy
         new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
         self.face_figs[id(face)] = new_line

@@ -884,6 +884,6 @@ SELECTORS = {
 
 
 SELECTOR_FACTORIES = {
-    "oriented_edges_factory": SelectorFactory(oriented_edges, factorize(adjacent_empty_space))
+    "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space))
 }
 

@@ -11,9 +11,7 @@ from libs.mutation import MUTATIONS
 from libs.selector import SELECTORS
 from libs.constraint import CONSTRAINTS
 from libs.action import Action
-from libs.utils.catalog import Catalog
 
-SHUFFLES = Catalog('shuffle')
 
 if TYPE_CHECKING:
     from libs.action import Action
@@ -95,10 +93,13 @@ class Shuffle:
         return self.selectors_args[self._action_index]
 
 
-swap_action = Action(SELECTORS['other_space_boundary'], MUTATIONS['add_face'])
+swap_action = Action(SELECTORS['other_space_boundary'], MUTATIONS['swap_face'])
 
 few_corner_shuffle = Shuffle('few_corners', (swap_action,), (), (CONSTRAINTS['few_corners'],))
 square_shape_shuffle = Shuffle('square_shape', (swap_action,), (), (CONSTRAINTS['square_shape'],
                                                                     CONSTRAINTS['few_corners']))
 
-SHUFFLES.add(few_corner_shuffle, square_shape_shuffle)
+SHUFFLES = {
+    few_corner_shuffle,
+    square_shape_shuffle
+}

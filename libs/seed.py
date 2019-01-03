@@ -23,11 +23,10 @@ import matplotlib.pyplot as plt
 from libs.plan import Space, PlanComponent, Plan, Linear, SeedSpace
 from libs.plot import plot_point, Plot
 from libs.size import Size
-from libs.utils.catalog import Catalog
 from libs.action import Action
 
 from libs.constraint import CONSTRAINTS
-from libs.selector import SELECTORS
+from libs.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.mutation import MUTATIONS
 
 from libs.utils.geometry import barycenter, move_point
@@ -45,7 +44,7 @@ class Filler:
     Filler Class
     """
 
-    def __init__(self, plan: Plan, seed_methods: List[Tuple['Selector', 'Catalog', str]], show: bool = False):
+    def __init__(self, plan: Plan, seed_methods: List[Tuple['Selector', Dict, str]], show: bool = False):
         self.plan = plan
         self.seed_methods = seed_methods
         self.plot = None
@@ -104,7 +103,9 @@ class Seeder:
     Seeder Class
     """
 
-    def __init__(self, plan: Plan, growth_methods: Catalog):
+    def __init__(self,
+                 plan: Plan,
+                 growth_methods: Dict[str, 'GrowthMethod']):
         self.plan = plan
         self.seeds: List['Seed'] = []
         self.selectors: Dict[str, 'Selector'] = {}
@@ -129,7 +130,6 @@ class Seeder:
                 continue
 
             if component.category.seedable and component.category.name == category:
-
                 if isinstance(component, Space):
                     for edge in self.space_seed_edges(component):
                         seed_edge = edge
@@ -171,6 +171,8 @@ class Seeder:
         Creates the space for each seed
         :return:
         """
+        logging.debug("Seeder : Starting to grow")
+        # needed for real time plot updates
         if show:
             self.plot = Plot()
             plt.ion()
@@ -188,7 +190,6 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    # input("Press Enter to continue...")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -203,8 +204,11 @@ class Seeder:
         # check for none space
         if seed_edge.face is None:
             return
+
         # only add a seed if the seed edge points to an empty space
-        if seed_edge.space and seed_edge.space.category.name != 'empty':
+        space = component.plan.get_space(seed_edge.face)
+        if space and space.category.name != 'empty':
+            logging.debug("Cannot add a seed to an edge that does not belong to an empty space")
             return
 
         if not self.merge(seed_edge, component):
@@ -325,7 +329,9 @@ class Seed:
         growth_methods = []
         for component in self.components:
             component_name = component.category.name
-            growth_methods.append(self.seeder.growth_methods(component_name, 'default'))
+            method = self.seeder.growth_methods.get(component_name,
+                                                    self.seeder.growth_methods['default'])
+            growth_methods.append(method)
 
         return growth_methods
 
@@ -377,6 +383,8 @@ class Seed:
         :param self:
         :return:
         """
+        logging.debug("Seed : growing")
+
         if self.growth_action is None:
             return []
 
@@ -386,20 +394,23 @@ class Seed:
 
         # initialize first face
         if self.space is None:
-            empty_space = self.edge.face.space
+            logging.debug("Seed : initializing space of seed")
+            empty_space = self.components[0].plan.get_space(self.edge.face)
             if empty_space.category.name != 'empty':
                 raise ValueError('The seed should point towards an empty space')
-            empty_space._remove_face(self.edge.face)
+            empty_space.remove_face(self.edge.face)
             self.space = SeedSpace(self.seeder.plan, self.edge, self)
             self.seeder.plan.add_space(self.space)
             self.update_max_size_constraint()
             return [self.space, empty_space]
 
-        modified_spaces = self.growth_action.apply_to(self.space, (self,),
-                                                      (self.max_size_constraint,))
+        modified_spaces = self.growth_action.apply_to(self.space, [self],
+                                                      [self.max_size_constraint])
 
         if not modified_spaces:
             self.growth_action_index += 1
+            logging.debug("Seed: switching to next growth action : %i - %s",
+                          self.growth_action_index, self)
         else:
             pass
 
@@ -431,7 +442,7 @@ class Seed:
 
 class GrowthMethod:
     """
-    A category of a seed
+    GrowthMethod class
     """
 
     def __init__(self, name: str, constraints: Optional[Sequence['Constraint']] = None,
@@ -476,11 +487,13 @@ class GrowthMethod:
         return self.constraints[constraint_name]
 
 
+# Growth Methods
+
 fill_seed_category = GrowthMethod(
     'default',
     (CONSTRAINTS['max_size'],),
     (
-        Action(SELECTORS['homogeneous'], MUTATIONS['add_face']),
+        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
     )
 )
 
@@ -488,9 +501,9 @@ fill_small_seed_category = GrowthMethod(
     'default',
     (CONSTRAINTS['max_size'],),
     (
-        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
-        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
 
@@ -498,9 +511,9 @@ classic_seed_category = GrowthMethod(
     'default',
     (CONSTRAINTS['max_size_s'],),
     (
-        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
-        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
 
@@ -508,10 +521,10 @@ duct_seed_category = GrowthMethod(
     'duct',
     (CONSTRAINTS['max_size_xs'],),
     (
-        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
-        Action(SELECTORS['surround_seed_component'], MUTATIONS['add_face']),
-        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
 
@@ -519,36 +532,27 @@ front_door_seed_category = GrowthMethod(
     'frontDoor',
     (CONSTRAINTS['max_size_xs'],),
     (
-        Action(SELECTORS.factory['oriented_edges'](('horizontal',)), MUTATIONS['add_face']),
-        Action(SELECTORS.factory['oriented_edges'](('vertical',)), MUTATIONS['add_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['add_face'])
+        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
 
-GROWTH_METHODS = Catalog('seeds').add(
-    classic_seed_category,
-    duct_seed_category,
-    front_door_seed_category)
+GROWTH_METHODS = {
+    "default": classic_seed_category,
+    "duct": duct_seed_category,
+    "frontDoor": front_door_seed_category,
+    "seed": fill_seed_category,
+    "small_seed": fill_small_seed_category
+}
 
-GROWTH_METHODS_FILL = Catalog('seeds').add(
-    fill_seed_category)
-
-GROWTH_METHODS_SMALL_SPACE_FILL = Catalog('seeds').add(
-    fill_small_seed_category)
 
 if __name__ == '__main__':
     import libs.reader as reader
+    import libs.reader_test as reader_test
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
     from libs.shuffle import SHUFFLES
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--plan_index", help="choose plan index",
-                        default=0)
-
-    args = parser.parse_args()
-    plan_index = int(args.plan_index)
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -558,10 +562,10 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        plan = reader.create_plan_from_file(input_file)
+        logging.debug("Start test")
+        input_files = reader_test.BLUEPRINT_INPUT_FILES
+        plan = reader.create_plan_from_file(input_files[0])
 
         seeder = Seeder(plan, GROWTH_METHODS)
         seeder.add_condition(SELECTORS['seed_duct'], 'duct')
@@ -570,6 +574,10 @@ if __name__ == '__main__':
         seeder.plant()
         seeder.grow(show=True)
         plan.plot(save=False)
+        plan.check()
+        plt.pause(60)
+
+        """
         SHUFFLES['square_shape'].run(plan, show=True)
 
         ax = plan.plot(save=False)
@@ -609,7 +617,6 @@ if __name__ == '__main__':
         SHUFFLES['square_shape'].run(plan, show=True)
         plan.plot(save=True)
 
-        assert plan.check()
-
+        assert plan.check()"""
 
     grow_a_plan()
