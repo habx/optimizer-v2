@@ -1159,6 +1159,8 @@ class Edge(MeshComponent):
 
         # do not continue to cut if not needed
         if traverse not in ("absolute", "relative"):
+            if callback:
+                callback(new_edges_and_face)
             return new_edges_and_face
 
         new_edge_start, new_edge_end, new_face = new_edges_and_face
@@ -1323,7 +1325,7 @@ class Edge(MeshComponent):
                   .apply_to(self.start))
         return self.cut(vertex, angle)
 
-    def ortho_cut(self) -> TwoEdgesAndAFace:
+    def ortho_cut(self, immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
         """
         Tries to cut the edge face at the edge start vertex in an orthogonal projection to any
         edge of the face
@@ -1373,7 +1375,7 @@ class Edge(MeshComponent):
                     min_distance = other_distance
                     closest_edge = other_edge
 
-            split_edge = closest_edge.split(projected_vertex)
+            split_edge = closest_edge.split(projected_vertex, immutable)
 
             if split_edge is None:
                 continue

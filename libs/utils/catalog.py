@@ -72,7 +72,7 @@ class Catalog:
         """
         Retrieves an item from the catalog
         :param item_name:
-        :param default: a default item to return if an item is not in the catalog
+        :param default_name: a default item to return if an item is not in the catalog
         :return:
         """
         if item_name not in self._items:

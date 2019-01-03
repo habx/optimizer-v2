@@ -122,7 +122,7 @@ class Seeder:
         Creates the seeds in spaces with a given category
         :return:
         """
-        for component in self.plan.get_component():
+        for component in self.plan.get_components():
 
             if component.edge is None:
                 logging.debug("The plan contains an empty component: %s", component)
@@ -140,7 +140,7 @@ class Seeder:
         Creates the seeds
         :return:
         """
-        for component in self.plan.get_component():
+        for component in self.plan.get_components():
             if component.category.seedable:
 
                 if isinstance(component, Space):
@@ -389,7 +389,7 @@ class Seed:
             empty_space = self.edge.face.space
             if empty_space.category.name != 'empty':
                 raise ValueError('The seed should point towards an empty space')
-            empty_space.remove_face(self.edge.face)
+            empty_space._remove_face(self.edge.face)
             self.space = SeedSpace(self.seeder.plan, self.edge, self)
             self.seeder.plan.add_space(self.space)
             self.update_max_size_constraint()

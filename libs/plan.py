@@ -216,7 +216,7 @@ class Plan:
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = SPACE_CATEGORIES('empty')):
+                                   category: SpaceCategory = SPACE_CATEGORIES('empty')) -> 'Space':
         """
         Inserts a new space inside the empty spaces of the plan.
         By design, will not insert a space overlapping several faces of the receiving spaces.
@@ -226,8 +226,8 @@ class Plan:
         """
         for empty_space in self.empty_spaces:
             try:
-                empty_space.insert_space(boundary, category)
-                break
+                new_space = empty_space.insert_space(boundary, category)
+                return new_space
             except OutsideFaceError:
                 continue
         else:
@@ -1230,11 +1230,19 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        if not self.plan.is_mutable(edge):
+        def _immutable(_edge: Edge) -> bool:
+            return not self.plan.is_mutable(_edge)
+
+        if _immutable(edge):
             logging.debug("Cannot remove an immutable edge: %s in space: %s", edge, self)
             return False
 
-        initial_edge, split_edge, new_face = edge.ortho_cut()
+        cut_data = edge.ortho_cut(_immutable)
+
+        if not cut_data:
+            return False
+
+        initial_edge, split_edge, new_face = cut_data
 
         if new_face is not None:
             self.add_face_id(new_face)
@@ -1342,13 +1350,13 @@ class Space(PlanComponent):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
-    def adjacent_to(self, other: 'Space') -> bool:
+    def adjacent_to(self, other: Union['Space', 'Face']) -> bool:
         """
-        Check the adjacency with an other space
+        Check the adjacency with an other space or face
         :return:
         """
-        for edge in self.edges:
-            if other.has_face(edge.pair.face):
+        for edge in other.edges:
+            if self.has_edge(edge.pair):
                 return True
         return False
 

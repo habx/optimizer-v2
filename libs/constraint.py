@@ -100,7 +100,7 @@ class LinearConstraint(Constraint):
 
 # score functions factories
 
-def square_shape(params: Dict) -> scoreFunction:
+def square_shape(_: Dict) -> scoreFunction:
     """
     Scores the area / perimeter ratio of a space.
     :return:
@@ -117,16 +117,20 @@ def square_shape(params: Dict) -> scoreFunction:
 
 def few_corners(params: Dict) -> scoreFunction:
     """
-    Scores a space by counting the number of corners
+    Scores a space by counting the number of corners.
+    Note : we only count the exterior corners of the space
+    We do not count the corners of internal holes.
+    A corner is defined as an angle between two boundaries edge superior to 20.0
     :param params:
     :return:
     """
     min_corners = params['min_corners']
+    corner_min_angle = 20.0
 
     def _score(space: 'Space') -> float:
         number_of_corners = 0
-        for edge in space.edges:
-            if ccw_angle(edge.vector, edge.space_next.vector) >= 20.0:
+        for edge in space.exterior_edges:
+            if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
                 number_of_corners += 1
 
         if number_of_corners == 0:
