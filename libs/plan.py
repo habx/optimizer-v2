@@ -292,7 +292,6 @@ class Plan:
                 num += 1
         return num
 
-
     def mutable_spaces(self) -> Generator['Space', None, None]:
         """
         Returns an iterator on mutable spaces
@@ -300,7 +299,7 @@ class Plan:
         """
 
         for space in self.spaces:
-            if space.mutable :
+            if space.mutable:
                 yield space
 
     def circulation_spaces(self) -> Generator['Space', None, None]:
@@ -310,7 +309,7 @@ class Plan:
         """
 
         for space in self.spaces:
-            if space.category.circulation :
+            if space.category.circulation:
                 yield space
 
 
@@ -920,10 +919,8 @@ class Space(PlanComponent):
                     adjacent_edges.append(edge)
             else:
                 # note : we only search for "contiguous" space boundaries
-                # if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
-                #         and edge.pair.space_next is adjacent_edges[-1].pair):
-                #     adjacent_edges.append(edge)
-                if (self.is_boundary(edge.pair)):
+                if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
+                        and edge.pair.space_next is adjacent_edges[-1].pair):
                     adjacent_edges.append(edge)
                 else:
                     break
@@ -1203,6 +1200,31 @@ class Space(PlanComponent):
                 return True
         return False
 
+    def count_ducts(self) -> float:
+        """
+        counts the number of ducts the space is adjacent to
+        :return: float
+        """
+        number_ducts = 0
+        for edge in self.edges:
+            if edge.pair is not None and edge.pair.space is not None and edge.pair.space.category \
+                    is not None \
+                    and edge.pair.space.category.name is 'duct':
+                number_ducts += 1
+        return number_ducts
+
+    def count_windows(self) -> float:
+        """
+        counts the number of linear of type window in the space
+        :return: float
+        """
+        number_windows = 0
+        for edge in self.edges:
+            if edge.linear is not None and edge.linear.category is not None \
+                    and edge.linear.category.window_type:
+                number_windows += 1
+        return number_windows
+
 
 class Linear(PlanComponent):
     """
@@ -1321,6 +1343,7 @@ class Linear(PlanComponent):
                 is_valid = False
 
         return is_valid
+
 
 class SeedSpace(Space):
     """"

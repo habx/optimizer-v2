@@ -17,7 +17,6 @@ from typing import Dict, List, Tuple
 
 from tools.builds_plan import build_plan
 
-
 COST_INITIALIZATION = 10e50
 
 
@@ -53,7 +52,8 @@ class Circulator:
                     cost_min = cost
                     path_min = path
         self.graph_manager.connecting_paths.append(path_min)
-        # when a circulation has been set, it can be used to connect every other spaces without cost increase
+        # when a circulation has been set, it can be used to connect every other spaces
+        # without cost increase
         self.graph_manager.set_corridor_to_zero_cost(path_min)
         return path_min, cost_min
 
@@ -172,8 +172,8 @@ class Circulator:
 class GraphManager:
     """
     Graph_manager class
-    builds and manages a graph that can be used by a circulator so as to compute shortest path between two spaces
-    independant from the library used to build the graph
+    builds and manages a graph that can be used by a circulator so as to compute shortest path
+    between two spaces independant from the library used to build the graph
     """
 
     def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'Dijkstar'):
@@ -244,12 +244,40 @@ class GraphManager:
     #         for edge in space.edges:
     #             if edge.
 
+    def rule_type(self, edge: Edge):
+
+        rule = 'default'
+
+        if edge.pair is not None and edge.pair.space is not None \
+                and edge.pair.space.category is not None:
+            if edge.pair.space.category.name is 'duct' and edge.space.category.needs_duct:
+                if edge.space.count_ducts() <= 2:
+                    rule = 'water_room_less_than_two_ducts'
+                else:
+                    rule = 'water_room_default'
+
+        elif edge.linear is not None and edge.linear.category is not None and edge.space is not None \
+                and edge.space.category is not None:
+            if edge.linear.category.window_type and edge.space.category.needs_window:
+                if edge.space.count_windows() <= 2:
+                    rule = 'window_room_less_than_two_windows'
+                else:
+                    rule = 'window_room_default'
+
+        return rule
+
     def cost(self, edge: Edge, cost_fixed_items: Dict = None) -> float:
         """
         computes the cost of an edge
         :return: cost
         """
         cost = edge.length
+
+        rule = self.rule_type(edge)
+        if rule not in self.cost_rules.keys():
+            raise ValueError('The rule dict does not contain this rule {0}'.format(rule))
+        cost += self.cost_rules[self.rule_type(edge)]
+
         # # TODO : add list of rules for cost
         # if not edge.is_mutable and edge in cost_fixed_items.keys():
         #     cost += cost_fixed_items[edge]
@@ -396,14 +424,22 @@ if __name__ == '__main__':
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        #input_file = "Noisy_A145.json"
         #input_file = "Antony_A22.json"
-        #input_file = "Antony_A22.json"
+        # input_file = "Noisy_A145.json"
+        # input_file = "Antony_A22.json"
+        # input_file = "Antony_A22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)
 
-        graph_manager = GraphManager(plan=plan)
+        cost_rules = {}
+        cost_rules['water_room_less_than_two_ducts'] = 10e10
+        cost_rules['water_room_default'] = 1000
+        cost_rules['window_room_less_than_two_windows'] = 10e10
+        cost_rules['window_room_default'] = 5000
+        cost_rules['default'] = 0
+
+        graph_manager = GraphManager(plan=plan, cost_rules=cost_rules)
         graph_manager.build()
 
         circulator = Circulator(plan=plan, graph_manager=graph_manager)
