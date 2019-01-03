@@ -21,6 +21,18 @@ def get_deep_copy(element: Any) -> Any:
     return element_copy
 
 
+def plan_pickle(plan: 'Plan', status: str) -> str:
+    """
+    plan pickle
+    :return:
+    """
+    name_f = "../libs/pickles/pickle_" + plan.name + '_' + status
+    sys.setrecursionlimit(10000)
+    pickle.dump(plan, open(name_f, 'wb'))
+
+    return name_f
+
+
 def load_pickle(path: str) -> Any:
     """
     loads a pickled element

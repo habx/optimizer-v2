@@ -16,7 +16,10 @@ import logging
 import matplotlib.pyplot as plt
 from ortools.constraint_solver import pywrapcp as ortools
 
+import libs.utils.copy as copy
+
 from libs.specification import Specification, Item
+from libs.solution import Solution, SolutionsCollector
 
 if TYPE_CHECKING:
     from libs.plan import Space
@@ -54,7 +57,7 @@ class ConstraintSolver:
         # For the decision builder
         self.positions_flat: List[ortools.IntVar] = []
         self.init_positions()
-        self.solutions: Dict[int] = {}  # class Solution : scoring
+        self.solutions: Dict[int] = {}
 
     def init_positions(self) -> None:
         """
@@ -132,6 +135,11 @@ class ConstraintsManager:
         self.windows_length = {}
         self.init_windows_length()
 
+        self.item_constraints = {}
+        self.init_item_constraints_list()
+        self.add_spaces_constraints()
+        self.add_item_constraints()
+
     def init_windows_length(self) -> None:
         """
         Initialize the length of each window
@@ -146,6 +154,41 @@ class ConstraintsManager:
                         length += (self.solver.positions[item.id, j]
                                    * int(component.length))
             self.windows_length[str(item.id)] = length
+
+    def init_item_constraints_list(self) -> None:
+        """
+        Constraints list initialization
+        :return: None
+        """
+        self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
+        if self.sp.spec.typology >= 3:
+            for item in self.sp.spec.items:
+                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                    self.item_constraints[item.category.name].append(constraint)
+
+        logging.debug('CONSTRAINTS', self.item_constraints)
+
+    def add_spaces_constraints(self) -> None:
+        """
+        add spaces constraints
+        :return: None
+        """
+        for j_space in range(len(self.sp.seed_spaces)):
+            self.solver.add_constraint(
+                space_attribution_constraint(self, j_space))
+
+    def add_item_constraints(self) -> None:
+        """
+        add items constraints
+        :return: None
+        """
+        for item in self.sp.spec.items:
+            for constraint in self.item_constraints['all']:
+                print('item', item.category.name)
+                print('constraint', constraint[0])
+                self.add_item_constraint(item, constraint[0], **constraint[1])
+            for constraint in self.item_constraints[item.category.name]:
+                self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -418,8 +461,7 @@ class SpacePlanner:
         self.init_spaces_list()
 
         self.manager = ConstraintsManager(self)
-        self.item_constraints = {}
-        self.init_item_constraints_list()
+        self.solutions_collector = SolutionsCollector()
 
     def __repr__(self):
         # TODO
@@ -437,54 +479,37 @@ class SpacePlanner:
                 logging.debug(self.seed_spaces)
                 logging.debug(space.components_associated())
 
-    def init_item_constraints_list(self) -> None:
-        """
-        Constraints list initialization
-        :return: None
-        """
-        self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
-        if self.spec.typology >= 3:
-            for item in self.spec.items:
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
-                    self.item_constraints[item.category.name].append(constraint)
-
-        logging.debug('CONSTRAINTS', self.item_constraints)
-
-    def add_spaces_constraints(self) -> None:
-        """
-        add spaces constraints
-        :return: None
-        """
-        for j_space in range(len(self.seed_spaces)):
-            self.manager.solver.add_constraint(
-                space_attribution_constraint(self.manager, j_space))
-
-    def add_item_constraints(self) -> None:
-        """
-        add items constraints
-        :return: None
-        """
-        for item in self.spec.items:
-            for constraint in self.item_constraints['all']:
-                print('item', item.category.name)
-                print('constraint', constraint[0])
-                self.manager.add_item_constraint(item, constraint[0], **constraint[1])
-            for constraint in self.item_constraints[item.category.name]:
-                self.manager.add_item_constraint(item, constraint[0], **constraint[1])
-
-    def rooms_building(self):  # -> Plan:
+    def rooms_building(self, plan: 'Plan'):
         """
         Rooms building
         :return: None
         """
-        # plan_solution = copy.deepcopy(self.plan)
+        for k_space, kspace in enumerate(plan.get_spaces()):
+            k_space = 1
+
+
+    def solution_research(self) -> None:
+        """
+        Rooms building
+        :return: None
+        """
+
         self.manager.solver.solve()
 
-        if len(self.manager.solver.solutions) >= 1:
-            for j_space, space in enumerate(self.seed_spaces):  # empty and seed spaces
+        if len(self.manager.solver.solutions) == 0:
+            logging.warning('Plan without space planning solution')
+        else:
+            logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
+            seed_plan = copy.plan_pickle(self.spec.plan, 'seed_plan')
+            for i in range(len(self.manager.solver.solutions)):
+                plan_solution = copy.load_pickle(seed_plan)
                 for i_item, item in enumerate(self.spec.items):  # Rooms
-                    if self.manager.solver.solutions[0][i_item][j_space] == 1:
-                        space.category = item.category
+                    for j_space, jspace in enumerate(self.seed_spaces):
+                        if self.manager.solver.solutions[i][i_item][j_space] == 1:
+                            for k_space, kspace in enumerate(plan_solution.get_spaces()):
+                                if jspace.edge.start.coords == kspace.edge.start.coords and \
+                                        jspace.edge.end.coords == kspace.edge.end.coords:
+                                    kspace.add_item(item)
 
 
 GENERAL_ITEMS_CONSTRAINTS = {
@@ -612,7 +637,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Bussy_Regis.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
@@ -645,27 +670,26 @@ if __name__ == '__main__':
             )
         ]
 
-        filler = libs.seed.Filler(plan, seed_methods)
-        filler.apply_to(plan)
+        #filler = libs.seed.Filler(plan, seed_methods)
+        #filler.apply_to(plan)
         plan.remove_null_spaces()
         fuse_selector = SELECTORS['fuse_small_cell']
 
         logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
 
-        filler.fusion(fuse_selector)
+        #filler.fusion(fuse_selector)
 
         logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
 
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        input_file = 'Bussy_Regis_setup.json'
+        input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
+        print(spec.items)
 
         space_planner = SpacePlanner('test', spec)
-        space_planner.add_spaces_constraints()
-        space_planner.add_item_constraints()
-        space_planner.rooms_building()
+        space_planner.solution_research()
 
         plan.plot(show=True)
         # seeder.plot_seeds(ax)

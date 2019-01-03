@@ -310,9 +310,10 @@ class Space(PlanComponent):
     """
 
     def __init__(self, plan: Plan, edge: Edge,
-                 category: SpaceCategory = SPACE_CATEGORIES('empty')):
+                 category: SpaceCategory = SPACE_CATEGORIES('empty'), item: 'Item' = None):
         super().__init__(plan, edge)
         self.category = category
+        self.item = item
         # set the circular reference
         edge.face.space = self
         # set the boundary of the Space if the edge has not already a boundary
@@ -323,6 +324,10 @@ class Space(PlanComponent):
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
         return output
+
+    def add_item(self, item: 'Item') -> None:
+        self.item = item
+        self.category = item.category
 
     @property
     def face(self) -> Face:
