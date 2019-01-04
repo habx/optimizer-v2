@@ -164,7 +164,7 @@ class Circulator:
         paths = self.graph_manager.connecting_paths
         for path in paths:
             if len(path) == 1:
-                ax.scatter(path[0].start.x, path[0].start.y, marker='o', s=15, facecolor='blue')
+                ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
             else:
                 for i in range(len(path) - 1):
                     v1 = path[i]
@@ -212,24 +212,21 @@ class GraphManager:
             if space.mutable:
                 for edge in space.edges:
                     if edge not in seen:
+                        self.update(edge)
                         seen.append(edge)
+                        # if added_pair:
+                        #    seen.append(edge.pair)
 
         graph.set_cost_function()
 
     def update(self, edge: Edge):
         """
         add edge to the graph and computes its cost
-        :return:
+        return:
         """
-        added_pair = False
         graph = self.graph
         cost = self.cost(edge)
         graph.add_edge(edge, cost)
-        if edge.pair and edge.pair.is_space_boundary:
-            added_pair = True
-            graph.add_edge(edge.pair, cost)
-
-        return added_pair
 
     def set_corridor_to_zero_cost(self, path):
         """
