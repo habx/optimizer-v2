@@ -4,10 +4,8 @@ Solution collector
 
 """
 from typing import List, Dict, Callable, Optional
-import logging
-
-import matplotlib.pyplot as plt
 from libs.specification import Specification, Item
+from libs.plan import Plan
 
 
 class SolutionsCollector:
@@ -24,8 +22,8 @@ class SolutionsCollector:
         add solutions to the list
         :return: None
         """
-        id = len(self.solutions)
-        sol = Solution(id, plan)
+        sol_id = len(self.solutions)
+        sol = Solution(sol_id, plan)
         self.solutions.append(sol)
 
 
@@ -34,13 +32,59 @@ class Solution:
     Space planner Class
     """
 
-    def __init__(self, id: int, plan: 'Plan'):
-        self.id = id
+    def __init__(self, sol_id: int, plan: 'Plan'):
+        self.id = sol_id
         self.plan = plan
+
+    def area_score(self) -> float:
+
+        for i_space, space in enumerate(self.plan.mutable_spaces):
+            if room_type != 'circulationSpace':
+                # Min < VoronoiArea < Max
+                if floor_plan.RoomsDf.at[room, 'RequiredMinArea'] <= PolygonRoomsDf.at[room, 'Area'] and \
+                        floor_plan.RoomsDf.at[room, 'RequiredMaxArea'] >= PolygonRoomsDf.at[
+                    room, 'Area']:
+                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
+                # good overflow
+                elif floor_plan.RoomsDf.at[room, 'RequiredMaxArea'] < PolygonRoomsDf.at[
+                    room, 'Area'] and \
+                        (room_type == 'living' or room_type == 'livingKitchen'
+                         or room_type == 'livingKitchenDining' or room_type == 'dining'
+                         or room_type == 'kitchenDining'):
+                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
+                # overflow
+                else:
+                    PolygonRoomsDf.at[room, 'AreaScore'] = (100 - abs(
+                        floor_plan.RoomsDf.at[room, 'RequiredArea'] - PolygonRoomsDf.at[room, 'Area']) /
+                                                            floor_plan.RoomsDf.at[
+                                                                room, 'RequiredArea'] * 100)
+                    if room_type == 'entrance':
+                        if PolygonRoomsDf.at[room, 'Area'] < 20000:
+                            area_penalty += 1
+                    elif room_type == 'wc':
+                        if PolygonRoomsDf.at[room, 'Area'] < 10000:
+                            area_penalty += 1
+                        elif PolygonRoomsDf.at[room, 'Area'] > floor_plan.RoomsDf.at[
+                            room, 'RequiredArea']:
+                            area_penalty += 3
+                    elif room_type == 'bathroom' or room_type == 'wcBathroom':
+                        if PolygonRoomsDf.at[room, 'Area'] < 20000:
+                            area_penalty += 1
+                    elif room_type == 'bedroom':
+                        if PolygonRoomsDf.at[room, 'Area'] < 75000:
+                            area_penalty += 1
+            else:
+                if not PolygonRoomsDf.at[room, 'Area'] and PolygonRoomsDf.at[room, 'Area'] == 0:
+                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
+                else:
+                    PolygonRoomsDf.at[room, 'AreaScore'] = 50
+
+            # Area score
+            area_score += PolygonRoomsDf.at[room, 'AreaScore']
 
     def score(self) -> float:
         """
-        scoring
+        Scoring
         :return: score : float
         """
 
@@ -50,81 +94,3 @@ class Solution:
         :return: distance : float
         """
 
-if __name__ == '__main__':
-    import libs.reader as reader
-    import libs.seed
-    from libs.selector import SELECTORS
-    from libs.grid import GRIDS
-    from libs.shuffle import SHUFFLES
-
-    logging.getLogger().setLevel(logging.DEBUG)
-
-
-    def space_planning():
-        """
-        Test
-        :return:
-        """
-
-        input_file = 'Bussy_Regis.json'  # 5 Levallois_Letourneur / Antony_A22
-        plan = reader.create_plan_from_file(input_file)
-
-        seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
-        seeder.add_condition(SELECTORS['seed_duct'], 'duct')
-        GRIDS['ortho_grid'].apply_to(plan)
-
-        seeder.plant()
-        seeder.grow(show=True)
-        SHUFFLES['square_shape'].run(plan, show=True)
-
-        logging.debug(plan)
-        logging.debug(seeder)
-
-        plan.plot(show=True)
-        # seeder.plot_seeds(ax)
-        plt.show()
-        seed_empty_furthest_couple_middle = SELECTORS[
-            'seed_empty_furthest_couple_middle_space_area_min_100000']
-        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
-        seed_methods = [
-            (
-                seed_empty_furthest_couple_middle,
-                libs.seed.GROWTH_METHODS_FILL,
-                "empty"
-            ),
-            (
-                seed_empty_area_max_100000,
-                libs.seed.GROWTH_METHODS_SMALL_SPACE_FILL,
-                "empty"
-            )
-        ]
-
-        filler = libs.seed.Filler(plan, seed_methods)
-        filler.apply_to(plan)
-        plan.remove_null_spaces()
-        fuse_selector = SELECTORS['fuse_small_cell']
-
-        logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
-
-        filler.fusion(fuse_selector)
-
-        logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
-
-        SHUFFLES['square_shape'].run(plan, show=True)
-
-        input_file = 'Bussy_Regis_setup.json'
-        spec = reader.create_specification_from_file(input_file)
-        spec.plan = plan
-
-        space_planner = SpacePlanner('test', spec)
-        space_planner.add_spaces_constraints()
-        space_planner.add_item_constraints()
-        space_planner.rooms_building()
-
-        plan.plot(show=True)
-        # seeder.plot_seeds(ax)
-        plt.show()
-        assert spec.plan.check()
-
-
-    space_planning()
