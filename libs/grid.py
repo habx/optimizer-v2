@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from libs import reader
 from libs.mutation import MUTATIONS, MUTATION_FACTORIES
-from libs.selector import SELECTORS
+from libs.selector import SELECTORS, SELECTOR_FACTORIES
 
 if TYPE_CHECKING:
     from libs.mutation import Mutation
@@ -74,7 +74,12 @@ class Grid:
 
 
 # grid
-
+simple_grid = Grid("simple_grid", [
+    (
+        SELECTOR_FACTORIES["edges_length"]([], [[100]]),
+        MUTATION_FACTORIES["barycenter_cut"](0.5)
+    )
+])
 
 sequence_grid = Grid('sequence_grid', [
     (
@@ -173,7 +178,8 @@ ortho_grid = Grid('ortho_grid', [
 
 GRIDS = {
     "ortho_grid": ortho_grid,
-    "sequence_grid": sequence_grid
+    "sequence_grid": sequence_grid,
+    "simple_grid": simple_grid
 }
 
 if __name__ == '__main__':

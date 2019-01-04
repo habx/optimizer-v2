@@ -85,11 +85,20 @@ class MeshComponent:
 
     def remove_from_mesh(self):
         """
-        Removes the item from the mesh
+        Removes the component from the mesh
         :return:
         """
+        assert self._mesh, 'Component has no mesh to remove it from: {0}'.format(self)
         self._mesh.remove(self)
         self._mesh = None
+
+    def add_to_mesh(self, mesh: 'Mesh'):
+        """
+        Add the component from the mesh
+        :return:
+        """
+        self._mesh = mesh
+        self._mesh.add(self)
 
 
 class Vertex(MeshComponent):
@@ -1519,6 +1528,25 @@ class Face(MeshComponent):
             output += '({0}, {1})'.format(*edge.start.coords)
         return output + ']'
 
+    def swap(self, face: Optional['Face'] = None):
+        """
+        Creates a copy of the face and attributes it to the self edges
+        :return:
+        """
+        if face is None:
+            new_face = Face(self.mesh, self.edge)
+        else:
+            new_face = face
+            new_face.edge = self.edge
+            new_face.add_to_mesh(self.mesh)
+
+        # swap edge references
+        for edge in self.edges:
+            edge.face = new_face
+        self.edge = None
+        self.remove_from_mesh()
+        return new_face
+
     @property
     def id(self) -> uuid.UUID:
         """
@@ -1685,16 +1713,6 @@ class Face(MeshComponent):
 
         return max_x - min_x, max_y - min_y
 
-    def remove_from_mesh(self):
-        """
-        Removes the face reference from the mesh
-        :return: None
-        """
-        mesh = self.mesh
-        if mesh is None:
-            raise ValueError('Face has no mesh to remove it from: {0}'.format(self))
-        mesh._remove_face(self)
-
     def get_edge(self, vertex: Vertex) -> Optional[Edge]:
         """
         Retrieves the half edge of the face starting with the given vertex.
@@ -1769,15 +1787,15 @@ class Face(MeshComponent):
         new_faces = [self]
 
         if intersection_points.is_empty:
-            logging.info('Cannot slice a face with a segment that does not intersect it')
+            logging.debug('Cannot slice a face with a segment that does not intersect it')
             return new_faces
 
         if intersection_points.geom_type == 'LineString':
-            logging.info('While slicing only found a lineString as intersection')
+            logging.debug('While slicing only found a lineString as intersection')
             return new_faces
 
         if intersection_points.geom_type == 'Point':
-            logging.info('While slicing only found a point as intersection')
+            logging.debug('While slicing only found a point as intersection')
             return new_faces
 
         new_vertices = []
@@ -1931,9 +1949,17 @@ class Face(MeshComponent):
         :param face:
         :return:
         """
-        print('The inserted face is equal to the container face,' +
-              ' no need to do anything: {0}'.format(face))
-        return [self]  # NOTE : not sure this is best. Maybe we should swap self with face
+        logging.debug('The inserted face is equal to the container face : %s', face)
+        # we swap self with the new inserted face
+        # we remove the edges and vertices of the face from the mesh
+        self.mesh.remove_face_and_children(face)
+        # we add again the face to the mesh
+        face.add_to_mesh(self.mesh)
+        # we give the new face to the edges of the receiving face
+        for edge in self.edges:
+            edge.face = face
+        self.remove_from_mesh()
+        return []
 
     def _insert_face(self, face: 'Face') -> List['Face']:
         """
@@ -2002,16 +2028,17 @@ class Face(MeshComponent):
         """
         logging.debug("Inserting a face over an internal edge")
         # we slice the face if needed, we check each internal edges
-        face_copy = copy.deepcopy(face)
+        face_copy = face.swap()
         sliced_faces = [face_copy]
         for internal_edge in internal_edges:
-            sliced_faces_temp = copy.copy(sliced_faces)
+            sliced_faces_temp = sliced_faces[:]
             for sliced_face in sliced_faces_temp:
                 sliced_faces.remove(sliced_face)  # to prevent duplicates
                 sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector,
                                                    internal_edge.length)
         # if no face was created we proceed with a standard insert
         if len(sliced_faces) == 1:
+            face_copy.swap(face)
             return self._insert_face(face)
 
         logging.info('Inserting face in a face overlapping an internal edge')
@@ -2026,12 +2053,15 @@ class Face(MeshComponent):
         # we create brand new faces and we insert them in the face
         # a bit brutal, a better way is certainly possible ;-)
         for sliced_face in sliced_faces:
-            new_faces.append(self.mesh.new_face_from_boundary(sliced_face.coords))
+            new_face = self.mesh.new_face_from_boundary(sliced_face.coords)
+            new_faces.append(new_face)
+            self.mesh.remove_face_and_children(sliced_face)
+
         # insert the new faces in the containing face
         # Note : we have to try for each face created
         container_faces = [self]
         for new_face in new_faces:
-            container_faces_copy = copy.copy(container_faces)
+            container_faces_copy = container_faces[:]
             for container_face in container_faces_copy:
                 try:
                     new_inserted_faces = container_face._insert_face(new_face)
@@ -2040,6 +2070,8 @@ class Face(MeshComponent):
                     break
                 except OutsideFaceError:
                     continue
+            else:
+                raise Exception("Could not insert the sliced face: this should never happen!!")
 
         # merge the faces
         remaining_face = new_faces[0]
@@ -2050,10 +2082,7 @@ class Face(MeshComponent):
 
         # attribute the references to the initial face
         # to preserve the face references
-        for edge in remaining_face.edges:
-            edge.face = face
-        face.edge = remaining_face.edge
-        self.mesh._remove_face(remaining_face)
+        remaining_face.swap(face)
 
         # return the create faces
         created_faces = sorted(container_faces, key=attrgetter('area'), reverse=True)
@@ -2274,12 +2303,21 @@ class Mesh:
             self._watcher(component, "remove")
 
         if type(component) == Vertex:
+            if component.id not in self._vertices:
+                logging.debug("Vertex is not in mesh")
+                return
             self._remove_vertex(component)
 
         if type(component) == Face:
+            if component.id not in self._faces:
+                logging.warning("face is not in mesh")
+                return
             self._remove_face(component)
 
         if type(component) == Edge:
+            if component.id not in self._edges:
+                logging.debug("Edge is not in mesh")
+                return
             self._remove_edge(component)
 
     def _add_face(self, face: 'Face'):

@@ -163,7 +163,7 @@ max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000
 max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 400, 350)},
                                         max_size)
 
-max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 250, 300)},
+max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 300, 300)},
                                          max_size)
 
 square_shape = SpaceConstraint('square_shape', {'max_ratio': 100.0}, square_shape, imperative=False)

@@ -20,7 +20,7 @@ import copy
 
 import matplotlib.pyplot as plt
 
-from libs.plan import Space, PlanComponent, Plan, Linear, SeedSpace
+from libs.plan import Space, PlanComponent, Plan, Linear
 from libs.plot import plot_point, Plot
 from libs.size import Size
 from libs.action import Action
@@ -28,11 +28,12 @@ from libs.action import Action
 from libs.constraint import CONSTRAINTS
 from libs.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.mutation import MUTATIONS
+from libs.category import SPACE_CATEGORIES
 
 from libs.utils.geometry import barycenter, move_point
 
 if TYPE_CHECKING:
-    from libs.mesh import Edge
+    from libs.mesh import Edge, Face
     from libs.selector import Selector
     from libs.constraint import Constraint
 
@@ -190,6 +191,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
+
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -206,7 +208,7 @@ class Seeder:
             return
 
         # only add a seed if the seed edge points to an empty space
-        space = component.plan.get_space(seed_edge.face)
+        space = component.plan.get_space_of_face(seed_edge.face)
         if space and space.category.name != 'empty':
             logging.debug("Cannot add a seed to an edge that does not belong to an empty space")
             return
@@ -217,7 +219,10 @@ class Seeder:
 
     def space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
         """
-        returns the space edges
+        returns the edges of the space that should produce a seed on their pair edge
+        (for example : a duct)
+        If the space category has a specific seed condition we apply it. Otherwise we seed
+        every pair edge.
         :param space:
         :return:
         """
@@ -234,7 +239,7 @@ class Seeder:
         Adds a selector to create a seed from a space component.
         The selector returns the edges that will receive a seed.
         :param selector:
-        :param category_name: the str name of a category
+        :param category_name: the name of a category
         """
         self.selectors[category_name] = selector
 
@@ -246,12 +251,12 @@ class Seeder:
         """
         for seed in self.seeds:
             ax = seed.plot(ax)
-
         return ax
 
     def get_seed_from_space(self, space: 'Space') -> Optional['Seed']:
         """
-        Return the seed corresponding to the space
+        Return the seed corresponding to the space.
+        Returns None if the space has no corresponding seed.
         :param space:
         :return:
         """
@@ -274,7 +279,7 @@ class Seed:
         self.seeder = seeder
         self.edges = [edge]  # the reference edge of the seed
         self.components = [plan_component] if PlanComponent else []  # the components of the seed
-        self.space: Optional[SeedSpace] = None  # the seed space
+        self.space: Optional[Space] = None  # the seed space
         # per convention we apply the growth method corresponding
         # to the first component category name
         self.growth_methods = self.get_growth_methods()
@@ -283,9 +288,12 @@ class Seed:
         self.max_size_constraint = self.create_max_size_constraint()
 
     def __repr__(self):
-        return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
-                '{5}').format(self.components, str(self.space.area), str(self.size.width),
-                              str(self.size.depth), self.space, self.edge) + '\n'
+        if self.space is not None:
+            return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
+                    '{5}').format(self.components, str(self.space.area), str(self.size.width),
+                                  str(self.size.depth), self.space, self.edge) + '\n'
+        else:
+            return 'Seed: {0} - {1})'.format(self.components, self.edge) + '\n'
 
     @property
     def size(self) -> Size:
@@ -302,6 +310,17 @@ class Seed:
         :return:
         """
         return self.edges[0]
+
+    def face_has_component(self, face: 'Face') -> bool:
+        """
+        Returns True if the face is linked to a component of the Space
+        :param face:
+        :return:
+        """
+        for edge in face.edges:
+            if edge in self.edges:
+                return True
+        return False
 
     def check_size(self,
                    size: Size) -> bool:
@@ -376,6 +395,26 @@ class Seed:
             return None
         return self.growth_methods[0].actions[self.growth_action_index]
 
+    def _create_seed_space(self) -> ['Space']:
+        """
+        Creates the initial seed space
+        Returns the modified spaces
+        (the created space and the space from which the face was removed)
+        :return:
+        """
+        logging.debug("Seed : creating the seed space")
+
+        face = self.edge.face
+        empty_space = self.components[0].plan.get_space_of_face(face)
+
+        if not empty_space or empty_space.category.name != 'empty':
+            raise ValueError('The seed should point towards an empty space')
+
+        modified_spaces = empty_space.remove_face(face)
+        self.space = Space(self.seeder.plan, self.edge, SPACE_CATEGORIES["seed"])
+        self.update_max_size_constraint()
+        return [self.space] + modified_spaces
+
     def grow(self) -> Sequence['Space']:
         """
         Tries to grow the seed space by one face
@@ -383,7 +422,7 @@ class Seed:
         :param self:
         :return:
         """
-        logging.debug("Seed : growing")
+        logging.debug("Seed : growing %s", self)
 
         if self.growth_action is None:
             return []
@@ -394,15 +433,7 @@ class Seed:
 
         # initialize first face
         if self.space is None:
-            logging.debug("Seed : initializing space of seed")
-            empty_space = self.components[0].plan.get_space(self.edge.face)
-            if empty_space.category.name != 'empty':
-                raise ValueError('The seed should point towards an empty space')
-            empty_space.remove_face(self.edge.face)
-            self.space = SeedSpace(self.seeder.plan, self.edge, self)
-            self.seeder.plan.add_space(self.space)
-            self.update_max_size_constraint()
-            return [self.space, empty_space]
+            return self._create_seed_space()
 
         modified_spaces = self.growth_action.apply_to(self.space, [self],
                                                       [self.max_size_constraint])
@@ -575,11 +606,11 @@ if __name__ == '__main__':
         seeder.grow(show=True)
         plan.plot(save=False)
         plan.check()
-        plt.pause(60)
 
-        """
         SHUFFLES['square_shape'].run(plan, show=True)
 
+        """
+        
         ax = plan.plot(save=False)
         seeder.plot_seeds(ax)
         plt.title("seeding points")

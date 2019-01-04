@@ -17,14 +17,14 @@ for edge in selector.catalog['boundary'].yield_from(space):
     do something with each edge (like a mutation for example)
 
 """
-from typing import Sequence, Union, Generator, Callable, Any, Optional, TYPE_CHECKING
+from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal
 from libs.mesh import MIN_ANGLE
 
 if TYPE_CHECKING:
     from libs.mesh import Edge, Face
-    from libs.plan import Space, SeedSpace
+    from libs.plan import Space
     from libs.seed import Seed
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
@@ -112,37 +112,49 @@ def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :param space:
     :return:
     """
-    for edge in space.edges:
+    for edge in list(space.edges):
         yield edge
 
 
-def safe_boundary_edge(space: 'SeedSpace', *_) -> Generator['Edge', bool, None]:
+def other_seed_space_edge(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edges not pointing to the initial face of seed space
+    Returns the edges of the seed space pointing to another seed space but not to a face
+    attached to one of its component
     and not pointing to another seed
     """
+    assert seed and seed.space is space, "The associated seed object must be provided"
+
     for edge in space.edges:
         face = edge.pair.face
-        other_space = space.plan.get_space(face)
-        if other_space and other_space.category.name == 'seed':
+
+        if face is None:
             continue
-        if other_space.face_component(face):
+
+        other_space = space.plan.get_space_of_face(face)
+        if not other_space:
             continue
+        if other_space.category.name != "seed":
+            continue
+        if seed.face_has_component(face):
+            continue
+
         yield edge
 
 
 def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edge of the space adjacent to a face close to the component of the seed
+    Returns the edge of the space adjacent to a face adjacent to the component of the seed
     :param space:
     :param seed:
     :return:
     """
+    assert seed and seed.space is space, "The associated seed object must be provided"
+
     component = seed.components[0]  # per convention we use the first component of the seed
     for edge in component.edges:
         face = edge.pair.face
         if (face is None or space.has_face(face)
-                or space.plan.get_space(face).category.name == 'seed'):
+                or space.plan.get_space_of_face(face).category.name != 'empty'):
             continue
         # find a shared edge with the space
         for face_edge in face.edges:
@@ -181,11 +193,11 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
     ref_edge = space.edge
     if ref_edge:
         longest_edge = ref_edge
-        longest_edge_pair_area = space.plan.get_space(ref_edge.pair.face).area
+        longest_edge_pair_area = space.plan.get_space_of_face(ref_edge.pair.face).area
         length = ref_edge.length
         for edge in space.siblings(ref_edge):
             if not edge.is_mesh_boundary:
-                edge_pair_space_area = space.plan.get_space(edge.pair.face).area
+                edge_pair_space_area = space.plan.get_space_of_face(edge.pair.face).area
                 if longest_edge.is_mesh_boundary:
                     longest_edge = edge
                     longest_edge_pair_area = edge_pair_space_area
@@ -364,51 +376,59 @@ def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', b
 def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
-    will cut it in several spaces
+    will cut it in several spaces or is the only face
     """
+    face = edge.face
 
-    def _get_adjacent_faces(_face: 'Face') -> Generator['Face', None, None]:
-        """
-            Recursive function to retrieve all the faces of the space
-            :param _face:
-            :return:
-            """
-        for _edge in _face.edges:
-            # if the edge is a boundary of the space do not propagate
-            if space.is_boundary(_edge):
-                continue
-            new_face = _edge.pair.face
-            if new_face and new_face.space is removed_face.space and new_face not in seen:
-                seen.append(new_face)
-                yield new_face
-                yield from _get_adjacent_faces(new_face)
+    # case 1 : the only face of the space
+    if len(space._faces_id) == 1:
+        return True
 
-    removed_face = edge.pair.face
-
-    if removed_face is None or space.plan.get_space(removed_face) is None:
+    # case 2 : fully enclosing face
+    face_edges = list(face.edges)
+    for edge in space.exterior_edges:
+        if edge not in face_edges:
+            break
+        face_edges.remove(edge)
+    else:
         return False
 
-    adjacent_faces = set([_edge.pair.face for _edge in removed_face.edges
-                          if _edge.pair.face and (space.plan.get_space(_edge.pair.face) is
-                                                  space.plan.get_space(removed_face))])
+    # case 4 : standard case
+    forbidden_edges = list(face.edges)
+    space.change_reference_edges(forbidden_edges)
+    adjacent_faces = list(space.adjacent_faces(face))
 
-    # only face in the space
-    if len(adjacent_faces) < 2:
+    if len(adjacent_faces) == 1:
         return False
 
-    found_isolated_face = False
+    remaining_faces = adjacent_faces[:]
 
-    for face in adjacent_faces:
-        seen = [removed_face, face]
-        for other_face in _get_adjacent_faces(face):
-            if other_face in adjacent_faces:
-                break
+    # temporarily remove the face_id from the space
+    space.remove_face_id(face)
+
+    # we must check to see if we split the space by removing the face
+    # for each adjacent face inside the space check if they are still connected
+    while remaining_faces:
+
+        adjacent_face = remaining_faces[0]
+        connected_faces = [adjacent_face]
+
+        for connected_face in space.connected_faces(adjacent_face):
+            # try to reach the other adjacent faces
+            if connected_face in remaining_faces:
+                remaining_faces.remove(connected_face)
+            connected_faces.append(connected_face)
+
+        remaining_faces.remove(adjacent_face)
+
+        if len(remaining_faces) != 0:
+            space.add_face_id(face)
+            return True
         else:
-            found_isolated_face = True
             break
 
-    return found_isolated_face
-
+    space.add_face_id(face)
+    return False
 
 # Query factories
 
@@ -426,18 +446,18 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     if direction not in ('horizontal', 'vertical'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
-    def _selector(space_or_face: Union['Space', 'Face'], *_) -> Generator['Edge', bool, None]:
-        vectors = ((space_or_face.edge.unit_vector, opposite_vector(space_or_face.edge.unit_vector))
-                   if direction == 'horizontal' else
-                   (space_or_face.edge.normal,))
+    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+
+        if not space.edge:
+            return
+
+        vectors = ((space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
+                   if direction == 'horizontal' else (space.edge.normal,))
 
         for vector in vectors:
-            edges_list = [edge for edge in space_or_face.edges
+            edges_list = [edge for edge in space.exterior_edges
                           if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)]
             for edge in edges_list:
-                face = edge.pair.face
-                if face is None:
-                    continue
                 yield edge
 
     return _selector
@@ -465,7 +485,7 @@ def adjacent_to_other_space(edge: 'Edge', space: 'Space') -> bool:
         :param space:
         :return:
         """
-    space_pair = space.plan.get_space(edge.pair.face)
+    space_pair = space.plan.get_space_of_face(edge.pair.face)
     return space_pair is not space and space.mutable
 
 
@@ -476,7 +496,7 @@ def not_adjacent_to_seed(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    space_pair = space.plan.get_space(edge.pair.face)
+    space_pair = space.plan.get_space_of_face(edge.pair.face)
     return space_pair is None or space_pair.category.name != 'seed'
 
 
@@ -487,7 +507,7 @@ def adjacent_empty_space(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    space_pair = space.plan.get_space(edge.pair.face)
+    space_pair = space.plan.get_space_of_face(edge.pair.face)
     return space_pair and space_pair.category.name == 'empty'
 
 
@@ -873,8 +893,8 @@ SELECTORS = {
         ]
     ),
 
-    "other_space_boundary": Selector(
-        safe_boundary_edge,
+    "other_seed_space": Selector(
+        other_seed_space_edge,
         [
             adjacent_to_other_space,
             is_not(corner_stone)
@@ -884,6 +904,7 @@ SELECTORS = {
 
 
 SELECTOR_FACTORIES = {
-    "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space))
+    "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
+    "edges_length": SelectorFactory(lambda: boundary, [edge_length])
 }
 

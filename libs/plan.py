@@ -8,7 +8,7 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import TYPE_CHECKING, Optional, List, Tuple, Sequence, Generator, Union
+from typing import Optional, List, Tuple, Sequence, Generator, Union
 import logging
 
 import matplotlib.pyplot as plt
@@ -24,331 +24,18 @@ from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import dot_product, normal_vector, ccw_angle
 
-if TYPE_CHECKING:
-    from libs.seed import Seed
-
-
-class Plan:
-    """
-    Main class containing the floor plan of the apartment
-    • mesh : the corresponding geometric mesh
-    • spaces : rooms or ducts or pillars etc.
-    • linears : windows, doors, walls etc.
-    """
-
-    def __init__(self,
-                 name: str = 'unnamed_plan',
-                 mesh: Optional[Mesh] = None,
-                 spaces: Optional[List['Space']] = None,
-                 linears: Optional[List['Linear']] = None):
-        self.name = name
-        self.mesh = mesh
-        self.spaces = spaces or []
-        self.linears = linears or []
-
-    def __repr__(self):
-        output = 'Plan ' + self.name + ':  \n'
-        for space in self.spaces:
-            output += space.__repr__() + ' - \n'
-        return output
-
-    def clone(self) -> 'Plan':
-        """
-        Returns a copy of the plan
-        :return:
-        """
-        new_plan = Plan(self.name + '_copy', self.mesh)
-        new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
-        new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
-        return new_plan
-
-    def from_boundary(self, boundary: Sequence[Coords2d]) -> 'Plan':
-        """
-        Creates a plan from a list of points
-        1. create the mesh
-        2. Add an empty space
-        :param boundary:
-        :return:
-        """
-        self.mesh = Mesh().from_boundary(boundary)
-        empty_space = Space(self, self.mesh.faces[0].edge)
-        self.add_space(empty_space)
-        return self
-
-    def add_space(self, space: 'Space'):
-        """
-        Add a space in the plan
-        :param space:
-        :return:
-        """
-        self.spaces.append(space)
-
-    def remove_space(self, space: 'Space'):
-        """
-        Removes a space from the plan
-        :param space:
-        :return:
-        """
-        self.spaces.remove(space)
-
-    def add_linear(self, linear: 'Linear'):
-        """
-        Add a linear in the plan
-        :param linear:
-        :return:
-        """
-        self.linears.append(linear)
-
-    def get_components(self,
-                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
-        """
-        Returns an iterator of the components contained in the plan.
-        Can be filtered according to a category name
-        :param cat_name: the name of the category
-        :return:
-        """
-        yield from self.get_spaces(cat_name)
-        yield from self.get_linears(cat_name)
-
-    def get_spaces(self, category_name: Optional[str] = None) -> Generator['Space', None, None]:
-        """
-        Returns an iterator of the spaces contained in the place
-        :param category_name:
-        :return:
-        """
-        if category_name is not None:
-            return (space for space in self.spaces if space.category.name == category_name)
-
-        return (space for space in self.spaces)
-
-    def get_space(self, face: Face) -> Optional['Space']:
-        """
-        Retrieves the space to which the face belongs.
-        Returns None if no space is found
-        :param face:
-        :return:
-        """
-        for space in self.spaces:
-            if space.has_face(face):
-                return space
-        return None
-
-    def get_linear(self, edge: Edge) -> Optional['Linear']:
-        """
-        Retrieves the linear to which the edge belongs.
-        Returns None if no linear is found
-        :param edge:
-        :return:
-        """
-        for linear in self.linears:
-            if linear.has_edge(edge):
-                return linear
-        return None
-
-    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
-        """
-        Returns an iterator of the linears contained in the place
-        :param category_name:
-        :return:
-        """
-        if category_name is not None:
-            return (linear for linear in self.linears if linear.category.name == category_name)
-
-        return (linear for linear in self.linears)
-
-    def is_space_boundary(self, edge: 'Edge') -> bool:
-        """
-        Returns True if the edge is on the boundary of a space
-        :param edge:
-        :return:
-        """
-        for space in self.spaces:
-            if space.is_boundary(edge):
-                return True
-
-        return False
-
-    def is_mutable(self, edge: 'Edge') -> bool:
-        """
-        Returns True if the edge or its pair does not belong to an immutable linear
-        :param edge:
-        :return:
-        """
-        for linear in self.linears:
-            if linear.has_edge(edge):
-                return linear.category.mutable
-        return True
-
-    @property
-    def empty_spaces(self) -> Generator['Space', None, None]:
-        """
-        The empty spaces of the plan
-        :return:
-        """
-        return self.get_spaces(category_name='empty')
-
-    @property
-    def empty_space(self) -> Optional['Space']:
-        """
-        The largest empty space of the plan
-        :return:
-        """
-        return max(self.empty_spaces, key=lambda space: space.area)
-
-    @property
-    def directions(self) -> Sequence[Tuple[float, float]]:
-        """
-        Returns the main directions of the mesh of the plan
-        :return:
-        """
-        return self.mesh.directions
-
-    @property
-    def is_empty(self):
-        """
-        Returns False if the plan contains mutable space other than empty spaces
-        :return:
-        """
-        for space in self.spaces:
-            if space.category.name != 'empty' and space.category.mutable:
-                return False
-        return True
-
-    def insert_space_from_boundary(self,
-                                   boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':
-        """
-        Inserts a new space inside the empty spaces of the plan.
-        By design, will not insert a space overlapping several faces of the receiving spaces.
-        The new space is designed from the boundary. By default, the category is empty.
-        :param boundary
-        :param category
-        """
-        for empty_space in self.empty_spaces:
-            try:
-                new_space = empty_space.insert_space(boundary, category)
-                return new_space
-            except OutsideFaceError:
-                continue
-        else:
-            # TODO: this should probably raise an exception but too many input blueprints are
-            # incorrect due to wrong load bearing walls geometry, it would fail too many tests
-            logging.error('Could not insert the space in the plan because it overlaps other non' +
-                          ' empty spaces: {0}, {1}'.format(boundary, category))
-
-    def insert_linear(self, point_1: Coords2d, point_2: Coords2d, category: LinearCategory):
-        """
-        Inserts a linear object in the plan at the given points
-        Will try to insert it in every empty space.
-        :param point_1
-        :param point_2
-        :param category
-        :return:
-        """
-        for empty_space in self.empty_spaces:
-            try:
-                empty_space.insert_linear(point_1, point_2, category)
-                break
-            except OutsideVertexError:
-                continue
-        else:
-            raise ValueError('Could not insert the linear in the plan:' +
-                             '[{0},{1}] - {2}'.format(point_1, point_2, category))
-
-    @property
-    def boundary_as_sp(self) -> Optional[LinearRing]:
-        """
-        Returns the boundary of the plan as a LineString
-        """
-        return self.mesh.boundary_as_sp if self.mesh else None
-
-    def plot(self, ax=None, show: bool = False, save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border')):
-        """
-        Plots a plan
-        :return:
-        """
-        for space in self.spaces:
-            ax = space.plot(ax, save=False, options=options)
-
-        for linear in self.linears:
-            ax = linear.plot(ax, save=False)
-
-        ax.set_title(self.name)
-
-        plot_save(save, show)
-
-        return ax
-
-    def check(self) -> bool:
-        """
-        Used to verify plan consistency
-        NOTE : To be completed
-        :return:
-        """
-        is_valid = self.mesh.check()
-
-        for space in self.spaces:
-            is_valid = is_valid and space.check()
-            # check that a face only belongs to one space and one space only
-            for face_id in space._faces_id:
-                for other_space in self.spaces:
-                    if other_space is space:
-                        continue
-                    if face_id in other_space._faces_id:
-                        logging.debug("A face is in multiple space: %s", face_id)
-                        is_valid = False
-
-        if is_valid:
-            logging.info('Checking plan: ' + '✅ OK')
-        else:
-            logging.info('Checking plan: ' + '🔴 NOT OK')
-
-        return is_valid
-
-    def remove_null_spaces(self):
-        """
-        Remove from the plan spaces with no edge reference
-        :return:
-        """
-        space_to_remove = (space for space in self.spaces if space.edge is None)
-        for space in space_to_remove:
-            self.remove_space(space)
-
-    def make_space_seedable(self, category_name: str):
-        """
-        Make seedable spaces with specified category name
-        TODO: this is bad. It will change the empty category for any space referencing it
-              (in any plan)
-        :return:
-        """
-        for space in self.spaces:
-            if space.category.name == category_name:
-                space.category.seedable = True
-
-    def count_category_spaces(self, category_name: str) -> int:
-        """
-        count the number of spaces with the given category name
-        :return:
-        """
-        return sum(space.category.name == category_name for space in self.spaces)
-
-    def count_mutable_spaces(self) -> int:
-        """
-        count the number of mutable spaces
-        :return:
-        """
-        return sum(space.category.mutable for space in self.spaces)
-
 
 class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
 
-    def __init__(self, plan: Plan):
+    def __init__(self, plan: 'Plan'):
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
+
+        # add the component to the plan
+        self.add()
 
     @property
     def edge(self) -> 'Edge':
@@ -365,6 +52,20 @@ class PlanComponent:
         :return:
         """
         raise NotImplementedError
+
+    def remove(self):
+        """
+        remove from the plan
+        :return:
+        """
+        self.plan.remove(self)
+
+    def add(self):
+        """
+        Add the element to the plan
+        :return:
+        """
+        self.plan.add(self)
 
 
 class Space(PlanComponent):
@@ -826,7 +527,7 @@ class Space(PlanComponent):
         if check_for_hole:
             self.set_edges()
 
-    def remove_face(self, face: Face) -> Sequence['Space']:
+    def remove_face(self, face: Face) -> Sequence[Optional['Space']]:
         """
         Remove a face from the space
 
@@ -843,7 +544,8 @@ class Space(PlanComponent):
 
         # case 1 : the only face of the space
         if len(self._faces_id) == 1:
-            return self.remove_only_face(face)
+            self.remove_only_face(face)
+            return [self]
 
         # case 2 : fully enclosed face which will create a hole
         #     +-------------------+
@@ -940,12 +642,14 @@ class Space(PlanComponent):
                 logging.debug("Found a disconnected component")
                 space_connected_components.append(connected_faces)
             else:
-                logging.debug("Last component found")
                 self_boundary_face = adjacent_face
                 break
 
         if len(space_connected_components) == 0:
             return created_spaces
+
+        logging.debug("Space: the removal of a face split the space in disconnected components: %s",
+                      self)
 
         # we must create a new space per newly created space components
         for component in space_connected_components:
@@ -970,7 +674,6 @@ class Space(PlanComponent):
                     new_space._edges_id.append(internal_reference_edge.id)
                     self.remove_edge(internal_reference_edge)
 
-            self.plan.add_space(new_space)
             created_spaces.append(new_space)
 
         # preserve self edge reference
@@ -985,19 +688,19 @@ class Space(PlanComponent):
 
         return created_spaces
 
-    def remove_only_face(self, face: Face) -> Sequence['Space']:
+    def remove_only_face(self, face: Face):
         """
-        Removes the only face of the space
+        Removes the only face of the space.
+        Note : this does not remove the space from the plan
+        (to enable us to reverse the transformation)
         :param face:
-        :return: the modified space
-        TODO : should we remove the empty space from the plan ?
+        :return:
         """
         logging.debug('Removing only face left in the Space: %s', self)
 
         self._edges_id = []
         self.remove_face_id(face)
-
-        return [self]
+        # self.remove()
 
     def set_edges(self):
         """
@@ -1102,7 +805,7 @@ class Space(PlanComponent):
         forbidden_edges = [edge.pair for edge in space.exterior_edges if edge.pair in self_edges]
         self.change_reference_edges(forbidden_edges)
         self._faces_id += space._faces_id
-        self.plan.remove_space(space)
+        space.remove()
         return self
 
     def insert_face(self, face: 'Face', container_face: Optional['Face'] = None):
@@ -1139,8 +842,9 @@ class Space(PlanComponent):
                 self.insert_face(face_to_insert, face)
                 return face_to_insert
             except OutsideFaceError:
-                self.plan.mesh.remove_face_and_children(face_to_insert)
+                continue
 
+        self.plan.mesh.remove_face_and_children(face_to_insert)
         raise OutsideFaceError
 
     def insert_space(self,
@@ -1158,7 +862,6 @@ class Space(PlanComponent):
         self.remove_face(face_of_space)
         # create the space and add it to the plan
         space = Space(self.plan, face_of_space.edge, category=category)
-        self.plan.add_space(space)
         return space
 
     def insert_linear(self,
@@ -1174,7 +877,6 @@ class Space(PlanComponent):
         vertex_2 = Vertex(self.plan.mesh, *point_2)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
         new_linear = Linear(self.plan, new_edge, category)
-        self.plan.add_linear(new_linear)
 
         return new_linear
 
@@ -1386,7 +1088,7 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    def __init__(self, plan: Plan, edge: Optional[Edge], category: LinearCategory):
+    def __init__(self, plan: 'Plan', edge: Optional[Edge], category: LinearCategory):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
@@ -1398,7 +1100,7 @@ class Linear(PlanComponent):
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
 
-    def clone(self, plan: Plan) -> 'Linear':
+    def clone(self, plan: 'Plan') -> 'Linear':
         """
         Returns a copy of the linear
         :return:
@@ -1505,26 +1207,363 @@ class Linear(PlanComponent):
         return is_valid
 
 
-class SeedSpace(Space):
-    """"
-    A space use to seed a plan
+class Plan:
+    """
+    Main class containing the floor plan of the apartment
+    • mesh : the corresponding geometric mesh
+    • spaces : rooms or ducts or pillars etc.
+    • linears : windows, doors, walls etc.
     """
 
-    def __init__(self, plan: Plan, edge: Edge, seed: 'Seed'):
-        super().__init__(plan, edge, SPACE_CATEGORIES['seed'])
-        self.seed = seed
+    def __init__(self,
+                 name: str = 'unnamed_plan',
+                 mesh: Optional[Mesh] = None,
+                 spaces: Optional[List['Space']] = None,
+                 linears: Optional[List['Linear']] = None):
+        self.name = name
+        self.mesh = mesh
+        self.spaces = spaces or []
+        self.linears = linears or []
 
-    def face_component(self, face: 'Face') -> bool:
+    def __repr__(self):
+        output = 'Plan ' + self.name + ':  \n'
+        for space in self.spaces:
+            output += space.__repr__() + ' - \n'
+        return output
+
+    def clone(self) -> 'Plan':
         """
-        Returns True if the face is linked to a component of the Space
+        Returns a copy of the plan
+        :return:
+        """
+        new_plan = Plan(self.name + '_copy', self.mesh)
+        new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
+        new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
+        return new_plan
+
+    def from_boundary(self, boundary: Sequence[Coords2d]) -> 'Plan':
+        """
+        Creates a plan from a list of points
+        1. create the mesh
+        2. Add an empty space
+        :param boundary:
+        :return:
+        """
+        self.mesh = Mesh().from_boundary(boundary)
+        Space(self, self.mesh.faces[0].edge)
+        return self
+
+    def add(self, plan_component):
+        """
+        Adds a component to the plan
+        :param plan_component:
+        :return:
+        """
+        if type(plan_component) == Space:
+            self._add_space(plan_component)
+
+        if type(plan_component) == Linear:
+            self._add_linear(plan_component)
+
+    def remove(self, plan_component):
+        """
+        Adds a component to the plan
+        :param plan_component:
+        :return:
+        """
+        if type(plan_component) == Space:
+            self._remove_space(plan_component)
+
+        if type(plan_component) == Linear:
+            self._remove_linear(plan_component)
+
+    def _add_space(self, space: 'Space'):
+        """
+        Add a space in the plan
+        :param space:
+        :return:
+        """
+        if space in self.spaces:
+            logging.debug("Plan : trying to add a space that is already in the plan %s", space)
+        self.spaces.append(space)
+
+    def _remove_space(self, space: 'Space'):
+        """
+        Removes a space from the plan
+        :param space:
+        :return:
+        """
+        self.spaces.remove(space)
+
+    def _add_linear(self, linear: 'Linear'):
+        """
+        Add a linear in the plan
+        :param linear:
+        :return:
+        """
+        if linear in self.linears:
+            logging.debug("Plan : trying to add a linear that is already in the plan %s", linear)
+        self.linears.append(linear)
+
+    def _remove_linear(self, linear: 'Linear'):
+        """
+        Removes a linear from the plan
+        :param linear:
+        :return:
+        """
+        self.linears.remove(linear)
+
+    def get_components(self,
+                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
+        """
+        Returns an iterator of the components contained in the plan.
+        Can be filtered according to a category name
+        :param cat_name: the name of the category
+        :return:
+        """
+        yield from self.get_spaces(cat_name)
+        yield from self.get_linears(cat_name)
+
+    def get_spaces(self, category_name: Optional[str] = None) -> Generator['Space', None, None]:
+        """
+        Returns an iterator of the spaces contained in the place
+        :param category_name:
+        :return:
+        """
+        if category_name is not None:
+            return (space for space in self.spaces if space.category.name == category_name)
+
+        return (space for space in self.spaces)
+
+    def get_space_of_face(self, face: Face) -> Optional['Space']:
+        """
+        Retrieves the space to which the face belongs.
+        Returns None if no space is found
         :param face:
         :return:
         """
-        for edge in face.edges:
-            if edge in self.seed.edges:
+        for space in self.spaces:
+            if space.has_face(face):
+                return space
+        return None
+
+    def get_space_of_edge(self, edge: Edge) -> Optional['Space']:
+        """
+        Retrieves the space to which the face belongs.
+        Returns None if no space is found
+        :param edge:
+        :return:
+        """
+        if edge.face is None:
+            return None
+        return self.get_space_of_face(edge.face)
+
+    def get_linear(self, edge: Edge) -> Optional['Linear']:
+        """
+        Retrieves the linear to which the edge belongs.
+        Returns None if no linear is found
+        :param edge:
+        :return:
+        """
+        for linear in self.linears:
+            if linear.has_edge(edge):
+                return linear
+        return None
+
+    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
+        """
+        Returns an iterator of the linears contained in the place
+        :param category_name:
+        :return:
+        """
+        if category_name is not None:
+            return (linear for linear in self.linears if linear.category.name == category_name)
+
+        return (linear for linear in self.linears)
+
+    def is_space_boundary(self, edge: 'Edge') -> bool:
+        """
+        Returns True if the edge is on the boundary of a space
+        :param edge:
+        :return:
+        """
+        for space in self.spaces:
+            if space.is_boundary(edge):
                 return True
+
+        return False
+
+    def is_mutable(self, edge: 'Edge') -> bool:
+        """
+        Returns True if the edge or its pair does not belong to an immutable linear
+        :param edge:
+        :return:
+        """
+        for linear in self.linears:
+            if linear.has_edge(edge):
+                return linear.category.mutable
+        return True
+
+    @property
+    def empty_spaces(self) -> Generator['Space', None, None]:
+        """
+        The empty spaces of the plan
+        :return:
+        """
+        return self.get_spaces(category_name='empty')
+
+    @property
+    def empty_space(self) -> Optional['Space']:
+        """
+        The largest empty space of the plan
+        :return:
+        """
+        return max(self.empty_spaces, key=lambda space: space.area)
+
+    @property
+    def directions(self) -> Sequence[Tuple[float, float]]:
+        """
+        Returns the main directions of the mesh of the plan
+        :return:
+        """
+        return self.mesh.directions
+
+    @property
+    def is_empty(self):
+        """
+        Returns False if the plan contains mutable space other than empty spaces
+        :return:
+        """
+        for space in self.spaces:
+            if space.category.name != 'empty' and space.category.mutable:
+                return False
+        return True
+
+    def insert_space_from_boundary(self,
+                                   boundary: Sequence[Coords2d],
+                                   category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':
+        """
+        Inserts a new space inside the empty spaces of the plan.
+        By design, will not insert a space overlapping several faces of the receiving spaces.
+        The new space is designed from the boundary. By default, the category is empty.
+        :param boundary
+        :param category
+        """
+        for empty_space in self.empty_spaces:
+            try:
+                new_space = empty_space.insert_space(boundary, category)
+                return new_space
+            except OutsideFaceError:
+                continue
         else:
-            return False
+            # TODO: this should probably raise an exception but too many input blueprints are
+            # incorrect due to wrong load bearing walls geometry, it would fail too many tests
+            logging.error('Could not insert the space in the plan because it overlaps other non' +
+                          ' empty spaces: {0}, {1}'.format(boundary, category))
+
+    def insert_linear(self, point_1: Coords2d, point_2: Coords2d, category: LinearCategory):
+        """
+        Inserts a linear object in the plan at the given points
+        Will try to insert it in every empty space.
+        :param point_1
+        :param point_2
+        :param category
+        :return:
+        """
+        for empty_space in self.empty_spaces:
+            try:
+                empty_space.insert_linear(point_1, point_2, category)
+                break
+            except OutsideVertexError:
+                continue
+        else:
+            raise ValueError('Could not insert the linear in the plan:' +
+                             '[{0},{1}] - {2}'.format(point_1, point_2, category))
+
+    @property
+    def boundary_as_sp(self) -> Optional[LinearRing]:
+        """
+        Returns the boundary of the plan as a LineString
+        """
+        return self.mesh.boundary_as_sp if self.mesh else None
+
+    def plot(self, ax=None, show: bool = False, save: bool = True,
+             options: Tuple = ('face', 'edge', 'half-edge', 'border')):
+        """
+        Plots a plan
+        :return:
+        """
+        for space in self.spaces:
+            ax = space.plot(ax, save=False, options=options)
+
+        for linear in self.linears:
+            ax = linear.plot(ax, save=False)
+
+        ax.set_title(self.name)
+
+        plot_save(save, show)
+
+        return ax
+
+    def check(self) -> bool:
+        """
+        Used to verify plan consistency
+        NOTE : To be completed
+        :return:
+        """
+        is_valid = self.mesh.check()
+
+        for space in self.spaces:
+            is_valid = is_valid and space.check()
+            # check that a face only belongs to one space and one space only
+            for face_id in space._faces_id:
+                for other_space in self.spaces:
+                    if other_space is space:
+                        continue
+                    if face_id in other_space._faces_id:
+                        logging.debug("A face is in multiple space: %s", face_id)
+                        is_valid = False
+
+        if is_valid:
+            logging.info('Checking plan: ' + '✅ OK')
+        else:
+            logging.info('Checking plan: ' + '🔴 NOT OK')
+
+        return is_valid
+
+    def remove_null_spaces(self):
+        """
+        Remove from the plan spaces with no edge reference
+        :return:
+        """
+        space_to_remove = (space for space in self.spaces if space.edge is None)
+        for space in space_to_remove:
+            space.remove()
+
+    def make_space_seedable(self, category_name: str):
+        """
+        Make seedable spaces with specified category name
+        TODO: this is bad. It will change the empty category for any space referencing it
+              (in any plan)
+        :return:
+        """
+        for space in self.spaces:
+            if space.category.name == category_name:
+                space.category.seedable = True
+
+    def count_category_spaces(self, category_name: str) -> int:
+        """
+        count the number of spaces with the given category name
+        :return:
+        """
+        return sum(space.category.name == category_name for space in self.spaces)
+
+    def count_mutable_spaces(self) -> int:
+        """
+        count the number of mutable spaces
+        :return:
+        """
+        return sum(space.category.mutable for space in self.spaces)
 
 
 if __name__ == '__main__':

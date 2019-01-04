@@ -515,8 +515,7 @@ def test_remove_encapsulating_face():
 
     my_space = plan.empty_space
     my_space.remove_face(plan.mesh.faces[1])
-    new_space = Space(plan, plan.mesh.faces[1].edge)
-    plan.add_space(new_space)
+    Space(plan, plan.mesh.faces[1].edge)
 
     plan.plot()
 

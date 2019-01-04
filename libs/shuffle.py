@@ -93,13 +93,13 @@ class Shuffle:
         return self.selectors_args[self._action_index]
 
 
-swap_action = Action(SELECTORS['other_space_boundary'], MUTATIONS['swap_face'])
+swap_seed_action = Action(SELECTORS['other_seed_space'], MUTATIONS['swap_face'])
 
-few_corner_shuffle = Shuffle('few_corners', (swap_action,), (), (CONSTRAINTS['few_corners'],))
-square_shape_shuffle = Shuffle('square_shape', (swap_action,), (), (CONSTRAINTS['square_shape'],
-                                                                    CONSTRAINTS['few_corners']))
+few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS['few_corners']])
+square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAINTS['square_shape'],
+                                                                        CONSTRAINTS['few_corners']])
 
 SHUFFLES = {
-    few_corner_shuffle,
-    square_shape_shuffle
+    "seed_few_corner": few_corner_shuffle,
+    "seed_square_shape": square_shape_shuffle
 }

@@ -256,6 +256,8 @@ class Plot:
         :return:
         """
         for space in spaces:
+            if space is None:
+                continue
             _id = id(space)
             xy = space.as_sp.exterior.coords if space.edge is not None else None
             if _id not in self.space_figs:
