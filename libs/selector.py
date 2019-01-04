@@ -770,8 +770,6 @@ SELECTORS.add(
 
     Selector(boundary_unique_longest, [space_area(max_area=30000), mutable()], name='fuse_small_cell'),
 
-    #Selector(homogeneous, (adjacent_empty_space,), name='homogeneous'),
-
     Selector(homogeneous, name='homogeneous'),
 
     Selector(safe_boundary_edge, (adjacent_to_other_space, is_not(corner_stone)),

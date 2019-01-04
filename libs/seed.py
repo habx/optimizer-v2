@@ -604,7 +604,7 @@ if __name__ == '__main__':
 
         logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
 
-        filler.fusion(fuse_selector)
+        #filler.fusion(fuse_selector)
 
         logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
 
