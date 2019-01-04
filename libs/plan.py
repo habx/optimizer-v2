@@ -919,8 +919,10 @@ class Space(PlanComponent):
                     adjacent_edges.append(edge)
             else:
                 # note : we only search for "contiguous" space boundaries
-                if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
-                        and edge.pair.space_next is adjacent_edges[-1].pair):
+                # if (self.is_boundary(edge.pair) and edge is adjacent_edges[-1].next
+                #         and edge.pair.space_next is adjacent_edges[-1].pair):
+                #     adjacent_edges.append(edge)
+                if (self.is_boundary(edge.pair)):
                     adjacent_edges.append(edge)
                 else:
                     break
