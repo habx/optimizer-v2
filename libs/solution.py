@@ -15,8 +15,9 @@ class SolutionsCollector:
     Solutions Collector
     """
 
-    def __init__(self):
+    def __init__(self, spec: 'Specification'):
         self.solutions: List['Solution'] = []
+        self.spec = spec
 
     def add_plan(self, plan: 'Plan') -> None:
         """
@@ -33,7 +34,7 @@ class Solution:
     Space planner Class
     """
 
-    def __init__(self, id: int, plan: 'Plan', spec: ''):
+    def __init__(self, id: int, plan: 'Plan'):
         self.id = id
         self.plan = plan
 

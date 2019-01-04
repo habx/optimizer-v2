@@ -19,7 +19,7 @@ from ortools.constraint_solver import pywrapcp as ortools
 import libs.utils.copy as copy
 
 from libs.specification import Specification, Item
-from libs.solution import Solution, SolutionsCollector
+from libs.solution import SolutionsCollector
 import networkx as nx
 
 if TYPE_CHECKING:
@@ -130,7 +130,7 @@ class ConstraintsManager:
         self.name = name
         self.sp = sp
 
-        self.solver = ConstraintSolver(len(self.sp.spec.items), len(self.sp.mutable_spaces))
+        self.solver = ConstraintSolver(len(self.sp.spec.items), self.sp.spec.plan.count_mutable_spaces())
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self.init_windows_length()
@@ -147,7 +147,7 @@ class ConstraintsManager:
         """
         for item in self.sp.spec.items:
             length = 0
-            for j, space in enumerate(self.sp.mutable_spaces):
+            for j, space in enumerate(self.sp.spec.plan.mutable_spaces):
                 for component in space.components_associated():
                     if (component.category.name == 'window'
                             or component.category.name == 'doorWindow'):
@@ -173,7 +173,7 @@ class ConstraintsManager:
         add spaces constraints
         :return: None
         """
-        for j_space in range(len(self.sp.mutable_spaces)):
+        for j_space in range(self.sp.spec.plan.count_mutable_spaces()):
             self.solver.add_constraint(
                 space_attribution_constraint(self, j_space))
 
@@ -254,13 +254,13 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     if min_max == 'max':
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.mutable_spaces)) <=
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces)) <=
               int(item.max_size.area * max_area_coeff))
 
     elif min_max == 'min':
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.mutable_spaces)) >=
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces)) >=
               int(item.min_size.area * min_area_coeff))
     else:
         ValueError('AreaConstraint')
@@ -304,8 +304,8 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
     if not (item.category.name in manager.symmetry_breaker_memo):
         manager.symmetry_breaker_memo[item.category.name] = item.id
     else:
-        for j in range(len(manager.sp.mutable_spaces)):
-            for k in range(len(manager.sp.mutable_spaces)):
+        for j in range(manager.sp.spec.plan.count_mutable_spaces()):
+            for k in range(manager.sp.spec.plan.count_mutable_spaces()):
                 if k < j:
                     ct = (manager.solver.positions[
                               manager.symmetry_breaker_memo[item.category.name], j] *
@@ -325,22 +325,22 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
     """
     nbr_spaces_in_i_item = manager.solver.solver.Sum(
         manager.solver.positions[item.id, j] for j in
-        range(len(manager.sp.mutable_spaces)))
+        range(manager.sp.spec.plan.count_mutable_spaces()))
     spaces_adjacency = manager.solver.solver.Sum(
         manager.solver.solver.Sum(
             int(j_space.adjacent_to(k_space)) *
             manager.solver.positions[item.id, j] *
             manager.solver.positions[item.id, k] for
-            j, j_space in enumerate(manager.sp.mutable_spaces) if j > k)
-        for k, k_space in enumerate(manager.sp.mutable_spaces))
+            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces) if j > k)
+        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces))
     ct1 = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
 
     ct2 = None
-    for k, k_space in enumerate(manager.sp.mutable_spaces):
+    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces):
         a = (manager.solver.positions[item.id, k] *
              manager.solver.solver
              .Sum(int(j_space.adjacent_to(k_space)) * manager.solver.positions[item.id, j]
-                  for j, j_space in enumerate(manager.sp.mutable_spaces) if k != j))
+                  for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces) if k != j))
 
         if ct2 is None:
             ct2 = manager.solver.solver.Max(
@@ -379,8 +379,8 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                         int(j_space.adjacent_to(k_space)) *
                         manager.solver.positions[item.id, j] *
                         manager.solver.positions[num, k] for
-                        j, j_space in enumerate(manager.sp.mutable_spaces))
-                    for k, k_space in enumerate(manager.sp.mutable_spaces))
+                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces))
+                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces))
         if adjacency_sum is not 0:
             if ct is None:
                 if adj:
@@ -422,7 +422,7 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     for c, cat in enumerate(category):
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
-            enumerate(manager.sp.mutable_spaces) if
+            enumerate(manager.sp.spec.plan.mutable_spaces) if
             cat in space.components_category_associated())
         if c == 0:
             if adj:
@@ -457,100 +457,43 @@ class SpacePlanner:
         self.name = name
         self.spec = spec
         logging.debug(spec)
-        self.mutable_spaces: ['Space'] = []
-        self.init_spaces_list()
-        self.spaces_adjacency = []
-        self.init_spaces_adjacency()
 
         self.manager = ConstraintsManager(self)
-        self.solutions_collector = SolutionsCollector()
+
+        self.spaces_adjacency_matrix = []
+        self.init_spaces_adjacency()
+
+
+        self.solutions_collector = SolutionsCollector(spec)
 
     def __repr__(self):
         # TODO
         output = 'SpacePlanner' + self.name
         return output
 
-    def init_spaces_list(self) -> None:
-        """
-        Spaces list initialization
-        :return: None
-        """
-        for space in self.spec.plan.get_spaces():  # empty and seed spaces
-            if space.mutable and space.edge is not None:
-                self.mutable_spaces.append(space)
-                logging.debug(self.mutable_spaces)
-                logging.debug(space.components_associated())
 
     def init_spaces_adjacency(self) -> None:
         """
         spaces adjacency matrix init
         :return: None
         """
-        for i, i_space in enumerate(self.mutable_spaces):
-            self.spaces_adjacency.append([])
-            for j, j_space in enumerate(self.mutable_spaces):
+        for i, i_space in enumerate(self.spec.plan.mutable_spaces):
+            self.spaces_adjacency_matrix.append([])
+            for j, j_space in enumerate(self.spec.plan.mutable_spaces):
                 if j != i:
-                    self.spaces_adjacency[i].append(0)
+                    self.spaces_adjacency_matrix[i].append(0)
                 else:
-                    self.spaces_adjacency[i].append(1)
+                    self.spaces_adjacency_matrix[i].append(1)
 
-        for i, i_space in enumerate(self.mutable_spaces):
-            for j, j_space in enumerate(self.mutable_spaces):
+        for i, i_space in enumerate(self.spec.plan.mutable_spaces):
+            for j, j_space in enumerate(self.spec.plan.mutable_spaces):
                 if j < i:
                     if i_space.adjacent_to(j_space):
-                        self.spaces_adjacency[i][j] = 1
-                        self.spaces_adjacency[j][i] = 1
+                        self.spaces_adjacency_matrix[i][j] = 1
+                        self.spaces_adjacency_matrix[j][i] = 1
                     else:
-                        self.spaces_adjacency[i][j] = 0
-                        self.spaces_adjacency[j][i] = 0
-
-    def rooms_building(self, plan: 'Plan'):
-        """
-        Rooms building
-        :return: None
-        """
-        for k_space, kspace in enumerate(plan.get_spaces()):
-            k_space = 1
-
-    def check_connectivity(self) -> None:
-        connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency)
-
-        sol_to_remove = []
-        for sol in self.manager.solver.solutions:
-            is_a_good_sol = self.check_adjacency(sol, connectivity_checker)
-            if not is_a_good_sol:
-                sol_to_remove.append(sol)
-
-        if sol_to_remove:
-            for sol in sol_to_remove:
-                self.manager.solver.solutions.remove(sol)
-
-    def solution_research(self) -> None:
-        """
-        Rooms building
-        :return: None
-        """
-
-        self.manager.solver.solve()
-
-        if len(self.manager.solver.solutions) == 0:
-            logging.warning('Plan without space planning solution')
-        else:
-            logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
-            self.check_connectivity()
-            logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
-            seed_plan = copy.plan_pickle(self.spec.plan, 'seed_plan')
-            for i, sol in enumerate(self.manager.solver.solutions):
-
-                plan_solution = copy.load_pickle(seed_plan)
-                for i_item, item in enumerate(self.spec.items):  # Rooms
-                    for j_space, jspace in enumerate(self.mutable_spaces):
-                        if self.manager.solver.solutions[i][i_item][j_space] == 1:
-                            for k_space, kspace in enumerate(plan_solution.get_spaces()):
-                                if jspace.edge.start.coords == kspace.edge.start.coords and \
-                                        jspace.edge.end.coords == kspace.edge.end.coords:
-                                    kspace.add_item(item)
-                plan_solution.plot()
+                        self.spaces_adjacency_matrix[i][j] = 0
+                        self.spaces_adjacency_matrix[j][i] = 0
 
     def check_adjacency(self, room_positions, connectivity_checker) -> bool:
         """
@@ -577,6 +520,76 @@ class SpacePlanner:
 
         return True
 
+    def check_validity(self) -> None:
+        """
+        check_connectivity of constraint programming solutions and remove wrong results of
+        self.manager.solver.solutions
+        :return: None
+        """
+        connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
+
+        sol_to_remove = []
+        for sol in self.manager.solver.solutions:
+            is_a_good_sol = self.check_adjacency(sol, connectivity_checker)
+            if not is_a_good_sol:
+                sol_to_remove.append(sol)
+
+        if sol_to_remove:
+            for sol in sol_to_remove:
+                self.manager.solver.solutions.remove(sol)
+
+    def rooms_building(self, plan: 'Plan'):
+        """
+        Rooms building
+        :return: None
+        """
+        # merges mutable spaces that have same category when are adjacent
+        item_list = []
+        for space in plan.mutable_spaces:
+            item = space.item
+            if item not in item_list:
+                item_list.append(item)
+
+        for item in item_list:
+            item_space = []
+            for space in plan.mutable_spaces:
+                if space.item == item:
+                    item_space.append(space)
+            if len(item_space) > 1:
+                space_ini = item_space[0]
+                i = 0
+                while (len(item_space) > 1) and i < len(item_space) * len(item_space):
+                    for space in item_space[1:]:
+                        if space.adjacent_to(space_ini):
+                            space_ini._merge(space)
+                            plan.remove_null_spaces()
+                            item_space.remove(space)
+                    i += 1
+
+    def solution_research(self) -> None:
+        """
+        Rooms building
+        :return: None
+        """
+
+        self.manager.solver.solve()
+
+        if len(self.manager.solver.solutions) == 0:
+            logging.warning('Plan without space planning solution')
+        else:
+            self.check_validity()
+            logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
+            seed_plan = copy.plan_pickle(self.spec.plan, 'seed_plan')
+            for i, sol in enumerate(self.manager.solver.solutions):
+                plan_solution = copy.load_pickle(seed_plan)
+                for i_item, item in enumerate(self.spec.items):  # Rooms
+                    for j_space, space in enumerate(plan_solution.mutable_spaces):
+                        if self.manager.solver.solutions[i][i_item][j_space] == 1:
+                            space.add_item(item)
+                self.rooms_building(plan_solution)
+                self.solutions_collector.add_plan(plan_solution)
+                plan_solution.plot()
+
 
 def adjacency_matrix_to_graph(matrix):
     """
@@ -587,12 +600,12 @@ def adjacency_matrix_to_graph(matrix):
     """
 
     nb_cells = len(matrix)  # get the matrix dimensions
-    G = nx.Graph()
+    graph = nx.Graph()
     edge_list = [(i, j) for i in range(nb_cells) for j in range(nb_cells) if
                  matrix[i][j] == 1]
-    G.add_edges_from(edge_list)
+    graph.add_edges_from(edge_list)
 
-    return G
+    return graph
 
 
 def check_room_connectivity_factory(adjacency_matrix):
@@ -755,7 +768,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Levallois_Letourneur.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
@@ -796,10 +809,9 @@ if __name__ == '__main__':
         plan.remove_null_spaces()
         SHUFFLES['square_shape'].run(plan, show=True)
 
-        input_file = 'Levallois_Letourneur_setup.json'
+        input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
-        print(spec.items)
 
         space_planner = SpacePlanner('test', spec)
         space_planner.solution_research()

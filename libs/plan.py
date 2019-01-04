@@ -123,6 +123,14 @@ class Plan:
         return (space for space in self.spaces)
 
     @property
+    def mutable_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator of the mutable spaces
+        :return:
+        """
+        return (space for space in self.spaces if space.mutable)
+
+    @property
     def empty_spaces(self) -> Generator['Space', None, None]:
         """
         The first empty space of the plan
