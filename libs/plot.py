@@ -233,6 +233,11 @@ class Plot:
                      solid_capstyle='butt')
 
     def _draw_space(self, space):
+        """
+        NOTE : this does not plot correctly holes in spaces.
+        :param space:
+        :return:
+        """
         if space.edge is None:
             return
         color = space.category.color

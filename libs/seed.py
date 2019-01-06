@@ -53,7 +53,7 @@ class Seeder:
         self.seeds: List['Seed'] = []
         self.selectors: Dict[str, 'Selector'] = {}
         self.growth_methods = growth_methods
-        self.plot = None
+        self.plot: Optional['Plot'] = None
 
     def __repr__(self):
         output = 'Seeder:\n'
@@ -95,20 +95,18 @@ class Seeder:
                 return True
         return False
 
-    def grow(self, show: bool = False) -> 'Seeder':
+    def grow(self, show: bool = False, plot: Optional['Plot'] = None) -> 'Seeder':
         """
         Creates the space for each seed
-        :return:
+        :param show
+        :param plot
+        :return: the seeder
         """
         logging.debug("Seeder: Starting to grow")
-        # needed for real time plot updates
+
+        # Real time plot updates
         if show:
-            self.plot = Plot()
-            plt.ion()
-            self.plot.draw(self.plan)
-            self.plot_seeds(self.plot.ax)
-            plt.show()
-            plt.pause(0.0001)
+            self._initialize_plot(plot)
 
         # grow the seeds
         while True:
@@ -131,19 +129,23 @@ class Seeder:
     def fill(self,
              growth_methods: ['GrowthMethod'],
              selector_and_category: Tuple['Selector', str],
-             recursive: bool = False) -> 'Seeder':
+             recursive: bool = False,
+             show: bool = False) -> 'Seeder':
         """
         Fills the empty space
         :param growth_methods:
         :param selector_and_category:
         :param recursive: whether to repeat the fill until there are no empty spaces
+        :param show: whether to display the plot in real time
         :return:
         """
+        if show:
+            self._initialize_plot()
         max_recursion = 10  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
                                               .plant()
-                                              .grow())
+                                              .grow(show=show, plot=self.plot))
             max_recursion -= 1
             if not recursive or self.plan.count_category_spaces("empty") == 0:
                 break
@@ -152,11 +154,16 @@ class Seeder:
 
         return self
 
-    def simplify(self, selector: 'Selector') -> 'Seeder':
+    def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
-        Removes the smallest seed space
+        Merges the seed spaces according to the selector
+        :param selector:
+        :param show:
         :return:
         """
+        if show:
+            self._initialize_plot()
+
         continue_merge = True
         while continue_merge:
             continue_merge = False
@@ -167,6 +174,9 @@ class Seeder:
                     space.merge(other_space)
                     merged_done = True
                     continue_merge = True
+                    # update plot
+                    if show:
+                        self.plot.update([other_space, space])
                     break
                 if merged_done:
                     logging.debug("Seed: Space has been merged: %s", space)
@@ -176,13 +186,14 @@ class Seeder:
 
         return self
 
-    def shuffle(self, shuffle: 'Shuffle') -> 'Seeder':
+    def shuffle(self, shuffle: 'Shuffle', show: bool = False) -> 'Seeder':
         """
         Runs a shuffle on the plan
         :param shuffle:
+        :param show: whether to show the plot
         :return:
         """
-        shuffle.run(self.plan, [self])
+        shuffle.run(self.plan, [self], show=show, plot=self.plot)
         return self
 
     def add_seed(self, seed_edge: 'Edge', component: PlanComponent):
@@ -235,6 +246,25 @@ class Seeder:
         """
         self.selectors[category_name] = selector
         return self
+
+    def _initialize_plot(self, plot: Optional['Plot']=None):
+        """
+        Creates a plot
+        :return:
+        """
+        # if the seeder has already a plot : do nothing
+        if self.plot:
+            return
+
+        if not plot:
+            self.plot = Plot()
+            plt.ion()
+            self.plot.draw(self.plan)
+            self.plot_seeds(self.plot.ax)
+            plt.show()
+            plt.pause(0.0001)
+        else:
+            self.plot = plot
 
     def plot_seeds(self, ax):
         """
@@ -401,7 +431,7 @@ class Seed:
         logging.debug("Seed: Creating the seed space")
 
         face = self.edge.face
-        empty_space = self.components[0].plan.get_space_of_face(face)
+        empty_space = self.seeder.plan.get_space_of_face(face)
 
         if not empty_space or empty_space.category.name != 'empty':
             raise ValueError('The seed should point towards an empty space')
@@ -593,14 +623,15 @@ if __name__ == '__main__':
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
-               .grow()
-               .shuffle(SHUFFLES['seed_square_shape'])
+               .grow(show=True)
+               .shuffle(SHUFFLES['seed_square_shape'], show=True)
                .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                                    "empty"))
-               .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-               .simplify(SELECTORS["fuse_small_cell"]))
+                                    "empty"), show=True)
+               .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True, show=True)
+               .simplify(SELECTORS["fuse_small_cell"], show=True))
 
-        plan.plot()
+        plan.plot(show=True)
+        plt.show()
 
 
     grow_a_plan()

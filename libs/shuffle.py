@@ -37,25 +37,32 @@ class Shuffle:
         self._action_index = 0
         self._plot = None
 
-    def run(self, plan: 'Plan', selector_args: Optional[Sequence[Any]] = None, show: bool = False):
+    def run(self, plan: 'Plan',
+            selector_args: Optional[Sequence[Any]] = None,
+            show: bool = False,
+            plot=None):
         """
         Runs the shuffle on the provided plan
         :param plan: the plan to modify
         :param selector_args: arguments for the selector if we need them at runtime
         :param show: whether to show a live plotting of the plan
+        :param plot: a plot, in order to draw the shuffle on top (for example in a seed sequence)
         :return:
         """
-        logging.debug("SHUFFLE: running for plan %s", plan)
+        logging.debug("Shuffle: Running for plan %s", plan)
 
         for action in self.actions:
             action.flush()
 
         if show:
-            self._plot = Plot()
-            plt.ion()
-            self._plot.draw(plan)
-            plt.show()
-            plt.pause(1)
+            if not plot:
+                self._plot = Plot()
+                plt.ion()
+                self._plot.draw(plan)
+                plt.show()
+                plt.pause(1)
+            else:
+                self._plot = plot
 
         self._action_index = 0
         slct_args = selector_args if selector_args else self.current_selector_args

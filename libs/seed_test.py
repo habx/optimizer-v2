@@ -80,13 +80,8 @@ def test_simple_seed_test():
     :return:
     """
     my_plan = plan_with_duct(300, 300)
-
-    seeder = Seeder(my_plan, GROWTH_METHODS)
-    seeder.add_condition(SELECTORS['seed_duct'], 'duct')
-
     GRIDS['ortho_grid'].apply_to(my_plan)
+    Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
+    my_plan.plot()
+    assert my_plan.check()
 
-    seeder.plant()
-    seeder.grow()
-    ax = my_plan.plot()
-    seeder.plot_seeds(ax)

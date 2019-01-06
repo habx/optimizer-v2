@@ -573,7 +573,7 @@ class Space(PlanComponent):
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
 
-    def remove_face(self, face: Face) -> Sequence[Optional['Space']]:
+    def remove_face(self, face: Face) -> [[Optional['Space']]]:
         """
         Remove a face from the space
 
@@ -859,6 +859,8 @@ class Space(PlanComponent):
         forbidden_edges = [edge.pair for edge in space.exterior_edges if edge.pair in self_edges]
         self.change_reference_edges(forbidden_edges)
         self._faces_id += space._faces_id
+        space._faces_id = []
+        space._edges_id = []
         space.remove()
         return self
 
