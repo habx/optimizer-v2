@@ -208,7 +208,7 @@ class Seeder:
             return
 
         # only add a seed if the seed edge points to an empty space
-        space = component.plan.get_space_of_face(seed_edge.face)
+        space = self.plan.get_space_of_edge(seed_edge)
         if space and space.category.name != 'empty':
             logging.debug("Seed: Cannot add a seed to an edge "
                           "that does not belong to an empty space")
@@ -628,7 +628,8 @@ if __name__ == '__main__':
                .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
                                     "empty"), show=True)
                .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True, show=True)
-               .simplify(SELECTORS["fuse_small_cell"], show=True))
+               .simplify(SELECTORS["fuse_small_cell"], show=True)
+               .shuffle(SHUFFLES['seed_square_shape'], show=True))
 
         plan.plot(show=True)
         plt.show()

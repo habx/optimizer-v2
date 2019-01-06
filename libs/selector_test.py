@@ -7,6 +7,25 @@ import pytest
 from libs.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.plan import Plan
 
+
+def rectangular_plan(width: float, depth: float) -> Plan:
+    """
+    a simple rectangular plan
+
+   0, depth   width, depth
+     +------------+
+     |            |
+     |            |
+     |            |
+     +------------+
+    0, 0     width, 0
+
+    :return:
+    """
+    boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
+    return Plan("square").from_boundary(boundaries)
+
+
 @pytest.fixture
 def l_plan():
     """
@@ -143,3 +162,14 @@ def test_corner_stone():
     Test
     :return:
     """
+    from libs.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    weird_space_boundary = [(0, 0), (250, 0), (250, 250), (125, 250), (125, 125), (0, 125)]
+    plan.insert_space_from_boundary(weird_space_boundary)
+
+    GRIDS["ortho_grid"].apply_to(plan)
+    plan.plot()
+
+    selector = SELECTORS["corner_stone"]
+    edges = list(selector.yield_from(plan.empty_space))
+    assert str(edges) == "[Edge:[(250.0, 125.0), (250.0, 0.0)]]"

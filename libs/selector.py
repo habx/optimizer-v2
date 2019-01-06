@@ -146,7 +146,6 @@ def other_seed_space_edge(space: 'Space', seeder: 'Seeder', *_) -> Generator['Ed
         face = edge.pair.face
         if face is None:
             continue
-
         other_space = space.plan.get_space_of_face(face)
         if not other_space:
             continue
@@ -155,7 +154,6 @@ def other_seed_space_edge(space: 'Space', seeder: 'Seeder', *_) -> Generator['Ed
         seed = seeder.get_seed_from_space(other_space)
         if seed and seed.face_has_component(face):
             continue
-
         yield edge
 
 
@@ -352,15 +350,23 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
     """
-    face = edge.face
+    face = edge.pair.face
+
+    if not face:
+        return False
+
+    other_space = space.plan.get_space_of_face(face)
+
+    if not other_space:
+        return False
 
     # case 1 : the only face of the space
-    if len(space._faces_id) == 1:
+    if len(other_space._faces_id) == 1:
         return True
 
     # case 2 : fully enclosing face
     face_edges = list(face.edges)
-    for edge in space.exterior_edges:
+    for edge in other_space.exterior_edges:
         if edge not in face_edges:
             break
         face_edges.remove(edge)
@@ -369,25 +375,25 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
 
     # case 4 : standard case
     forbidden_edges = list(face.edges)
-    space.change_reference_edges(forbidden_edges)
-    adjacent_faces = list(space.adjacent_faces(face))
+    other_space.change_reference_edges(forbidden_edges)
+    adjacent_faces = list(other_space.adjacent_faces(face))
 
     if len(adjacent_faces) == 1:
         return False
 
     remaining_faces = adjacent_faces[:]
 
-    # temporarily remove the face_id from the space
-    space.remove_face_id(face)
+    # temporarily remove the face_id from the other_space
+    other_space.remove_face_id(face)
 
-    # we must check to see if we split the space by removing the face
-    # for each adjacent face inside the space check if they are still connected
+    # we must check to see if we split the other_space by removing the face
+    # for each adjacent face inside the other_space check if they are still connected
     while remaining_faces:
 
         adjacent_face = remaining_faces[0]
         connected_faces = [adjacent_face]
 
-        for connected_face in space.connected_faces(adjacent_face):
+        for connected_face in other_space.connected_faces(adjacent_face):
             # try to reach the other adjacent faces
             if connected_face in remaining_faces:
                 remaining_faces.remove(connected_face)
@@ -396,12 +402,12 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
         remaining_faces.remove(adjacent_face)
 
         if len(remaining_faces) != 0:
-            space.add_face_id(face)
+            other_space.add_face_id(face)
             return True
         else:
             break
 
-    space.add_face_id(face)
+    other_space.add_face_id(face)
     return False
 
 
@@ -808,7 +814,12 @@ SELECTORS = {
             is_not(corner_stone)
         ]
     ),
-
+    "corner_stone": Selector(
+        boundary,
+        [
+            corner_stone
+        ]
+    ),
     "single_edge": Selector(boundary_unique)
 }
 
