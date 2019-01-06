@@ -30,7 +30,8 @@ def test_grow_a_plan(input_file):
            .shuffle(SHUFFLES['seed_square_shape'])
            .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
            .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-           .simplify(SELECTORS["fuse_small_cell"]))
+           .simplify(SELECTORS["fuse_small_cell"])
+           .shuffle(SHUFFLES['seed_square_shape']))
 
     plan.plot()
 

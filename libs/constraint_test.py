@@ -108,64 +108,70 @@ def test_min_size_check():
     assert constraint.check(my_plan.empty_space)
 
 
-def test_max_size_check():
+def test_max_size_seed_check():
     """
     Test max_size
     :return:
     """
     my_plan = square_plan(316.0)
-    constraint = CONSTRAINTS["max_size"]
-    assert constraint.check(my_plan.empty_space)
+    constraint = CONSTRAINTS["max_size_seed"]
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    assert constraint.check(my_plan.spaces[0])
 
 
-def test_max_size_fail():
+def test_max_size_seed_fail():
     """
     Test max_size
     :return:
     """
     my_plan = square_plan(317.0)
-    constraint = CONSTRAINTS["max_size"]
-    assert not constraint.check(my_plan.empty_space)
+    constraint = CONSTRAINTS["max_size_seed"]
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    assert not constraint.check(my_plan.spaces[0])
 
 
-def test_max_depth_check():
+def test_max_depth_seed_check():
     """
     Test max_size
     :return:
     """
     my_plan = rectangular_plan(10, 900)
-    constraint = CONSTRAINTS["max_size"]
-    assert constraint.check(my_plan.empty_space)
+    constraint = CONSTRAINTS["max_size_seed"]
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    assert constraint.check(my_plan.spaces[0])
 
 
-def test_max_depth_fail():
+def test_max_depth_seed_fail():
     """
     Test max_size
     :return:
     """
     my_plan = rectangular_plan(7, 1050)
-    constraint = CONSTRAINTS["max_size"]
-    assert not constraint.check(my_plan.empty_space)
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    constraint = CONSTRAINTS["max_size_seed"]
+    assert not constraint.check(my_plan.spaces[0])
 
 
-def test_max_width_check():
+def test_max_width_seed_check():
     """
     Test max_size
     :return:
     """
     my_plan = rectangular_plan(990, 10)
-    constraint = CONSTRAINTS["max_size"]
-    assert constraint.check(my_plan.empty_space)
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    constraint = CONSTRAINTS["max_size_seed"]
+    assert constraint.check(my_plan.spaces[0])
 
 
-def test_max_width_fail():
+def test_max_width_seed_fail():
     """
     Test max_size
     :return:
     """
     my_plan = rectangular_plan(1005, 8)
-    constraint = CONSTRAINTS["max_size"]
-    assert not constraint.check(my_plan.empty_space)
+    my_plan.empty_space.category = SPACE_CATEGORIES["seed"]
+    constraint = CONSTRAINTS["max_size_seed"]
+    assert not constraint.check(my_plan.spaces[0])
 
 
 def test_weird_shape(weird_plan):

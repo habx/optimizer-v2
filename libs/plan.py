@@ -662,6 +662,7 @@ class Space(PlanComponent):
         if len(adjacent_faces) == 1:
             logging.debug("Space: Removing a face with only one adjacent edge")
             self.remove_face_id(face)
+            self._clean_hole_disappearance()
             return [self]
 
         remaining_faces = adjacent_faces[:]
@@ -1663,7 +1664,30 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-    floor_plan()
+    # floor_plan()
+
+
+    def remove_face_along_internal_edge():
+        """
+        Test
+        :return:
+        """
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        plan = Plan('my plan').from_boundary(perimeter)
+
+        duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
+        plan.insert_space_from_boundary(duct)
+        plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[-1].pair, 1)
+        my_space = plan.empty_space
+        my_space.remove_face(plan.mesh.faces[0])
+        my_space.add_face(plan.mesh.faces[0])
+
+        plan.plot()
+
+        assert plan.check()
+
+
+    remove_face_along_internal_edge()
 
     def add_two_face_touching_internal_edge_and_border():
         """

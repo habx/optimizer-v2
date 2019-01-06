@@ -398,7 +398,7 @@ class Seed:
         Creates a max_size constraint
         :return:
         """
-        return copy.deepcopy(CONSTRAINTS['max_size']).set(max_size=self.max_size)
+        return copy.deepcopy(CONSTRAINTS["max_size_seed"]).set(max_size=self.max_size)
 
     def update_max_size_constraint(self):
         """
@@ -548,7 +548,7 @@ class GrowthMethod:
 
 fill_small_seed_category = GrowthMethod(
     'empty',
-    (CONSTRAINTS['max_size'],),
+    (CONSTRAINTS["max_size_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
@@ -558,7 +558,7 @@ fill_small_seed_category = GrowthMethod(
 
 classic_seed_category = GrowthMethod(
     'default',
-    (CONSTRAINTS['max_size_s'],),
+    (CONSTRAINTS["max_size_s_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
@@ -568,7 +568,7 @@ classic_seed_category = GrowthMethod(
 
 duct_seed_category = GrowthMethod(
     'duct',
-    (CONSTRAINTS['max_size_xs'],),
+    (CONSTRAINTS["max_size_xs_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
@@ -579,7 +579,7 @@ duct_seed_category = GrowthMethod(
 
 front_door_seed_category = GrowthMethod(
     'frontDoor',
-    (CONSTRAINTS['max_size_xs'],),
+    (CONSTRAINTS["max_size_xs_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
