@@ -33,7 +33,7 @@ class Grid:
         :param plan:
         :return: the plan with the created grid
         """
-        logging.debug("Applying Grid %s to plan %s", self.name, plan)
+        logging.debug("Grid: Applying Grid %s to plan %s", self.name, plan)
 
         for operator in self.operators:
             self.apply_operator(plan, operator)
@@ -66,7 +66,7 @@ class Grid:
         """
         _selector, _mutation = operator
         for edge in _selector.yield_from(space):
-            logging.debug("Applying mutation %s to edge %s of space %s", _mutation, edge, space)
+            logging.debug("Grid: Applying cut %s to edge %s of space %s", _mutation, edge, space)
             mesh_has_changed = _mutation.apply_to(edge, [space])
             if mesh_has_changed:
                 return True

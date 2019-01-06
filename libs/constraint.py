@@ -13,7 +13,7 @@ from libs.utils.geometry import ccw_angle
 from libs.size import Size
 
 if TYPE_CHECKING:
-    from libs.plan import Space, Linear
+    from libs.plan import Space
 
 scoreFunction = Callable[[Union['Space', 'Linear']], float]
 scoreFunctionFactory = Callable[..., scoreFunction]
@@ -42,18 +42,28 @@ class Constraint:
         return 'Constraint: {0}'.format(self.name)
 
     def check(self,
-              space_or_linear: Union['Space', 'Linear'],
-              other: Optional['Constraint'] = None) -> bool:
+              *spaces: 'Space',
+              other_constraint: Optional['Constraint'] = None) -> bool:
         """
         Returns True if the constraint is satisfied. A constraint is deemed satisfied if
         its score is inferior or equal to zero
-        :param space_or_linear:
-        :param other: an other constraint
+        :param spaces:
+        :param other_constraint: an other constraint
         :return:
         """
-        if other is not None:
-            return self.score(space_or_linear) <= 0 or other.score(space_or_linear) <= 0
-        return self.score(space_or_linear) <= 0
+        for space in spaces:
+            # ---> start bad code TODO : correct this
+            # This does not feel right but it's an easy way to solve the pb of the seed
+            # growth where we only want the size constraint to be applied on the seed space
+            if space.category.name == "empty":
+                continue
+            # <--- end bad code
+            if other_constraint is not None:
+                if self.score(space) > 0 and other_constraint.score(space) > 0:
+                    return False
+            if self.score(space) > 0:
+                return False
+        return True
 
     def set(self, **params) -> 'Constraint':
         """
@@ -70,13 +80,13 @@ class Constraint:
 
         return self
 
-    def score(self, space_or_linear: Union['Space', 'Linear']) -> float:
+    def score(self, space: 'Space') -> float:
         """
-        Computes a score of how the space or the linear respects the constraint
-        :param space_or_linear:
+        Computes a score of how the space respects the constraint
+        :param space:
         :return: a score
         """
-        return self.score_factory(self.params)(space_or_linear)
+        return self.score_factory(self.params)(space)
 
 
 class SpaceConstraint(Constraint):
@@ -155,8 +165,25 @@ def max_size(params: Dict) -> scoreFunction:
     return _score
 
 
-few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners,
-                                         imperative=False)
+def min_size(params: Dict) -> scoreFunction:
+    """
+    Checks if a space has a size inferior to the specified size
+    :param params
+    :return:
+    """
+    _min_size: Size = params['min_size']
+
+    def _score(space: 'Space') -> float:
+        if space.size >= _min_size:
+            return 0
+        else:
+            return _min_size.distance(space.size)
+
+    return _score
+
+
+# Imperative constraints
+min_size_constraint = SpaceConstraint('min_size', {'min_size': Size(3900, 60, 60)}, min_size)
 
 max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)
 
@@ -166,11 +193,15 @@ max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 
 max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 300, 300)},
                                          max_size)
 
+# objective constraints
 square_shape = SpaceConstraint('square_shape', {'max_ratio': 100.0}, square_shape, imperative=False)
+few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners,
+                                         imperative=False)
 
 
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
+    "min_size": min_size_constraint,
     "max_size": max_size_constraint,
     "max_size_s": max_size_s_constraint,
     "max_size_xs": max_size_xs_constraint,

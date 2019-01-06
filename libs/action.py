@@ -53,7 +53,7 @@ class Action:
         :return:
         """
         if self.try_id(space, edge) in self._tried:
-            logging.debug('Already tried this edge with this space')
+            logging.debug('Action: Already tried this edge with this space')
             return True
         return False
 
@@ -78,7 +78,7 @@ class Action:
         :param constraints:
         :return:
         """
-        logging.debug("Applying the Action %s to the space %s", self, space)
+        logging.debug("Action: Applying the action %s to the space %s", self, space)
 
         # separate imperative constraints from objective constraints
         if constraints:
@@ -96,10 +96,12 @@ class Action:
             if self.check_tried(space, edge):
                 continue
 
-            # TODO the modified spaces could be different from specific mutations ?
-            # In this specific case we make the assumption that the two modified spaces
-            # will be the initial space and the space of the pair of the edge
+            # get the list of the spaces that will be modified
             spaces = self.mutation.spaces_modified(edge.pair, [space])
+
+            # if no spaces will be modified continue to the next edge
+            if not spaces:
+                continue
 
             # We verify if the mutation increases or decreases the score
             initial_score = self.score(spaces, opt_constraints)
@@ -111,7 +113,7 @@ class Action:
 
                 # check imperative constraints
                 for constraint in imp_constraints:
-                    if not constraint.check(modified_spaces[0]):
+                    if not constraint.check(*modified_spaces):
                         logging.debug('Action: Constraint breached: %s - %s',
                                       constraint.name, space)
                         # reverse the change
@@ -122,7 +124,7 @@ class Action:
                         break
 
                 # check objective constraints
-                if initial_score is not None:
+                if modified_spaces and initial_score is not None:
                     new_score = self.score(modified_spaces, opt_constraints)
                     if new_score >= initial_score:
                         logging.debug("Action: poor global score: %s - %s",

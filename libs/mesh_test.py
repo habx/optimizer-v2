@@ -283,6 +283,17 @@ def cut_to_inside_edge():
     assert mesh.check()
 
 
+def test_insert_identical_face():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(perimeter)
+    assert mesh.check()
+
+
 def test_remove_complex_edge():
     """
     Test
@@ -313,8 +324,8 @@ def test_insert_complex_face_1():
     mesh.faces[0].insert_face_from_boundary(hole)
 
     hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
-
     mesh.faces[0].insert_face_from_boundary(hole_2)
+    mesh.plot()
 
     assert mesh.check()
 

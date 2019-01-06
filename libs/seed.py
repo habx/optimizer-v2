@@ -36,67 +36,9 @@ if TYPE_CHECKING:
     from libs.mesh import Edge, Face
     from libs.selector import Selector
     from libs.constraint import Constraint
+    from libs.shuffle import Shuffle
 
 EPSILON_MAX_SIZE = 10.0
-
-
-class Filler:
-    """
-    Filler Class
-    """
-
-    def __init__(self, plan: Plan, seed_methods: List[Tuple['Selector', Dict, str]], show: bool = False):
-        self.plan = plan
-        self.seed_methods = seed_methods
-        self.plot = None
-        self.show = show
-
-    def __repr__(self):
-        output = 'Filler:\n'
-        for seed_method in self.seed_methods:
-            _selector, _grow_method, _category = seed_method
-            output += '• ' + _selector.__repr__() + '\n'
-            output += '• ' + _grow_method.__repr__() + '\n'
-            output += '• ' + _category.__repr__() + '\n'
-        return output
-
-    def fusion(self, selector: 'Selector'):
-        """
-        Fuse spaces according to a given selector
-        :return:
-        """
-        continue_merge = True
-        while continue_merge:
-            continue_merge = False
-            merged_done = False
-            for space in self.plan.spaces:
-                for edge in selector.yield_from(space):
-                    if edge.space != edge.pair.space:
-                        space.merge(edge.pair.space)
-                        self.plan.remove_null_spaces()
-                        merged_done = True
-                        continue_merge = True
-                        break
-                if merged_done:
-                    logging.debug("space has been merged: {0}".format(id(space)))
-                    break
-
-    def apply_to(self, plan: Plan):
-        """
-        Applies a succession of seed sets and growth
-        :return:
-        """
-        num_spaces_to_fill = plan.count_category_spaces("empty")
-        while num_spaces_to_fill > 0:
-            for seed_method in self.seed_methods:
-                _selector, _grow_method, _category = seed_method
-                seeder = Seeder(plan, _grow_method)
-                seeder.add_condition(_selector, _category)
-                seeder.plant_category_space(_category)
-                seeder.grow()
-                self.plan.remove_null_spaces()
-                plan.make_space_seedable("empty")
-                num_spaces_to_fill = plan.count_category_spaces("empty")
 
 
 class Seeder:
@@ -119,30 +61,14 @@ class Seeder:
             output += '• ' + seed.__repr__() + '\n'
         return output
 
-    def plant_category_space(self, category):
-        """
-        Creates the seeds in spaces with a given category
-        :return:
-        """
-        for component in self.plan.get_components():
-
-            if component.edge is None:
-                logging.debug("The plan contains an empty component: %s", component)
-                continue
-
-            if component.category.seedable and component.category.name == category:
-                if isinstance(component, Space):
-                    for edge in self.space_seed_edges(component):
-                        seed_edge = edge
-                        self.add_seed(seed_edge, component)
-
-    def plant(self):
+    def plant(self) -> 'Seeder':
         """
         Creates the seeds
         :return:
         """
         for component in self.plan.get_components():
-            if component.category.seedable:
+            if ((component.category.seedable and self.growth_methods["default"])
+                    or component.category.name in self.selectors):
 
                 if isinstance(component, Space):
                     for edge in self.space_seed_edges(component):
@@ -152,6 +78,8 @@ class Seeder:
                 if isinstance(component, Linear):
                     seed_edge = component.edge
                     self.add_seed(seed_edge, component)
+
+        return self
 
     def merge(self, edge: 'Edge', component: 'PlanComponent') -> bool:
         """
@@ -167,12 +95,12 @@ class Seeder:
                 return True
         return False
 
-    def grow(self, show: bool = False):
+    def grow(self, show: bool = False) -> 'Seeder':
         """
         Creates the space for each seed
         :return:
         """
-        logging.debug("Seeder : Starting to grow")
+        logging.debug("Seeder: Starting to grow")
         # needed for real time plot updates
         if show:
             self.plot = Plot()
@@ -196,6 +124,67 @@ class Seeder:
             if not all_spaces_modified:
                 break
 
+        self.plan.remove_null_spaces()
+
+        return self
+
+    def fill(self,
+             growth_methods: ['GrowthMethod'],
+             selector_and_category: Tuple['Selector', str],
+             recursive: bool = False) -> 'Seeder':
+        """
+        Fills the empty space
+        :param growth_methods:
+        :param selector_and_category:
+        :param recursive: whether to repeat the fill until there are no empty spaces
+        :return:
+        """
+        max_recursion = 10  # to prevent infinite loops
+        while True:
+            (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
+                                              .plant()
+                                              .grow())
+            max_recursion -= 1
+            if not recursive or self.plan.count_category_spaces("empty") == 0:
+                break
+            if max_recursion == 0:
+                raise Exception("Seed: Fill max recursion reach")
+
+        return self
+
+    def simplify(self, selector: 'Selector') -> 'Seeder':
+        """
+        Removes the smallest seed space
+        :return:
+        """
+        continue_merge = True
+        while continue_merge:
+            continue_merge = False
+            merged_done = False
+            for space in self.plan.get_spaces("seed"):
+                for edge in selector.yield_from(space):
+                    other_space = self.plan.get_space_of_edge(edge.pair)
+                    space.merge(other_space)
+                    merged_done = True
+                    continue_merge = True
+                    break
+                if merged_done:
+                    logging.debug("Seed: Space has been merged: %s", space)
+                    break
+
+        self.plan.remove_null_spaces()
+
+        return self
+
+    def shuffle(self, shuffle: 'Shuffle') -> 'Seeder':
+        """
+        Runs a shuffle on the plan
+        :param shuffle:
+        :return:
+        """
+        shuffle.run(self.plan, [self])
+        return self
+
     def add_seed(self, seed_edge: 'Edge', component: PlanComponent):
         """
         Adds a seed to the seeder
@@ -210,7 +199,8 @@ class Seeder:
         # only add a seed if the seed edge points to an empty space
         space = component.plan.get_space_of_face(seed_edge.face)
         if space and space.category.name != 'empty':
-            logging.debug("Cannot add a seed to an edge that does not belong to an empty space")
+            logging.debug("Seed: Cannot add a seed to an edge "
+                          "that does not belong to an empty space")
             return
 
         if not self.merge(seed_edge, component):
@@ -227,14 +217,16 @@ class Seeder:
         :return:
         """
         category_name = space.category.name
-        if category_name not in self.selectors:
-            for edge in space.edges:
-                if edge.pair.face is not None:
-                    yield edge.pair
-        else:
+        if category_name in self.selectors:  # note the space does not need to be seedable here
             yield from self.selectors[category_name].yield_from(space)
+        elif space.category.seedable:
+            for edge in space.edges:
+                # only seed empty space
+                seed_space = space.plan.get_space_of_edge(edge.pair)
+                if seed_space and seed_space.category.name == "empty":
+                    yield edge.pair
 
-    def add_condition(self, selector: 'Selector', category_name: str):
+    def add_condition(self, selector: 'Selector', category_name: str) -> 'Seeder':
         """
         Adds a selector to create a seed from a space component.
         The selector returns the edges that will receive a seed.
@@ -242,6 +234,7 @@ class Seeder:
         :param category_name: the name of a category
         """
         self.selectors[category_name] = selector
+        return self
 
     def plot_seeds(self, ax):
         """
@@ -291,9 +284,9 @@ class Seed:
         if self.space is not None:
             return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
                     '{5}').format(self.components, str(self.space.area), str(self.size.width),
-                                  str(self.size.depth), self.space, self.edge) + '\n'
+                                  str(self.size.depth), self.space, self.edge)
         else:
-            return 'Seed: {0} - {1})'.format(self.components, self.edge) + '\n'
+            return 'Seed: {0} - {1})'.format(self.components, self.edge)
 
     @property
     def size(self) -> Size:
@@ -350,7 +343,8 @@ class Seed:
             component_name = component.category.name
             method = self.seeder.growth_methods.get(component_name,
                                                     self.seeder.growth_methods['default'])
-            growth_methods.append(method)
+            if method is not None:
+                growth_methods.append(method)
 
         return growth_methods
 
@@ -391,6 +385,8 @@ class Seed:
         Per convention we only use the actions of the first component
         :return:
         """
+        if not self.growth_methods:
+            return None
         if self.growth_action_index >= len(self.growth_methods[0].actions):
             return None
         return self.growth_methods[0].actions[self.growth_action_index]
@@ -402,7 +398,7 @@ class Seed:
         (the created space and the space from which the face was removed)
         :return:
         """
-        logging.debug("Seed : creating the seed space")
+        logging.debug("Seed: Creating the seed space")
 
         face = self.edge.face
         empty_space = self.components[0].plan.get_space_of_face(face)
@@ -422,7 +418,7 @@ class Seed:
         :param self:
         :return:
         """
-        logging.debug("Seed : growing %s", self)
+        logging.debug("Seed: Growing %s", self)
 
         if self.growth_action is None:
             return []
@@ -435,12 +431,12 @@ class Seed:
         if self.space is None:
             return self._create_seed_space()
 
-        modified_spaces = self.growth_action.apply_to(self.space, [self],
+        modified_spaces = self.growth_action.apply_to(self.space, [self.seeder],
                                                       [self.max_size_constraint])
 
         if not modified_spaces:
             self.growth_action_index += 1
-            logging.debug("Seed: switching to next growth action : %i - %s",
+            logging.debug("Seed: Switching to next growth action : %i - %s",
                           self.growth_action_index, self)
         else:
             pass
@@ -520,16 +516,8 @@ class GrowthMethod:
 
 # Growth Methods
 
-fill_seed_category = GrowthMethod(
-    'default',
-    (CONSTRAINTS['max_size'],),
-    (
-        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
-    )
-)
-
 fill_small_seed_category = GrowthMethod(
-    'default',
+    'empty',
     (CONSTRAINTS['max_size'],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
@@ -573,10 +561,12 @@ GROWTH_METHODS = {
     "default": classic_seed_category,
     "duct": duct_seed_category,
     "frontDoor": front_door_seed_category,
-    "seed": fill_seed_category,
-    "small_seed": fill_small_seed_category
 }
 
+FILL_METHODS = {
+    "empty": classic_seed_category,
+    "default": None
+}
 
 if __name__ == '__main__':
     import libs.reader as reader
@@ -598,56 +588,19 @@ if __name__ == '__main__':
         input_files = reader_test.BLUEPRINT_INPUT_FILES
         plan = reader.create_plan_from_file(input_files[0])
 
-        seeder = Seeder(plan, GROWTH_METHODS)
-        seeder.add_condition(SELECTORS['seed_duct'], 'duct')
         GRIDS['ortho_grid'].apply_to(plan)
 
-        seeder.plant()
-        seeder.grow(show=True)
-        plan.plot(save=False)
-        plan.check()
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
+        (seeder.plant()
+               .grow()
+               .shuffle(SHUFFLES['seed_square_shape'])
+               .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                                    "empty"))
+               .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+               .simplify(SELECTORS["fuse_small_cell"]))
 
-        SHUFFLES['square_shape'].run(plan, show=True)
+        plan.plot()
 
-        """
-        
-        ax = plan.plot(save=False)
-        seeder.plot_seeds(ax)
-        plt.title("seeding points")
-        plt.show()
-
-        plan.remove_null_spaces()
-        plan.make_space_seedable("empty")
-
-        seed_empty_furthest_couple_middle = SELECTORS['seed_empty_furthest_couple_middle_space_area_min_100000']
-        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
-        seed_methods = [
-            (
-                seed_empty_furthest_couple_middle,
-                GROWTH_METHODS_FILL,
-                "empty"
-            ),
-            (
-                seed_empty_area_max_100000,
-                GROWTH_METHODS_SMALL_SPACE_FILL,
-                "empty"
-            )
-        ]
-
-        filler = Filler(plan, seed_methods)
-        filler.apply_to(plan)
-        plan.remove_null_spaces()
-        fuse_selector = SELECTORS['fuse_small_cell']
-
-        logging.debug("num_mutable_spaces before merge: {0}".format(plan.count_mutable_spaces()))
-
-        filler.fusion(fuse_selector)
-
-        logging.debug("num_mutable_spaces after merge: {0}".format(plan.count_mutable_spaces()))
-
-        SHUFFLES['square_shape'].run(plan, show=True)
-        plan.plot(save=True)
-
-        assert plan.check()"""
 
     grow_a_plan()

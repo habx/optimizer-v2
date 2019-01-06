@@ -177,7 +177,7 @@ class Vertex(MeshComponent):
         self._edge = value
 
     @property
-    def coords(self):
+    def coords(self) -> Coords2d:
         """
         Returns the coordinates of the vertex in the form of a tuple
         :return:
@@ -247,7 +247,7 @@ class Vertex(MeshComponent):
         nb_edges = len(edges)
         # check the number of edges starting from the vertex
         if nb_edges > 2:
-            logging.debug('Cannot clean a vertex used by more than one edge')
+            logging.debug('Mesh: Cannot clean a vertex used by more than one edge')
             return []
         # only a vertex with two edges can be cleaned
         if nb_edges == 2:
@@ -982,7 +982,7 @@ class Edge(MeshComponent):
             if self.next is not self.pair and self.pair.next is not self:
                 raise ValueError('cannot remove an edge that will create an' +
                                  ' unconnected hole in a face: {0}'.format(self))
-            logging.info('Removing an isolated edge: {0}'.format(self))
+            logging.debug('Mesh: Removing an isolated edge: {0}'.format(self))
             isolated_edge = self if self.next is self.pair else self.pair
             isolated_edge.preserve_references(isolated_edge.pair.next)
             isolated_edge.pair.preserve_references(isolated_edge.pair.next)
@@ -1097,8 +1097,8 @@ class Edge(MeshComponent):
 
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            logging.info('cannot link two edges ' +
-                         ' that are already linked:{0}-{1}'.format(self, other))
+            logging.debug('Mesh: Cannot link two edges ' +
+                          ' that are already linked:{0}-{1}'.format(self, other))
             return None
 
         # check if the edges are the same
@@ -1215,7 +1215,7 @@ class Edge(MeshComponent):
         """
         angle_is_inside = 180 - MIN_ANGLE > angle > 180.0 - self.next_angle + MIN_ANGLE
         if not angle_is_inside:
-            logging.debug('Cannot cut according to angle:{0} > {1} > {2}'.
+            logging.debug('Mesh: Cannot cut according to angle:{0} > {1} > {2}'.
                           format(180 - MIN_ANGLE, angle, 180.0 - self.next_angle + MIN_ANGLE))
             return False
         return True
@@ -1248,8 +1248,8 @@ class Edge(MeshComponent):
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
         if not self.contains(vertex):
-            logging.info('Trying to cut an edge on an outside vertex:' +
-                         ' {0} - {1}'.format(self, vertex))
+            logging.debug('Mesh: Trying to cut an edge on an outside vertex:' +
+                          ' {0} - {1}'.format(self, vertex))
             return None
 
         first_edge = self
@@ -1279,7 +1279,7 @@ class Edge(MeshComponent):
 
         # if no intersection can be found return None
         if closest_edge is None:
-            logging.warning('Could not create a viable cut')
+            logging.warning('Mesh: Could not create a viable cut')
             return None
 
         # assign a correct edge to the initial face
@@ -1350,7 +1350,7 @@ class Edge(MeshComponent):
             angle = ccw_angle(self.vector, vector)
             angle_is_inside = MIN_ANGLE < angle < self.previous_angle - MIN_ANGLE
             if not angle_is_inside:
-                logging.debug('Cannot cut according to angle:{0} < {1} < {2}'.
+                logging.debug('Mesh: Cannot cut according to angle:{0} < {1} < {2}'.
                               format(MIN_ANGLE, angle, self.previous_angle - MIN_ANGLE))
                 continue
 
@@ -1509,7 +1509,7 @@ class Edge(MeshComponent):
                              'vertex: {0}'.format(self.start))
 
         if self.start and self.end and self.length < COORD_EPSILON / 4:
-            logging.warning('Created a very small edge: {0} - {1}'.format(self.start, self.end))
+            logging.info('Mesh: Created a very small edge: {0} - {1}'.format(self.start, self.end))
 
 
 class Face(MeshComponent):
@@ -1756,7 +1756,7 @@ class Face(MeshComponent):
                 raise ValueError("Cannot insert a face that is" +
                                  " crossing the receiving face !:{0}".format(other))
             else:
-                logging.info('Other face is outside receiving face: {0} -> {1}'.format(other, self))
+                logging.info('Mesh: Other face is outside receiving face: %s -> %s', other, self)
                 raise OutsideFaceError()
         return True
 
@@ -1767,8 +1767,8 @@ class Face(MeshComponent):
         :param other: face
         :return: self
         """
-        for edge in self.edge.pair.siblings:
-            edge.face = other
+        for edge in self.edges:
+            edge.pair.face = other
 
         return self
 
@@ -1787,15 +1787,15 @@ class Face(MeshComponent):
         new_faces = [self]
 
         if intersection_points.is_empty:
-            logging.debug('Cannot slice a face with a segment that does not intersect it')
+            logging.debug('Mesh: Cannot slice a face with a segment that does not intersect it')
             return new_faces
 
         if intersection_points.geom_type == 'LineString':
-            logging.debug('While slicing only found a lineString as intersection')
+            logging.debug('Mesh: While slicing only found a lineString as intersection')
             return new_faces
 
         if intersection_points.geom_type == 'Point':
-            logging.debug('While slicing only found a point as intersection')
+            logging.debug('Mesh: While slicing only found a point as intersection')
             return new_faces
 
         new_vertices = []
@@ -1949,16 +1949,12 @@ class Face(MeshComponent):
         :param face:
         :return:
         """
-        logging.debug('The inserted face is equal to the container face : %s', face)
+        logging.debug('Mesh: The inserted face is equal to the container face : %s', face)
         # we swap self with the new inserted face
         # we remove the edges and vertices of the face from the mesh
         self.mesh.remove_face_and_children(face)
         # we add again the face to the mesh
-        face.add_to_mesh(self.mesh)
-        # we give the new face to the edges of the receiving face
-        for edge in self.edges:
-            edge.face = face
-        self.remove_from_mesh()
+        self.swap(face)
         return []
 
     def _insert_face(self, face: 'Face') -> List['Face']:
@@ -1984,7 +1980,7 @@ class Face(MeshComponent):
             face_edges = list(face.edges)
             new_edge = vertex.snap_to_edge(*face_edges)
             if new_edge is not None:
-                logging.info('Snapped a vertex from the receiving face: {0}'.format(vertex))
+                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', vertex)
 
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
@@ -2023,10 +2019,11 @@ class Face(MeshComponent):
         3. merge the inserted faces
         4. preserve the initial face reference
         TODO : extend this technique to enable the insertion of a face overlapping several faces
+        TODO : we're adding the same face to the exterior
         :param face:
         :return:
         """
-        logging.debug("Inserting a face over an internal edge")
+        logging.debug("Mesh: Inserting a face over an internal edge")
         # we slice the face if needed, we check each internal edges
         face_copy = face.swap()
         sliced_faces = [face_copy]
@@ -2041,7 +2038,7 @@ class Face(MeshComponent):
             face_copy.swap(face)
             return self._insert_face(face)
 
-        logging.info('Inserting face in a face overlapping an internal edge')
+        logging.debug('Mesh: Inserting face in a face overlapping an internal edge')
         # else add each new face
         # first store the shared edges for ulterior merge
         edges_to_remove = []
@@ -2049,9 +2046,10 @@ class Face(MeshComponent):
             for edge in sliced_face.edges:
                 if edge.pair.face in sliced_faces:
                     edges_to_remove.append(edge)
-        new_faces = []
+
         # we create brand new faces and we insert them in the face
         # a bit brutal, a better way is certainly possible ;-)
+        new_faces = []
         for sliced_face in sliced_faces:
             new_face = self.mesh.new_face_from_boundary(sliced_face.coords)
             new_faces.append(new_face)
@@ -2149,8 +2147,8 @@ class Face(MeshComponent):
                 shared_edge = edge
                 return shared_edge.remove()
 
-        logging.warning('Cannot merge two faces that do not share at least one edge:' +
-                        '{0}-{1}'.format(self, other))
+        logging.warning('Mesh: Cannot merge two faces that do not share at least one edge:%s - %s',
+                        self, other)
 
     def clean(self):
         """
@@ -2214,7 +2212,7 @@ class Face(MeshComponent):
                 small_edge.collapse()
                 modified_edges.append(small_edge)
                 modified_edges.append(small_edge.pair)
-                logging.debug('Snapping edge while simplifying face: {0}'.format(small_edge))
+                logging.debug('Mesh: Snapping edge while simplifying face: %s', small_edge)
                 modified_edges += self.simplify()
                 break
 
@@ -2304,19 +2302,19 @@ class Mesh:
 
         if type(component) == Vertex:
             if component.id not in self._vertices:
-                logging.debug("Vertex is not in mesh")
+                logging.debug("Mesh: Vertex is not in mesh")
                 return
             self._remove_vertex(component)
 
         if type(component) == Face:
             if component.id not in self._faces:
-                logging.warning("face is not in mesh")
+                logging.warning("Mesh: face is not in mesh")
                 return
             self._remove_face(component)
 
         if type(component) == Edge:
             if component.id not in self._edges:
-                logging.debug("Edge is not in mesh")
+                logging.debug("Mesh: Edge is not in mesh")
                 return
             self._remove_edge(component)
 
@@ -2502,7 +2500,7 @@ class Mesh:
                 if other_vertex is vertex:
                     continue
                 if other_vertex.distance_to(vertex) < COORD_EPSILON / 4:
-                    logging.info('Found duplicate vertices: ' +
+                    logging.info('Mesh: Found duplicate vertices: ' +
                                  '{0} - {1}'.format(vertex, other_vertex))
                     is_valid = True  # Turn this off waiting for better snapping handling
         return is_valid
@@ -2590,37 +2588,37 @@ class Mesh:
             for edge in face.edges:
                 if edge is None:
                     is_valid = False
-                    logging.error('Checking Mesh: Edge is None for:{0}'.format(face))
+                    logging.error('Mesh: Checking Mesh: Edge is None for:{0}'.format(face))
                 if edge.face is not face:
                     is_valid = False
-                    logging.error('Checking Mesh: Wrong face in edge:' +
+                    logging.error('Mesh: Checking Mesh: Wrong face in edge:' +
                                   '{0} for face:{1}'.format(edge, edge.face))
                 if edge.pair and edge.pair.pair is not edge:
                     is_valid = False
-                    logging.error('Checking Mesh: Wrong pair attribution:' +
+                    logging.error('Mesh: Checking Mesh: Wrong pair attribution:' +
                                   ' {0} for face: {1}'.format(edge, edge.pair))
                 if edge.start.edge is None:
                     is_valid = False
-                    logging.error('Checking Mesh: Vertex has no edge: {0}'.format(edge.start))
+                    logging.error('Mesh: Checking Mesh: Vertex has no edge: {0}'.format(edge.start))
                 if edge.start.edge.start is not edge.start:
                     is_valid = False
-                    logging.error('Checking Mesh: Wrong edge attribution in: ' +
+                    logging.error('Mesh: Checking Mesh: Wrong edge attribution in: ' +
                                   '{0}'.format(edge.start))
                 if edge.next.next is edge:
                     is_valid = False
-                    logging.error('Checking Mesh: 2-edges face found:{0}'.format(edge))
+                    logging.error('Mesh: Checking Mesh: 2-edges face found:{0}'.format(edge))
                 if edge.next is edge.pair:
                     is_valid = False
-                    logging.warning('Checking Mesh: folded edge found: {0}'.format(edge))
+                    logging.warning('Mesh: Checking Mesh: folded edge found: {0}'.format(edge))
 
         for edge in self.boundary_edges:
             if edge.face is not None:
-                logging.error('Wrong edge in mesh boundary edges:{0}'.format(edge))
+                logging.error('Mesh: Wrong edge in mesh boundary edges:{0}'.format(edge))
                 is_valid = False
 
         is_valid = is_valid and self.check_duplicate_vertices()
 
-        logging.info('Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
+        logging.info('Mesh: Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
 
     def plot(self,
@@ -2743,25 +2741,21 @@ if __name__ == '__main__':
 
     # simplify_mesh()
 
-    def simplify_mesh_triangle():
+    def insert_complex_face_1():
         """
         Test
         :return:
         """
         perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
+
         mesh = Mesh().from_boundary(perimeter)
-        edge = mesh.boundary_edge.pair
-        edge.barycenter_cut(0, 6)
-        edge.barycenter_cut(0.01, 175)
-        edge.next.barycenter_cut(1.0, 100.0)
-        mesh.plot(save=False)
-        plt.show()
-        print(mesh.simplify())
+        mesh.faces[0].insert_face_from_boundary(hole)
 
-        mesh.plot(save=False)
-        plt.show()
+        hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
+        mesh.faces[0].insert_face_from_boundary(hole_2)
+        mesh.plot()
 
-        mesh.check()
+        assert mesh.check()
 
-
-    simplify_mesh_triangle()
+    insert_complex_face_1()

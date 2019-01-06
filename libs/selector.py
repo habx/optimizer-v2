@@ -19,13 +19,13 @@ for edge in selector.catalog['boundary'].yield_from(space):
 """
 from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 
-from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal
+from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
 from libs.mesh import MIN_ANGLE
 
 if TYPE_CHECKING:
-    from libs.mesh import Edge, Face
+    from libs.mesh import Edge
     from libs.plan import Space
-    from libs.seed import Seed
+    from libs.seed import Seeder
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
 EdgeQueryFactory = Callable[..., EdgeQuery]
@@ -103,6 +103,24 @@ class SelectorFactory:
 
 
 # Queries
+def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges of the face
+    :param space:
+    :return:
+    """
+    if space.edge:
+        yield from space.edges
+
+
+def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edge reference face
+    :param space:
+    :return:
+    """
+    if space.edge:
+        yield space.edge
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -116,17 +134,16 @@ def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge
 
 
-def other_seed_space_edge(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
+def other_seed_space_edge(space: 'Space', seeder: 'Seeder', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges of the seed space pointing to another seed space but not to a face
     attached to one of its component
     and not pointing to another seed
     """
-    assert seed and seed.space is space, "The associated seed object must be provided"
+    assert seeder, "The associated seed object must be provided"
 
     for edge in space.edges:
         face = edge.pair.face
-
         if face is None:
             continue
 
@@ -135,21 +152,23 @@ def other_seed_space_edge(space: 'Space', seed: 'Seed', *_) -> Generator['Edge',
             continue
         if other_space.category.name != "seed":
             continue
-        if seed.face_has_component(face):
+        seed = seeder.get_seed_from_space(other_space)
+        if seed and seed.face_has_component(face):
             continue
 
         yield edge
 
 
-def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge', bool, None]:
+def seed_component_boundary(space: 'Space', seeder: 'Seeder', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge of the space adjacent to a face adjacent to the component of the seed
     :param space:
-    :param seed:
+    :param seeder:
     :return:
     """
-    assert seed and seed.space is space, "The associated seed object must be provided"
+    assert seeder, "The associated seeder object must be provided"
 
+    seed = seeder.get_seed_from_space(space)
     component = seed.components[0]  # per convention we use the first component of the seed
     for edge in component.edges:
         face = edge.pair.face
@@ -166,83 +185,22 @@ def seed_component_boundary(space: 'Space', seed: 'Seed', *_) -> Generator['Edge
         yield face_edge.pair
 
 
-def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns the edges of the face
-    :param space:
-    :return:
-    """
-    yield from space.edges
-
-
-def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns the edge reference face
-    :param space:
-    :return:
-    """
-    yield space.edge
-
-
 def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the longest edge of the space that is not on the plan boundary
     :param space:
     :return:
     """
-    ref_edge = space.edge
-    if ref_edge:
-        longest_edge = ref_edge
-        longest_edge_pair_area = space.plan.get_space_of_face(ref_edge.pair.face).area
-        length = ref_edge.length
-        for edge in space.siblings(ref_edge):
-            if not edge.is_mesh_boundary:
-                edge_pair_space_area = space.plan.get_space_of_face(edge.pair.face).area
-                if longest_edge.is_mesh_boundary:
-                    longest_edge = edge
-                    longest_edge_pair_area = edge_pair_space_area
-                    # TODO : c'est un peu de la bidouille cette histoire de surface ?)
-                elif (pseudo_equal(edge.length, length, EPSILON)
-                      and edge_pair_space_area > longest_edge_pair_area):
-                    longest_edge = edge
-                    longest_edge_pair_area = edge_pair_space_area
-                elif edge.length > length:
-                    length = edge.length
-                    longest_edge = edge
-                    longest_edge_pair_area = edge_pair_space_area
-        yield longest_edge
-
-
-def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns the edge such that when edge.pair.face is added to the current space,
-    area/perimeter is max compared to other adds
-    #TODO : we should avoid using shapely for polygon fusion - try merge and reverse
-    # NOTE : this should typically be done via a constraint in a shuffle
-    :param space:
-    :return:
-    """
-
-    list_homogeneous = []
-    ref_edge = space.edge
-    biggest_shape_factor = 0
-    edge_homogeneous_growth = None
-    if ref_edge and ref_edge.pair and ref_edge.pair.face:
-        union_sp_poly = space.as_sp.union(ref_edge.pair.face.as_sp)
-        biggest_shape_factor = (union_sp_poly.area / union_sp_poly.length)
-        edge_homogeneous_growth = ref_edge
-    for edge in space.edges:
-        if edge.pair and edge.pair.face:
-            union_sp_poly = space.as_sp.union(edge.pair.face.as_sp)
-            current_shape_factor = (union_sp_poly.area / union_sp_poly.length)
-            if current_shape_factor > biggest_shape_factor:
-                biggest_shape_factor = current_shape_factor
-                edge_homogeneous_growth = edge
-    if edge_homogeneous_growth:
-        list_homogeneous.append(edge_homogeneous_growth)
-
-    for edge in list_homogeneous:
+    space_edges_adjacent_to_seed = [
+        edge for edge in space.edges if
+        not edge.is_mesh_boundary
+        and space.plan.get_space_of_edge(edge.pair).category.name == "seed"
+    ]
+    if space_edges_adjacent_to_seed:
+        edge = max(space_edges_adjacent_to_seed, key=lambda edge: edge.length)
         yield edge
+    else:
+        return
 
 
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -268,169 +226,47 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
                 yield edge.pair
 
 
-# predicates
-
-
-def mutable() -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge belongs to a mutable space
-    TODO : why use a predicate factory here ?
-    :return:
-    """
-
-    def _predicate(_: 'Edge', space: 'Space') -> bool:
-        if not space.mutable:
-            return False
-        return True
-
-    return _predicate
-
-
-def space_area(min_area: float = None, max_area: float = None) -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge belongs to a space with area in a range
-    :param min_area:
-    :param max_area
-    :return:
-    """
-
-    def _predicate(_: 'Edge', space: 'Space') -> bool:
-        if min_area is not None and max_area is not None:
-            return min_area <= space.area <= max_area
-        if min_area is not None:
-            return space.area >= min_area
-        if max_area is not None:
-            return space.area <= max_area
-
-    return _predicate
-
-
-def seed_empty_furthest_couple_query(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns for a given space the two edges that are most far from one another,
-    based on their start vertex
-    :return:
-    """
-    if not space.category or space.category.name != 'empty' or space.as_sp is None:
-        raise ValueError('You should provide an empty component, '
-                         'with a reference edge, to the query seed_empty!')
-
-    # TODO : why this check ? Seems unnecessary (a space is either empty or it will work)
-    if space.as_sp.geom_type != 'Polygon':
-        raise ValueError('The space on which action is led should be a polygon!')
-
-    kept_edges = []
-    d_max = 0
-
-    for edge in space.edges:
-        d_max_edge = 0
-        edge_far = None
-        for edge_sibling in space.siblings(edge):
-            edge_start_sp = edge.start.as_sp
-            d_tmp = edge_sibling.start.as_sp.distance(edge_start_sp)
-            if d_tmp > d_max_edge:
-                d_max_edge = d_tmp
-                edge_far = edge_sibling
-        if d_max_edge > d_max:
-            kept_edges = [edge, edge_far]
-            d_max = d_max_edge
-
-    for edge in kept_edges:
-        yield edge
-
-
-def seed_empty_furthest_couple_middle(space: 'Space', *_) -> Generator['Edge', bool, None]:
-    """
-    Returns for a given space the two edges that are most far from one another,
-    based on their middle
-    :return:
-    """
-    if not space.category or space.category.name != 'empty' or space.as_sp is None:
-        raise ValueError('You should provide an empty component, with a reference edge!')
-
-    if space.as_sp.geom_type != 'Polygon':
-        raise ValueError('The space on which action is led should be a polygon!')
-
-    kept_edges = []
-    d_max = 0
-
-    for edge in space.edges:
-        d_max_edge = 0
-        edge_far = None
-        for edge_sibling in space.siblings(edge):
-            edge_start_middle_sp = edge.barycenter(0.5).as_sp
-            d_tmp = edge_sibling.barycenter(0.5).as_sp.distance(edge_start_middle_sp)
-            if d_tmp > d_max_edge:
-                d_max_edge = d_tmp
-                edge_far = edge_sibling
-        if d_max_edge > d_max:
-            kept_edges = [edge, edge_far]
-            d_max = d_max_edge
-
-    for edge in kept_edges:
-        yield edge
-
-
-def corner_stone(edge: 'Edge', space: 'Space') -> bool:
-    """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
-    """
-    face = edge.face
-
-    # case 1 : the only face of the space
-    if len(space._faces_id) == 1:
-        return True
-
-    # case 2 : fully enclosing face
-    face_edges = list(face.edges)
-    for edge in space.exterior_edges:
-        if edge not in face_edges:
-            break
-        face_edges.remove(edge)
-    else:
-        return False
-
-    # case 4 : standard case
-    forbidden_edges = list(face.edges)
-    space.change_reference_edges(forbidden_edges)
-    adjacent_faces = list(space.adjacent_faces(face))
-
-    if len(adjacent_faces) == 1:
-        return False
-
-    remaining_faces = adjacent_faces[:]
-
-    # temporarily remove the face_id from the space
-    space.remove_face_id(face)
-
-    # we must check to see if we split the space by removing the face
-    # for each adjacent face inside the space check if they are still connected
-    while remaining_faces:
-
-        adjacent_face = remaining_faces[0]
-        connected_faces = [adjacent_face]
-
-        for connected_face in space.connected_faces(adjacent_face):
-            # try to reach the other adjacent faces
-            if connected_face in remaining_faces:
-                remaining_faces.remove(connected_face)
-            connected_faces.append(connected_face)
-
-        remaining_faces.remove(adjacent_face)
-
-        if len(remaining_faces) != 0:
-            space.add_face_id(face)
-            return True
-        else:
-            break
-
-    space.add_face_id(face)
-    return False
-
 # Query factories
+
+def farthest_edges_barycenter(coeff: float = 0) -> EdgeQuery:
+    """
+    Returns the two farthest edges of the space according to their barycenter
+    :param coeff:
+    :return:
+    """
+
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        """
+        Returns for a given space the two edges that are most far from one another,
+        based on their middle
+        :return:
+        """
+        kept_edges = []
+        d_max = 0
+        seen = []
+
+        for edge in space.edges:
+            seen.append(edge)
+            d_max_edge = 0
+            edge_far = None
+            for edge_sibling in space.siblings(edge):
+                # to prevent to compute n**2 distances (but only 1/2*(n-1)**2)
+                if edge_sibling in seen:
+                    continue
+                point_1 = barycenter(edge.start.coords, edge.end.coords, coeff)
+                point_2 = barycenter(edge_sibling.start.coords, edge_sibling.end.coords, coeff)
+                d_tmp = distance(point_1, point_2)
+                if d_tmp > d_max_edge:
+                    d_max_edge = d_tmp
+                    edge_far = edge_sibling
+            if d_max_edge > d_max:
+                kept_edges = [edge, edge_far]
+                d_max = d_max_edge
+
+        for edge in kept_edges:
+            yield edge
+
+    return _query
 
 
 def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
@@ -509,6 +345,64 @@ def adjacent_empty_space(edge: 'Edge', space: 'Space') -> bool:
     """
     space_pair = space.plan.get_space_of_face(edge.pair.face)
     return space_pair and space_pair.category.name == 'empty'
+
+
+def corner_stone(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the removal of the edge's face from the space
+    will cut it in several spaces or is the only face
+    """
+    face = edge.face
+
+    # case 1 : the only face of the space
+    if len(space._faces_id) == 1:
+        return True
+
+    # case 2 : fully enclosing face
+    face_edges = list(face.edges)
+    for edge in space.exterior_edges:
+        if edge not in face_edges:
+            break
+        face_edges.remove(edge)
+    else:
+        return False
+
+    # case 4 : standard case
+    forbidden_edges = list(face.edges)
+    space.change_reference_edges(forbidden_edges)
+    adjacent_faces = list(space.adjacent_faces(face))
+
+    if len(adjacent_faces) == 1:
+        return False
+
+    remaining_faces = adjacent_faces[:]
+
+    # temporarily remove the face_id from the space
+    space.remove_face_id(face)
+
+    # we must check to see if we split the space by removing the face
+    # for each adjacent face inside the space check if they are still connected
+    while remaining_faces:
+
+        adjacent_face = remaining_faces[0]
+        connected_faces = [adjacent_face]
+
+        for connected_face in space.connected_faces(adjacent_face):
+            # try to reach the other adjacent faces
+            if connected_face in remaining_faces:
+                remaining_faces.remove(connected_face)
+            connected_faces.append(connected_face)
+
+        remaining_faces.remove(adjacent_face)
+
+        if len(remaining_faces) != 0:
+            space.add_face_id(face)
+            return True
+        else:
+            break
+
+    space.add_face_id(face)
+    return False
 
 
 # predicate factories
@@ -739,6 +633,27 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     return _predicate
 
 
+def space_area(min_area: float = None, max_area: float = None) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge belongs to a space with area in a range
+    TODO : this is bad because we run this for every edge, it would be better as a query
+    :param min_area:
+    :param max_area
+    :return:
+    """
+
+    def _predicate(_: 'Edge', space: 'Space') -> bool:
+        if min_area is not None and max_area is not None:
+            return min_area <= space.area <= max_area
+        if min_area is not None:
+            return space.area >= min_area
+        if max_area is not None:
+            return space.area <= max_area
+
+    return _predicate
+
+
 # Catalog Selectors
 
 SELECTORS = {
@@ -856,17 +771,17 @@ SELECTORS = {
 
     "seed_duct": Selector(seed_duct),
 
-    "seed_empty_furthest_couple": Selector(seed_empty_furthest_couple_query),
+    "seed_empty_furthest_couple": Selector(farthest_edges_barycenter()),
 
-    "seed_empty_furthest_couple_space_area_min_100000": Selector(
-        seed_empty_furthest_couple_query,
+    "farthest_couple_start_space_area_min_100000": Selector(
+        farthest_edges_barycenter(),
         [
             space_area(min_area=100000)
         ]
     ),
 
-    "seed_empty_furthest_couple_middle_space_area_min_100000": Selector(
-        seed_empty_furthest_couple_middle,
+    "farthest_couple_middle_space_area_min_100000": Selector(
+        farthest_edges_barycenter(0.5),
         [
             space_area(min_area=100000)
         ]
@@ -882,14 +797,7 @@ SELECTORS = {
     "fuse_small_cell": Selector(
         boundary_unique_longest,
         [
-            space_area(max_area=30000), mutable()
-        ]
-    ),
-
-    "homogeneous": Selector(
-        homogeneous,
-        [
-            adjacent_empty_space
+            space_area(max_area=30000)
         ]
     ),
 
@@ -899,12 +807,13 @@ SELECTORS = {
             adjacent_to_other_space,
             is_not(corner_stone)
         ]
-    )
+    ),
+
+    "single_edge": Selector(boundary_unique)
 }
 
 
 SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
-    "edges_length": SelectorFactory(lambda: boundary, [edge_length])
+    "edges_length": SelectorFactory(lambda: boundary, [edge_length]),
 }
-

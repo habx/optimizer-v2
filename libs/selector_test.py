@@ -136,3 +136,10 @@ def test_previous_angle_salient_ortho(l_plan):
     selector = SELECTORS["previous_angle_salient_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
     assert str(edges) == "[Edge:[(1000.0, 400.0), (1200.0, 400.0)]]"
+
+
+def test_corner_stone():
+    """
+    Test
+    :return:
+    """

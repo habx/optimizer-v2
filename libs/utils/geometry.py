@@ -16,7 +16,7 @@ from libs.utils.custom_types import Vector2d, Coords2d
 
 def magnitude(vector: Vector2d) -> float:
     """
-    Returns the magnitude of a vectorector
+    Returns the magnitude of a vector
     :param vector: vector as a tuple
     :return: float
     """
@@ -221,3 +221,14 @@ def pseudo_equal(value: float, other: float, epsilon: float) -> bool:
     :return: boolean
     """
     return other + epsilon > value > other - epsilon
+
+
+def distance(point_1: Coords2d, point_2: Coords2d) -> float:
+    """
+    Returns the distance between two points
+    :param point_1:
+    :param point_2:
+    :return:
+    """
+    vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
+    return magnitude(vector)

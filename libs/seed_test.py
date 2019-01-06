@@ -5,14 +5,13 @@ Seeder Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder,Filler, GROWTH_METHODS
-from libs.shuffle import few_corner_shuffle
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.shuffle import SHUFFLES
 
 from libs.grid import GRIDS
 from libs.reader_test import BLUEPRINT_INPUT_FILES
 from libs.selector import SELECTORS
 
-from libs.plot import plot_save
 from libs.plan import Plan
 from libs.category import SPACE_CATEGORIES
 
@@ -24,41 +23,16 @@ def test_grow_a_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-
-    seeder = Seeder(plan, GROWTH_METHODS)
-    seeder.add_condition(SELECTORS['seed_duct'], 'duct')
     GRIDS['ortho_grid'].apply_to(plan)
+    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+    (seeder.plant()
+           .grow()
+           .shuffle(SHUFFLES['seed_square_shape'])
+           .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+           .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+           .simplify(SELECTORS["fuse_small_cell"]))
 
-    seeder.plant()
-    seeder.grow()
-    few_corner_shuffle.run(plan, show=True)
-
-    plan.remove_null_spaces()
-    plan.make_space_seedable("empty")
-
-    seed_empty_furthest_couple = SELECTORS['seed_empty_furthest_couple']
-    seed_empty_area_max_100000 = SELECTORS['area_max=100000']
-    seed_methods = [
-        (
-            seed_empty_furthest_couple,
-            GROWTH_METHODS,
-            "empty"
-        ),
-        (
-            seed_empty_area_max_100000,
-            GROWTH_METHODS,
-            "empty"
-        )
-    ]
-
-    filler = Filler(plan, seed_methods)
-    filler.apply_to(plan)
-
-    ax = plan.plot(save=False, options=('fill', 'border', 'face'))
-    seeder.plot_seeds(ax)
-    plot_save()
-
-    plan.remove_null_spaces()
+    plan.plot()
 
     assert plan.check()
 

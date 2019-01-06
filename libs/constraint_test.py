@@ -88,6 +88,26 @@ def weird_plan() -> Plan:
     return Plan("weird_shaped").from_boundary(boundaries)
 
 
+def test_min_size_fail():
+    """
+    Test max_size
+    :return:
+    """
+    my_plan = square_plan(50.0)
+    constraint = CONSTRAINTS["min_size"]
+    assert not constraint.check(my_plan.empty_space)
+
+
+def test_min_size_check():
+    """
+    Test max_size
+    :return:
+    """
+    my_plan = square_plan(65.0)
+    constraint = CONSTRAINTS["min_size"]
+    assert constraint.check(my_plan.empty_space)
+
+
 def test_max_size_check():
     """
     Test max_size

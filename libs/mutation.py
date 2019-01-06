@@ -67,7 +67,10 @@ class Mutation:
         if self._spaces_modified:
             return self._spaces_modified(edge, spaces)
 
-        modified_spaces = [spaces[0].plan.get_space_of_face(edge.face)] + spaces
+        other_space = spaces[0].plan.get_space_of_face(edge.face)
+        if other_space is None:
+            return []
+        modified_spaces = [other_space] + spaces
 
         return modified_spaces
 
@@ -107,22 +110,22 @@ def swap_face(edge: 'Edge', spaces: [Optional['Space']]) -> Sequence['Space']:
     :param spaces:
     :return: a list of space
     """
-    assert len(spaces) >= 2, "At least two spaces must be provided"
-    assert spaces[0].has_face(edge.face), "The edge must belong to the first space"
+    assert len(spaces) >= 2, "Mutation: At least two spaces must be provided"
+    assert spaces[0].has_face(edge.face), "Mutation: The edge must belong to the first space"
 
     if spaces[1].face:
         assert (spaces[1].adjacent_to(edge.face),
-                "The edge face must be adjacent to the second space")
+                "Mutation: The edge face must be adjacent to the second space")
 
     face = edge.face
 
-    logging.debug("Mutation: swapping face %s of space %s to space %s", face, spaces[0], spaces[1])
+    logging.debug("Mutation: Swapping face %s of space %s to space %s", face, spaces[0], spaces[1])
 
     created_spaces = spaces[0].remove_face(face)
     spaces[1].add_face(face)
 
     if len(spaces) > 2:
-        logging.debug("Mutation: swap face, merging spaces")
+        logging.debug("Mutation: Swap face, merging spaces")
         spaces[1].merge(*spaces[2:])
 
     return [spaces[1]] + list(created_spaces)
