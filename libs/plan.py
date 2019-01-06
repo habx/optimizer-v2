@@ -660,8 +660,8 @@ class Space(PlanComponent):
         # if there is only one adjacent face to the removed one
         # no need to check for connectivity
         if len(adjacent_faces) == 1:
+            logging.debug("Space: Removing a face with only one adjacent edge")
             self.remove_face_id(face)
-            self._clean_hole_disappearance()
             return [self]
 
         remaining_faces = adjacent_faces[:]
@@ -695,6 +695,8 @@ class Space(PlanComponent):
                 break
 
         if len(space_connected_components) == 0:
+            logging.debug("Space: Removing a face without splitting the space")
+            self._clean_hole_disappearance()
             return created_spaces
 
         logging.debug("Space: The removal of a face split the space in disconnected components: %s",

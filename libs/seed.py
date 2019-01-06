@@ -586,7 +586,7 @@ if __name__ == '__main__':
 
         logging.debug("Start test")
         input_files = reader_test.BLUEPRINT_INPUT_FILES
-        plan = reader.create_plan_from_file(input_files[0])
+        plan = reader.create_plan_from_file(input_files[11])
 
         GRIDS['ortho_grid'].apply_to(plan)
 
