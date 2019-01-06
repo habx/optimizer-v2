@@ -546,6 +546,7 @@ class GrowthMethod:
 
 # Growth Methods
 
+
 fill_small_seed_category = GrowthMethod(
     'empty',
     (CONSTRAINTS["max_size_seed"],),
@@ -633,6 +634,5 @@ if __name__ == '__main__':
 
         plan.plot(show=True)
         plt.show()
-
 
     grow_a_plan()
