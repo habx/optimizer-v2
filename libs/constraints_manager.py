@@ -449,19 +449,19 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     'entrance': [
         [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}],
-        [area_constraint, {'min_max': 'max'}]
+        #[area_constraint, {'min_max': 'max'}]
     ],
     'wc': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint,
          {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
-        [area_constraint, {'min_max': 'max'}],
+        #[area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'bathroom': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint, {'category': ['doorWindow'], 'adj': False}],
-        [area_constraint, {'min_max': 'max'}],
+        #[area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'living': [

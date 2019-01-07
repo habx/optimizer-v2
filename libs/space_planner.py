@@ -155,9 +155,9 @@ class SpacePlanner:
         else:
             self.check_validity()
             logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
-            seed_plan = copy.plan_pickle(self.spec.plan, 'seed_plan')
+            print(self.spec.plan)
             for sol in self.manager.solver.solutions:
-                plan_solution = copy.load_pickle(seed_plan)
+                plan_solution = self.spec.plan.clone()
                 plan_solution = self.rooms_building(plan_solution, sol)
                 self.solutions_collector.add_plan(plan_solution)
                 logging.debug(plan_solution)

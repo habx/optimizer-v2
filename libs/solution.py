@@ -6,6 +6,7 @@ Solution collector
 from typing import List, Dict, Callable, Optional
 from libs.specification import Specification, Item
 from libs.plan import Plan
+import logging
 
 
 class SolutionsCollector:
@@ -79,9 +80,41 @@ class Solution:
             # Area score
             area_score += item_area_score
 
-        area_score = round(area_score/self.collector.spec.number_of_items, 2) - area_penalty * 20
+        area_score = round(area_score / self.collector.spec.number_of_items, 2) - area_penalty * 20
 
         return area_score
+
+    def shape_score(self) -> float:
+
+        shape_score = 100
+        for item in self.collector.spec.items:
+            space = self.items_spaces[item]
+            sp_space = space.as_sp
+            convex_hull = sp_space.convex_hull
+            if convex_hull.is_valid and sp_space.is_valid:
+                outside = convex_hull.difference(sp_space)
+                item_shape_score = min(100, 100 - (
+                            (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
+                logging.debug('Shape score : ', item_shape_score, 'room : ', item.id)
+            else:
+                logging.warning('Invalid shapely space')
+                item_shape_score = 100
+
+            shape_score = min(item_shape_score, shape_score)
+
+        return shape_score
+
+    def good_size_bonus_score(self) -> float:
+
+        for item1 in self.collector.spec.items:
+            for item2 in self.collector.spec.items:
+                if item1 != item2 and item1.category.name != 'entrance' and \
+                        item2.category.name != 'entrance':
+                    if item1.required_area < item2.required_area and \
+                            self.items_spaces[item1].area > self.items_spaces[item2].area:
+                        return 0
+
+        return 10
 
     def score(self) -> float:
         """
@@ -94,4 +127,3 @@ class Solution:
         Constraints list initialization
         :return: distance : float
         """
-

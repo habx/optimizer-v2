@@ -89,7 +89,7 @@ class Space(PlanComponent):
                  category: SpaceCategory = SPACE_CATEGORIES['empty']):
         super().__init__(plan)
         self._edges_id = [edge.id] if edge else []
-        self._faces_id = [edge.face._id] if edge.face else []
+        self._faces_id = [edge.face._id] if edge and edge.face else []
         self.category = category
 
     def __repr__(self):
