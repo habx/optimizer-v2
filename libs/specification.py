@@ -16,7 +16,8 @@ class Specification:
     The wishes of the user describing its flan
     """
 
-    def __init__(self, name: str = '', plan: Plan = None, items: Optional[List['Item']] = None):
+    def __init__(self, name: str = '', plan: Optional[Plan] = None,
+                 items: Optional[List['Item']] = None):
         self.name = name
         self.plan = plan
         self.items = items or []
@@ -54,8 +55,8 @@ class Specification:
         """
         apartment_type = 1
         for item in self.items:
-            if item.category.name in ['bedroom','office']:
-                apartment_type = apartment_type + 1
+            if item.category.name in ['bedroom', 'office']:
+                apartment_type += 1
         return apartment_type
 
     def add_item(self, value: 'Item'):
@@ -94,4 +95,3 @@ class Item:
         :return:
         """
         return (self.min_size.area + self.max_size.area)/2
-

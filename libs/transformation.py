@@ -8,7 +8,6 @@ Examples :
 • translation etc.
 """
 
-import copy
 from typing import Callable, Dict, Optional, TYPE_CHECKING
 
 from libs.utils.custom_types import Vector2d, Coords2d
@@ -52,14 +51,7 @@ class Transformation:
         if new_point is None:
             return None
 
-        new_vertex = Vertex(*new_point)
-        vertex.add_child(new_vertex)
-        new_vertex.parent = vertex
-        # We do a shallow copy of the transformation + a shallow copy of the params
-        # this means we will be referencing the same action object for each transformation of
-        # the same type, this also mean each param object will be referenced and not copied
-        new_vertex.transformation = copy.copy(self)
-        new_vertex.transformation.params = copy.copy(self.params)
+        new_vertex = Vertex(vertex.mesh, *new_point)
 
         return new_vertex
 
@@ -137,15 +129,18 @@ get = {
 
 if __name__ == '__main__':
 
-    from libs.mesh import Vertex, Edge
+    from libs.mesh import Vertex, Edge, Mesh
+
+    mesh = Mesh()
+
 
     def compute_a_barycenter():
         """
         Test
         :return:
         """
-        vertex_1 = Vertex()
-        vertex_2 = Vertex(10, 10)
+        vertex_1 = Vertex(mesh)
+        vertex_2 = Vertex(mesh, 10, 10)
         vertex_3 = (get['barycenter']
                     .config(vertex=vertex_2, coeff=0.5)
                     .apply_to(vertex_1))
@@ -159,7 +154,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        vertex_1 = Vertex(1.0, 1.0)
+        vertex_1 = Vertex(mesh, 1.0, 1.0)
         vector = (3.0, 2.0)
         vertex_3 = (get['translation']
                     .config(vector=vector)
@@ -174,12 +169,12 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        vertex_2 = Vertex(1.0, 1.0)
-        vertex_1 = Vertex(3.0, 3.0)
-        vertex_3 = Vertex(2.0, 0.0)
+        vertex_2 = Vertex(mesh, 1.0, 1.0)
+        vertex_1 = Vertex(mesh, 3.0, 3.0)
+        vertex_3 = Vertex(mesh, 2.0, 0.0)
         vector = (0.0, 1.0)
-        next_edge = Edge(vertex_2, None, None)
-        edge = Edge(vertex_1, next_edge, None)
+        next_edge = Edge(mesh, vertex_2, None, None)
+        edge = Edge(mesh, vertex_1, next_edge, None)
         vertex_4 = (get['projection']
                     .config(vector=vector, edge=edge)
                     .apply_to(vertex_3))
