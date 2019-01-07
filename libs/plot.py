@@ -233,6 +233,11 @@ class Plot:
                      solid_capstyle='butt')
 
     def _draw_space(self, space):
+        """
+        NOTE : this does not plot correctly holes in spaces.
+        :param space:
+        :return:
+        """
         if space.edge is None:
             return
         color = space.category.color
@@ -244,7 +249,7 @@ class Plot:
     def _draw_face(self, face):
         if face.edge is None:
             return
-        color = face.space.category.color if face.space else 'r'
+        color = 'r'
         xy = face.as_sp.exterior.xy
         new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
         self.face_figs[id(face)] = new_line
@@ -256,6 +261,8 @@ class Plot:
         :return:
         """
         for space in spaces:
+            if space is None:
+                continue
             _id = id(space)
             xy = space.as_sp.exterior.coords if space.edge is not None else None
             if _id not in self.space_figs:

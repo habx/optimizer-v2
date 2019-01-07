@@ -9,17 +9,14 @@ A constraint computes a score
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
 
-from libs.utils.catalog import Catalog
 from libs.utils.geometry import ccw_angle
 from libs.size import Size
 
 if TYPE_CHECKING:
-    from libs.plan import Space, Linear
+    from libs.plan import Space
 
 scoreFunction = Callable[[Union['Space', 'Linear']], float]
 scoreFunctionFactory = Callable[..., scoreFunction]
-
-CONSTRAINTS = Catalog('constraints')
 
 
 class Constraint:
@@ -32,31 +29,39 @@ class Constraint:
     according to the constraint score function.
     """
     def __init__(self,
-                 name: str,
-                 params: Dict[str, Any],
                  score_factory: scoreFunctionFactory,
+                 params: Dict[str, Any], name: str = "",
                  imperative: bool = True):
-        self.name = name
-        self.params = params
         self.score_factory = score_factory  # the min the better
+        self.params = params
+        self.name = name
         self.imperative = imperative
 
     def __repr__(self):
         return 'Constraint: {0}'.format(self.name)
 
     def check(self,
-              space_or_linear: Union['Space', 'Linear'],
-              other: Optional['Constraint'] = None) -> bool:
+              *spaces: 'Space',
+              other_constraint: Optional['Constraint'] = None) -> bool:
         """
         Returns True if the constraint is satisfied. A constraint is deemed satisfied if
         its score is inferior or equal to zero
-        :param space_or_linear:
-        :param other: an other constraint
+        :param spaces:
+        :param other_constraint: an other constraint
         :return:
         """
-        if other is not None:
-            return self.score(space_or_linear) <= 0 or other.score(space_or_linear) <= 0
-        return self.score(space_or_linear) <= 0
+        for space in spaces:
+            # per convention if the params specify a category name, we only apply the constraint
+            # to spaces of the specified category
+            if ("category_name" in self.params
+                    and space.category.name != self.params["category_name"]):
+                continue
+            if other_constraint is not None:
+                if self.score(space) > 0 and other_constraint.score(space) > 0:
+                    return False
+            if self.score(space) > 0:
+                return False
+        return True
 
     def set(self, **params) -> 'Constraint':
         """
@@ -73,13 +78,13 @@ class Constraint:
 
         return self
 
-    def score(self, space_or_linear: Union['Space', 'Linear']) -> float:
+    def score(self, space: 'Space') -> float:
         """
-        Computes a score of how the space or the linear respects the constraint
-        :param space_or_linear:
+        Computes a score of how the space respects the constraint
+        :param space:
         :return: a score
         """
-        return self.score_factory(self.params)(space_or_linear)
+        return self.score_factory(self.params)(space)
 
 
 class SpaceConstraint(Constraint):
@@ -100,7 +105,7 @@ class LinearConstraint(Constraint):
 
 # score functions factories
 
-def square_shape(params: Dict) -> scoreFunction:
+def square_shape(_: Dict) -> scoreFunction:
     """
     Scores the area / perimeter ratio of a space.
     :return:
@@ -117,16 +122,20 @@ def square_shape(params: Dict) -> scoreFunction:
 
 def few_corners(params: Dict) -> scoreFunction:
     """
-    Scores a space by counting the number of corners
+    Scores a space by counting the number of corners.
+    Note : we only count the exterior corners of the space
+    We do not count the corners of internal holes.
+    A corner is defined as an angle between two boundaries edge superior to 20.0
     :param params:
     :return:
     """
     min_corners = params['min_corners']
+    corner_min_angle = 20.0
 
     def _score(space: 'Space') -> float:
         number_of_corners = 0
-        for edge in space.edges:
-            if ccw_angle(edge.vector, edge.space_next.vector) >= 20.0:
+        for edge in space.exterior_edges:
+            if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
                 number_of_corners += 1
 
         if number_of_corners == 0:
@@ -154,21 +163,64 @@ def max_size(params: Dict) -> scoreFunction:
     return _score
 
 
-few_corners_constraint = SpaceConstraint('few_corners', {'min_corners': 4}, few_corners,
+def min_size(params: Dict) -> scoreFunction:
+    """
+    Checks if a space has a size inferior to the specified size
+    :param params
+    :return:
+    """
+    _min_size: Size = params['min_size']
+
+    def _score(space: 'Space') -> float:
+        if space.size >= _min_size:
+            return 0
+        else:
+            return _min_size.distance(space.size)
+
+    return _score
+
+
+# Imperative constraints
+min_size_constraint = SpaceConstraint(min_size,
+                                      {"min_size": Size(3900, 60, 60)},
+                                      "min-size")
+
+max_size_constraint = SpaceConstraint(max_size,
+                                      {"max_size": Size(100000, 1000, 1000)},
+                                      "max_size")
+
+max_size_constraint_seed = SpaceConstraint(max_size,
+                                           {"max_size": Size(100000, 1000, 1000),
+                                            "category_name": "seed"},
+                                           "max_size")
+
+max_size_s_constraint_seed = SpaceConstraint(max_size,
+                                             {"max_size": Size(180000, 400, 350),
+                                              "category_name": "seed"},
+                                             "max_size_s")
+
+max_size_xs_constraint_seed = SpaceConstraint(max_size,
+                                              {"max_size": Size(90000, 300, 300),
+                                               "category_name": "seed"},
+                                              "max_size_xs")
+
+# objective constraints
+square_shape = SpaceConstraint(square_shape,
+                               {"max_ratio": 100.0},
+                               "square_shape", imperative=False)
+
+few_corners_constraint = SpaceConstraint(few_corners,
+                                         {"min_corners": 4},
+                                         "few_corners",
                                          imperative=False)
-CONSTRAINTS.add(few_corners_constraint)
 
-max_size_constraint = SpaceConstraint('max_size', {'max_size': Size(100000, 1000, 1000)}, max_size)
-CONSTRAINTS.add(max_size_constraint)
 
-max_size_s_constraint = SpaceConstraint('max_size_s', {'max_size': Size(180000, 400, 350)},
-                                        max_size)
-CONSTRAINTS.add(max_size_s_constraint)
-
-max_size_xs_constraint = SpaceConstraint('max_size_xs', {'max_size': Size(90000, 250, 300)},
-                                         max_size)
-CONSTRAINTS.add(max_size_xs_constraint)
-
-square_shape = SpaceConstraint('square_shape', {'max_ratio': 100.0}, square_shape, imperative=False)
-
-CONSTRAINTS.add(square_shape)
+CONSTRAINTS = {
+    "few_corners": few_corners_constraint,
+    "min_size": min_size_constraint,
+    "max_size": max_size_constraint,
+    "max_size_seed": max_size_constraint_seed,
+    "max_size_s_seed": max_size_s_constraint_seed,
+    "max_size_xs_seed": max_size_xs_constraint_seed,
+    "square_shape": square_shape
+}

@@ -114,8 +114,8 @@ def test_cut_inserted_face():
     mesh = Mesh().from_boundary(perimeter)
 
     perimeter_ = [(500, 300), (500, 500), (300, 500), (300, 300)]
-    mesh_ = Mesh().from_boundary(perimeter_)
-    mesh.faces[0].insert_face(mesh_.faces[0])
+    face = mesh.new_face_from_boundary(perimeter_)
+    mesh.faces[0].insert_face(face)
 
     edges = list(mesh.faces[1].edges)
     edges[1].recursive_barycenter_cut(0.5)
@@ -131,7 +131,7 @@ def test_snap_to_edge():
     perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
     mesh = Mesh().from_boundary(perimeter)
     edges = list(mesh.faces[0].edges)
-    vertex = Vertex(100.0, 0.0)
+    vertex = Vertex(mesh, 100.0, 0.0)
     for edge in edges:
         vertex.snap_to_edge(edge)
 
@@ -155,28 +155,28 @@ def test_add_face():
 
     # single point touching
     perimeter_3 = [(500, 200), (400, 200), (400, 175)]
-    mesh3 = Mesh().from_boundary(perimeter_3)
-    face = face.insert_face(mesh3.faces[0])[0]
+    face_2 = mesh.new_face_from_boundary(perimeter_3)
+    face = face.insert_face(face_2)[0]
 
     # two single points touching
     perimeter_4 = [(0, 125), (250, 0), (250, 125)]
-    mesh4 = Mesh().from_boundary(perimeter_4)
-    face = face.insert_face(mesh4.faces[0])[0]
+    face_3 = mesh.new_face_from_boundary(perimeter_4)
+    face = face.insert_face(face_3)[0]
 
     # two following edges touching
     perimeter_5 = [(0, 250), (0, 135), (250, 250)]
-    mesh5 = Mesh().from_boundary(perimeter_5)
-    face = face.insert_face(mesh5.faces[0])[0]
+    face_4 = mesh.new_face_from_boundary(perimeter_5)
+    face = face.insert_face(face_4)[0]
 
     # three following edges touching
     perimeter_6 = [(250, 250), (270, 250), (270, 475), (500, 475), (500, 500), (250, 500)]
-    mesh6 = Mesh().from_boundary(perimeter_6)
-    face = face.insert_face(mesh6.faces[0])[0]
+    face_5 = mesh.new_face_from_boundary(perimeter_6)
+    face = face.insert_face(face_5)[0]
 
     # enclosed face
     perimeter_7 = [(400, 25), (475, 25), (475, 100), (400, 100)]
-    mesh7 = Mesh().from_boundary(perimeter_7)
-    face.insert_face(mesh7.faces[0])
+    face_6 = mesh.new_face_from_boundary(perimeter_7)
+    face.insert_face(face_6)
 
     for edge in mesh.boundary_edges:
         if edge.length > 50:
@@ -199,13 +199,13 @@ def test_add_and_cut_face():
 
     # two following edges touching
     perimeter_5 = [(0, 100), (0, 50), (100, 100)]
-    mesh5 = Mesh().from_boundary(perimeter_5)
-    face = face.insert_face(mesh5.faces[0])[0]
+    face_2 = mesh.new_face_from_boundary(perimeter_5)
+    face = face.insert_face(face_2)[0]
 
     # three following edges touching
     perimeter_6 = [(200, 200), (100, 200), (100, 100), (120, 100), (120, 180), (200, 180)]
-    mesh6 = Mesh().from_boundary(perimeter_6)
-    face = face.insert_face(mesh6.faces[0])[0]
+    face_3 = mesh.new_face_from_boundary(perimeter_6)
+    face = face.insert_face(face_3)[0]
 
     edges = list(face.edges)
     edges[2].recursive_barycenter_cut(0.8, 80.0)
@@ -283,6 +283,17 @@ def cut_to_inside_edge():
     assert mesh.check()
 
 
+def test_insert_identical_face():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.faces[0].insert_face_from_boundary(perimeter)
+    assert mesh.check()
+
+
 def test_remove_complex_edge():
     """
     Test
@@ -313,8 +324,8 @@ def test_insert_complex_face_1():
     mesh.faces[0].insert_face_from_boundary(hole)
 
     hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
-
     mesh.faces[0].insert_face_from_boundary(hole_2)
+    mesh.plot()
 
     assert mesh.check()
 
@@ -512,7 +523,7 @@ def test_face_clean():
     boundary_edge.face.edge = new_edge
     boundary_edge.previous.next = new_edge
     boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
-    new_face = Face(boundary_edge, mesh)
+    new_face = Face(mesh, boundary_edge)
     boundary_edge.face = new_face
     new_edge.pair.face = new_face
 
