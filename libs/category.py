@@ -2,7 +2,6 @@
 """
 Category module : describes the type of space or linear that can be used in a program or a plan.
 """
-from libs.utils.catalog import Catalog
 
 CATEGORIES_COLORS = {
     'duct': 'k',
@@ -24,7 +23,7 @@ CATEGORIES_COLORS = {
     'dressing': 'pink',
     'laundry': 'lightsteelblue',
     'office': 'darkseagreen',
-    'misc':'lightsteelblue',
+    'misc': 'lightsteelblue',
     'balcony': 'silver',
     'terrace': 'silver',
     'garden': 'green',
@@ -85,32 +84,33 @@ class LinearCategory(Category):
         self.width = width
 
 
-LINEAR_CATEGORIES = Catalog('linears').add(
-    LinearCategory('window', mutable=False, seedable=True, aperture=True),
-    LinearCategory('door', aperture=True),
-    LinearCategory('doorWindow', mutable=False, seedable=True, aperture=True),
-    LinearCategory('frontDoor', mutable=False, seedable=True, aperture=True),
-    LinearCategory('wall'),
-    LinearCategory('externalWall', False, width=2.0))
+LINEAR_CATEGORIES = {
+    "window": LinearCategory('window', mutable=False, seedable=True, aperture=True),
+    "door": LinearCategory('door', aperture=True),
+    "doorWindow": LinearCategory('doorWindow', mutable=False, seedable=True, aperture=True),
+    "frontDoor": LinearCategory('frontDoor', mutable=False, seedable=True, aperture=True),
+    "wall": LinearCategory('wall'),
+    "externalWall": LinearCategory('externalWall', False, width=2.0)
+}
 
-SPACE_CATEGORIES = Catalog('spaces').add(
-    SpaceCategory('empty'),
-    SpaceCategory('seed'),
-    SpaceCategory('duct', mutable=False, seedable=True),
-    SpaceCategory('loadBearingWall', mutable=False),
-    SpaceCategory('chamber'),
-    SpaceCategory('bedroom'),
-    SpaceCategory('living', circulation=True),
-    SpaceCategory('entrance', circulation=True),
-    SpaceCategory('kitchen'),
-    SpaceCategory('bathroom'),
-    SpaceCategory('dining', circulation=True),
-    SpaceCategory('office'),
-    SpaceCategory('dressing'),
-    SpaceCategory('wc'),
-    SpaceCategory('corridor', circulation=True),
-    SpaceCategory('balcony', mutable=False, external=True),
-    SpaceCategory('garden', mutable=False, external=True),
-    SpaceCategory('terrace', mutable=False, external=True),
-    SpaceCategory('loggia', mutable=False, external=True)
-)
+SPACE_CATEGORIES = {
+    "empty": SpaceCategory('empty'),
+    "seed": SpaceCategory('seed'),
+    "duct": SpaceCategory('duct', mutable=False, seedable=True),
+    "loadBearingWall": SpaceCategory('loadBearingWall', mutable=False),
+    "chamber": SpaceCategory('chamber'),
+    "bedroom": SpaceCategory('bedroom'),
+    "living": SpaceCategory('living', circulation=True),
+    "entrance": SpaceCategory('entrance', circulation=True),
+    "kitchen": SpaceCategory('kitchen'),
+    "bathroom": SpaceCategory('bathroom'),
+    "dining": SpaceCategory('dining', circulation=True),
+    "office": SpaceCategory('office'),
+    "dressing": SpaceCategory('dressing'),
+    "wc": SpaceCategory('wc'),
+    "corridor": SpaceCategory('corridor', circulation=True),
+    "balcony": SpaceCategory('balcony', mutable=False, external=True),
+    "garden": SpaceCategory('garden', mutable=False, external=True),
+    "terrace": SpaceCategory('terrace', mutable=False, external=True),
+    "loggia": SpaceCategory('loggia', mutable=False, external=True)
+}

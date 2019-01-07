@@ -36,3 +36,4 @@ load bearing wall)~~
 - [ ] create a repair function : that will insure correct apartment circulation
 - [ ] create genetic algorithm framework : population generation, random crossovers, random mutations, 
 repair population, cost function evaluation, selection of new generation
+- [ ] replace sanity checks that raise ValueError exception with assertions

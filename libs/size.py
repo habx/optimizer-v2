@@ -61,17 +61,18 @@ class Size:
         :return:
         """
         output = 0
-        if self.area is not None:
-            if other.area is not None:
-                output += (self.area - other.area)**2
 
-        if self.width is not None:
-            if other.width is not None:
-                output += (self.width - other.width)**2
+        self_area = self.area or 0
+        other_area = other.area or 0
+        output += (self_area - other_area)**2
 
-        if self.depth is not None:
-            if other.depth is not None:
-                output += (self.depth - other.depth)**2
+        self_width = self.width or 0
+        other_width = other.width or 0
+        output += (self_width - other_width)**2
+
+        self_depth = self.depth or 0
+        other_depth = other.depth or 0
+        output += (self_depth - other_depth)**2
 
         return output
 
@@ -86,6 +87,8 @@ class Size:
                 if not le_area:
                     logging.debug('Max area reached : {0} > {1}'.format(self.area, other.area))
                 is_less = is_less and le_area
+            else:
+                return False
 
         if self.width is not None:
             if other.width is not None:
@@ -93,6 +96,8 @@ class Size:
                 if not le_width:
                     logging.debug('Max width reached : {0} > {1}'.format(self.width, other.width))
                 is_less = is_less and le_width
+            else:
+                return False
 
         if self.depth is not None:
             if other.depth is not None:
@@ -100,6 +105,8 @@ class Size:
                 if not le_depth:
                     logging.debug('Max depth reached : {0} > {1}'.format(self.depth, other.depth))
                 is_less = is_less and le_depth
+            else:
+                return False
 
         return is_less
 
@@ -108,14 +115,19 @@ class Size:
         if self.area is not None:
             if other.area is not None:
                 is_greater = is_greater and self.area >= other.area - other.epsilon**2
+        else:
+            return False
 
         if self.width is not None:
             if other.width is not None:
                 is_greater = is_greater and self.width >= other.width - other.epsilon
+        else:
+            return False
 
         if self.depth is not None:
             if other.depth is not None:
                 is_greater = is_greater and self.depth >= other.depth - other.epsilon
+        else:
+            return False
 
         return is_greater
-

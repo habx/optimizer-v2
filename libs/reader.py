@@ -26,8 +26,8 @@ DEFAULT_SPECIFICATION_INPUT_FOLDER = "../resources/specifications"
 
 def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
     """
-    Returns a list containing names of all files contained in specified foler - for tests pruporse
-    :param folder path
+    Returns a list containing names of all files contained in specified folder - for tests purposes
+    :param path
     :return:
     """
     list_files = []
@@ -260,8 +260,6 @@ def create_specification_from_file(input_file: str):
           }
         }]
     }
-    TODO : we should store the blueprint reference in the setup json
-
     """
     spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
     specification = Specification(input_file)
@@ -286,7 +284,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = 'Levallois_Letourneur_setup.json'
-        spec = create_specification_from_file(input_file)
+        create_specification_from_file(input_file)
 
 
     specification_read()
