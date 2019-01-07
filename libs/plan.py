@@ -1505,6 +1505,14 @@ class Plan:
                 return False
         return True
 
+    @property
+    def mutable_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator of the mutable spaces
+        :return:
+        """
+        return (space for space in self.spaces if space.mutable)
+
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
                                    category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':

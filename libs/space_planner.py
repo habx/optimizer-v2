@@ -10,15 +10,19 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
+from typing import TYPE_CHECKING, List, Dict, Callable, Optional
 import logging
 import matplotlib.pyplot as plt
-import libs.utils.copy as copy
 
 from libs.specification import Specification
 from libs.solution import SolutionsCollector
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
 import networkx as nx
+
+if TYPE_CHECKING:
+    from libs.plan import Space
 
 
 class SpacePlanner:
@@ -231,43 +235,19 @@ if __name__ == '__main__':
         input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
-        seeder = libs.seed.Seeder(plan, libs.seed.GROWTH_METHODS)
-        seeder.add_condition(SELECTORS['seed_duct'], 'duct')
         GRIDS['ortho_grid'].apply_to(plan)
 
-        seeder.plant()
-        seeder.grow(show=True)
-        plan.plot(save=False)
-        SHUFFLES['square_shape'].run(plan, show=True)
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
+        (seeder.plant()
+         .grow()
+         .shuffle(SHUFFLES['seed_square_shape'])
+         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                              "empty"))
+         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+         .simplify(SELECTORS["fuse_small_cell"])
+         .shuffle(SHUFFLES['seed_square_shape']))
 
-        ax = plan.plot(save=False)
-        seeder.plot_seeds(ax)
-        plt.title("seeding points")
-        plt.show()
-
-        plan.remove_null_spaces()
-        plan.make_space_seedable("empty")
-
-        seed_empty_furthest_couple_middle = SELECTORS[
-            'seed_empty_furthest_couple_middle_space_area_min_100000']
-        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
-        seed_methods = [
-            (
-                seed_empty_furthest_couple_middle,
-                libs.seed.GROWTH_METHODS_FILL,
-                "empty"
-            ),
-            (
-                seed_empty_area_max_100000,
-                libs.seed.GROWTH_METHODS_SMALL_SPACE_FILL,
-                "empty"
-            )
-        ]
-
-        filler = libs.seed.Filler(plan, seed_methods)
-        filler.apply_to(plan)
-        plan.remove_null_spaces()
-        SHUFFLES['square_shape'].run(plan, show=True)
 
         input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
