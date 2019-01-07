@@ -209,6 +209,9 @@ class ConnectivityConstraint(Constraint):
         """
         logging.debug("propagating adjacency constraint for value %i", value.ix)
         subgraph = self.create_sub_graph(value.ix, node.cells)
+        number_of_nodes = nx.number_of_nodes(subgraph)
+        if not number_of_nodes:
+            raise Conflict("Solver: Connectivity constraint unsat")
         has_changed = False
 
         # if the graph is connected do nothing

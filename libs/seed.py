@@ -616,10 +616,10 @@ if __name__ == '__main__':
         """
 
         logging.debug("Start test")
-        input_files = reader_test.BLUEPRINT_INPUT_FILES
-        plan = reader.create_plan_from_file(input_files[11])
+        input_file = 'Antony_A22.json'
+        plan = reader.create_plan_from_file(input_file)
 
-        GRIDS['ortho_grid'].apply_to(plan)
+        GRIDS['finer_ortho_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()

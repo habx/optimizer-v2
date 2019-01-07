@@ -10,6 +10,7 @@ TODO : replace raise ValueError with assertions
 """
 from typing import Optional, List, Tuple, Sequence, Generator, Union
 import logging
+import uuid
 
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
@@ -30,7 +31,8 @@ class PlanComponent:
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
 
-    def __init__(self, plan: 'Plan'):
+    def __init__(self, plan: 'Plan', _id: Optional['uuid.UUID'] = None):
+        self.id = _id or uuid.uuid4()
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
 
@@ -86,10 +88,11 @@ class Space(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  edge: Optional['Edge'],
-                 category: SpaceCategory = SPACE_CATEGORIES['empty']):
-        super().__init__(plan)
+                 category: SpaceCategory = SPACE_CATEGORIES['empty'],
+                 _id: Optional[uuid.UUID] = None):
+        super().__init__(plan, _id)
         self._edges_id = [edge.id] if edge else []
-        self._faces_id = [edge.face._id] if edge.face else []
+        self._faces_id = [edge.face._id] if edge and edge.face else []
         self.category = category
 
     def __repr__(self):
@@ -103,7 +106,7 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain immutable uuid).
         :return:
         """
-        new_space = Space(plan, None, self.category)
+        new_space = Space(plan, None, self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -1154,12 +1157,16 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    def __init__(self, plan: 'Plan', edge: Optional[Edge], category: LinearCategory):
+    def __init__(self,
+                 plan: 'Plan',
+                 edge: Optional[Edge],
+                 category: LinearCategory,
+                 _id: Optional[uuid.UUID] = None):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
 
-        super().__init__(plan)
+        super().__init__(plan, _id)
         self.category = category
         self._edges_id = [edge.id] if edge else []
 
@@ -1171,7 +1178,7 @@ class Linear(PlanComponent):
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, None, self.category)
+        new_linear = Linear(plan, None, self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -1306,6 +1313,48 @@ class Plan:
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
         new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
         return new_plan
+
+    def get_from_id(self, _id: uuid.UUID) -> Optional['PlanComponent']:
+        """
+        returns the component of the given id
+        :param _id: a uuid
+        :return: a component
+        """
+        # Start by searching in spaces
+        for space in self.spaces:
+            if space.id == _id:
+                return space
+        # then search in linears
+        for linear in self.linears:
+            if linear.id == _id:
+                return linear
+        logging.debug("Plan: component not found for this id %s", _id)
+        return None
+
+    def get_space_from_id(self, _id: uuid.UUID) -> Optional['Space']:
+        """
+        returns the component of the given id
+        :param _id: a uuid
+        :return: a component
+        """
+        # Start by searching in spaces
+        for space in self.spaces:
+            if space.id == _id:
+                return space
+        logging.debug("Plan: Space not found for this id %s", _id)
+        return None
+
+    def get_linear_from_id(self, _id: uuid.UUID) -> Optional['Linear']:
+        """
+        returns the component of the given id
+        :param _id: a uuid
+        :return: a component
+        """
+        for linear in self.linears:
+            if linear.id == _id:
+                return linear
+        logging.debug("Plan: Linear not found for this id %s", _id)
+        return None
 
     def from_boundary(self, boundary: Sequence[Coords2d]) -> 'Plan':
         """

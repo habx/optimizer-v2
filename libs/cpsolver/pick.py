@@ -21,7 +21,9 @@ def random_untried_cell(node: 'DecisionNode', solver: 'Solver') -> int:
     :param solver:
     :return:
     """
+    max_try = 100
     while True:
+        max_try -= 1
         random_ix = randrange(len(list(node.cells)))
         if not solver.has_been_tried(random_ix):
             break

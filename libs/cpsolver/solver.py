@@ -251,6 +251,9 @@ class Solver:
                 break
 
             except Restart:
+                if len(self._tried_cells) == len(self.cells):
+                    logging.debug("Solver: Every cell has been tried")
+                    break
                 self.restart()
 
         logging.info("Finished !")

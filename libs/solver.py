@@ -16,10 +16,8 @@ import matplotlib.pyplot as plt
 import libs.reader as reader
 from libs.seed import (
     Seeder,
-    Filler,
     GROWTH_METHODS,
-    GROWTH_METHODS_FILL,
-    GROWTH_METHODS_SMALL_SPACE_FILL
+    FILL_METHODS
 )
 from libs.selector import SELECTORS
 from libs.grid import GRIDS
@@ -27,24 +25,26 @@ from libs.shuffle import SHUFFLES
 
 
 if TYPE_CHECKING:
-    from libs.plan import Plan, Space
+    from libs.plan import Plan
+    from libs.category import SpaceCategory
     from libs.specification import Specification
     from libs.cpsolver.solver import Solver
     from libs.cpsolver.variables import Cell
+    import uuid
 
 
 COMPONENTS_REQUIRED = {
-    "living": {"window": 2, "doorWindow": 1},
+    "living": {"doorWindow": 1},
     "bedroom": {"window": 1},
     "entrance": {"frontDoor": 1},
-    "kitchen": {"duct": 1, "window": 1},
+    "kitchen": {"duct": 1},
     "bathroom": {"duct": 1},
     "wc": {"duct": 1},
     "dressing": {"window": -1}
 }
 
-MIN_AREA_COEFF = 0.5
-MAX_AREA_COEFF = 1.5
+MIN_AREA_COEFF = 0
+MAX_AREA_COEFF = 3.0
 
 
 def adjacency_matrix(plan: 'Plan') -> [[bool]]:
@@ -63,7 +63,7 @@ def adjacency_matrix(plan: 'Plan') -> [[bool]]:
     return matrix
 
 
-def add_cells(plan: 'Plan', solver: 'Solver') -> Dict[int, 'Space']:
+def add_cells(plan: 'Plan', solver: 'Solver') -> Dict[int, 'uuid.UUID']:
     """
     Returns an array of cell
     :param plan:
@@ -79,7 +79,7 @@ def add_cells(plan: 'Plan', solver: 'Solver') -> Dict[int, 'Space']:
             "components": tuple(space.components_category_associated())
         }
         solver.add_cell(solver.domain(), props, ix)
-        cells_to_spaces[ix] = space
+        cells_to_spaces[ix] = space.id
 
     logging.debug("SOLVER : Added cells %s", solver.cells)
     logging.debug("SOLVER : Added cells props %s", solver.cells_props)
@@ -87,13 +87,14 @@ def add_cells(plan: 'Plan', solver: 'Solver') -> Dict[int, 'Space']:
     return cells_to_spaces
 
 
-def add_values(spec: 'Specification', solver: 'Solver'):
+def add_values(spec: 'Specification', solver: 'Solver') -> Dict[int, 'SpaceCategory']:
     """
     Creates the values
     :param spec:
     :param solver
     :return:
     """
+    values_category = {}
 
     for ix, item in enumerate(spec.items):
         solver.add_value(ix)
@@ -102,24 +103,40 @@ def add_values(spec: 'Specification', solver: 'Solver'):
                                    item.max_size.area * MAX_AREA_COEFF)
         solver.add_connectivity_constraint(ix, solver.adjacency)
         solver.add_component_constraint(ix, COMPONENTS_REQUIRED.get(item.category.name, {}))
+        values_category[ix] = item.category
 
     logging.debug("SOLVER : Added values %s", solver.values)
 
+    return values_category
 
-def create_solution(solution: ['Cell'], cells_to_spaces: Dict[int, 'Space']):
+
+def create_solution(solution: ['Cell'],
+                    cells_to_spaces: Dict[int, 'uuid.UUID'],
+                    values_category: Dict[int, 'SpaceCategory'],
+                    plan: 'Plan'):
     """
     Display a solution
     :param solution:
     :param cells_to_spaces
+    :param values_category
+    :param plan
     :return:
     """
+    new_plan = plan.clone()
     for cell in solution:
-        space = cells_to_spaces[cell.ix]
+        space = new_plan.get_space_from_id(cells_to_spaces[cell.ix])
+        if not space:
+            continue
+        space.category = values_category[cell.value_ix()]
         for other_cell in solution:
-            if cell is other_cell or cell.value_ix() != other_cell.value_ix():
+            if cell.ix >= other_cell.ix or cell.value_ix() != other_cell.value_ix():
                 continue
-            other_space = cells_to_spaces[other_cell.ix]
+            other_space = new_plan.get_space_from_id(cells_to_spaces[other_cell.ix])
+            if not other_space:
+                continue
             space.merge(other_space)
+
+    new_plan.plot()
 
 
 if __name__ == '__main__':
@@ -135,37 +152,27 @@ if __name__ == '__main__':
         """
         ################
         # Create a plan
-        input_file = 'Bussy_Regis.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
+        GRIDS['finer_ortho_grid'].apply_to(plan)
 
-        seeder = Seeder(plan, GROWTH_METHODS)
-        seeder.add_condition(SELECTORS['seed_duct'], 'duct')
-        GRIDS['ortho_grid'].apply_to(plan)
+        plan.plot()
 
-        seeder.plant()
-        seeder.grow()
-        SHUFFLES['square_shape'].run(plan)
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        (seeder.plant()
+         .grow()
+         .shuffle(SHUFFLES['seed_square_shape'])
+         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                              "empty"))
+         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+         .simplify(SELECTORS["fuse_small_cell"])
+         .shuffle(SHUFFLES['seed_square_shape']))
 
-        plan.plot(show=True)
-        plt.show()
-
-        seed_empty_furthest_couple_middle = SELECTORS[
-            'seed_empty_furthest_couple_middle_space_area_min_100000']
-        seed_empty_area_max_100000 = SELECTORS['area_max=100000']
-        seed_methods = [(seed_empty_furthest_couple_middle, GROWTH_METHODS_FILL, "empty"),
-                        (seed_empty_area_max_100000, GROWTH_METHODS_SMALL_SPACE_FILL, "empty")]
-
-        filler = Filler(plan, seed_methods)
-        filler.apply_to(plan)
-        plan.remove_null_spaces()
-        fuse_selector = SELECTORS['fuse_small_cell']
-        filler.fusion(fuse_selector)
-
-        SHUFFLES['square_shape'].run(plan, show=True)
+        plan.plot()
 
         ########################
         # create solver
-        input_file = 'Bussy_Regis_setup.json'
+        input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
 
@@ -178,14 +185,11 @@ if __name__ == '__main__':
         my_solver = Solver(adjacency_matrix(plan), {"num_solutions": 10,
                                                     "num_fails": 1500,
                                                     "num_restarts": 36})
-        add_values(spec, my_solver)
+        values_categories = add_values(spec, my_solver)
         cells_to_spaces = add_cells(plan, my_solver)
 
         my_solver.solve()
-        solution = my_solver.solutions[5]
-        create_solution(solution, cells_to_spaces)
 
-        plan.plot(show=True)
-        plt.show()
-
+        for solution in my_solver.solutions:
+            create_solution(solution, cells_to_spaces, values_categories, plan)
     compose()

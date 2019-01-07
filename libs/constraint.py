@@ -195,7 +195,7 @@ max_size_constraint_seed = SpaceConstraint(max_size,
                                            "max_size")
 
 max_size_s_constraint_seed = SpaceConstraint(max_size,
-                                             {"max_size": Size(180000, 400, 350),
+                                             {"max_size": Size(180000, 500, 450),
                                               "category_name": "seed"},
                                              "max_size_s")
 
