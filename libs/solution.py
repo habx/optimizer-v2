@@ -22,8 +22,7 @@ class SolutionsCollector:
         add solutions to the list
         :return: None
         """
-        sol_id = len(self.solutions)
-        sol = Solution(sol_id, plan)
+        sol = Solution(self, plan)
         self.solutions.append(sol)
 
 
@@ -32,55 +31,57 @@ class Solution:
     Space planner Class
     """
 
-    def __init__(self, sol_id: int, plan: 'Plan'):
-        self.id = sol_id
+    def __init__(self, collector: 'SolutionCollector', plan: 'Plan'):
+        self.collector = collector
         self.plan = plan
+        self.items_spaces = {}
+        self.init_items_spaces()
+
+    def init_items_spaces(self):
+        for item in self.collector.spec.items:
+            for space in self.plan.mutable_spaces:
+                if item.category.name == space.category.name:
+                    self.items_spaces[item] = space
 
     def area_score(self) -> float:
+        good_overflow_categories = ['living', 'dining']
 
-        for i_space, space in enumerate(self.plan.mutable_spaces):
-            if room_type != 'circulationSpace':
-                # Min < VoronoiArea < Max
-                if floor_plan.RoomsDf.at[room, 'RequiredMinArea'] <= PolygonRoomsDf.at[room, 'Area'] and \
-                        floor_plan.RoomsDf.at[room, 'RequiredMaxArea'] >= PolygonRoomsDf.at[
-                    room, 'Area']:
-                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
-                # good overflow
-                elif floor_plan.RoomsDf.at[room, 'RequiredMaxArea'] < PolygonRoomsDf.at[
-                    room, 'Area'] and \
-                        (room_type == 'living' or room_type == 'livingKitchen'
-                         or room_type == 'livingKitchenDining' or room_type == 'dining'
-                         or room_type == 'kitchenDining'):
-                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
-                # overflow
-                else:
-                    PolygonRoomsDf.at[room, 'AreaScore'] = (100 - abs(
-                        floor_plan.RoomsDf.at[room, 'RequiredArea'] - PolygonRoomsDf.at[room, 'Area']) /
-                                                            floor_plan.RoomsDf.at[
-                                                                room, 'RequiredArea'] * 100)
-                    if room_type == 'entrance':
-                        if PolygonRoomsDf.at[room, 'Area'] < 20000:
-                            area_penalty += 1
-                    elif room_type == 'wc':
-                        if PolygonRoomsDf.at[room, 'Area'] < 10000:
-                            area_penalty += 1
-                        elif PolygonRoomsDf.at[room, 'Area'] > floor_plan.RoomsDf.at[
-                            room, 'RequiredArea']:
-                            area_penalty += 3
-                    elif room_type == 'bathroom' or room_type == 'wcBathroom':
-                        if PolygonRoomsDf.at[room, 'Area'] < 20000:
-                            area_penalty += 1
-                    elif room_type == 'bedroom':
-                        if PolygonRoomsDf.at[room, 'Area'] < 75000:
-                            area_penalty += 1
+        area_score = 0
+        area_penalty = 0
+        for item in self.collector.spec.items:
+            space = self.items_spaces[item]
+            # Min < SpaceArea < Max
+            if item.min_size.area <= space.area <= item.max_size.area:
+                item_area_score = 100
+            # good overflow
+            elif item.max_size.area < space.area and \
+                    space.category.name in good_overflow_categories:
+                item_area_score = 100
+            # overflow
             else:
-                if not PolygonRoomsDf.at[room, 'Area'] and PolygonRoomsDf.at[room, 'Area'] == 0:
-                    PolygonRoomsDf.at[room, 'AreaScore'] = 100
-                else:
-                    PolygonRoomsDf.at[room, 'AreaScore'] = 50
+                item_area_score = (100 - abs(item.required_area - space.area) /
+                                   item.required_area * 100)
+                if space.category.name == 'entrance':
+                    if space.area < 20000:
+                        area_penalty += 1
+                elif space.category.name == 'wc':
+                    if space.area < 10000:
+                        area_penalty += 1
+                    elif space.area > item.max_size.area:
+                        area_penalty += 3
+                elif space.category.name == 'bathroom' or space.category.name == 'wcBathroom':
+                    if space.area < 20000:
+                        area_penalty += 1
+                elif space.category.name == 'bedroom':
+                    if space.area < 75000:
+                        area_penalty += 1
 
             # Area score
-            area_score += PolygonRoomsDf.at[room, 'AreaScore']
+            area_score += item_area_score
+
+        area_score = round(area_score/self.collector.spec.number_of_items, 2) - area_penalty * 20
+
+        return area_score
 
     def score(self) -> float:
         """

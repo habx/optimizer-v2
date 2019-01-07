@@ -156,6 +156,7 @@ class SpacePlanner:
                 plan_solution = copy.load_pickle(seed_plan)
                 plan_solution = self.rooms_building(plan_solution, sol)
                 self.solutions_collector.add_plan(plan_solution)
+                logging.debug(plan_solution)
                 plan_solution.plot()
 
 
