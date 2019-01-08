@@ -3,7 +3,7 @@
 Seed module
 
 A seeder can be applied to plant seeds in a plan.
-The seeds are planted along the non empty components (space or linear) of the plan according
+The seeds are planted along the non empxty components (space or linear) of the plan according
 to specified rules.
 
 After being planted the seeds can be grown according to provided actions.
@@ -605,6 +605,14 @@ if __name__ == '__main__':
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
     from libs.shuffle import SHUFFLES
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--plan_index", help="choose plan index",
+                        default=0)
+
+    args = parser.parse_args()
+    plan_index = int(args.plan_index)
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -614,10 +622,10 @@ if __name__ == '__main__':
         Test
         :return:
         """
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        logging.debug("Start test")
-        input_files = reader_test.BLUEPRINT_INPUT_FILES
-        plan = reader.create_plan_from_file(input_files[11])
+        plan = reader.create_plan_from_file(input_file)
 
         GRIDS['ortho_grid'].apply_to(plan)
 
@@ -634,5 +642,6 @@ if __name__ == '__main__':
 
         plan.plot(show=True)
         plt.show()
+
 
     grow_a_plan()

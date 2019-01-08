@@ -1007,6 +1007,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
+
         def _immutable(_edge: Edge) -> bool:
             return not self.plan.is_mutable(_edge)
 
@@ -1145,6 +1146,32 @@ class Space(PlanComponent):
             if self.has_edge(edge.pair):
                 return True
         return False
+
+    def count_ducts(self) -> float:
+        """
+        counts the number of ducts the space is adjacent to
+        :return: float
+        """
+        number_ducts = 0
+        for space in self.plan.spaces:
+            if space is not self and space.adjacent_to(self) and space.category \
+                    and space.category.name is 'duct':
+                number_ducts += 1
+
+        return number_ducts
+
+    def count_windows(self) -> float:
+        """
+        counts the number of linear of type window in the space
+        :return: float
+        """
+
+        number_windows = 0
+        for component in self.immutable_components():
+            if component.category.name == 'window':
+                number_windows += 1
+
+        return number_windows
 
 
 class Linear(PlanComponent):
@@ -1470,6 +1497,19 @@ class Plan:
                 return linear.category.mutable
         return True
 
+    def category_edges(self, cat: str) -> List['Edge']:
+        """
+        Returns the list of edges belonging to a space of given category
+        :return List['Edge']:
+        """
+        list_edges = []
+        for space in self.spaces:
+            for component in space.immutable_components():
+                if (component.category.name == cat):
+                    for edge in space.edges:
+                        list_edges.append(edge)
+        return list_edges
+
     @property
     def empty_spaces(self) -> Generator['Space', None, None]:
         """
@@ -1632,6 +1672,26 @@ class Plan:
         """
         return sum(space.category.mutable for space in self.spaces)
 
+    def mutable_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+
+        for space in self.spaces:
+            if space.mutable:
+                yield space
+
+    def circulation_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+
+        for space in self.spaces:
+            if space.category.circulation:
+                yield space
+
 
 if __name__ == '__main__':
     import libs.reader as reader
@@ -1664,8 +1724,8 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-    # floor_plan()
 
+    # floor_plan()
 
     def remove_face_along_internal_edge():
         """
@@ -1688,6 +1748,7 @@ if __name__ == '__main__':
 
 
     remove_face_along_internal_edge()
+
 
     def add_two_face_touching_internal_edge_and_border():
         """
