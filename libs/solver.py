@@ -11,8 +11,6 @@ import logging
 
 from typing import TYPE_CHECKING, Dict
 
-import matplotlib.pyplot as plt
-
 import libs.reader as reader
 from libs.seed import (
     Seeder,

@@ -140,8 +140,8 @@ def test_solve_complex():
         my_solver.add_connectivity_constraint(ix, matrix)
 
         # area constraint
-        min_area = space["area"] * 0.95
-        max_area = space["area"] * 1.05
+        min_area = space["area"] * 0.99
+        max_area = space["area"] * 1.01
         my_solver.add_area_constraint(ix, min_area, max_area)
 
     assert(len(my_solver.solve()) == 10)
