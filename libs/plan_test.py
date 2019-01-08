@@ -572,3 +572,19 @@ def test_merge_u_space():
     plan.plot()
 
     assert plan.check()
+
+
+def test_clone_plan():
+    """
+
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    plan = Plan().from_boundary(perimeter)
+    plan_2 = plan.clone()
+    plan_2.empty_space.category = SPACE_CATEGORIES["duct"]
+    plan.plot()
+    plan_2.plot()
+    space = plan.get_space_from_id(plan.spaces[0].id)
+    assert space is plan.empty_space
+    assert plan.spaces[0].id == plan_2.spaces[0].id
