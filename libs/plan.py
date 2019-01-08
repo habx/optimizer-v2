@@ -15,7 +15,7 @@ import uuid
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
-from libs.mesh import Mesh, Face, Edge, Vertex
+from libs.mesh import Mesh, Face, Edge, Vertex, MeshOps
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
@@ -890,6 +890,9 @@ class Space(PlanComponent):
         # we must set the boundary in case the reference edge is no longer part of the space
         self.set_edges()
 
+        # propagate the changes of the mesh
+        self.plan.update_from_mesh()
+
     def insert_face_from_boundary(self, perimeter: Sequence[Coords2d]) -> 'Face':
         """
         Inserts a face inside the space reference face from the given coordinates
@@ -1044,6 +1047,10 @@ class Space(PlanComponent):
         # remove the edge and remove the deleted face from the space
         self.remove_face_id(edge.face)
         edge.remove()
+
+        # we need to update the plan from the mesh because of cleanups
+        self.plan.update_from_mesh()
+
         return True
 
     def plot(self, ax=None,
@@ -1210,9 +1217,18 @@ class Linear(PlanComponent):
             return
         self._edges_id.append(edge.id)
 
+    def remove_edge_id(self, edge: 'Edge'):
+        """
+        Adds the edge id
+        :param edge:
+        :return:
+        """
+        self._edges_id.remove(edge.id)
+
     def add_edge(self, edge: Edge):
         """
         Add an edge to the linear
+        TODO : we should check that the edge is contiguous to the other linear edges
         :return:
         """
         if not self.plan.is_space_boundary(edge):
@@ -1297,12 +1313,72 @@ class Plan:
         self.mesh = mesh
         self.spaces = spaces or []
         self.linears = linears or []
+        # add a watcher to the mesh
+        if self.mesh:
+            self.mesh.add_watcher(lambda modifications:  self._watcher(modifications))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
         for space in self.spaces:
             output += space.__repr__() + ' | '
         return output
+
+    def _watcher(self, modifications):
+        """
+        A watcher for mesh modification. The watcher must be manually called from the plan.
+        ex: by calling self.mesh.watch()
+        :param modifications
+        :return:
+        """
+        logging.debug("Plan: Watcher called")
+
+        inserted_faces = (modification for _id, modification in modifications.items()
+                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Face)
+
+        removed_edges = (modification for _id, modification in modifications.items()
+                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Edge)
+
+        removed_faces = (modification for _id, modification in modifications.items()
+                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Face)
+
+        # add inserted face to the space of the receiving face
+        # this must be done before removals
+        for face_add in inserted_faces:
+            assert type(face_add[2]) == Face, ("Plan: an insertion op "
+                                               "should indicate the receiving face")
+            face = face_add[1]
+            # check if the face was not already added to the mesh
+            face_space = self.get_space_of_face(face)
+            if face_space:
+                continue
+
+            space = self.get_space_of_face(face_add[2])
+            if space:
+                space.add_face_id(face)
+
+        # remove edges
+        for remove_edge in removed_edges:
+            edge = remove_edge[1]
+            space = self.get_space_from_reference(edge)
+            if space:
+                space.set_edges()
+            linear = self.get_linear(edge)
+            if linear:
+                linear.remove_edge_id(edge)
+
+        # remove faces
+        for remove_face in removed_faces:
+            face = remove_face[1]
+            space = self.get_space_of_face(face)
+            if space:
+                space.remove_face_id(face)
+
+    def update_from_mesh(self):
+        """
+        Updates the plan from the mesh, and also updates all linked plan.
+        :return:
+        """
+        self.mesh.watch()
 
     def clone(self) -> 'Plan':
         """
@@ -1365,6 +1441,7 @@ class Plan:
         :return:
         """
         self.mesh = Mesh().from_boundary(boundary)
+        self.mesh.add_watcher(lambda modifications: self._watcher(modifications))
         Space(self, self.mesh.faces[0].edge)
         return self
 
@@ -1473,6 +1550,19 @@ class Plan:
             return None
         return self.get_space_of_face(edge.face)
 
+    def get_space_from_reference(self, edge: 'Edge') -> Optional['Space']:
+        """
+        Returns the space that has the specified edge as a reference.
+        Returns None if the edge is not a reference of a space.
+        :param edge:
+        :return:
+        """
+        for space in self.spaces:
+            if edge.id in space._edges_id:
+                return space
+
+        return None
+
     def get_linear(self, edge: Edge) -> Optional['Linear']:
         """
         Retrieves the linear to which the edge belongs.
@@ -1567,6 +1657,7 @@ class Plan:
         for empty_space in self.empty_spaces:
             try:
                 new_space = empty_space.insert_space(boundary, category)
+                self.mesh.watch()
                 return new_space
             except OutsideFaceError:
                 continue
@@ -1588,6 +1679,7 @@ class Plan:
         for empty_space in self.empty_spaces:
             try:
                 empty_space.insert_linear(point_1, point_2, category)
+                self.mesh.watch()
                 break
             except OutsideVertexError:
                 continue
@@ -1655,17 +1747,6 @@ class Plan:
         space_to_remove = (space for space in self.spaces if space.edge is None)
         for space in space_to_remove:
             space.remove()
-
-    def make_space_seedable(self, category_name: str):
-        """
-        Make seedable spaces with specified category name
-        TODO: this is bad. It will change the empty category for any space referencing it
-              (in any plan)
-        :return:
-        """
-        for space in self.spaces:
-            if space.category.name == category_name:
-                space.category.seedable = True
 
     def count_category_spaces(self, category_name: str) -> int:
         """
