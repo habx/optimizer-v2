@@ -73,6 +73,25 @@ class MeshComponent:
         """
         return self._id
 
+    @id.setter
+    def id(self, value: 'uuid.UUID'):
+        """
+        Sets the id
+        :param value:
+        :return:
+        """
+        self._id = value
+
+    def swap_id(self, other: 'MeshComponent'):
+        """
+        Swaps the id with the other component
+        :param other:
+        :return:
+        """
+        self.id, other.id = other.id, self.id
+        self.mesh.update(other)
+        self.mesh.update(self)
+
     @property
     def mesh(self) -> 'Mesh':
         """
@@ -489,14 +508,6 @@ class Edge(MeshComponent):
         return output
 
     @property
-    def id(self):
-        """
-        property
-        :return: the id of the edge
-        """
-        return self._id
-
-    @property
     def start(self) -> Vertex:
         """
         property
@@ -580,24 +591,6 @@ class Edge(MeshComponent):
         :return:
         """
         return self.pair.face is self.face
-
-    @property
-    def mesh(self):
-        """
-        Property
-        The mesh the edge belongs to
-        :return:
-        """
-        return self._mesh
-
-    @mesh.setter
-    def mesh(self, value: 'Mesh'):
-        """
-        Property
-        The mesh the edge belongs to
-        :return:
-        """
-        self._mesh = value
 
     @property
     def absolute_angle(self) -> float:
@@ -1582,14 +1575,6 @@ class Face(MeshComponent):
         return new_face
 
     @property
-    def id(self) -> uuid.UUID:
-        """
-        property
-        :return:
-        """
-        return self._id
-
-    @property
     def edge(self) -> Edge:
         """
         property
@@ -1604,22 +1589,6 @@ class Face(MeshComponent):
         Sets the edge of the face
         """
         self._edge = value
-
-    @property
-    def mesh(self) -> 'Mesh':
-        """
-        property
-        :return: the mesh of the face
-        """
-        return self._mesh
-
-    @mesh.setter
-    def mesh(self, value: 'Mesh'):
-        """
-        property
-        Sets the mesh of the face
-        """
-        self._mesh = value
 
     @property
     def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
@@ -1924,7 +1893,8 @@ class Face(MeshComponent):
         Because of the way the algorithm is coded it can even lead to the
         disappearance of the initial container face from the mesh.
         In order to enable the user to preserve references to the initial container face
-        (for example if other faces need to be inserted) the biggest face is returned.
+        (for example if other faces need to be inserted) the list of the created face is returned
+        including the receiving face).
 
         ex: new_container_face = container_face.insert(face_to_insert)
 
@@ -1952,12 +1922,17 @@ class Face(MeshComponent):
             # backward check for isolation
             # first check for 2-edged face
             # if a 2 edged face is found we keep the edge and remove the touching edge
+            # we preserve id for eventual references
             if previous_edge.pair.next.next is previous_edge.pair:
                 # preserve references for face and vertex
                 previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
                 previous_edge.pair.next.preserve_references(previous_edge)
                 # remove the duplicate edges
                 previous_edge.pair = previous_edge.pair.next.pair
+                # swap the id to preserve references
+                previous_edge.swap_id(previous_touching_edge)
+                # remove the edge from the mesh
+                previous_touching_edge.remove_from_mesh()
 
             # else check for new face creation
             elif not previous_edge.pair.is_linked_to_face(self):
@@ -1969,6 +1944,10 @@ class Face(MeshComponent):
         # forward check : at the end of the loop check forward for isolation
         if edge.pair.next.next is edge.pair:
             edge.pair = touching_edge.pair
+            # swap the id to preserve references
+            edge.swap_id(touching_edge)
+            # remove the edge from the mesh
+            touching_edge.remove_from_mesh()
             # remove face from edge
             self.remove_from_mesh()  # Note : this is problematic for face absolute reference
             all_faces.pop(0)  # remove self from the list of all the faces
@@ -2378,6 +2357,21 @@ class Mesh:
         """
         self._store_modification(MeshOps.ADD, component)
 
+        if type(component) == Vertex:
+            self._add_vertex(component)
+
+        if type(component) == Face:
+            self._add_face(component)
+
+        if type(component) == Edge:
+            self._add_edge(component)
+
+    def update(self, component):
+        """
+        Adds a mesh component to the mesh
+        :param component:
+        :return:
+        """
         if type(component) == Vertex:
             self._add_vertex(component)
 

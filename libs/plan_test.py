@@ -8,11 +8,7 @@ import pytest
 
 from libs.plan import Plan, Space
 from libs.category import SPACE_CATEGORIES
-import libs.logsetup as ls
 from libs import reader, reader_test
-
-
-ls.init()
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
@@ -598,11 +594,16 @@ def test_clone_change_plan():
 
     :return:
     """
+    from libs.grid import GRIDS
+
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+    duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
     plan = Plan().from_boundary(perimeter)
     plan_2 = plan.clone()
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+    plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
+    GRIDS["finer_ortho_grid"].apply_to(plan_2)
     plan.plot()
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)

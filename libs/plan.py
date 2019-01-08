@@ -239,7 +239,8 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
+        assert self.is_boundary(edge), ("The edge has to be a boundary "
+                                        "edge: {0} of space: {1}".format(edge, self))
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
@@ -1350,10 +1351,13 @@ class Plan:
             # check if the face was not already added to the mesh
             face_space = self.get_space_of_face(face)
             if face_space:
+                logging.debug("Plan: Adding face from mesh "
+                              "update %s buf face is already in a space", face)
                 continue
 
             space = self.get_space_of_face(face_add[2])
             if space:
+                logging.debug("Plan: Adding face from mesh update %s", face)
                 space.add_face_id(face)
 
         # remove edges
@@ -1364,6 +1368,7 @@ class Plan:
                 space.set_edges()
             linear = self.get_linear(edge)
             if linear:
+                logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
                 linear.remove_edge_id(edge)
 
         # remove faces
@@ -1371,6 +1376,7 @@ class Plan:
             face = remove_face[1]
             space = self.get_space_of_face(face)
             if space:
+                logging.debug("Plan: Removing face from space from mesh update %s", face)
                 space.remove_face_id(face)
 
     def update_from_mesh(self):
@@ -1657,7 +1663,7 @@ class Plan:
         for empty_space in self.empty_spaces:
             try:
                 new_space = empty_space.insert_space(boundary, category)
-                self.mesh.watch()
+                self.update_from_mesh()
                 return new_space
             except OutsideFaceError:
                 continue
@@ -1797,60 +1803,28 @@ if __name__ == '__main__':
     # floor_plan()
 
 
-    def remove_face_along_internal_edge():
+    def clone_and_change_plan():
         """
-        Test
+
         :return:
         """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        plan = Plan('my plan').from_boundary(perimeter)
+        from libs.grid import GRIDS
 
-        duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
-        plan.insert_space_from_boundary(duct)
-        plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[-1].pair, 1)
-        my_space = plan.empty_space
-        my_space.remove_face(plan.mesh.faces[0])
-        my_space.add_face(plan.mesh.faces[0])
-
-        plan.plot()
-
-        assert plan.check()
-
-
-    remove_face_along_internal_edge()
-
-    def add_two_face_touching_internal_edge_and_border():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
-        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
-
+        perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+        duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+        duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
         plan = Plan().from_boundary(perimeter)
+        plan_2 = plan.clone()
+        plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+        plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
+        GRIDS["finer_ortho_grid"].apply_to(plan_2)
 
-        plan.empty_space.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
+        plan.mesh.check()
+        plan.plot()
+        plan_2.plot()
+        space = plan.get_space_from_id(plan.spaces[0].id)
+        assert space is plan.empty_space
+        assert plan.spaces[0].id == plan_2.spaces[0].id
 
-        plan.plot(save=False)
-        plt.show()
 
-        plan.empty_space.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[0]
-        plan.plot(save=False)
-        plt.show()
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.plot(save=False)
-        plt.show()
-
-        plan.empty_space.insert_face_from_boundary(hole_3)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        assert plan.check()
-
-    # add_two_face_touching_internal_edge_and_border()
+    clone_and_change_plan()
