@@ -82,12 +82,12 @@ class ConstraintSolver:
         """
         # Decision builder
         db = self.solver.Phase(self.positions_flat, self.solver.INT_VAR_DEFAULT,
-                               self.solver.ASSIGN_RANDOM_VALUE)
+                               self.solver.ASSIGN_MAX_VALUE)
 
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 5000000
+        max_num_sol = 50000
         nbr_solutions = 0
         while self.solver.NextSolution():
             sol_positions = []
