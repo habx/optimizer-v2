@@ -12,7 +12,7 @@ from libs.mesh import Edge
 from libs.plot import plot_save
 import dijkstar
 import libs.utils.graph as gr
-
+from libs.category import LINEAR_CATEGORIES
 from typing import Dict, List, Tuple
 
 from tools.build_plan import build_plan
@@ -191,8 +191,11 @@ class GraphManager:
         self.graph = None
         self.cost_rules = cost_rules
         self.connecting_paths = []
+
+        window_cat = [cat for cat in LINEAR_CATEGORIES.keys() if
+                      LINEAR_CATEGORIES[cat].window_type]
         self.component_edges = {'duct_edges': self.plan.category_edges('duct'),
-                                'window_edges': self.plan.category_edges('window')}
+                                'window_edges': self.plan.category_edges(*window_cat)}
 
     def __repr__(self):
         output = 'Grapher:\n'
@@ -248,8 +251,8 @@ class GraphManager:
         num_ducts = space.count_ducts()
         num_windows = space.count_windows()
 
-        if edge.pair and edge.pair in self.component_edges[
-            'duct_edges'] and space.category.needs_duct:
+        if edge.pair and edge.pair in self.component_edges['duct_edges'] \
+                and space.category.needs_duct:
             if num_ducts <= 2:
                 rule = 'water_room_less_than_two_ducts'
             else:
@@ -381,8 +384,6 @@ if __name__ == '__main__':
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
-        # input_file = "Antony_A22.json"
-        input_file = "Bussy_B002.json"
         plan = build_plan(input_file)
 
         cost_rules = {

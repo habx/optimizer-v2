@@ -1547,7 +1547,7 @@ class Plan:
                 return linear.category.mutable
         return True
 
-    def category_edges(self, cat: str) -> List['Edge']:
+    def category_edges(self, *cat: str) -> List['Edge']:
         """
         Returns the list of edges belonging to a space of given category
         :return List['Edge']:
@@ -1555,14 +1555,14 @@ class Plan:
 
         list_edges=[]
         for space in self.spaces:
-            if space.category.name is cat:
+            if space.category.name in cat:
                 for edge in space.edges:
                     list_edges.append(edge)
 
         for linear in self.linears:
-            if linear.category.name is cat:
+            if linear.category.name in cat:
                 for edge in linear.edges:
-                    list_edges.append(linear.edge)
+                    list_edges.append(edge)
 
         return list_edges
 
