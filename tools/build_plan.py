@@ -34,9 +34,9 @@ def temporary_union(plan: Plan):
                 i += 1
 
 
-def build_plan(input_file):
+def build_plan(input_file: str) -> Plan:
     """
-    Test
+    Test - builds plan
     :return:
     """
 
