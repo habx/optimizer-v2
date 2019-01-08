@@ -27,6 +27,16 @@ class Grid:
         self.name = name
         self.operators = operators or []
 
+    def clone(self, name: str = "") -> 'Grid':
+        """
+        Returns a shallow clone of the grid.
+        :param name of the new grid
+        :return:
+        """
+        name = name or self.name + "__copy"
+        new_grid = Grid(name, self.operators[:])
+        return new_grid
+
     def apply_to(self, plan: 'Plan') -> 'Plan':
         """
         Returns the modified plan with the created grid
@@ -71,6 +81,19 @@ class Grid:
             if mesh_has_changed:
                 return True
         return False
+
+    def extend(self, name: str = "", *operators: Tuple['Selector', 'Mutation']) -> 'Grid':
+        """
+        Adds one or several operators to the grid, returns a new grid.
+        Can be used to extend grids for example.
+        :param name: name of the new grid
+        :param operators:
+        :return: a new grid
+        """
+        new_grid = self.clone(name)
+        for operator in operators:
+            new_grid.operators.append(operator)
+        return new_grid
 
 
 # grid
@@ -176,10 +199,15 @@ ortho_grid = Grid('ortho_grid', [
     )
 ])
 
+finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
+                                     (SELECTORS["edge_min_150"],
+                                      MUTATION_FACTORIES['barycenter_cut'](0.5)))
+
 GRIDS = {
     "ortho_grid": ortho_grid,
     "sequence_grid": sequence_grid,
-    "simple_grid": simple_grid
+    "simple_grid": simple_grid,
+    "finer_ortho_grid": finer_ortho_grid
 }
 
 if __name__ == '__main__':
@@ -192,7 +220,7 @@ if __name__ == '__main__':
         :return:
         """
         plan = reader.create_plan_from_file("Antony_A22.json")
-        new_plan = ortho_grid.apply_to(plan)
+        new_plan = finer_ortho_grid.apply_to(plan)
         new_plan.check()
 
         new_plan.plot(save=False)
