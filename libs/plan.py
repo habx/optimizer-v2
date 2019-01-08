@@ -1167,8 +1167,9 @@ class Space(PlanComponent):
         """
 
         number_windows = 0
-        for component in self.immutable_components():
-            if component.category.name == 'window':
+
+        for component in self.plan.linears:
+            if self.has_linear(component) and component.category.window_type:
                 number_windows += 1
 
         return number_windows
@@ -1502,12 +1503,18 @@ class Plan:
         Returns the list of edges belonging to a space of given category
         :return List['Edge']:
         """
-        list_edges = []
+
+        list_edges=[]
         for space in self.spaces:
-            for component in space.immutable_components():
-                if (component.category.name == cat):
-                    for edge in space.edges:
-                        list_edges.append(edge)
+            if space.category.name is cat:
+                for edge in space.edges:
+                    list_edges.append(edge)
+
+        for linear in self.linears:
+            if linear.category.name is cat:
+                for edge in linear.edges:
+                    list_edges.append(linear.edge)
+
         return list_edges
 
     @property
