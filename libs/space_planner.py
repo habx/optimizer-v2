@@ -10,19 +10,13 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
-from typing import TYPE_CHECKING, List, Dict, Callable, Optional
 import logging
-import matplotlib.pyplot as plt
-
 from libs.specification import Specification
 from libs.solution import SolutionsCollector
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
 from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
 import networkx as nx
-
-if TYPE_CHECKING:
-    from libs.plan import Space
 
 
 class SpacePlanner:
@@ -43,7 +37,6 @@ class SpacePlanner:
         self.solutions_collector = SolutionsCollector(spec)
 
     def __repr__(self):
-        # TODO
         output = 'SpacePlanner' + self.name
         return output
 
@@ -135,11 +128,12 @@ class SpacePlanner:
                 while (len(item_space) > 1) and i < len(item_space) * len(item_space):
                     for space in item_space[1:]:
                         if space.adjacent_to(space_ini):
-                            space_ini._merge(space)
+                            space_ini.merge(space)
                             plan.remove_null_spaces()
                             item_space.remove(space)
                             break
                     i += 1
+        assert plan.check()
         return plan
 
     def solution_research(self) -> None:
@@ -217,8 +211,8 @@ def check_room_connectivity_factory(adjacency_matrix):
 
 
 if __name__ == '__main__':
+
     import libs.reader as reader
-    import libs.seed
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
@@ -248,7 +242,6 @@ if __name__ == '__main__':
          .simplify(SELECTORS["fuse_small_cell"])
          .shuffle(SHUFFLES['seed_square_shape']))
 
-
         input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
@@ -256,9 +249,8 @@ if __name__ == '__main__':
         space_planner = SpacePlanner('test', spec)
         space_planner.solution_research()
 
-        plan.plot(show=True)
-        plt.show()
-        assert spec.plan.check()
-
+        for sol in space_planner.solutions_collector.solutions:
+            print(sol)
+            print('Score : ', sol.score)
 
     space_planning()

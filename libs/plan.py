@@ -1562,6 +1562,17 @@ class Plan:
         """
         return (space for space in self.spaces if space.mutable)
 
+    @property
+    def area(self) -> float:
+        """
+        Returns the area of the plan.
+        :return:
+        """
+        _area = 0.0
+        for space in self.spaces:
+            _area += space.area
+        return _area
+
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
                                    category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':

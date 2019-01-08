@@ -41,9 +41,7 @@ def test_space_planner(input_file, input_setup):
     spec.plan = plan
 
     space_planner = SpacePlanner('test', spec)
-    space_planner.add_spaces_constraints()
-    space_planner.add_item_constraints()
-    space_planner.rooms_building()
+    space_planner.solution_research()
 
     plan.plot()
 
