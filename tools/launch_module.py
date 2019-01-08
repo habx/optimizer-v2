@@ -2,6 +2,9 @@ import os
 import argparse
 import libs.reader as reader
 
+import sys
+sys.path.append("../")
+
 # launch specified module no all plan in blueprint
 
 if __name__ == '__main__':
@@ -16,5 +19,6 @@ if __name__ == '__main__':
     num_files = len(files)
     for index_plan in range(num_files):
         print("current plan ", files[index_plan])
-        command_lauch_grid = "python ../libs/" + module + ".py -p " + str(index_plan)
+        command_lauch_grid = "python3 ../libs/space_planner.py -p " + str(index_plan)
+        input("stop")
         os.system(command_lauch_grid)

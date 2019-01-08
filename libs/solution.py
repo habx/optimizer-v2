@@ -123,7 +123,7 @@ class Solution:
                 outside = convex_hull.difference(sp_space)
                 item_shape_score = min(100, 100 - (
                             (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
-                logging.debug('Shape score : {0}, room : {1}'.format(item_shape_score, item.id))
+                logging.debug('Shape score : {0}, room : {1}'.format(item_shape_score, item.category.name))
             else:
                 logging.warning('Invalid shapely space')
                 item_shape_score = 100
@@ -152,6 +152,7 @@ class Solution:
     def _night_and_day_score(self) -> float:
         """
         Night and day score
+        TODO : warning duplex
         :return: score : float
         """
 
@@ -207,74 +208,123 @@ class Solution:
     def _position_score(self) -> float:
         """
         Night and day score
+        TODO : warning duplex
         :return: score : float
         """
 
         position_score = 100
         nbr_room_position_score = 0
+        entrance_poly = self.get_rooms('entrance')[0].as_sp
+        polygon_bathroom = None
+        corridor_poly = None  #TODO
         for item in self.collector.spec.items:
-            item_position_score = 100
+            item_position_score = 0
             if item.category.name == 'wc' and self.items_spaces[item] == self.get_rooms('wc')[0]:
                 nbr_room_position_score += 1
                 # distance from the entrance
-                if False:  # front door not in this level:  self.items_spaces[item].level:
-                    item_position_score = 0
-                else:
+                if True:  # front door in this level:  self.items_spaces[item].level:
                     # distance from the entrance
-                    entrance_poly = self.get_rooms('entrance')[0].as_sp.buffer(CORRIDOR_SIZE)
-                    union_poly = entrance_poly.union(self.items_spaces[item].as_sp)
-                    if union_poly.geom_type != 'Polygon':
-                        # distance from the entrance / front door
-                        plan_area = self.collector.spec.plan.area
-                        criteria = plan_area ** 0.5
-                        distance_wc_fd = self.items_spaces[item].distance(front_door_poly)
-                        if distance_wc_fd < criteria:
-                            item_position_score = (criteria-distance_wc_fd) * 100 / criteria
-                        else:
-                            item_position_score = 0
-
-            elif room_type == 'bedroom':
+                    plan_area = self.collector.spec.plan.area
+                    criteria = plan_area ** 0.5
+                    distance_wc_fd = self.items_spaces[item].as_sp.distance(entrance_poly)
+                    if distance_wc_fd < criteria:
+                        item_position_score = (criteria-distance_wc_fd) * 100 / criteria
+            elif item.category.name == 'bedroom':
                 nbr_room_position_score += 1
                 # distance from a bedroom / bathroom
-                first_pass_bath = True
-                for j, jroom in enumerate(list(PolygonRoomsDf['Type'])):
-                    if (jroom == 'bathroom' or jroom == 'wcBathroom') and first_pass_bath:
-                        first_pass_bath = False
-                        polygon_bathroom = PolygonRoomsDf.ix[j, 'Room']
-                    elif jroom == 'bathroom' or jroom == 'wcBathroom':
-                        polygon_bathroom = polygon_bathroom.union(PolygonRoomsDf.ix[j, 'Room'])
-                if not first_pass_bath:
-                    if polygon_bathroom.distance(
-                            PolygonRoomsDf.at[room, 'Room']) > CORRIDOR_SIZE and groups_score != 100:
-                        item_position_score = 0
-
-            if PolygonRoomsDf.at[room, 'Type'] == 'wc' or PolygonRoomsDf.at[
-                room, 'Type'] == 'bathroom' or PolygonRoomsDf.at[room, 'Type'] == 'wcBathroom':
+                for item_test in self.collector.spec.items:
+                    if item_test.category.name == 'bathroom':
+                        polygon_bathroom = self.items_spaces[item_test].as_sp
+                        if polygon_bathroom.distance(self.items_spaces[item].as_sp) < CORRIDOR_SIZE:
+                            item_position_score = 100
+                            continue
+            if item.category.name == 'wc' or item.category.name == 'bathroom':
+                # could be private
                 entrance_inter = []
-                # distance from the entrance
-                if PolygonRoomsDf.at['entrance', 'Room'] and PolygonRoomsDf.at[
-                    'entrance', 'Level'] == room_level:
-                    entrance_poly = PolygonRoomsDf.at['entrance', 'Room'].buffer(settings.epsilon)
-                    entrance_inter = entrance_poly.intersection(PolygonRoomsDf.at[room, 'Room'])
+                if True:  # entrance level
+                    entrance_inter = entrance_poly.intersection(self.items_spaces[item].as_sp)
                 if not entrance_inter and corridor_poly:
-                    corridor_inter = corridor_poly.intersection(PolygonRoomsDf.at[room, 'Room'])
+                    corridor_inter = corridor_poly.intersection(self.items_spaces[item].as_sp)
                     if not corridor_inter:
                         item_position_score -= 50
-                if PolygonRoomsDf.at[room, 'Type'] == 'bathroom' or PolygonRoomsDf.at[
-                    room, 'Type'] == 'wcBathroom':
+                if item.category.name == 'bathroom':
                     nbr_room_position_score += 1
-            elif PolygonRoomsDf.at[room, 'Type'] == 'living' or PolygonRoomsDf.at[
-                room, 'Type'] == 'livingKitchen':
+            elif item.category.name == 'living':
                 nbr_room_position_score += 1
-                # distance from the entrance
-                if PolygonRoomsDf.at['entrance', 'Room']:
-                    entrance_poly = PolygonRoomsDf.at['entrance', 'Room'].buffer(CORRIDOR_SIZE)
-                    union_poly = entrance_poly.union(PolygonRoomsDf.at[room, 'Room'])
-                    # diff = union_poly.difference(lbw.buffer(settings.epsilon))
-                    if union_poly.geom_type != 'Polygon':
-                        item_position_score = 0
+                if True:  # front door in this level:  self.items_spaces[item].level:
+                    # distance from the entrance
+                    if entrance_poly.distance(self.items_spaces[item].as_sp) < CORRIDOR_SIZE:
+                        item_position_score = 100
 
+            logging.debug('Position score : {0}, room : {1}'.format(item_position_score, item.category.name))
             position_score = position_score + item_position_score
+
+        position_score = position_score / nbr_room_position_score
+        logging.debug('Position score : {0}'.format(position_score))
+
+        return position_score
+
+    def _something_inside_score(self) -> float:
+        """
+        Something inside
+        TODO : warning duplex
+        :return: score : float
+        """
+        # INSIDE ROOM
+        # duct or bearing wall or pillar or isolated room : inside a room
+        something_inside_score = 100
+        for item in self.collector.spec.items:
+            item_something_inside_score = 100
+            for i, fi in enumerate(floor_plan.fixed_items.index):
+                if floor_plan.fixed_items.at[fi, 'Type'] == 'duct' and floor_plan.fixed_items.at[
+                    fi, 'Level'] == room_level \
+                        and floor_plan.fixed_items.at[fi, 'WallNumber'] == 'inside':
+                    if room_polygon.geom_type == 'Polygon' and not floor_plan.fixed_items.at[
+                        fi, 'InterPolygon'].buffer(settings.epsilon).intersection(
+                            room_polygon.exterior) \
+                            and floor_plan.fixed_items.at[fi, 'InterPolygon'].buffer(
+                        settings.epsilon).intersection(room_polygon):
+                        PolygonRoomsDf.at[room, 'SomethingInsideScore'] = 0
+            if floor_plan.load_bearing_walls[room_level] and room_polygon:
+                lbw = floor_plan.load_bearing_walls[room_level]
+                if (room_polygon.geom_type == 'Polygon' and not lbw.buffer(
+                        settings.epsilon).intersection(
+                        room_polygon.exterior) and lbw.buffer(settings.epsilon).intersection(
+                    room_polygon)) \
+                        or lbw.intersection(room_polygon.buffer(-corridor_size)):
+                    PolygonRoomsDf.at[room, 'SomethingInsideScore'] = 0
+
+            list_of_non_concerned_room = ['entrance', 'circulationSpace', 'dressing', 'cellar',
+                                          'office']
+            for j, jroom in enumerate(PolygonRoomsDf.index):
+                if PolygonRoomsDf.at[jroom, 'Level'] == room_level and not (
+                        PolygonRoomsDf.at[jroom, 'Type'] in list_of_non_concerned_room) and \
+                        PolygonRoomsDf.at[jroom, 'Room']:
+                    if (room_poly_convex.intersection(PolygonRoomsDf['Room'][jroom])).area > (
+                            PolygonRoomsDf.at[jroom, 'Room'].area) / 8:
+                        # Check jroom adjacency
+                        other_room_adj = False
+                        for k, kroom in enumerate(PolygonRoomsDf.index):
+                            if PolygonRoomsDf.at[kroom, 'Room']:
+                                if kroom != jroom and kroom != room:
+                                    InterWall = (PolygonRoomsDf.at[jroom, 'Room']).intersection(
+                                        PolygonRoomsDf.at[kroom, 'Room'])
+                                    # Load bearing walls
+                                    lbw = floor_plan.load_bearing_walls[room_level].buffer(5)
+                                    InterWall = InterWall.difference(lbw)
+                                    # Geometry of ducts
+                                    duct_polygons = floor_plan.fixed_items.loc[
+                                        floor_plan.fixed_items['Type'] == 'duct']['Polygon']
+                                    for d_polygon in duct_polygons:
+                                        InterWall = InterWall.difference(d_polygon)
+
+                                    if InterWall:
+                                        other_room_adj = True
+                        if not other_room_adj:
+                            PolygonRoomsDf.at[room, 'SomethingInsideScore'] = 0
+                            break
+        somethinginside_score = min(somethinginside_score,
+                                    PolygonRoomsDf.at[room, 'SomethingInsideScore'])
 
     @property
     def score(self) -> float:
@@ -282,7 +332,8 @@ class Solution:
         Scoring
         :return: score : float
         """
-        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
+        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
+                          + self._position_score()) / 4
         solution_score = solution_score - self._good_size_bonus()
 
         return solution_score

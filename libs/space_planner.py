@@ -216,8 +216,16 @@ if __name__ == '__main__':
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
+    import argparse
 
     logging.getLogger().setLevel(logging.DEBUG)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--plan_index", help="choose plan index",
+                        default=0)
+
+    args = parser.parse_args()
+    plan_index = int(args.plan_index)
 
 
     def space_planning():
@@ -226,6 +234,8 @@ if __name__ == '__main__':
         :return:
         """
 
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
         input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
@@ -242,8 +252,9 @@ if __name__ == '__main__':
          .simplify(SELECTORS["fuse_small_cell"])
          .shuffle(SHUFFLES['seed_square_shape']))
 
-        input_file = 'Antony_A22_setup.json'
-        spec = reader.create_specification_from_file(input_file)
+        # input_file = 'Antony_A22_setup.json'
+        input_file_setup = input_file[:-5]+"_setup.json"
+        spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
 
         space_planner = SpacePlanner('test', spec)
