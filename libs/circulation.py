@@ -46,7 +46,6 @@ class Circulator:
             for edge2 in space2.edges:
                 path, cost = graph.get_shortest_path(edge1, edge2)
                 if cost < cost_min:
-                    print("cost added", cost)
                     cost_min = cost
                     path_min = path
 
@@ -249,15 +248,10 @@ class GraphManager:
         num_ducts = space.count_ducts()
         num_windows = space.count_windows()
 
-        print("space curr", space.category.name)
-        print("num_ducts", num_ducts)
-        print("num_windows", num_windows)
-
         if edge.pair and edge.pair in self.component_edges[
             'duct_edges'] and space.category.needs_duct:
             if num_ducts <= 2:
                 rule = 'water_room_less_than_two_ducts'
-                input("current edge duct {0} for space {1}".format(edge, space))
             else:
                 rule = 'water_room_default'
 
@@ -388,7 +382,7 @@ if __name__ == '__main__':
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
         # input_file = "Antony_A22.json"
-        input_file = "Levallois_Parisot.json"
+        input_file = "Bussy_B002.json"
         plan = build_plan(input_file)
 
         cost_rules = {
