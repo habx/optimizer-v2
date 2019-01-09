@@ -1,8 +1,12 @@
 # coding=utf-8
 """
-Constraints Manager
-
-The spaces are allocated according to constraints using constraint programming
+Constraints manager Module
+Creates the following classes:
+• ConstraintSolver: Encapsulation of the OR-Tools solver adapted to our problem
+• ConstraintsManager : attributes the spaces of the plan created by the seeder to the items.
+TODO : the adjacency constraint of spaces within the same room is not completed
+TODO : multi-level apartment untreated
+TODO : fusion of the entrance for small apartment untreated
 
 OR-Tools : google constraint programing solver
     https://developers.google.com/optimization/
@@ -37,6 +41,7 @@ SMALL_VARIANTS = ('xs', 's')
 class ConstraintSolver:
     """
     Constraint Solver
+    Encapsulation of the OR-tools solver adapted to our problem
     """
 
     def __init__(self, items_nbr: int, spaces_nbr: int):
@@ -115,6 +120,9 @@ class ConstraintSolver:
 class ConstraintsManager:
     """
     Constraints manager Class
+    A Constraints Manager attributes the spaces of the plan created by the seeder to the items.
+    The spaces are allocated according to constraints using constraint programming
+    All the possible solutions are given.
     """
 
     def __init__(self, sp: 'SpacePlanner', name: str = ''):

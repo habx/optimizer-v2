@@ -1,13 +1,9 @@
 # coding=utf-8
 """
-Space Planner
+Space Planner module
 
-A space planner attributes the spaces of the plan created by the seeder to the items.
-The spaces are allocated according to constraints using constraint programming
-
-OR-Tools : google constraint programing solver
-    https://developers.google.com/optimization/
-    https://acrogenesis.com/or-tools/documentation/user_manual/index.html
+The space planner finds the best rooms layouts according to a plan with given seed spaces
+and a customer input setup
 
 """
 import logging
@@ -32,7 +28,7 @@ class SpacePlanner:
         self.manager = ConstraintsManager(self)
 
         self.spaces_adjacency_matrix = []
-        self.init_spaces_adjacency()
+        self._init_spaces_adjacency()
 
         self.solutions_collector = SolutionsCollector(spec)
 
@@ -40,7 +36,7 @@ class SpacePlanner:
         output = 'SpacePlanner' + self.name
         return output
 
-    def init_spaces_adjacency(self) -> None:
+    def _init_spaces_adjacency(self) -> None:
         """
         spaces adjacency matrix init
         :return: None
@@ -63,7 +59,7 @@ class SpacePlanner:
                         self.spaces_adjacency_matrix[i][j] = 0
                         self.spaces_adjacency_matrix[j][i] = 0
 
-    def check_adjacency(self, room_positions, connectivity_checker) -> bool:
+    def _check_adjacency(self, room_positions, connectivity_checker) -> bool:
         """
         Experimental function using BFS graph analysis in order to check wether each room is
         connected.
@@ -88,7 +84,7 @@ class SpacePlanner:
 
         return True
 
-    def check_validity(self) -> None:
+    def _check_validity(self) -> None:
         """
         check_connectivity of constraint programming solutions and remove wrong results of
         self.manager.solver.solutions
@@ -98,7 +94,7 @@ class SpacePlanner:
 
         sol_to_remove = []
         for sol in self.manager.solver.solutions:
-            is_a_good_sol = self.check_adjacency(sol, connectivity_checker)
+            is_a_good_sol = self._check_adjacency(sol, connectivity_checker)
             if not is_a_good_sol:
                 sol_to_remove.append(sol)
 
@@ -106,10 +102,12 @@ class SpacePlanner:
             for sol in sol_to_remove:
                 self.manager.solver.solutions.remove(sol)
 
-    def rooms_building(self, plan: 'Plan', matrix_solution) -> 'Plan':
+    def _rooms_building(self, plan: 'Plan', matrix_solution) -> 'Plan':
         """
-        Rooms building
-        :return: None
+        Builds the rooms requested in the specification from the matrix and seed spaces.
+        :param: plan
+        :param: matrix_solution
+        :return: built plan
         """
         dict_items_spaces = {}
         for i_item, item in enumerate(self.spec.items):
@@ -138,7 +136,7 @@ class SpacePlanner:
 
     def solution_research(self) -> None:
         """
-        Rooms building
+        Looks for all possible solutions then find the three best solutions
         :return: None
         """
 
@@ -147,24 +145,26 @@ class SpacePlanner:
         if len(self.manager.solver.solutions) == 0:
             logging.warning('Plan without space planning solution')
         else:
-            self.check_validity()
+            self._check_validity()
             logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
             logging.debug(self.spec.plan)
             for i, sol in enumerate(self.manager.solver.solutions):
                 plan_solution = self.spec.plan.clone()
-                plan_solution = self.rooms_building(plan_solution, sol)
+                plan_solution = self._rooms_building(plan_solution, sol)
                 self.solutions_collector.add_plan(plan_solution)
                 logging.debug(plan_solution)
 
-            best_sol = self.solutions_collector.find_best_distribution()
+            best_sol = self.solutions_collector.find_best_solutions()
             for sol in best_sol:
                 logging.debug(sol)
                 sol.plan.plot()
 
-    def generate_best_solutions(self, best_sol: list('Solution')):
-        for sol in best_sol:
-            sol.plan.plot()
-            #output_dict = Output.generate_output_dict(SolutionRoomsDf, good_list_Scores[sol], infos, settings)
+    def generate_best_solutions_files(self, best_sol: list('Solution')):
+        """
+        Generates the output files of the chosen solutions
+        :return: None
+        """
+
 
 
 def adjacency_matrix_to_graph(matrix):
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = 'Levallois_Parisot.json'  # 5 Levallois_Letourneur / Antony_A22
+        #input_file = 'Levallois_Parisot.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['ortho_grid'].apply_to(plan)

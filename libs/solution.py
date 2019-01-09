@@ -1,6 +1,11 @@
 # coding=utf-8
 """
-Solution collector
+Solution collector module
+Creates the following classes:
+• SolutionsCollector: finds the best rooms layouts in given solution list
+• Solution : rooms layout solution
+TODO : multi-level apartment untreated
+TODO : fusion of the entrance for small apartment untreated
 
 """
 from typing import List
@@ -14,7 +19,7 @@ CORRIDOR_SIZE = 120
 
 class SolutionsCollector:
     """
-    Solutions Collector
+    Solutions Collector class
     """
 
     def __init__(self, spec: 'Specification'):
@@ -23,7 +28,8 @@ class SolutionsCollector:
 
     def add_plan(self, plan: 'Plan') -> None:
         """
-        add solutions to the list
+        creates and add plan solution to the list
+        :param: plan
         :return: None
         """
         sol = Solution(self, plan, len(self.solutions))
@@ -31,6 +37,9 @@ class SolutionsCollector:
 
     @property
     def solutions_distance_matrix(self):
+        """
+        Distance between all solutions of the solution collector
+        """
         # Distance matrix
         distance_matrix = []
         for i in range(len(self.solutions)):
@@ -48,7 +57,18 @@ class SolutionsCollector:
         logging.debug('Distance_matrix : {0}'.format(distance_matrix))
         return distance_matrix
 
-    def find_best_distribution(self) -> list('Solution'):
+    def find_best_solutions(self) -> list('Solution'):
+        """
+        Find best solutions of the list
+        the best solution is the one with the highest score
+        the second solution has the best score of the solutions distant from a minimum distance
+        of the first solution
+        the third solution has the best score of the solutions distant from a minimum distance
+        of the first and second solution
+        Just the best solution is given for small apartment
+        :param: plan
+        :return: best solutions
+        """
         best_sol_list = []
 
         list_scores = []
@@ -105,7 +125,8 @@ class SolutionsCollector:
 
 class Solution:
     """
-    Space planner Class
+    Solution Class
+    item layout solution in a given plan
     """
 
     def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', id: float):
@@ -122,7 +143,7 @@ class Solution:
 
     def init_items_spaces(self):
         """
-        Dict initialization
+        Dict item --> space initialization
         """
         for item in self.collector.spec.items:
             for space in self.plan.mutable_spaces:
@@ -190,6 +211,7 @@ class Solution:
     def _shape_score(self) -> float:
         """
         Shape score
+        Related with difference between a room and its convex hull
         :return: score : float
         """
         shape_score = 100
@@ -230,6 +252,7 @@ class Solution:
     def _night_and_day_score(self) -> float:
         """
         Night and day score
+        day / night distribution of rooms
         TODO : warning duplex
         :return: score : float
         """
@@ -283,7 +306,11 @@ class Solution:
 
     def _position_score(self) -> float:
         """
-        Night and day score
+        Position room score :
+        - one of the toilets must be near the entrance
+        - bedrooms must be near a bathroom
+        - toilets and bathrooms must be accessible from the corridors or the entrance
+        - the living must be near the entrance
         TODO : warning duplex
         :return: score : float
         """
@@ -342,12 +369,11 @@ class Solution:
 
     def _something_inside_score(self) -> float:
         """
-        Something inside
+        Something inside score
+        duct or bearing wall or pillar or isolated room must not be inside a room
         TODO : warning duplex
         :return: score : float
         """
-        # INSIDE ROOM
-        # duct or bearing wall or pillar or isolated room : inside a room
         something_inside_score = 100
         for item in self.collector.spec.items:
             item_something_inside_score = 100
@@ -389,6 +415,7 @@ class Solution:
     def score(self) -> float:
         """
         Scoring
+        compilation of different scores
         :return: score : float
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
@@ -400,6 +427,8 @@ class Solution:
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
+        the distance is calculated from the groups of rooms day and night
+        the inversion of two rooms within the same group gives a zero distance
         TODO : warning duplex
         :return: distance : float
         """
