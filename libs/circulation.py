@@ -11,13 +11,11 @@ from libs.plan import Space, Plan, Vertex
 from libs.mesh import Edge
 from libs.plot import plot_save
 import dijkstar
-import libs.utils.graph as gr
+from libs.utils.graph import Graph_nx,EdgeGraph
 from libs.category import LINEAR_CATEGORIES
 from typing import Dict, List, Tuple
 
 from tools.build_plan import build_plan
-
-COST_INITIALIZATION = 10e50
 
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
@@ -28,23 +26,27 @@ class Circulator:
     contains utilities to detect isolated rooms connect them to circulation spaces
     """
 
-    def __init__(self, plan: Plan, graph_manager):
+    def __init__(self, plan: Plan, cost_rules: Dict = None):
         self.plan = plan
-        self.graph_manager = graph_manager
-        self.connectivity_graph = gr.Graph_nx()
+        self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
+        self.path_calculator.build()
+        self.connectivity_graph = Graph_nx()
+        self.connecting_paths = []
 
     def draw_path(self, space1: Space, space2: Space) -> Tuple['List[Vertex]', float]:
         """
         Finds the shortest path between two spaces in the plan
         :return list of vertices on the path and cost of the path
         """
-        graph = self.graph_manager.graph
-        cost_min = COST_INITIALIZATION
+        graph = self.path_calculator.graph
         path_min = None
+        cost_min = None
         # tests all possible connections between both spaces
+        # TODO : that's brutal, any more clever way to connect two sub graphs
         for edge1 in space1.edges:
             for edge2 in space2.edges:
                 path, cost = graph.get_shortest_path(edge1, edge2)
+                if cost_min is None: cost_min = cost
                 if cost < cost_min:
                     cost_min = cost
                     path_min = path
@@ -114,36 +116,37 @@ class Circulator:
         for node in self.connectivity_graph.nodes():
             if not self.connectivity_graph.has_path(node, father_node):
                 path, cost = self.draw_path(father_node, node)
-                self.actualize_graph_manager(path)
+                self.actualize_path(path)
                 self.connectivity_graph.add_edge(node, father_node)
 
-    def actualize_graph_manager(self, path):
+    def actualize_path(self, path):
         """
-        actualize the graph manager based on computed corridor path
+        update based on computed corridor path
         :return:
         """
-        self.graph_manager.connecting_paths.append(path)
+        self.connecting_paths.append(path)
         # when a circulation has been set, it can be used to connect every other spaces
         # without cost increase
-        self.graph_manager.set_corridor_to_zero_cost(path)
+        self.path_calculator.set_corridor_to_zero_cost(path)
 
     def connect_space_to_circulation_graph(self, space):
         """
         connects the given space with a circulation space of the plan
         :return:
         """
-        cost_min = COST_INITIALIZATION
         path_min = None
         connected_room = None
+        cost_min = None
         for other in self.plan.circulation_spaces():
             if other is not space:
                 path, cost = self.draw_path(space, other)
+                if cost_min is None: cost_min = cost
                 if cost < cost_min:
                     cost_min = cost
                     path_min = path
                     connected_room = other
         if path_min is not None:
-            self.actualize_graph_manager(path_min)
+            self.actualize_path(path_min)
 
         return connected_room
 
@@ -161,7 +164,7 @@ class Circulator:
         :return:
         """
         ax = self.plan.plot(show=show, save=False)
-        paths = self.graph_manager.connecting_paths
+        paths = self.connecting_paths
         for path in paths:
             if len(path) == 1:
                 ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
@@ -178,9 +181,9 @@ class Circulator:
         plot_save(save, show)
 
 
-class GraphManager:
+class PathCalculator:
     """
-    Graph_manager class
+    PathCalculator class
     builds and manages a graph that can be used by a circulator so as to compute shortest path
     between two spaces independant from the library used to build the graph
     """
@@ -190,7 +193,7 @@ class GraphManager:
         self.graph_lib = graph_lib
         self.graph = None
         self.cost_rules = cost_rules
-        self.connecting_paths = []
+
 
         window_cat = [cat for cat in LINEAR_CATEGORIES.keys() if
                       LINEAR_CATEGORIES[cat].window_type]
@@ -207,17 +210,17 @@ class GraphManager:
         runs through space edges and adds branches to the graph, for each branch computes a weight
         :return:
         """
-        self.graph = Graph(self.graph_lib)
+        self.graph = EdgeGraph(self.graph_lib)
         graph = self.graph
         graph.init()
 
         for space in self.plan.spaces:
             if space.mutable:
-                self.update(space)
+                self._update(space)
 
         graph.set_cost_function()
 
-    def update(self, space: Space):
+    def _update(self, space: Space):
         """
         add edge to the graph and computes its cost
         return:
@@ -290,77 +293,6 @@ class GraphManager:
         return graph.get_shortest_path(self, edge1, edge2)
 
 
-class Graph:
-    """
-    Graph Graph:
-    function to build and deal with graph, implementation for given graph libaries
-    """
-
-    def __init__(self, graph_lib: str = 'Dijkstar'):
-        self.graph_lib = graph_lib
-        self.cost_function = None
-        self.graph_struct = None
-
-    def __repr__(self):
-        output = 'Graph:\n'
-        output += 'graph library :' + self.graph_lib + '\n'
-        return output
-
-    def init(self):
-        """
-        graph initialization
-        :return:
-        """
-        if self.graph_lib == 'Dijkstar':
-            self.graph_struct = dijkstar.Graph()
-        else:
-            raise ValueError('graph library does not exit')
-
-    def add_edge_by_vert(self, vert1: Vertex, vert2: Vertex, cost: float):
-        """
-        add edge to the graph
-        :return:
-        """
-        if self.graph_lib == 'Dijkstar':
-            self.graph_struct.add_edge(vert1, vert2, {'cost': cost})
-        else:
-            raise ValueError('graph library does not exit')
-
-    def add_edge(self, edge: Edge, cost: float):
-        """
-        add edge to the graph
-        :return:
-        """
-        if self.graph_lib == 'Dijkstar':
-            self.graph_struct.add_edge(edge.start, edge.end, {'cost': cost})
-            self.graph_struct.add_edge(edge.end, edge.start, {'cost': cost})
-        else:
-            raise ValueError('graph library does not exit')
-
-    def set_cost_function(self):
-        """
-        sets the graph cost function
-        :return:
-        """
-        if self.graph_lib == 'Dijkstar':
-            self.cost_function = lambda u, v, e, prev_e: e['cost']
-        else:
-            raise ValueError('graph library does not exit')
-
-    def get_shortest_path(self, edge1, edge2) -> Tuple['List[Vertex]', float]:
-        """
-        get the shortest path between two edges
-        :return list of vertices on the path and cost of the path
-        """
-        if self.graph_lib == 'Dijkstar':
-            search_tree_result = dijkstar.find_path(self.graph_struct, edge1.start, edge2.start,
-                                                    cost_func=self.cost_function)
-        else:
-            raise ValueError('graph library does not exit')
-        path = search_tree_result[0]
-        cost = search_tree_result[3]
-        return path, cost
-
 
 if __name__ == '__main__':
     import libs.reader as reader
@@ -383,7 +315,7 @@ if __name__ == '__main__':
         """
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-
+        input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)
 
         cost_rules = {
@@ -394,13 +326,10 @@ if __name__ == '__main__':
             'default': 0
         }
 
-        graph_manager = GraphManager(plan=plan, cost_rules=cost_rules)
-        graph_manager.build()
-
-        circulator = Circulator(plan=plan, graph_manager=graph_manager)
+        circulator = Circulator(plan=plan, cost_rules=cost_rules)
 
         circulator.connect()
-        logging.debug('connecting paths: {0}'.format(circulator.graph_manager.connecting_paths))
+        logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
 
         circulator.plot()
 
