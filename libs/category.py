@@ -3,6 +3,8 @@
 Category module : describes the type of space or linear that can be used in a program or a plan.
 """
 
+from typing import List
+
 CATEGORIES_COLORS = {
     'duct': 'k',
     'loadBearingWall': 'k',
@@ -15,8 +17,8 @@ CATEGORIES_COLORS = {
     'living': 'aquamarine',
     'dining': 'turquoise',
     'kitchen': 'paleturquoise',
-    'bedroom': 'mistyrose',  ''
-    'wc': 'cornflowerblue',
+    'bedroom': 'mistyrose', ''
+                            'wc': 'cornflowerblue',
     'bathroom': 'lightskyblue',
     'circulationSpace': 'lightgray',
     'entrance': 'r',
@@ -35,6 +37,7 @@ class Category:
     """
     A category of a space or a linear
     """
+
     def __init__(self,
                  name: str,
                  mutable: bool = True,
@@ -57,18 +60,21 @@ class SpaceCategory(Category):
     A category of a space
     Examples: duct, chamber, kitchen, wc, bathroom, entrance
     """
+
     def __init__(self,
                  name,
                  mutable: bool = True,
                  seedable: bool = False,
                  external: bool = False,
                  circulation: bool = False,
-                 needs_window: bool = False,
-                 needs_duct: bool = False):
+                 needs_window: bool = True,
+                 needed_linears: List['LinearCategory'] = [],
+                 needed_spaces: List['SpaceCategory'] = []):
         super().__init__(name, mutable, seedable, external)
         self.circulation = circulation
+        self.needed_linears = needed_linears
         self.needs_window = needs_window
-        self.needs_duct = needs_duct
+        self.needed_spaces = needed_spaces
 
 
 class LinearCategory(Category):
@@ -91,29 +97,38 @@ class LinearCategory(Category):
 
 
 LINEAR_CATEGORIES = {
-    "window": LinearCategory('window', mutable=False, seedable=True, aperture=True, window_type=True),
+    "window": LinearCategory('window', mutable=False, seedable=True, aperture=True,
+                             window_type=True),
     "door": LinearCategory('door', aperture=True),
-    "doorWindow": LinearCategory('doorWindow', mutable=False, seedable=True, aperture=True, window_type=True),
+    "doorWindow": LinearCategory('doorWindow', mutable=False, seedable=True, aperture=True,
+                                 window_type=True),
     "frontDoor": LinearCategory('frontDoor', mutable=False, seedable=True, aperture=True),
     "wall": LinearCategory('wall'),
     "externalWall": LinearCategory('externalWall', False, width=2.0)
 }
+
+duct_space = SpaceCategory('duct', mutable=False, seedable=True)
+window_linears = [LINEAR_CATEGORIES[name] for name in LINEAR_CATEGORIES.keys() if
+                  LINEAR_CATEGORIES[name].window_type]
 
 SPACE_CATEGORIES = {
     "empty": SpaceCategory('empty'),
     "seed": SpaceCategory('seed'),
     "duct": SpaceCategory('duct', mutable=False, seedable=True),
     "loadBearingWall": SpaceCategory('loadBearingWall', mutable=False),
-    "chamber": SpaceCategory('chamber', needs_window=True),
-    "bedroom": SpaceCategory('bedroom', needs_window=True),
-    "living": SpaceCategory('living', circulation=True, needs_window=True),
+    "chamber": SpaceCategory('chamber', needs_window=True, needed_linears=window_linears),
+    "bedroom": SpaceCategory('bedroom', needs_window=True, needed_linears=window_linears),
+    "living": SpaceCategory('living', circulation=True, needs_window=True,
+                            needed_linears=window_linears),
     "entrance": SpaceCategory('entrance', circulation=True),
-    "kitchen": SpaceCategory('kitchen', needs_window=True, needs_duct=True),
-    "bathroom": SpaceCategory('bathroom', needs_duct=True),
-    "dining": SpaceCategory('dining', circulation=True, needs_window=True),
-    "office": SpaceCategory('office', needs_window=True),
-    "dressing": SpaceCategory('dressing', needs_duct=True),
-    "wc": SpaceCategory('wc', needs_duct=True),
+    "kitchen": SpaceCategory('kitchen', needs_window=True, needed_spaces=[duct_space],
+                             needed_linears=window_linears),
+    "bathroom": SpaceCategory('bathroom', needed_spaces=[duct_space]),
+    "dining": SpaceCategory('dining', circulation=True, needs_window=True,
+                            needed_linears=window_linears),
+    "office": SpaceCategory('office', needs_window=True, needed_linears=window_linears),
+    "dressing": SpaceCategory('dressing', needed_spaces=[duct_space]),
+    "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
