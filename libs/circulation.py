@@ -7,14 +7,12 @@ used to detect isolated rooms and generate a path to connect them
 """
 
 import logging
+from typing import Dict, List, Tuple
 from libs.plan import Space, Plan, Vertex
 from libs.mesh import Edge
 from libs.plot import plot_save
-import dijkstar
-from libs.utils.graph import Graph_nx,EdgeGraph
+from libs.utils.graph import Graph_nx, EdgeGraph
 from libs.category import LINEAR_CATEGORIES
-from typing import Dict, List, Tuple
-
 from tools.build_plan import build_plan
 
 
@@ -46,8 +44,7 @@ class Circulator:
         for edge1 in space1.edges:
             for edge2 in space2.edges:
                 path, cost = graph.get_shortest_path(edge1, edge2)
-                if cost_min is None: cost_min = cost
-                if cost < cost_min:
+                if cost_min is None or cost < cost_min:
                     cost_min = cost
                     path_min = path
 
@@ -58,34 +55,28 @@ class Circulator:
         builds a connectivity graph of the plan, each circulation space is a node
         :return:
         """
-        circulation_spaces = []
-        for space in self.plan.circulation_spaces():
-            circulation_spaces.append(space)
 
-        for space in circulation_spaces:
+        for space in self.plan.circulation_spaces():
             self.connectivity_graph.add_node(space)
 
         # builds connectivity graph for circulation spaces
-        for space in circulation_spaces:
-            for other in circulation_spaces:
+        for space in self.plan.circulation_spaces():
+            for other in self.plan.circulation_spaces():
                 if other is not space and other.adjacent_to(space):
                     # if spaces are adjacent, they are connected in the graph
                     self.connectivity_graph.add_edge(space, other)
-            else:
-                self.set_circulation_path()
+
+        self.set_circulation_path()
 
     def expand_connectivity_graph(self):
         """
         connects each non circulation space of the plan to a circulation space
         :return:
         """
-        circulation_spaces = []
-        for space in self.plan.circulation_spaces():
-            circulation_spaces.append(space)
         for space in self.plan.mutable_spaces():
             if space not in self.connectivity_graph.nodes():
                 self.connectivity_graph.add_node(space)
-                for other in circulation_spaces:
+                for other in self.plan.circulation_spaces():
                     if other is not space and other.adjacent_to(space):
                         self.connectivity_graph.add_edge(space, other)
 
@@ -140,8 +131,7 @@ class Circulator:
         for other in self.plan.circulation_spaces():
             if other is not space:
                 path, cost = self.draw_path(space, other)
-                if cost_min is None: cost_min = cost
-                if cost < cost_min:
+                if cost_min is None or cost < cost_min:
                     cost_min = cost
                     path_min = path
                     connected_room = other
@@ -193,7 +183,6 @@ class PathCalculator:
         self.graph_lib = graph_lib
         self.graph = None
         self.cost_rules = cost_rules
-
 
         window_cat = [cat for cat in LINEAR_CATEGORIES.keys() if
                       LINEAR_CATEGORIES[cat].window_type]
@@ -254,14 +243,18 @@ class PathCalculator:
         num_ducts = space.count_ducts()
         num_windows = space.count_windows()
 
-        if edge.pair and edge.pair in self.component_edges['duct_edges'] \
-                and space.category.needs_duct:
+        if (edge.pair and edge.pair in self.component_edges['duct_edges']
+                and list(needed_space for needed_space in space.category.needed_spaces if
+                         needed_space.name is 'duct')):
             if num_ducts <= 2:
                 rule = 'water_room_less_than_two_ducts'
             else:
                 rule = 'water_room_default'
 
-        elif edge in self.component_edges['window_edges'] and space.category.needs_window:
+
+        elif (edge in self.component_edges['window_edges'] and list(
+                needed_linear for needed_linear in space.category.needed_linears if
+                needed_linear.window_type)):
             if num_windows <= 2:
                 rule = 'window_room_less_than_two_windows'
             else:
@@ -293,7 +286,6 @@ class PathCalculator:
         return graph.get_shortest_path(self, edge1, edge2)
 
 
-
 if __name__ == '__main__':
     import libs.reader as reader
     import argparse
@@ -315,7 +307,6 @@ if __name__ == '__main__':
         """
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A105.json"
         plan = build_plan(input_file)
 
         cost_rules = {

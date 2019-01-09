@@ -3,7 +3,7 @@
 Seed module
 
 A seeder can be applied to plant seeds in a plan.
-The seeds are planted along the non empxty components (space or linear) of the plan according
+The seeds are planted along the non empty components (space or linear) of the plan according
 to specified rules.
 
 After being planted the seeds can be grown according to provided actions.

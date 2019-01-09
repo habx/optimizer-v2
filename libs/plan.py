@@ -1155,11 +1155,11 @@ class Space(PlanComponent):
         counts the number of ducts the space is adjacent to
         :return: float
         """
-        number_ducts = 0
-        for space in self.plan.spaces:
-            if space is not self and space.adjacent_to(self) and space.category \
-                    and space.category.name is 'duct':
-                number_ducts += 1
+
+        number_ducts = sum(
+            space is not self and space.adjacent_to(self) and space.category
+            and space.category.name is 'duct' for space in
+            self.plan.spaces)
 
         return number_ducts
 
@@ -1169,11 +1169,9 @@ class Space(PlanComponent):
         :return: float
         """
 
-        number_windows = 0
-
-        for component in self.plan.linears:
-            if self.has_linear(component) and component.category.window_type:
-                number_windows += 1
+        number_windows = sum(
+            self.has_linear(component) and component.category.window_type for component in
+            self.plan.linears)
 
         return number_windows
 
@@ -1553,16 +1551,17 @@ class Plan:
         :return List['Edge']:
         """
 
-        list_edges=[]
-        for space in self.spaces:
-            if space.category.name in cat:
-                for edge in space.edges:
-                    list_edges.append(edge)
+        list_edges = []
 
-        for linear in self.linears:
-            if linear.category.name in cat:
-                for edge in linear.edges:
-                    list_edges.append(edge)
+        cat_spaces = (space for space in self.spaces if space.category.name in cat)
+        for space in cat_spaces:
+            for edge in space.edges:
+                list_edges.append(edge)
+
+        cat_linears = (linear for linear in self.linears if linear.category.name in cat)
+        for linear in cat_linears:
+            for edge in linear.edges:
+                list_edges.append(edge)
 
         return list_edges
 
@@ -1733,10 +1732,7 @@ class Plan:
         Returns an iterator on mutable spaces
         :return:
         """
-
-        for space in self.spaces:
-            if space.mutable:
-                yield space
+        yield from (space for space in self.spaces if space.mutable)
 
     def circulation_spaces(self) -> Generator['Space', None, None]:
         """
@@ -1744,9 +1740,7 @@ class Plan:
         :return:
         """
 
-        for space in self.spaces:
-            if space.category.circulation:
-                yield space
+        yield from (space for space in self.spaces if space.category.circulation)
 
 
 if __name__ == '__main__':
