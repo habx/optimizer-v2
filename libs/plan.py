@@ -15,7 +15,7 @@ import uuid
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
-from libs.mesh import Mesh, Face, Edge, Vertex
+from libs.mesh import Mesh, Face, Edge, Vertex, MeshOps
 from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
@@ -239,7 +239,8 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
+        assert self.is_boundary(edge), ("The edge has to be a boundary "
+                                        "edge: {0} of space: {1}".format(edge, self))
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
@@ -890,6 +891,9 @@ class Space(PlanComponent):
         # we must set the boundary in case the reference edge is no longer part of the space
         self.set_edges()
 
+        # propagate the changes of the mesh
+        self.plan.update_from_mesh()
+
     def insert_face_from_boundary(self, perimeter: Sequence[Coords2d]) -> 'Face':
         """
         Inserts a face inside the space reference face from the given coordinates
@@ -1045,6 +1049,10 @@ class Space(PlanComponent):
         # remove the edge and remove the deleted face from the space
         self.remove_face_id(edge.face)
         edge.remove()
+
+        # we need to update the plan from the mesh because of cleanups
+        self.plan.update_from_mesh()
+
         return True
 
     def plot(self, ax=None,
@@ -1236,9 +1244,18 @@ class Linear(PlanComponent):
             return
         self._edges_id.append(edge.id)
 
+    def remove_edge_id(self, edge: 'Edge'):
+        """
+        Adds the edge id
+        :param edge:
+        :return:
+        """
+        self._edges_id.remove(edge.id)
+
     def add_edge(self, edge: Edge):
         """
         Add an edge to the linear
+        TODO : we should check that the edge is contiguous to the other linear edges
         :return:
         """
         if not self.plan.is_space_boundary(edge):
@@ -1323,12 +1340,77 @@ class Plan:
         self.mesh = mesh
         self.spaces = spaces or []
         self.linears = linears or []
+        # add a watcher to the mesh
+        if self.mesh:
+            self.mesh.add_watcher(lambda modifications:  self._watcher(modifications))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
         for space in self.spaces:
             output += space.__repr__() + ' | '
         return output
+
+    def _watcher(self, modifications):
+        """
+        A watcher for mesh modification. The watcher must be manually called from the plan.
+        ex: by calling self.mesh.watch()
+        :param modifications
+        :return:
+        """
+        logging.debug("Plan: Watcher called")
+
+        inserted_faces = (modification for _id, modification in modifications.items()
+                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Face)
+
+        removed_edges = (modification for _id, modification in modifications.items()
+                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Edge)
+
+        removed_faces = (modification for _id, modification in modifications.items()
+                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Face)
+
+        # add inserted face to the space of the receiving face
+        # this must be done before removals
+        for face_add in inserted_faces:
+            assert type(face_add[2]) == Face, ("Plan: an insertion op "
+                                               "should indicate the receiving face")
+            face = face_add[1]
+            # check if the face was not already added to the mesh
+            face_space = self.get_space_of_face(face)
+            if face_space:
+                logging.debug("Plan: Adding face from mesh "
+                              "update %s buf face is already in a space", face)
+                continue
+
+            space = self.get_space_of_face(face_add[2])
+            if space:
+                logging.debug("Plan: Adding face from mesh update %s", face)
+                space.add_face_id(face)
+
+        # remove edges
+        for remove_edge in removed_edges:
+            edge = remove_edge[1]
+            space = self.get_space_from_reference(edge)
+            if space:
+                space.set_edges()
+            linear = self.get_linear(edge)
+            if linear:
+                logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
+                linear.remove_edge_id(edge)
+
+        # remove faces
+        for remove_face in removed_faces:
+            face = remove_face[1]
+            space = self.get_space_of_face(face)
+            if space:
+                logging.debug("Plan: Removing face from space from mesh update %s", face)
+                space.remove_face_id(face)
+
+    def update_from_mesh(self):
+        """
+        Updates the plan from the mesh, and also updates all linked plan.
+        :return:
+        """
+        self.mesh.watch()
 
     def clone(self) -> 'Plan':
         """
@@ -1391,6 +1473,7 @@ class Plan:
         :return:
         """
         self.mesh = Mesh().from_boundary(boundary)
+        self.mesh.add_watcher(lambda modifications: self._watcher(modifications))
         Space(self, self.mesh.faces[0].edge)
         return self
 
@@ -1498,6 +1581,19 @@ class Plan:
         if edge.face is None:
             return None
         return self.get_space_of_face(edge.face)
+
+    def get_space_from_reference(self, edge: 'Edge') -> Optional['Space']:
+        """
+        Returns the space that has the specified edge as a reference.
+        Returns None if the edge is not a reference of a space.
+        :param edge:
+        :return:
+        """
+        for space in self.spaces:
+            if edge.id in space._edges_id:
+                return space
+
+        return None
 
     def get_linear(self, edge: Edge) -> Optional['Linear']:
         """
@@ -1613,6 +1709,7 @@ class Plan:
         for empty_space in self.empty_spaces:
             try:
                 new_space = empty_space.insert_space(boundary, category)
+                self.update_from_mesh()
                 return new_space
             except OutsideFaceError:
                 continue
@@ -1634,6 +1731,7 @@ class Plan:
         for empty_space in self.empty_spaces:
             try:
                 empty_space.insert_linear(point_1, point_2, category)
+                self.mesh.watch()
                 break
             except OutsideVertexError:
                 continue
@@ -1702,17 +1800,6 @@ class Plan:
         for space in space_to_remove:
             space.remove()
 
-    def make_space_seedable(self, category_name: str):
-        """
-        Make seedable spaces with specified category name
-        TODO: this is bad. It will change the empty category for any space referencing it
-              (in any plan)
-        :return:
-        """
-        for space in self.spaces:
-            if space.category.name == category_name:
-                space.category.seedable = True
-
     def count_category_spaces(self, category_name: str) -> int:
         """
         count the number of spaces with the given category name
@@ -1774,64 +1861,31 @@ if __name__ == '__main__':
 
         assert plan.check()
 
-
     # floor_plan()
 
-    def remove_face_along_internal_edge():
+
+    def clone_and_change_plan():
         """
-        Test
+
         :return:
         """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        plan = Plan('my plan').from_boundary(perimeter)
+        from libs.grid import GRIDS
 
-        duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
-        plan.insert_space_from_boundary(duct)
-        plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[-1].pair, 1)
-        my_space = plan.empty_space
-        my_space.remove_face(plan.mesh.faces[0])
-        my_space.add_face(plan.mesh.faces[0])
-
-        plan.plot()
-
-        assert plan.check()
-
-
-    remove_face_along_internal_edge()
-
-
-    def add_two_face_touching_internal_edge_and_border():
-        """
-        Test. Create a new face, remove it, then add it again.
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-        hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
-        hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
-
+        perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+        duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+        duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
         plan = Plan().from_boundary(perimeter)
+        plan_2 = plan.clone()
+        plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+        plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
+        GRIDS["finer_ortho_grid"].apply_to(plan_2)
 
-        plan.empty_space.insert_face_from_boundary(hole)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
+        plan.mesh.check()
+        plan.plot()
+        plan_2.plot()
+        space = plan.get_space_from_id(plan.spaces[0].id)
+        assert space is plan.empty_space
+        assert plan.spaces[0].id == plan_2.spaces[0].id
 
-        plan.plot(save=False)
-        plt.show()
 
-        plan.empty_space.insert_face_from_boundary(hole_2)
-        face_to_remove = list(plan.empty_space.faces)[0]
-        plan.plot(save=False)
-        plt.show()
-        plan.empty_space.remove_face(face_to_remove)
-
-        plan.plot(save=False)
-        plt.show()
-
-        plan.empty_space.insert_face_from_boundary(hole_3)
-        face_to_remove = list(plan.empty_space.faces)[1]
-        plan.empty_space.remove_face(face_to_remove)
-
-        assert plan.check()
-
-    # add_two_face_touching_internal_edge_and_border()
+    clone_and_change_plan()
