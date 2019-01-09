@@ -95,12 +95,14 @@ class SolutionsCollector:
             if dist_from_best_sol[i] > 30 and list_scores[i] > second_score:
                 index_second_sol = i
                 second_score = list_scores[i]
-        best_sol_list.append(self.solutions[index_second_sol])
-        logging.debug('Second solution : index : {0}, score : {1}'.format(index_second_sol,
-                                                                          second_score))
 
-        index_third_sol = None
         if index_second_sol:
+            best_sol_list.append(self.solutions[index_second_sol])
+            logging.debug('Second solution : index : {0}, score : {1}'.format(index_second_sol,
+                                                                              second_score))
+
+            index_third_sol = None
+
             dist_from_second_sol = distance_matrix[index_second_sol]
 
             third_score = -10e5
@@ -109,16 +111,17 @@ class SolutionsCollector:
                         list_scores[i] > third_score:
                     index_third_sol = i
                     third_score = list_scores[i]
-            best_sol_list.append(self.solutions[index_third_sol])
-            logging.debug('Third solution : index : {0}, score : {1}'.format(index_third_sol,
-                                                                             third_score))
+            if index_third_sol:
+                best_sol_list.append(self.solutions[index_third_sol])
+                logging.debug('Third solution : index : {0}, score : {1}'.format(index_third_sol,
+                                                                                 third_score))
 
-        best_distribution_list = [index_best_sol, index_second_sol, index_third_sol]
-        for i in best_distribution_list:
-            for j in best_distribution_list:
-                if i and j:
-                    if i < j:
-                        logging.debug('Distance {0} {1} : {2}'.format(i, j, distance_matrix[i][j]))
+            best_distribution_list = [index_best_sol, index_second_sol, index_third_sol]
+            for i in best_distribution_list:
+                for j in best_distribution_list:
+                    if i and j:
+                        if i < j:
+                            logging.debug('Distance {0} {1} : {2}'.format(i, j, distance_matrix[i][j]))
 
         return best_sol_list
 
@@ -146,7 +149,7 @@ class Solution:
         Dict item --> space initialization
         """
         for item in self.collector.spec.items:
-            for space in self.plan.mutable_spaces:
+            for space in self.plan.mutable_spaces():
                 if item.category.name == space.category.name:
                     self.items_spaces[item] = space
 

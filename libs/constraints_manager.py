@@ -147,7 +147,7 @@ class ConstraintsManager:
         """
         for item in self.sp.spec.items:
             length = 0
-            for j, space in enumerate(self.sp.spec.plan.mutable_spaces):
+            for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 for component in space.immutable_components():
                     if (component.category.name == 'window'
                             or component.category.name == 'doorWindow'):
@@ -252,13 +252,13 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     if min_max == 'max':
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces)) <=
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <=
               int(item.max_size.area * max_area_coeff))
 
     elif min_max == 'min':
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces)) >=
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >=
               int(item.min_size.area * min_area_coeff))
     else:
         ValueError('AreaConstraint')
@@ -329,16 +329,16 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
             int(j_space.adjacent_to(k_space)) *
             manager.solver.positions[item.id, j] *
             manager.solver.positions[item.id, k] for
-            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces) if j > k)
-        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces))
+            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if j > k)
+        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
     ct1 = (spaces_adjacency >= nbr_spaces_in_i_item - 1)
 
     ct2 = None
-    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces):
+    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         a = (manager.solver.positions[item.id, k] *
              manager.solver.solver
              .Sum(int(j_space.adjacent_to(k_space)) * manager.solver.positions[item.id, j]
-                  for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces) if k != j))
+                  for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if k != j))
 
         if ct2 is None:
             ct2 = manager.solver.solver.Max(
@@ -377,8 +377,8 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                         int(j_space.adjacent_to(k_space)) *
                         manager.solver.positions[item.id, j] *
                         manager.solver.positions[num, k] for
-                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces))
-                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces))
+                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         if adjacency_sum is not 0:
             if ct is None:
                 if adj:
@@ -420,7 +420,7 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     for c, cat in enumerate(category):
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
-            enumerate(manager.sp.spec.plan.mutable_spaces) if
+            enumerate(manager.sp.spec.plan.mutable_spaces()) if
             cat in space.components_category_associated())
         if c == 0:
             if adj:

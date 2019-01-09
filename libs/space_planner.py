@@ -41,16 +41,16 @@ class SpacePlanner:
         spaces adjacency matrix init
         :return: None
         """
-        for i, i_space in enumerate(self.spec.plan.mutable_spaces):
+        for i, i_space in enumerate(self.spec.plan.mutable_spaces()):
             self.spaces_adjacency_matrix.append([])
-            for j, j_space in enumerate(self.spec.plan.mutable_spaces):
+            for j, j_space in enumerate(self.spec.plan.mutable_spaces()):
                 if j != i:
                     self.spaces_adjacency_matrix[i].append(0)
                 else:
                     self.spaces_adjacency_matrix[i].append(1)
 
-        for i, i_space in enumerate(self.spec.plan.mutable_spaces):
-            for j, j_space in enumerate(self.spec.plan.mutable_spaces):
+        for i, i_space in enumerate(self.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.spec.plan.mutable_spaces()):
                 if j < i:
                     if i_space.adjacent_to(j_space):
                         self.spaces_adjacency_matrix[i][j] = 1
@@ -112,7 +112,7 @@ class SpacePlanner:
         dict_items_spaces = {}
         for i_item, item in enumerate(self.spec.items):
             item_space = []
-            for j_space, space in enumerate(plan.mutable_spaces):
+            for j_space, space in enumerate(plan.mutable_spaces()):
                 if matrix_solution[i_item][j_space] == 1:
                     space.category = item.category
                     item_space.append(space)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        #input_file = 'Levallois_Parisot.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Levallois_Letourneur.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['ortho_grid'].apply_to(plan)
