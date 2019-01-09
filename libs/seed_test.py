@@ -85,4 +85,3 @@ def test_simple_seed_test():
     Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
     my_plan.plot()
     assert my_plan.check()
-
