@@ -495,19 +495,19 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     'entrance': [
         [components_adjacency_constraint, {'category': ['frontDoor'], 'adj': True}],
-        [area_constraint, {'min_max': 'max'}]
+        #[area_constraint, {'min_max': 'max'}]
     ],
     'wc': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint,
          {'category': WINDOW_CATEGORY, 'adj': False, 'addition_rule': 'And'}],
-        [area_constraint, {'min_max': 'max'}],
+        #[area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'bathroom': [
         [components_adjacency_constraint, {'category': ['duct'], 'adj': True}],
         [components_adjacency_constraint, {'category': ['doorWindow'], 'adj': False}],
-        [area_constraint, {'min_max': 'max'}],
+        #[area_constraint, {'min_max': 'max'}],
         [symmetry_breaker_constraint, {}]
     ],
     'living': [
@@ -612,7 +612,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = 'Levallois_Letourneur.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['ortho_grid'].apply_to(plan)
@@ -627,7 +627,7 @@ if __name__ == '__main__':
          .simplify(SELECTORS["fuse_small_cell"])
          .shuffle(SHUFFLES['seed_square_shape']))
 
-        input_file = 'Bussy_Regis_setup.json'
+        input_file = 'Antony_A22_setup.json'
         spec = reader.create_specification_from_file(input_file)
         spec.plan = plan
         space_planner = SpacePlanner('test', spec)

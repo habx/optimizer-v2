@@ -8,11 +8,7 @@ import pytest
 
 from libs.plan import Plan, Space
 from libs.category import SPACE_CATEGORIES
-import libs.logsetup as ls
 from libs import reader, reader_test
-
-
-ls.init()
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
@@ -129,10 +125,13 @@ def test_remove_edge_from_space():
     # add touching duct
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
     plan.empty_space.insert_face_from_boundary(touching_duct)
+
+    plan.plot()
+
     edge = list(plan.mesh.faces[0].edges)[1]
     plan.empty_space.remove_internal_edge(edge)
 
-    plan.plot()
+    # plan.plot()
 
     assert plan.check()
 
@@ -623,6 +622,29 @@ def test_clone_plan():
     plan.add_floor_from_boundary(perimeter)
     plan_2 = plan.clone()
     plan_2.empty_space.category = SPACE_CATEGORIES["duct"]
+    plan.plot()
+    plan_2.plot()
+    space = plan.get_space_from_id(plan.spaces[0].id)
+    assert space is plan.empty_space
+    assert plan.spaces[0].id == plan_2.spaces[0].id
+
+
+def test_clone_change_plan():
+    """
+
+    :return:
+    """
+    from libs.grid import GRIDS
+
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+    duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
+    plan_2 = plan.clone()
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+    plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
+    GRIDS["finer_ortho_grid"].apply_to(plan_2)
     plan.plot()
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
