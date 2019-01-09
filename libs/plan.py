@@ -1014,6 +1014,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
+
         def _immutable(_edge: Edge) -> bool:
             return not self.plan.is_mutable(_edge)
 
@@ -1156,6 +1157,31 @@ class Space(PlanComponent):
             if self.has_edge(edge.pair):
                 return True
         return False
+
+    def count_ducts(self) -> float:
+        """
+        counts the number of ducts the space is adjacent to
+        :return: float
+        """
+
+        number_ducts = sum(
+            space is not self and space.adjacent_to(self) and space.category
+            and space.category.name is 'duct' for space in
+            self.plan.spaces)
+
+        return number_ducts
+
+    def count_windows(self) -> float:
+        """
+        counts the number of linear of type window in the space
+        :return: float
+        """
+
+        number_windows = sum(
+            self.has_linear(component) and component.category.window_type for component in
+            self.plan.linears)
+
+        return number_windows
 
 
 class Linear(PlanComponent):
@@ -1615,6 +1641,26 @@ class Plan:
                 return linear.category.mutable
         return True
 
+    def category_edges(self, *cat: str) -> List['Edge']:
+        """
+        Returns the list of edges belonging to a space of given category
+        :return List['Edge']:
+        """
+
+        list_edges = []
+
+        cat_spaces = (space for space in self.spaces if space.category.name in cat)
+        for space in cat_spaces:
+            for edge in space.edges:
+                list_edges.append(edge)
+
+        cat_linears = (linear for linear in self.linears if linear.category.name in cat)
+        for linear in cat_linears:
+            for edge in linear.edges:
+                list_edges.append(edge)
+
+        return list_edges
+
     @property
     def empty_spaces(self) -> Generator['Space', None, None]:
         """
@@ -1767,6 +1813,21 @@ class Plan:
         :return:
         """
         return sum(space.category.mutable for space in self.spaces)
+
+    def mutable_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+        yield from (space for space in self.spaces if space.mutable)
+
+    def circulation_spaces(self) -> Generator['Space', None, None]:
+        """
+        Returns an iterator on mutable spaces
+        :return:
+        """
+
+        yield from (space for space in self.spaces if space.category.circulation)
 
 
 if __name__ == '__main__':
