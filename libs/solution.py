@@ -221,7 +221,7 @@ class Solution:
                         item2.category.name != 'entrance':
                     if item1.required_area < item2.required_area and \
                             self.items_spaces[item1].area > self.items_spaces[item2].area:
-                        logging.debug(item1.category.name, item2.category.name)
+                        logging.debug('pbm size : {0}, {1}'.format(item1.category.name, item2.category.name))
                         logging.debug('Size bonus : {0}'.format(0))
                         return 0
         logging.debug('Size bonus : {0}'.format(10))

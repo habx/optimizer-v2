@@ -107,6 +107,7 @@ SPACE_CATEGORIES = {
     "dining": SpaceCategory('dining', circulation=True),
     "office": SpaceCategory('office'),
     "dressing": SpaceCategory('dressing'),
+    "laundry": SpaceCategory('laundry'),
     "wc": SpaceCategory('wc'),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
