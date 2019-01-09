@@ -81,7 +81,7 @@
             "variant": "m"
         },
         {
-            "type": "laundryroom",
+            "type": "laundry",
             "requiredArea": {
                 "min": 30000,
                 "max": 50000

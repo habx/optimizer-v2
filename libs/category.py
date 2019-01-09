@@ -19,7 +19,7 @@ CATEGORIES_COLORS = {
     'wc': 'cornflowerblue',
     'bathroom': 'lightskyblue',
     'circulationSpace': 'lightgray',
-    'entrance': 'r',
+    'entrance': 'grey',
     'dressing': 'pink',
     'laundry': 'lightsteelblue',
     'office': 'darkseagreen',

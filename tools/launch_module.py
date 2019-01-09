@@ -20,5 +20,5 @@ if __name__ == '__main__':
     for index_plan in range(num_files):
         print("current plan ", files[index_plan])
         command_lauch_grid = "python3 ../libs/space_planner.py -p " + str(index_plan)
-        input("stop")
+        #input("stop")
         os.system(command_lauch_grid)

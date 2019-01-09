@@ -71,7 +71,6 @@ class ConstraintSolver:
         :param ct: ortools.Constraint
         :return: None
         """
-        print(ct)
         if ct is not None:
             self.solver.Add(ct)
 
@@ -115,7 +114,7 @@ class ConstraintSolver:
 
 class ConstraintsManager:
     """
-    Space planner constraint Class
+    Constraints manager Class
     """
 
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
@@ -177,8 +176,6 @@ class ConstraintsManager:
         """
         for item in self.sp.spec.items:
             for constraint in self.item_constraints['all']:
-                print('item', item.category.name)
-                print('constraint', constraint[0])
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in self.item_constraints[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])

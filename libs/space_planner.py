@@ -149,13 +149,22 @@ class SpacePlanner:
         else:
             self.check_validity()
             logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
-            print(self.spec.plan)
-            for sol in self.manager.solver.solutions:
+            logging.debug(self.spec.plan)
+            for i, sol in enumerate(self.manager.solver.solutions):
                 plan_solution = self.spec.plan.clone()
                 plan_solution = self.rooms_building(plan_solution, sol)
                 self.solutions_collector.add_plan(plan_solution)
                 logging.debug(plan_solution)
-                plan_solution.plot()
+
+            best_sol = self.solutions_collector.find_best_distribution()
+            for sol in best_sol:
+                logging.debug(sol)
+                sol.plan.plot()
+
+    def generate_best_solutions(self, best_sol: list('Solution')):
+        for sol in best_sol:
+            sol.plan.plot()
+            #output_dict = Output.generate_output_dict(SolutionRoomsDf, good_list_Scores[sol], infos, settings)
 
 
 def adjacency_matrix_to_graph(matrix):
@@ -236,13 +245,12 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
+        #input_file = 'Levallois_Parisot.json'  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['ortho_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
         (seeder.plant()
          .grow()
          .shuffle(SHUFFLES['seed_square_shape'])
@@ -251,7 +259,7 @@ if __name__ == '__main__':
          .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
          .simplify(SELECTORS["fuse_small_cell"])
          .shuffle(SHUFFLES['seed_square_shape']))
-
+        plan.plot()
         # input_file = 'Antony_A22_setup.json'
         input_file_setup = input_file[:-5]+"_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -259,9 +267,5 @@ if __name__ == '__main__':
 
         space_planner = SpacePlanner('test', spec)
         space_planner.solution_research()
-
-        for sol in space_planner.solutions_collector.solutions:
-            print(sol)
-            print('Score : ', sol.score)
 
     space_planning()
