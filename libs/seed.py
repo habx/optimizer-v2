@@ -601,7 +601,6 @@ FILL_METHODS = {
 
 if __name__ == '__main__':
     import libs.reader as reader
-    import libs.reader_test as reader_test
     from libs.grid import GRIDS
     from libs.selector import SELECTORS
     from libs.shuffle import SHUFFLES

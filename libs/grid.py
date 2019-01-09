@@ -48,7 +48,8 @@ class Grid:
         for operator in self.operators:
             self.apply_operator(plan, operator)
             # we simplify the mesh between each operator
-            # plan.mesh.simplify()
+            plan.mesh.simplify()
+            plan.update_from_mesh()
 
         return plan
 
@@ -219,7 +220,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Antony_A22.json")
+        plan = reader.create_plan_from_file("Levallois_A3_505.json")
         new_plan = finer_ortho_grid.apply_to(plan)
         new_plan.check()
 
