@@ -31,10 +31,17 @@ class PlanComponent:
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
 
-    def __init__(self, plan: 'Plan', _id: Optional['uuid.UUID'] = None):
+    def __init__(self,
+                 plan: 'Plan',
+                 floor: 'Floor',
+                 _id: Optional['uuid.UUID'] = None):
+
+        assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
+
         self.id = _id or uuid.uuid4()
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
+        self.floor = floor
 
         # add the component to the plan
         self.add()
@@ -46,6 +53,14 @@ class PlanComponent:
         :return:
         """
         raise NotImplementedError
+
+    @property
+    def mesh(self) -> Optional['Mesh']:
+        """
+        Returns the mesh of the plan component
+        :return:
+        """
+        return self.floor.mesh
 
     @property
     def edges(self) -> Generator['Edge', None, None]:
@@ -87,10 +102,11 @@ class Space(PlanComponent):
 
     def __init__(self,
                  plan: 'Plan',
+                 floor: 'Floor',
                  edge: Optional['Edge'],
                  category: SpaceCategory = SPACE_CATEGORIES['empty'],
                  _id: Optional[uuid.UUID] = None):
-        super().__init__(plan, _id)
+        super().__init__(plan, floor, _id=_id)
         self._edges_id = [edge.id] if edge else []
         self._faces_id = [edge.face._id] if edge and edge.face else []
         self.category = category
@@ -106,7 +122,7 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain immutable uuid).
         :return:
         """
-        new_space = Space(plan, None, self.category, _id=self.id)
+        new_space = Space(plan, self.floor, None, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -134,7 +150,7 @@ class Space(PlanComponent):
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
-        Returns True if the edge belongs to the pace
+        Returns True if the edge belongs to the space
         :param edge:
         :return:
         """
@@ -154,7 +170,7 @@ class Space(PlanComponent):
         The faces included in the Space. Returns an iterator.
         :return:
         """
-        return (self.plan.mesh.get_face(face_id) for face_id in self._faces_id)
+        return (self.mesh.get_face(face_id) for face_id in self._faces_id)
 
     def add_face_id(self, face: 'Face'):
         """
@@ -180,7 +196,7 @@ class Space(PlanComponent):
         :return:
         """
         for edge_id in self._edges_id:
-            yield self.plan.mesh.get_edge(edge_id)
+            yield self.mesh.get_edge(edge_id)
 
     @property
     def edge_is_none(self) -> bool:
@@ -201,7 +217,7 @@ class Space(PlanComponent):
         if self.edge_is_none:
             return None
 
-        return self.plan.mesh.get_edge(self._edges_id[0])
+        return self.mesh.get_edge(self._edges_id[0])
 
     @edge.setter
     def edge(self, value: 'Edge'):
@@ -332,7 +348,7 @@ class Space(PlanComponent):
         :return:
         """
         if self.has_holes:
-            return (self.plan.mesh.get_edge(edge_id) for edge_id in self._edges_id[1:])
+            return (self.mesh.get_edge(edge_id) for edge_id in self._edges_id[1:])
 
     @property
     def has_holes(self):
@@ -716,7 +732,7 @@ class Space(PlanComponent):
             else:
                 raise Exception("Space: We should have found a boundary edge")
 
-            new_space = Space(self.plan, boundary_edge, self.category)
+            new_space = Space(self.plan, self.floor, boundary_edge, self.category)
             # remove the disconnected faces from the initial space
             # and add them to the new space
             for component_face in component:
@@ -896,7 +912,7 @@ class Space(PlanComponent):
         :param perimeter:
         :return:
         """
-        face_to_insert = self.plan.mesh.new_face_from_boundary(perimeter)
+        face_to_insert = self.mesh.new_face_from_boundary(perimeter)
         for face in self.faces:
             try:
                 self.insert_face(face_to_insert, face)
@@ -904,7 +920,7 @@ class Space(PlanComponent):
             except OutsideFaceError:
                 continue
 
-        self.plan.mesh.remove_face_and_children(face_to_insert)
+        self.mesh.remove_face_and_children(face_to_insert)
         raise OutsideFaceError
 
     def insert_space(self,
@@ -921,7 +937,7 @@ class Space(PlanComponent):
         self.add_face_id(face_of_space)
         self.remove_face(face_of_space)
         # create the space and add it to the plan
-        space = Space(self.plan, face_of_space.edge, category=category)
+        space = Space(self.plan, self.floor, face_of_space.edge, category=category)
         return space
 
     def insert_linear(self,
@@ -933,10 +949,10 @@ class Space(PlanComponent):
         :return: a linear
         """
         # TODO : we should not create vertices directly but go trough a face interface
-        vertex_1 = Vertex(self.plan.mesh, *point_1)
-        vertex_2 = Vertex(self.plan.mesh, *point_2)
+        vertex_1 = Vertex(self.mesh, *point_1)
+        vertex_2 = Vertex(self.mesh, *point_2)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = Linear(self.plan, new_edge, category)
+        new_linear = Linear(self.plan, self.floor, new_edge, category)
 
         return new_linear
 
@@ -1159,6 +1175,7 @@ class Linear(PlanComponent):
 
     def __init__(self,
                  plan: 'Plan',
+                 floor: 'Floor',
                  edge: Optional[Edge],
                  category: LinearCategory,
                  _id: Optional[uuid.UUID] = None):
@@ -1166,7 +1183,7 @@ class Linear(PlanComponent):
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
 
-        super().__init__(plan, _id)
+        super().__init__(plan, floor, _id)
         self.category = category
         self._edges_id = [edge.id] if edge else []
 
@@ -1178,7 +1195,7 @@ class Linear(PlanComponent):
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, None, self.category, _id=self.id)
+        new_linear = Linear(plan, self.floor,  None, self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -1190,7 +1207,7 @@ class Linear(PlanComponent):
         """
         if not self._edges_id:
             return None
-        return self.plan.mesh.get_edge(self._edges_id[0])
+        return self.mesh.get_edge(self._edges_id[0])
 
     @property
     def edges(self) -> Generator[Edge, None, None]:
@@ -1198,7 +1215,7 @@ class Linear(PlanComponent):
         All the edges of the Linear
         :return:
         """
-        return (self.plan.mesh.get_edge(edge_id) for edge_id in self._edges_id)
+        return (self.mesh.get_edge(edge_id) for edge_id in self._edges_id)
 
     def add_edge_id(self, edge: 'Edge'):
         """
@@ -1280,23 +1297,49 @@ class Linear(PlanComponent):
         return is_valid
 
 
+class Floor:
+    """
+    A class to describe a floor of a plan.
+    The level correspond to the stacking order of the floor.
+    The meta dict could be use to store properties of the floor such as : level, height etc.
+    """
+    def __init__(self,
+                 mesh: 'Mesh',
+                 level: Optional[int] = None,
+                 meta: Optional[dict] = None):
+        self.id = uuid.uuid4()
+        self.mesh = mesh
+        self.level = level
+        self.meta = meta
+
+    def __repr__(self):
+        return "Floor: {}".format(self.id)
+
+
 class Plan:
     """
     Main class containing the floor plan of the apartment
     • mesh : the corresponding geometric mesh
     • spaces : rooms or ducts or pillars etc.
     • linears : windows, doors, walls etc.
+    • floors : floors of the plan stored in a dict
     """
 
     def __init__(self,
                  name: str = 'unnamed_plan',
                  mesh: Optional[Mesh] = None,
+                 floor_level: int = 0,
+                 floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None):
         self.name = name
-        self.mesh = mesh
         self.spaces = spaces or []
         self.linears = linears or []
+        self.floors = {}
+        # add a floor
+        if mesh:
+            new_floor = Floor(mesh, floor_level, floor_meta)
+            self.floors[new_floor.id] = new_floor
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -1304,15 +1347,76 @@ class Plan:
             output += space.__repr__() + ' | '
         return output
 
-    def clone(self) -> 'Plan':
+    def clone(self, name: str = "") -> 'Plan':
         """
         Returns a copy of the plan
+        :param name: the name of the cloned plan
         :return:
         """
-        new_plan = Plan(self.name + '_copy', self.mesh)
+        name = name or self.name + '_copy'
+        new_plan = Plan(name, self.mesh)
+        # make a shallow copy of the floors
+        new_plan.floors = self.floors.copy()
+        # clone spaces and linears
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
         new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
+
         return new_plan
+
+    @property
+    def mesh(self) -> Optional['Mesh']:
+        """
+        Property
+        Returns the only mesh of the plan
+        Note : a plan can have multiple meshes
+        :return:
+        """
+        if not self.floor:
+            return None
+        return self.floor.mesh
+
+    @property
+    def floor(self) -> Optional['Floor']:
+        """
+        Returns any floor of the plan
+        :return:
+        """
+        if not self.floors:
+            return None
+        return next(iter(self.floors.values()))
+
+    def add_floor(self, new_floor: 'Floor'):
+        """
+        Adds a mesh to the plan. Used for example for multiple floors.
+        :param new_floor:
+        :return:
+        """
+        self.floors[new_floor.id] = new_floor
+
+    @property
+    def floor_count(self) -> int:
+        """
+        Return the number of floors of the plan
+        :return:
+        """
+        return len(self.floors)
+
+    @property
+    def has_multiple_floors(self):
+        """
+        Property
+        Returns True if the plan has multiple meshes
+        :return:
+        """
+        return self.floor_count > 1
+
+    def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
+        """
+        Returns the mesh of the floor_id
+        :param floor_id:
+        :return:
+        """
+        return self.floors.get(floor_id, None)
 
     def get_from_id(self, _id: uuid.UUID) -> Optional['PlanComponent']:
         """
@@ -1356,17 +1460,24 @@ class Plan:
         logging.debug("Plan: Linear not found for this id %s", _id)
         return None
 
-    def from_boundary(self, boundary: Sequence[Coords2d]) -> 'Plan':
+    def add_floor_from_boundary(self,
+                                boundary: Sequence[Coords2d],
+                                floor_level: Optional[int] = None,
+                                floor_meta: Optional[dict] = None) -> 'Floor':
         """
         Creates a plan from a list of points
         1. create the mesh
         2. Add an empty space
         :param boundary:
+        :param floor_level:
+        :param floor_meta:
         :return:
         """
-        self.mesh = Mesh().from_boundary(boundary)
-        Space(self, self.mesh.faces[0].edge)
-        return self
+        mesh = Mesh().from_boundary(boundary)
+        new_floor = Floor(mesh, floor_level, floor_meta)
+        self.add_floor(new_floor)
+        Space(self, new_floor, mesh.faces[0].edge)
+        return new_floor
 
     def add(self, plan_component):
         """
@@ -1439,16 +1550,26 @@ class Plan:
         yield from self.get_spaces(cat_name)
         yield from self.get_linears(cat_name)
 
-    def get_spaces(self, category_name: Optional[str] = None) -> Generator['Space', None, None]:
+    def get_spaces(self,
+                   category_name: Optional[str] = None,
+                   floor: Optional['Floor'] = None,
+                   ) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
         :param category_name:
+        :param floor:
         :return:
         """
-        if category_name is not None:
-            return (space for space in self.spaces if space.category.name == category_name)
+        assert floor is None or floor.id in self.floors, (
+            "The floor specified does not exist in the plan floors: {}".format(floor, self.floors))
 
-        return (space for space in self.spaces)
+        if category_name is not None:
+            return (space for space in self.spaces
+                    if space.category.name == category_name
+                    and (floor is None or space.floor is floor))
+        else:
+            return (space for space in self.spaces
+                    if (floor is None or space.floor is floor))
 
     def get_space_of_face(self, face: Face) -> Optional['Space']:
         """
@@ -1527,6 +1648,14 @@ class Plan:
         """
         return self.get_spaces(category_name='empty')
 
+    def empty_spaces_of_floor(self, floor: 'Floor') -> Generator['Space', None, None]:
+        """
+        The empty spaces of the floor
+        :param floor:
+        :return:
+        """
+        return self.get_spaces(category_name="empty", floor=floor)
+
     @property
     def empty_space(self) -> Optional['Space']:
         """
@@ -1556,15 +1685,18 @@ class Plan:
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
-                                   category: SpaceCategory = SPACE_CATEGORIES['empty']) -> 'Space':
+                                   category: SpaceCategory = SPACE_CATEGORIES['empty'],
+                                   floor: Optional['Floor'] = None) -> 'Space':
         """
         Inserts a new space inside the empty spaces of the plan.
         By design, will not insert a space overlapping several faces of the receiving spaces.
         The new space is designed from the boundary. By default, the category is empty.
         :param boundary
         :param category
+        :param floor
         """
-        for empty_space in self.empty_spaces:
+        floor = floor or self.floor
+        for empty_space in self.empty_spaces_of_floor(floor):
             try:
                 new_space = empty_space.insert_space(boundary, category)
                 return new_space
@@ -1576,16 +1708,22 @@ class Plan:
             logging.error('Plan: Could not insert the space in the plan because '
                           'it overlaps other non empty spaces: %s, %s', boundary, category)
 
-    def insert_linear(self, point_1: Coords2d, point_2: Coords2d, category: LinearCategory):
+    def insert_linear(self,
+                      point_1: Coords2d,
+                      point_2: Coords2d,
+                      category: LinearCategory,
+                      floor: Optional['Floor'] = None):
         """
         Inserts a linear object in the plan at the given points
         Will try to insert it in every empty space.
         :param point_1
         :param point_2
         :param category
+        :param floor
         :return:
         """
-        for empty_space in self.empty_spaces:
+        floor = floor or self.floor
+        for empty_space in self.empty_spaces_of_floor(floor):
             try:
                 empty_space.insert_linear(point_1, point_2, category)
                 break
@@ -1602,23 +1740,40 @@ class Plan:
         """
         return self.mesh.boundary_as_sp if self.mesh else None
 
-    def plot(self, ax=None, show: bool = False, save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border')):
+    def plot(self,
+             show: bool = False,
+             save: bool = True,
+             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
+             floor: Optional[Floor] = None):
         """
-        Plots a plan
+        Plots a plan. If a plan has more than one floor, the desired floor_id must be
+        specified.
         :return:
         """
-        for space in self.spaces:
-            ax = space.plot(ax, save=False, options=options)
+        assert floor is None or floor.id in self.floors, (
+            "The floor id specified does not exist in the plan floors")
 
-        for linear in self.linears:
-            ax = linear.plot(ax, save=False)
+        n_rows = self.floor_count
+        fig, ax = plt.subplots(n_rows)
+        fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
 
-        ax.set_title(self.name)
+        for i, floor in enumerate(self.floors.values()):
+            _ax = ax[i] if n_rows > 1 else ax
+            _ax.set_aspect('equal')
+
+            for space in self.spaces:
+                if space.floor is not floor:
+                    continue
+                space.plot(_ax, save=False, options=options)
+
+            for linear in self.linears:
+                if linear.floor is not floor:
+                    continue
+                linear.plot(_ax, save=False)
+
+            _ax.set_title(self.name + " - floor id:{}".format(floor.id))
 
         plot_save(save, show)
-
-        return ax
 
     def check(self) -> bool:
         """
@@ -1626,7 +1781,11 @@ class Plan:
         NOTE : To be completed
         :return:
         """
-        is_valid = self.mesh.check()
+        is_valid = True
+
+        for floor in self.floors.values():
+            mesh = floor.mesh
+            is_valid = is_valid and mesh.check()
 
         for space in self.spaces:
             is_valid = is_valid and space.check()
@@ -1655,17 +1814,6 @@ class Plan:
         space_to_remove = (space for space in self.spaces if space.edge is None)
         for space in space_to_remove:
             space.remove()
-
-    def make_space_seedable(self, category_name: str):
-        """
-        Make seedable spaces with specified category name
-        TODO: this is bad. It will change the empty category for any space referencing it
-              (in any plan)
-        :return:
-        """
-        for space in self.spaces:
-            if space.category.name == category_name:
-                space.category.seedable = True
 
     def count_category_spaces(self, category_name: str) -> int:
         """
@@ -1722,10 +1870,11 @@ if __name__ == '__main__':
         :return:
         """
         perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        plan = Plan('my plan').from_boundary(perimeter)
+        plan = Plan('my plan')
+        floor = plan.add_floor_from_boundary(perimeter)
 
         duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
-        plan.insert_space_from_boundary(duct)
+        plan.insert_space_from_boundary(duct, floor=floor)
         plan.empty_space.barycenter_cut(list(plan.mesh.faces[1].edges)[-1].pair, 1)
         my_space = plan.empty_space
         my_space.remove_face(plan.mesh.faces[0])
@@ -1748,7 +1897,8 @@ if __name__ == '__main__':
         hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
         hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
 
-        plan = Plan().from_boundary(perimeter)
+        plan = Plan()
+        plan.add_floor_from_boundary(perimeter)
 
         plan.empty_space.insert_face_from_boundary(hole)
         face_to_remove = list(plan.empty_space.faces)[1]

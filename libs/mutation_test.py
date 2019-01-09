@@ -30,7 +30,9 @@ def l_plan():
     """
     boundaries = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
                   (500, 1000), (200, 500), (0, 500)]
-    return Plan("L_shaped").from_boundary(boundaries)
+    plan = Plan("L_shaped")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
 
 
 def test_ortho_cut(l_plan):

@@ -206,6 +206,7 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
 def create_plan_from_file(input_file: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
+    TODO : adapt for multiple floors plan
     :param input_file: the path to a json file
     :return: a plan object
     """
@@ -213,7 +214,8 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
 
     perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
-    my_plan = plan.Plan(file_name).from_boundary(perimeter)
+    my_plan = plan.Plan(file_name)
+    my_plan.add_floor_from_boundary(perimeter)
 
     fixed_items = _get_load_bearings_walls(floor_plan_dict)
     fixed_items += _get_fixed_items_perimeters(floor_plan_dict)

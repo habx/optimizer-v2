@@ -23,7 +23,9 @@ def rectangular_plan(width: float, depth: float) -> Plan:
     :return:
     """
     boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-    return Plan("square").from_boundary(boundaries)
+    plan = Plan("square")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
 
 
 def square_plan(size: float) -> Plan:
@@ -85,7 +87,9 @@ def weird_plan() -> Plan:
 
     boundaries = [(0, 0), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
                   (500, 1200), (200, 500), (0, 500)]
-    return Plan("weird_shaped").from_boundary(boundaries)
+    plan = Plan("weird_shaped")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
 
 
 def test_min_size_fail():

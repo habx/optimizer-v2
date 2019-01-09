@@ -152,7 +152,7 @@ if __name__ == '__main__':
         :return:
         """
         boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-        return Plan("square").from_boundary(boundaries)
+        return Plan("square").add_floor_from_boundary(boundaries)
 
 
     def seed_square_shape():
