@@ -13,7 +13,42 @@ from libs.reader_test import BLUEPRINT_INPUT_FILES
 from libs.selector import SELECTORS
 
 from libs.plan import Plan
-from libs.category import SPACE_CATEGORIES
+from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
+
+
+def test_seed_multiple_floors():
+    """
+    Test
+    :return:
+    """
+    boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
+    boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
+
+    plan = Plan("multiple_floors")
+    floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
+    floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
+
+    plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_1)
+    plan.insert_linear((200, 0), (300, 0), LINEAR_CATEGORIES["window"], floor_1)
+    plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_2)
+    plan.insert_linear((400, 0), (500, 0), LINEAR_CATEGORIES["window"], floor_2)
+
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+
+    plan.plot()
+
+    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+    (seeder.plant()
+     .grow()
+     .shuffle(SHUFFLES['seed_square_shape'])
+     .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+     .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+     .simplify(SELECTORS["fuse_small_cell"])
+     .shuffle(SHUFFLES['seed_square_shape']))
+
+    plan.plot()
+
+    assert plan.check()
 
 
 @pytest.mark.parametrize("input_file", BLUEPRINT_INPUT_FILES)
@@ -53,7 +88,9 @@ def rectangular_plan(width: float, depth: float) -> Plan:
     :return:
     """
     boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-    return Plan("square").from_boundary(boundaries)
+    plan = Plan("square")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
 
 
 def plan_with_duct(width: float, depth: float) -> Plan:

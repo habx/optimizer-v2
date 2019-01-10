@@ -34,6 +34,21 @@ def test_floor_plan(input_file):
     assert plan.check()
 
 
+def test_multiple_floors():
+    """
+    Test a plan with multiple floors
+    :return:
+    """
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    perimeter_2 = [(0, 0), (800, 0), (800, 800), (0, 800)]
+    plan = Plan("Multiple Floors")
+    plan.add_floor_from_boundary(perimeter)
+    plan.add_floor_from_boundary(perimeter_2, 1)
+
+    plan.plot()
+    assert plan.check()
+
+
 def test_add_duct_to_space():
     """
     Test. Add various space inside an emptySpace.
@@ -48,7 +63,8 @@ def test_add_duct_to_space():
     duct_category = SPACE_CATEGORIES['duct']
 
     # add border duct
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
     plan.insert_space_from_boundary(duct, duct_category)
 
     # add inside duct
@@ -85,7 +101,8 @@ def test_add_touching_duct_to_space():
     duct_category = SPACE_CATEGORIES['duct']
 
     # add border duct
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     # add touching duct
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
@@ -102,7 +119,8 @@ def test_remove_edge_from_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
 
     # add border duct
-    plan = Plan("Remove edge from space").from_boundary(perimeter)
+    plan = Plan("Remove edge from space")
+    plan.add_floor_from_boundary(perimeter)
 
     # add touching duct
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
@@ -125,7 +143,8 @@ def test_add_face():
     """
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
 
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     complex_face = [(700, 800), (1000, 700), (1000, 800), (800, 1000), (700, 1000)]
     plan.empty_space.insert_face_from_boundary(complex_face)
@@ -147,7 +166,8 @@ def test_cut_to_inside_space():
     :return:
     """
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES['duct'])
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0])
@@ -166,7 +186,8 @@ def test_add_overlapping_face():
     hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
     hole_2 = [(50, 150), (150, 150), (150, 300), (50, 300)]
 
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)
     face_to_remove = list(plan.empty_space.faces)[1]
@@ -190,7 +211,8 @@ def test_add_border_overlapping_face():
     hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
     hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
 
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)
     face_to_remove = list(plan.empty_space.faces)[1]
@@ -215,7 +237,8 @@ def test_add_face_touching_internal_edge():
     hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
     hole_3 = [(50, 200), (150, 200), (150, 300), (50, 300)]
 
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)
     face_to_remove = list(plan.empty_space.faces)[1]
@@ -244,7 +267,8 @@ def test_add_two_face_touching_internal_edge_and_border():
     hole_2 = [(0, 150), (150, 150), (150, 200), (0, 200)]
     hole_3 = [(0, 200), (150, 200), (150, 300), (0, 300)]
 
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)
     face_to_remove = list(plan.empty_space.faces)[1]
@@ -270,7 +294,8 @@ def test_insert_separating_wall():
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     wall = [(250, 0), (300, 0), (300, 500), (250, 500)]
-    plan = Plan('Plan_test_wall').from_boundary(perimeter)
+    plan = Plan('Plan_test_wall')
+    plan.add_floor_from_boundary(perimeter)
 
     plan.insert_space_from_boundary(wall, category=SPACE_CATEGORIES['loadBearingWall'])
 
@@ -285,7 +310,8 @@ def test_remove_middle_space():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.barycenter_cut(coeff=0.3)
     plan.empty_space.barycenter_cut()
@@ -311,7 +337,8 @@ def test_remove_enclosing_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
 
     # add border duct
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     # add single touching point
     point_duct = [(0, 600), (200, 500), (200, 700)]
@@ -335,7 +362,8 @@ def test_remove_u_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
 
     # add border duct
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     # add single touching point
     point_duct = [(0, 600), (200, 500), (200, 700), (0, 700)]
@@ -356,7 +384,8 @@ def test_remove_middle_b_space():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
     list(plan.empty_space.edges)[4].barycenter_cut(0)
 
     duct = [(200, 200), (300, 200), (300, 300)]
@@ -376,7 +405,8 @@ def test_remove_middle_u_space():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
     list(plan.mesh.faces[0].edges)[4].barycenter_cut(0)
 
     duct = [(200, 300), (200, 150), (300, 150), (300, 300)]
@@ -396,7 +426,8 @@ def test_remove_middle_c_space():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
     list(plan.mesh.faces[0].edges)[4].barycenter_cut(0)
 
     duct = [(200, 200), (400, 200), (400, 400), (200, 400)]
@@ -418,7 +449,8 @@ def test_remove_d_space():
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     duct = [(0, 400), (100, 400), (100, 500), (50, 500)]
 
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
     plan.empty_space.insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
@@ -436,7 +468,8 @@ def test_remove_middle_e_space():
     """
     perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
     duct = [(0, 0), (500, 0), (500, 300), (300, 300), (300, 500), (0, 500)]
-    plan = Plan('remove_middle_e_space').from_boundary(perimeter)
+    plan = Plan('remove_middle_e_space')
+    plan.add_floor_from_boundary(perimeter)
 
     duct_2 = [(200, 100), (300, 100), (300, 300), (200, 300)]
     plan.empty_space.insert_face_from_boundary(duct)
@@ -457,7 +490,8 @@ def test_create_hole():
     """
     perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
     duct = [(200, 200), (400, 200), (400, 400), (200, 400)]
-    plan = Plan('create_hole').from_boundary(perimeter)
+    plan = Plan('create_hole')
+    plan.add_floor_from_boundary(perimeter)
     plan.empty_space.insert_face_from_boundary(duct)
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
@@ -475,7 +509,8 @@ def test_bounding_box():
     """
     perimeter = [(100, 0), (150, 50), (400, 0), (600, 0), (500, 400), (400, 400), (400, 500),
                  (0, 500), (0, 400), (200, 400), (200, 200), (0, 200)]
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
     box = plan.empty_space.bounding_box((1, 0))
     assert box == (600.0, 500.0)
 
@@ -486,7 +521,8 @@ def test_remove_face_along_internal_edge():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
 
     duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
     plan.insert_space_from_boundary(duct)
@@ -506,7 +542,8 @@ def test_remove_encapsulating_face():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
 
     duct = [(150, 150), (300, 150), (300, 300), (150, 300)]
     plan.empty_space.insert_face_from_boundary(duct)
@@ -514,7 +551,7 @@ def test_remove_encapsulating_face():
 
     my_space = plan.empty_space
     my_space.remove_face(plan.mesh.faces[1])
-    Space(plan, plan.mesh.faces[1].edge)
+    Space(plan, my_space.floor, plan.mesh.faces[1].edge)
 
     plan.plot()
 
@@ -527,7 +564,8 @@ def test_merge_middle_b_space():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (200, 500), (200, 200), (0, 200)]
-    plan = Plan('my plan').from_boundary(perimeter)
+    plan = Plan('my plan')
+    plan.add_floor_from_boundary(perimeter)
 
     edge = list(plan.mesh.faces[0].edges)[4]
     plan.empty_space.barycenter_cut(edge, 0)
@@ -556,7 +594,8 @@ def test_merge_u_space():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
 
     # add border duct
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
 
     # add single touching point
     point_duct = [(0, 800), (0, 500), (500, 500), (500, 1000), (200, 1000), (200, 800)]
@@ -579,7 +618,8 @@ def test_clone_plan():
     :return:
     """
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
     plan_2 = plan.clone()
     plan_2.empty_space.category = SPACE_CATEGORIES["duct"]
     plan.plot()
@@ -599,7 +639,8 @@ def test_clone_change_plan():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
     duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
-    plan = Plan().from_boundary(perimeter)
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
     plan_2 = plan.clone()
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
