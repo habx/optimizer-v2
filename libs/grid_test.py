@@ -29,7 +29,9 @@ def rectangular_plan(width: float, depth: float) -> Plan:
     :return:
     """
     boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-    return Plan("square").from_boundary(boundaries)
+    plan = Plan("square")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
@@ -69,3 +71,17 @@ def test_simple_grid():
     assert len(plan.empty_space._faces_id) == 64
 
 
+def test_multiple_floors_grid():
+    """
+    Test a plan with multiple floors
+    :return:
+    """
+    boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
+    boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
+    plan = Plan()
+    plan.add_floor_from_boundary(boundaries)
+    plan.add_floor_from_boundary(boundaries_2, 1)
+
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+    plan.plot()
+    assert plan.check()

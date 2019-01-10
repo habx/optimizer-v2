@@ -437,7 +437,7 @@ class Seed:
             raise ValueError('The seed should point towards an empty space')
 
         modified_spaces = empty_space.remove_face(face)
-        self.space = Space(self.seeder.plan, self.edge, SPACE_CATEGORIES["seed"])
+        self.space = Space(self.seeder.plan, empty_space.floor, self.edge, SPACE_CATEGORIES["seed"])
         self.update_max_size_constraint()
         return [self.space] + modified_spaces
 
