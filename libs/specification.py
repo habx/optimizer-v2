@@ -87,7 +87,8 @@ class Item:
         self.id = 0
 
     def __repr__(self):
-        return 'Item: ' + self.category.name + ' ' + self.variant + ', ' + self.min_size.__repr__()
+        return 'Item: ' + self.category.name + ' ' + self.variant + ', Area : ' + \
+               str(self.required_area)
 
     @property
     def required_area(self) -> float:
