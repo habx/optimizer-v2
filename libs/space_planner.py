@@ -33,7 +33,7 @@ class SpacePlanner:
         self.solutions_collector = SolutionsCollector(spec)
 
     def __repr__(self):
-        output = 'SpacePlanner' + self.name
+        output = "SpacePlanner" + self.name
         return output
 
     def _init_spaces_adjacency(self) -> None:
@@ -143,10 +143,10 @@ class SpacePlanner:
         self.manager.solver.solve()
 
         if len(self.manager.solver.solutions) == 0:
-            logging.warning('Plan without space planning solution')
+            logging.warning("Plan without space planning solution")
         else:
             self._check_validity()
-            logging.info('Plan with {0} solutions'.format(len(self.manager.solver.solutions)))
+            logging.info("Plan with {0} solutions".format(len(self.manager.solver.solutions)))
             logging.debug(self.spec.plan)
             for i, sol in enumerate(self.manager.solver.solutions):
                 plan_solution = self.spec.plan.clone()
@@ -244,27 +244,27 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = 'Antony_A22.json'  # 5 Levallois_Letourneur / Antony_A22
+        input_file = "Antony_A22.json"  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
-        GRIDS['ortho_grid'].apply_to(plan)
+        GRIDS["ortho_grid"].apply_to(plan)
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
         (seeder.plant()
          .grow()
-         .shuffle(SHUFFLES['seed_square_shape'])
+         .shuffle(SHUFFLES["seed_square_shape"])
          .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
                               "empty"))
          .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
          .simplify(SELECTORS["fuse_small_cell"])
-         .shuffle(SHUFFLES['seed_square_shape']))
+         .shuffle(SHUFFLES["seed_square_shape"]))
         plan.plot()
-        # input_file = 'Antony_A22_setup.json'
+        # input_file = "Antony_A22_setup.json"
         input_file_setup = input_file[:-5]+"_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
 
-        space_planner = SpacePlanner('test', spec)
+        space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
 
     space_planning()
