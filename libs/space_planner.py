@@ -143,23 +143,23 @@ class SpacePlanner:
         self.manager.solver.solve()
 
         if len(self.manager.solver.solutions) == 0:
-            logging.warning("Plan without space planning solution")
+            logging.warning("SpacePlanner : solution_research : Plan without space planning solution")
         else:
             self._check_validity()
-            logging.info("Plan with {0} solutions".format(len(self.manager.solver.solutions)))
+            logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(len(self.manager.solver.solutions)))
             logging.debug(self.spec.plan)
             for i, sol in enumerate(self.manager.solver.solutions):
                 plan_solution = self.spec.plan.clone()
                 plan_solution = self._rooms_building(plan_solution, sol)
-                self.solutions_collector.add_plan(plan_solution)
+                self.solutions_collector.add_solution(plan_solution)
                 logging.debug(plan_solution)
 
-            best_sol = self.solutions_collector.find_best_solutions()
+            best_sol = self.solutions_collector.best()
             for sol in best_sol:
                 logging.debug(sol)
                 sol.plan.plot()
 
-    def generate_best_solutions_files(self, best_sol: list('Solution')):
+    def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
         Generates the output files of the chosen solutions
         :return: None

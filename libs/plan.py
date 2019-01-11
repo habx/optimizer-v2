@@ -1823,14 +1823,6 @@ class Plan:
         return True
 
     @property
-    def mutable_spaces(self) -> Generator['Space', None, None]:
-        """
-        Returns an iterator of the mutable spaces
-        :return:
-        """
-        return (space for space in self.spaces if space.mutable)
-
-    @property
     def area(self) -> float:
         """
         Returns the area of the plan.

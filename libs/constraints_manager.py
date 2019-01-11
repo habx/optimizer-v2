@@ -96,7 +96,7 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                logging.debug("{0}: {1}".format(i_item, [self.positions[i_item, j].Value() for j in
+                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [self.positions[i_item, j].Value() for j in
                                                          range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
@@ -110,11 +110,11 @@ class ConstraintSolver:
 
         self.solver.EndSearch()
 
-        logging.debug("Statistics")
-        logging.debug("num_solutions: {0}".format(nbr_solutions))
-        logging.debug("failures: {0}".format(self.solver.Failures()))
-        logging.debug("branches: {0}".format(self.solver.Branches()))
-        logging.debug("WallTime: {0}".format(self.solver.WallTime()))
+        logging.debug("ConstraintSolver: Statistics")
+        logging.debug("ConstraintSolver: num_solutions: %i", nbr_solutions)
+        logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
+        logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
+        logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
 
 
 class ConstraintsManager:
@@ -166,7 +166,7 @@ class ConstraintsManager:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
                     self.item_constraints[item.category.name].append(constraint)
 
-        logging.debug("CONSTRAINTS", self.item_constraints)
+        logging.debug("ConstraintsManager : CONSTRAINTS", self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
         """

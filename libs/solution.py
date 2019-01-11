@@ -26,7 +26,7 @@ class SolutionsCollector:
         self.solutions: List['Solution'] = []
         self.spec = spec
 
-    def add_plan(self, plan: 'Plan') -> None:
+    def add_solution(self, plan: 'Plan') -> None:
         """
         creates and add plan solution to the list
         :param: plan
@@ -36,7 +36,7 @@ class SolutionsCollector:
         self.solutions.append(sol)
 
     @property
-    def solutions_distance_matrix(self):
+    def solutions_distance_matrix(self) -> float:
         """
         Distance between all solutions of the solution collector
         """
@@ -54,10 +54,10 @@ class SolutionsCollector:
                     distance_matrix[i][j] = distance
                     distance_matrix[j][i] = distance
 
-        logging.debug("Distance_matrix : {0}".format(distance_matrix))
+        logging.debug("SolutionsCollector : Distance_matrix : {0}".format(distance_matrix))
         return distance_matrix
 
-    def find_best_solutions(self) -> list('Solution'):
+    def best(self) -> ['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
@@ -72,13 +72,14 @@ class SolutionsCollector:
         best_sol_list = []
 
         list_scores = []
-        for sol in self.solutions:
-            list_scores.append(sol.score)
+        for solution in self.solutions:
+            list_scores.append(solution.score())
 
         # Choose the tree best distributions :
         best_score = max(list_scores)
         index_best_sol = list_scores.index(best_score)
-        logging.debug("Best solution : index : {0}, score : {1}".format(index_best_sol, best_score))
+        logging.debug("SolutionsCollector : Best solution : index : %i, score : %f", index_best_sol,
+                      best_score)
 
         best_sol_list.append(self.solutions[index_best_sol])
 
@@ -89,32 +90,30 @@ class SolutionsCollector:
 
         dist_from_best_sol = distance_matrix[index_best_sol]
 
-        second_score = -10e5
+        second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
             if dist_from_best_sol[i] > 30 and list_scores[i] > second_score:
                 index_second_sol = i
                 second_score = list_scores[i]
 
-        if index_second_sol:
+        if second_score:
             best_sol_list.append(self.solutions[index_second_sol])
-            logging.debug("Second solution : index : {0}, score : {1}".format(index_second_sol,
-                                                                              second_score))
+            logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
+                          index_second_sol, second_score)
 
             index_third_sol = None
-
+            third_score = None
             dist_from_second_sol = distance_matrix[index_second_sol]
-
-            third_score = -10e5
             for i in range(len(self.solutions)):
-                if dist_from_best_sol[i] > 20 and dist_from_second_sol[i] > 20 and \
-                        list_scores[i] > third_score:
+                if (dist_from_best_sol[i] > 20 and dist_from_second_sol[i] > 20 and
+                        list_scores[i] > third_score):
                     index_third_sol = i
                     third_score = list_scores[i]
-            if index_third_sol:
+            if third_score:
                 best_sol_list.append(self.solutions[index_third_sol])
-                logging.debug("Third solution : index : {0}, score : {1}".format(index_third_sol,
-                                                                                 third_score))
+                logging.debug(" SolutionsCollector : Third solution : index %i, score : %f",
+                              index_third_sol, third_score)
 
             best_distribution_list = [index_best_sol, index_second_sol, index_third_sol]
             for i in best_distribution_list:
@@ -122,7 +121,8 @@ class SolutionsCollector:
                     if i and j:
                         if i < j:
                             logging.debug(
-                                "Distance {0} {1} : {2}".format(i, j, distance_matrix[i][j]))
+                                "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
+                                distance_matrix[i][j])
 
         return best_sol_list
 
@@ -133,16 +133,16 @@ class Solution:
     item layout solution in a given plan
     """
 
-    def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', id: float):
-        self.id = id
+    def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', _id: int):
+        self._id = _id
         self.collector = collector
         self.plan = plan
-        self.plan.name = self.plan.name[:-5] + "_Solution_Id" + str(self.id)
+        self.plan.name = self.plan.name[:-5] + "_Solution_Id" + str(self._id)
         self.items_spaces = {}
         self.init_items_spaces()
 
     def __repr__(self):
-        output = 'Solution Id' + str(self.id)
+        output = 'Solution Id' + str(self._id)
         return output
 
     def init_items_spaces(self):
@@ -154,11 +154,11 @@ class Solution:
                 if item.category.name == space.category.name:
                     self.items_spaces[item] = space
 
-    def get_rooms(self, category_name: str) -> list('Space'):
+    def get_rooms(self, category_name: str) -> ['Space']:
         """
         Retrieves all spaces corresponding to the category_name
         :param category_name: str
-        :return: List('Spaces')
+        :return: ['Spaces']
         """
         rooms_list = []
         for item in self.collector.spec.items:
@@ -182,8 +182,8 @@ class Solution:
             if item.min_size.area <= space.area <= item.max_size.area:
                 item_area_score = 100
             # good overflow
-            elif item.max_size.area < space.area and \
-                    space.category.name in good_overflow_categories:
+            elif (item.max_size.area < space.area and
+                    space.category.name in good_overflow_categories):
                 item_area_score = 100
             # overflow
             else:
@@ -206,10 +206,11 @@ class Solution:
 
             # Area score
             area_score += item_area_score
-            logging.debug("Area score : {0}, room : {1}".format(item_area_score, item.id))
+            logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
+                          item.id)
 
         area_score = round(area_score / self.collector.spec.number_of_items, 2) - area_penalty * 20
-        logging.debug("Area score : {0}".format(area_score))
+        logging.debug("Solution %i: Area score : %f", self._id, area_score)
         return area_score
 
     def _shape_score(self) -> float:
@@ -228,9 +229,10 @@ class Solution:
                 item_shape_score = min(100, 100 - (
                         (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
                 logging.debug(
-                    "Shape score : {0}, room : {1}".format(item_shape_score, item.category.name))
+                    "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
+                    item.category.name)
             else:
-                logging.warning("Invalid shapely space")
+                logging.warning("Solution %i: Invalid shapely space")
                 item_shape_score = 100
 
             shape_score = min(item_shape_score, shape_score)
@@ -244,15 +246,13 @@ class Solution:
         """
         for item1 in self.collector.spec.items:
             for item2 in self.collector.spec.items:
-                if item1 != item2 and item1.category.name != "entrance" and \
-                        item2.category.name != "entrance":
-                    if item1.required_area < item2.required_area and \
-                            self.items_spaces[item1].area > self.items_spaces[item2].area:
-                        logging.debug(
-                            "pbm size : {0}, {1}".format(item1.category.name, item2.category.name))
-                        logging.debug("Size bonus : {0}".format(0))
+                if (item1 != item2 and item1.category.name != "entrance" and
+                        item2.category.name != "entrance"):
+                    if (item1.required_area < item2.required_area and
+                            self.items_spaces[item1].area > self.items_spaces[item2].area):
+                        logging.debug("Solution %i: Size bonus : %i", self._id, 0)
                         return 0
-        logging.debug("Size bonus : {0}".format(10))
+        logging.debug("Solution %i: Size bonus : %i", self._id, 10)
         return 10
 
     def _night_and_day_score(self) -> float:
@@ -271,18 +271,18 @@ class Solution:
         night_polygon = None
         for item in self.collector.spec.items:
             # Day
-            if item.category.name in day_list or \
+            if (item.category.name in day_list or
                     (item.category.name == "wc" and
-                     self.items_spaces[item] == self.get_rooms("wc")[0]):
+                     self.items_spaces[item] == self.get_rooms("wc")[0])):
                 if not day_polygon:
                     day_polygon = self.items_spaces[item].as_sp
                 else:
                     day_polygon = day_polygon.union(self.items_spaces[item].as_sp)
 
             # Night
-            elif item.category.name in night_list or \
+            elif (item.category.name in night_list or
                     (item.category.name == "wc" and
-                     self.items_spaces[item] != self.get_rooms("wc")[0]):
+                     self.items_spaces[item] != self.get_rooms("wc")[0])):
                 if not night_polygon:
                     night_polygon = self.items_spaces[item].as_sp
                 else:
@@ -300,14 +300,14 @@ class Solution:
             night_polygon_with_entrance = night_polygon.union(
                 self.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
             if night_polygon_with_entrance.geom_type != "Polygon":
-                if (len(night_polygon) > 2 and len(night_polygon_with_entrance) > 2) \
+                if ((len(night_polygon) > 2 and len(night_polygon_with_entrance) > 2)
                         or (self.collector.spec.typology <= 2
-                            or self.collector.spec.number_of_items < 6):
+                            or self.collector.spec.number_of_items < 6)):
                     groups_score -= 50
                 else:
                     groups_score -= 25
 
-        logging.debug("Night and day score : {0}".format(groups_score))
+        logging.debug("Solution %i: Night and day score : %i", self._id, groups_score)
         return groups_score
 
     def _position_score(self) -> float:
@@ -364,12 +364,12 @@ class Solution:
                     if entrance_poly.distance(self.items_spaces[item].as_sp) < CORRIDOR_SIZE:
                         item_position_score = 100
 
-            logging.debug(
-                "Position score : {0}, room : {1}".format(item_position_score, item.category.name))
+            logging.debug("Solution %i: Position score : %f, room : %s", self._id,
+                          item_position_score, item.category.name)
             position_score = position_score + item_position_score
 
         position_score = position_score / nbr_room_position_score
-        logging.debug("Position score : {0}".format(position_score))
+        logging.debug("Solution %i: Position score : %f", self._id, position_score)
 
         return position_score
 
@@ -383,15 +383,15 @@ class Solution:
         something_inside_score = 100
         for item in self.collector.spec.items:
             item_something_inside_score = 100
-            # duct or pillar or small bearing wall
-            # if self.items_spaces[item].has_holes:
-            #     item_something_inside_score = 0
-            #     something_inside_score = min(something_inside_score,
-            #                                  item_something_inside_score)
-            #     logging.debug("Something Inside score : {0}, room : {1}, has_holes".format(
-            #         something_inside_score, item.category.name))
-            #     continue
-            # isolated room
+            #  duct or pillar or small bearing wall
+            if self.items_spaces[item].has_holes:
+                item_something_inside_score = 0
+                something_inside_score = min(something_inside_score,
+                                             item_something_inside_score)
+                logging.debug("Solution %i: Something Inside score : %f, room : %s, has_holes",
+                              self._id, something_inside_score, item.category.name)
+                continue
+            #  isolated room
             list_of_non_concerned_room = ["entrance", "circulationSpace", "dressing", "cellar",
                                           "office", "laundry"]
             space = self.items_spaces[item]
@@ -413,14 +413,13 @@ class Solution:
                             something_inside_score = min(something_inside_score,
                                                          item_something_inside_score)
                             logging.debug(
-                                "Something Inside score : {0}, room : {1}, isolated room".format(
-                                    something_inside_score, item.category.name))
+                                "Solution %i: Something Inside score : %f, room : %s, isolated room",
+                                self._id, something_inside_score, item.category.name)
                             break
 
-        logging.debug("Something Inside score : {0}".format(something_inside_score))
+        logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
         return something_inside_score
 
-    @property
     def score(self) -> float:
         """
         Scoring
