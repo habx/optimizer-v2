@@ -348,8 +348,7 @@ class Space(PlanComponent):
         Returns the internal reference edges
         :return:
         """
-        if self.has_holes:
-            return (self.mesh.get_edge(edge_id) for edge_id in self._edges_id[1:])
+        return (self.mesh.get_edge(edge_id) for edge_id in self._edges_id[1:])
 
     @property
     def has_holes(self):
@@ -357,7 +356,7 @@ class Space(PlanComponent):
         Returns True if the space has internal holes
         :return:
         """
-        return len(self._edges_id) > 0
+        return len(self._edges_id) > 1
 
     @property
     def area(self) -> float:
