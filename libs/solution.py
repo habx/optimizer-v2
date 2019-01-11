@@ -36,7 +36,7 @@ class SolutionsCollector:
         self.solutions.append(sol)
 
     @property
-    def solutions_distance_matrix(self) -> float:
+    def solutions_distance_matrix(self) -> [float]:
         """
         Distance between all solutions of the solution collector
         """
@@ -183,7 +183,7 @@ class Solution:
                 item_area_score = 100
             # good overflow
             elif (item.max_size.area < space.area and
-                    space.category.name in good_overflow_categories):
+                  space.category.name in good_overflow_categories):
                 item_area_score = 100
             # overflow
             else:
@@ -281,8 +281,8 @@ class Solution:
 
             # Night
             elif (item.category.name in night_list or
-                    (item.category.name == "wc" and
-                     self.items_spaces[item] != self.get_rooms("wc")[0])):
+                  (item.category.name == "wc" and
+                   self.items_spaces[item] != self.get_rooms("wc")[0])):
                 if not night_polygon:
                     night_polygon = self.items_spaces[item].as_sp
                 else:

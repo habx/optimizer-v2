@@ -8,7 +8,7 @@ and a customer input setup
 """
 import logging
 from libs.specification import Specification
-from libs.solution import SolutionsCollector
+from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
 from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
@@ -143,10 +143,12 @@ class SpacePlanner:
         self.manager.solver.solve()
 
         if len(self.manager.solver.solutions) == 0:
-            logging.warning("SpacePlanner : solution_research : Plan without space planning solution")
+            logging.warning(
+                "SpacePlanner : solution_research : Plan without space planning solution")
         else:
             self._check_validity()
-            logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(len(self.manager.solver.solutions)))
+            logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
+                len(self.manager.solver.solutions)))
             logging.debug(self.spec.plan)
             for i, sol in enumerate(self.manager.solver.solutions):
                 plan_solution = self.spec.plan.clone()
@@ -219,7 +221,6 @@ def check_room_connectivity_factory(adjacency_matrix):
 
 
 if __name__ == '__main__':
-
     import libs.reader as reader
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
@@ -260,11 +261,12 @@ if __name__ == '__main__':
          .shuffle(SHUFFLES["seed_square_shape"]))
         plan.plot()
         # input_file = "Antony_A22_setup.json"
-        input_file_setup = input_file[:-5]+"_setup.json"
+        input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
 
         space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
+
 
     space_planning()

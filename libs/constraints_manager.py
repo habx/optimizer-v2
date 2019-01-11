@@ -20,7 +20,6 @@ from ortools.constraint_solver import pywrapcp as ortools
 
 from libs.specification import Item
 
-
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
 DRESSING_NEIGHBOUR_ROOMS = ("entrance", "bedroom", "wc", "bathroom")
@@ -96,8 +95,9 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [self.positions[i_item, j].Value() for j in
-                                                         range(self.spaces_nbr)]))
+                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
+                    self.positions[i_item, j].Value() for j in
+                    range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.positions[i_item, j_space].Value())
@@ -454,19 +454,19 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
-        #[area_constraint, {"min_max": "max"}]
+        # [area_constraint, {"min_max": "max"}]
     ],
     "wc": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        #[area_constraint, {"min_max": "max"}],
+        # [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
-        #[area_constraint, {"min_max": "max"}],
+        # [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
@@ -484,7 +484,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        #[area_constraint, {"min_max": "max"}],
+        # [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
          {"item_category": ("living", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
