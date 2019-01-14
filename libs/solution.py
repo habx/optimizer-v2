@@ -12,7 +12,6 @@ from typing import List
 from libs.specification import Specification
 from libs.plan import Plan, Space
 import logging
-from libs.utils.geometry import polygon_distance
 
 CORRIDOR_SIZE = 120
 
@@ -87,13 +86,16 @@ class SolutionsCollector:
             return best_sol_list
 
         distance_matrix = self.solutions_distance_matrix
+        print('distance_matrix', distance_matrix)
+
 
         dist_from_best_sol = distance_matrix[index_best_sol]
 
         second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] > 30 and list_scores[i] > second_score:
+            if dist_from_best_sol[i] > 30 and ((second_score is None) or
+                                               list_scores[i] > second_score):
                 index_second_sol = i
                 second_score = list_scores[i]
 
@@ -107,7 +109,7 @@ class SolutionsCollector:
             dist_from_second_sol = distance_matrix[index_second_sol]
             for i in range(len(self.solutions)):
                 if (dist_from_best_sol[i] > 20 and dist_from_second_sol[i] > 20 and
-                        list_scores[i] > third_score):
+                        (third_score is None or list_scores[i] > third_score)):
                     index_third_sol = i
                     third_score = list_scores[i]
             if third_score:
@@ -413,8 +415,8 @@ class Solution:
                             something_inside_score = min(something_inside_score,
                                                          item_something_inside_score)
                             logging.debug(
-                                "Solution %i: Something Inside score : %f, room : %s, isolated room",
-                                self._id, something_inside_score, item.category.name)
+                                "Solution %i: Something Inside score : %f, room : %s, isolated room"
+                                , self._id, something_inside_score, item.category.name)
                             break
 
         logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
@@ -445,31 +447,17 @@ class Solution:
         # Night group
         night_list = ["bedroom", "bathroom", "wc", "laundry", "dressing", "office"]
 
-        sol_day_poly = None
-        other_sol_day_poly = None
-        sol_night_poly = None
-        other_sol_night_poly = None
-        for item in self.collector.spec.items:
-            if item.category.name in day_list:
-                if not sol_day_poly:
-                    sol_day_poly = self.items_spaces[item].as_sp
-                else:
-                    sol_day_poly.union(self.items_spaces[item].as_sp)
-                if not other_sol_day_poly:
-                    other_sol_day_poly = other_solution.items_spaces[item].as_sp
-                else:
-                    other_sol_day_poly.union(other_solution.items_spaces[item].as_sp)
+        difference_area = 0
+        mesh_area = 0
+        for mesh in self.collector.spec.plan.mesh:
+            for face in mesh.faces:
+                mesh_area += face.area
+                space = self.plan.get_space_of_face(face)
+                other_space = other_solution.plan.get_space_of_face(face)
+                if ((space.category.name in day_list and other_space.category.name not in day_list) or
+                        (space.category.name in night_list and
+                         other_space.category.name not in night_list)):
+                    difference_area += face.area
 
-            elif item.category.name in night_list:
-                if not sol_night_poly:
-                    sol_night_poly = self.items_spaces[item].as_sp
-                else:
-                    sol_night_poly.union(self.items_spaces[item].as_sp)
-                if not other_sol_night_poly:
-                    other_sol_night_poly = other_solution.items_spaces[item].as_sp
-                else:
-                    other_sol_night_poly.union(other_solution.items_spaces[item].as_sp)
-
-        distance = (polygon_distance(sol_day_poly, other_sol_day_poly) +
-                    polygon_distance(sol_night_poly, other_sol_night_poly)) / 2
+        distance = difference_area*100/mesh_area
         return distance

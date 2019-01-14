@@ -101,11 +101,13 @@ LINEAR_CATEGORIES = {
     "doorWindow": LinearCategory('doorWindow', mutable=False, seedable=True, aperture=True,
                                  window_type=True),
     "frontDoor": LinearCategory('frontDoor', mutable=False, seedable=True, aperture=True),
+    "startingStep": LinearCategory('startingStep', mutable=False, seedable=True, aperture=True),
     "wall": LinearCategory('wall'),
     "externalWall": LinearCategory('externalWall', False, width=2.0)
 }
 
 duct_space = SpaceCategory('duct', mutable=False, seedable=True)
+startingStep_linear = LinearCategory('startingStep', mutable=False, seedable=True, aperture=True)
 window_linears = [LINEAR_CATEGORIES[name] for name in LINEAR_CATEGORIES.keys() if
                   LINEAR_CATEGORIES[name].window_type]
 
@@ -114,6 +116,7 @@ SPACE_CATEGORIES = {
     "seed": SpaceCategory('seed'),
     "duct": SpaceCategory('duct', mutable=False, seedable=True),
     "loadBearingWall": SpaceCategory('loadBearingWall', mutable=False),
+    "hole": SpaceCategory('hole', mutable=False),
     "chamber": SpaceCategory('chamber', needed_linears=window_linears),
     "bedroom": SpaceCategory('bedroom', needed_linears=window_linears),
     "living": SpaceCategory('living', circulation=True, needed_linears=window_linears),
@@ -127,6 +130,7 @@ SPACE_CATEGORIES = {
     "dressing": SpaceCategory('dressing', needed_spaces=[duct_space]),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
+    "landing": SpaceCategory("landing", circulation=True, needed_linears=startingStep_linear),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
