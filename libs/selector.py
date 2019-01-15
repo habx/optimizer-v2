@@ -206,7 +206,7 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
     Returns among all edges on the space border the one such as when the pair
      face is added the size ratio defined as depth/width is clother to one
     """
-    list_homogeneneous = []
+
     ref_edge = space.edge
     biggest_shape_factor = None
     edge_homogeneous_growth = None
@@ -239,10 +239,7 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
                 edge_homogeneous_growth = edge
 
     if edge_homogeneous_growth:
-        list_homogeneneous.append(edge_homogeneous_growth)
-
-    for edge in list_homogeneneous:
-        yield edge
+        yield edge_homogeneous_growth
 
 
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
