@@ -40,10 +40,15 @@ def test_serialization():
     Test a mesh serialization
     :return:
     """
+    import libs.writer as writer
+    import libs.reader as reader
+
     perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
     mesh = Mesh().from_boundary(perimeter)
     geometry = mesh.serialize()
-    mesh.deserialize(geometry)
+    writer.save_mesh_as_json(geometry, "test")
+    new_geometry = reader.get_mesh_from_json("test");
+    mesh.deserialize(new_geometry)
     mesh.plot()
     assert mesh.check()
 
