@@ -95,7 +95,7 @@ def test_duplex():
 
     plan.plot()
 
-    spec = reader.create_specification_from_file("test_solution_setup.json")
+    spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
