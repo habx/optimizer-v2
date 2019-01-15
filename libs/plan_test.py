@@ -41,12 +41,10 @@ def test_serialization():
     """
     plan = reader.create_plan_from_file(INPUT_FILES[0])
     serialized_data = plan.serialize()
-    plan.mesh.check()
-    serialized_mesh = plan.mesh.serialize()
-    plan.mesh.deserialize(serialized_mesh)
-    # print(serialized_data)
-    # plan = plan.deserialize(serialized_data)
-    assert plan.mesh.check()
+    plan = plan.deserialize(serialized_data)
+    plan.plot()
+    assert plan.check()
+
 
 def test_multiple_floors():
     """

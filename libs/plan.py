@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
 from libs.mesh import Mesh, Face, Edge, Vertex, MeshOps
-from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
+from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
 from libs.size import Size
@@ -1276,7 +1276,7 @@ class Linear(PlanComponent):
         """
         self.id = uuid.UUID(value["id"])
         self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
-        self.category = SPACE_CATEGORIES[value["category"]]
+        self.category = LINEAR_CATEGORIES[value["category"]]
         return self
 
     def clone(self, plan: 'Plan') -> 'Linear':
@@ -1511,15 +1511,13 @@ class Plan:
         for space in value["spaces"]:
             floor_id = uuid.UUID(space["floor"])
             floor = self.floors[floor_id]
-            new_space = Space(self, floor).deserialize(space)
-            self._add_space(new_space)
+            Space(self, floor).deserialize(space)
 
         # add linears
         for linear in value["linears"]:
             floor_id = uuid.UUID(linear["floor"])
             floor = self.floors[floor_id]
-            new_linear = Linear(self, floor).deserialize(linear)
-            self._add_linear(new_linear)
+            Linear(self, floor).deserialize(linear)
 
         return self
 
@@ -2080,7 +2078,7 @@ class Plan:
                     if other_space is space:
                         continue
                     if face_id in other_space._faces_id:
-                        logging.debug("Plan: A face is in multiple space: %s", face_id)
+                        logging.error("Plan: A face is in multiple space: %s", face_id)
                         is_valid = False
 
         if is_valid:
