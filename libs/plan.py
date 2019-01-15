@@ -173,7 +173,7 @@ class Space(PlanComponent):
         if face is None:
             return False
 
-        return face._id in self._faces_id
+        return face.id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """

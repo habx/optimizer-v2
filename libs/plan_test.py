@@ -39,11 +39,21 @@ def test_serialization():
     Test
     :return:
     """
+    import libs.writer as writer
+
     plan = reader.create_plan_from_file(INPUT_FILES[0])
-    serialized_data = plan.serialize()
-    plan = plan.deserialize(serialized_data)
-    plan.plot()
-    assert plan.check()
+
+    new_plan = Plan("from_saved_data")
+
+    for i in range(100):
+        serialized_data = plan.serialize()
+        writer.save_plan_as_json(serialized_data)
+
+        new_serialized_data = reader.get_plan_from_json(serialized_data["name"])
+        new_plan = Plan("from_saved_data").deserialize(new_serialized_data)
+
+    new_plan.plot()
+    assert new_plan.check()
 
 
 def test_multiple_floors():

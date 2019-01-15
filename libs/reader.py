@@ -18,6 +18,7 @@ from libs.utils.geometry import (
     move_point
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
+from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
@@ -201,6 +202,16 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
         input_floor_plan_dict = json.load(floor_plan_file)
 
     return input_floor_plan_dict
+
+
+def get_plan_from_json(file_name: str = 'Antony_A22',
+                       input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
+    """
+    Retrieves the data dictionary from an optimizer json input
+    :return:
+    """
+    file_path = file_name + ".json"
+    return get_json_from_file(file_path, input_folder)
 
 
 def create_plan_from_file(input_file: str) -> plan.Plan:
