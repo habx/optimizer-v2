@@ -1,6 +1,6 @@
 # coding=utf-8
 """
-Space planner Module Tests
+Circulation Module Tests
 """
 
 import pytest
@@ -16,7 +16,7 @@ from libs.circulation import Circulator
 from libs.space_planner import SpacePlanner
 
 test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
-              ("Levallois_Letourneur.json", "Levallois_Letourneur_setup.json")]
+              ("Vernouillet_A105.json", "Vernouillet_A105_setup.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -52,6 +52,6 @@ def test_circulation(input_file, input_setup):
         'default': 0
     }
 
-    circulator = Circulator(plan=plan, cost_rules=cost_rules)
-
-    circulator.connect()
+    for solution in space_planner.solutions_collector.best():
+        circulator = Circulator(plan=solution.plan, cost_rules=cost_rules)
+        circulator.connect()

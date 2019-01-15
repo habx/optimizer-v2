@@ -1927,6 +1927,8 @@ class Plan:
 
         plot_save(save, show)
 
+        return ax
+
     def check(self) -> bool:
         """
         Used to verify plan consistency
