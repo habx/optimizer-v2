@@ -57,6 +57,8 @@ def test_simple_ortho_grid():
 
     plan = reader.create_plan_from_file("Antony_A22.json")
     new_plan = simple_ortho_grid.apply_to(plan)
+    new_plan.plot()
+
     assert new_plan.check()
 
 
