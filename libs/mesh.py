@@ -1411,6 +1411,8 @@ class Edge(MeshComponent):
         edge of the face
         :return: the new created faces
         """
+        projected_vertex = None
+
         for edge in self.siblings:
             # we do not check the two edges touching the vertex
             if edge is self or edge is self.previous:
@@ -1454,16 +1456,20 @@ class Edge(MeshComponent):
                     # clean unused vertex
                     if projected_vertex:
                         projected_vertex.remove_from_mesh()
+
                     projected_vertex = other_projected_vertex
                     min_distance = other_distance
                     closest_edge = other_edge
+
                 else:
                     # clean unused vertex
                     other_projected_vertex.remove_from_mesh()
 
             split_edge = closest_edge.split(projected_vertex, immutable)
 
+            # check if we tried to split an immutable edge
             if split_edge is None:
+                projected_vertex.remove_from_mesh()
                 continue
 
             split_edge_previous = split_edge.previous
@@ -1472,9 +1478,14 @@ class Edge(MeshComponent):
             new_face = self_previous.link(split_edge_previous)
 
             if new_face is None:
+                projected_vertex.remove_from_mesh()
                 continue
 
             return self, split_edge, new_face
+
+        # clean unused vertex
+        if projected_vertex and not projected_vertex.edge:
+            projected_vertex.remove_from_mesh()
 
         return None
 
@@ -1525,6 +1536,11 @@ class Edge(MeshComponent):
         new_edge.next = next_edge
         edge.next = new_edge
         edge_pair.next = new_edge_pair
+
+        # store modification
+        self.mesh.store_modification(MeshOps.INSERT, new_edge, self)
+        self.mesh.store_modification(MeshOps.INSERT, new_edge_pair, self.pair)
+        self.mesh.watch()
 
         return new_edge
 
@@ -2252,6 +2268,8 @@ class Face(MeshComponent):
         if self.edge.next.next is not self.edge:
             return self
 
+        logging.debug("Face: Cleaning a two faced faces")
+
         edge_1 = self.edge
         edge_2 = self.edge.next
         # preserve the references
@@ -2259,7 +2277,10 @@ class Face(MeshComponent):
         edge_2.preserve_references(edge_1.pair)
         # change the pair
         edge_1.pair.pair, edge_2.pair.pair = edge_2.pair, edge_1.pair
-        # remove from the mesh
+
+        # remove from the mesh the removed components : face and two edges
+        edge_1.remove_from_mesh()
+        edge_2.remove_from_mesh()
         self.remove_from_mesh()
 
         return None

@@ -238,14 +238,16 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
             if external_space[1] in SPACE_CATEGORIES:
                 my_plan.insert_space_from_boundary(external_space[0],
                                                    category=SPACE_CATEGORIES[external_space[1]])
+    ##############################################################################################
 
-    for fixed_item in fixed_items:
-        if fixed_item[1] in SPACE_CATEGORIES:
-            my_plan.insert_space_from_boundary(fixed_item[0],
-                                               category=SPACE_CATEGORIES[fixed_item[1]])
-        if fixed_item[1] in LINEAR_CATEGORIES:
-            my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
-                                  category=LINEAR_CATEGORIES[fixed_item[1]])
+    linears = (fixed_item for fixed_item in fixed_items if fixed_item[1] in LINEAR_CATEGORIES)
+    spaces = (fixed_item for fixed_item in fixed_items if fixed_item[1] in SPACE_CATEGORIES)
+
+    for linear in linears:
+        my_plan.insert_linear(linear[0][0], linear[0][1], category=LINEAR_CATEGORIES[linear[1]])
+
+    for space in spaces:
+        my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]])
 
     return my_plan
 

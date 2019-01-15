@@ -1528,7 +1528,7 @@ class Plan:
         :param modifications
         :return:
         """
-        logging.debug("Plan: Watcher called")
+        logging.debug("Plan: Updating plan from mesh watcher")
 
         inserted_faces = (modification for _id, modification in modifications.items()
                           if modification[0] == MeshOps.INSERT and type(modification[1]) == Face)
@@ -1536,13 +1536,16 @@ class Plan:
         removed_edges = (modification for _id, modification in modifications.items()
                          if modification[0] == MeshOps.REMOVE and type(modification[1]) == Edge)
 
+        inserted_edges = (modification for _id, modification in modifications.items()
+                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Edge)
+
         removed_faces = (modification for _id, modification in modifications.items()
                          if modification[0] == MeshOps.REMOVE and type(modification[1]) == Face)
 
         # add inserted face to the space of the receiving face
         # this must be done before removals
         for face_add in inserted_faces:
-            assert type(face_add[2]) == Face, ("Plan: an insertion op "
+            assert type(face_add[2]) == Face, ("Plan: an insertion op of a face "
                                                "should indicate the receiving face")
             face = face_add[1]
             # check if the face was not already added to the mesh
@@ -1556,6 +1559,16 @@ class Plan:
             if space:
                 logging.debug("Plan: Adding face from mesh update %s", face)
                 space.add_face_id(face)
+
+        # add inserted edge to the linear of the receiving face
+        for edge_add in inserted_edges:
+            assert edge_add[2] and type(edge_add[2]) == Edge, ("Plan: an insertion op of an edge "
+                                                               "should indicate the receiving edge")
+            receiving_edge = edge_add[2]
+            linear = self.get_linear(receiving_edge)
+            if linear is not None:
+                logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
+                linear.add_edge(edge_add[1])
 
         # remove edges
         for remove_edge in removed_edges:
@@ -2140,7 +2153,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Levallois_Meyronin.json"
+        input_file = "Massy_C303.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot()
