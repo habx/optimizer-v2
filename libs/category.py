@@ -29,7 +29,9 @@ CATEGORIES_COLORS = {
     'balcony': 'silver',
     'terrace': 'silver',
     'garden': 'green',
-    'loggia': 'silver'
+    'loggia': 'silver',
+    'startingStep': 'brown',
+    'hole': 'brown'
 }
 
 

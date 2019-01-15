@@ -449,8 +449,8 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
-        [windows_constraint, {}],
-        [area_constraint, {"min_max": "min"}]
+        #[windows_constraint, {}],
+        #[area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
@@ -491,7 +491,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "bedroom": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "office": [

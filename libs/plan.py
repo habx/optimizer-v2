@@ -1997,6 +1997,7 @@ class Plan:
         yield from (space for space in self.spaces if space.category.circulation)
 
 
+
 if __name__ == '__main__':
     import libs.reader as reader
 

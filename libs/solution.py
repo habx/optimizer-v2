@@ -86,8 +86,6 @@ class SolutionsCollector:
             return best_sol_list
 
         distance_matrix = self.solutions_distance_matrix
-        print('distance_matrix', distance_matrix)
-
 
         dist_from_best_sol = distance_matrix[index_best_sol]
 
@@ -449,15 +447,19 @@ class Solution:
 
         difference_area = 0
         mesh_area = 0
-        for mesh in self.collector.spec.plan.mesh:
-            for face in mesh.faces:
-                mesh_area += face.area
+        for floor in self.plan.floors.values():
+            for face in floor.mesh.faces:
                 space = self.plan.get_space_of_face(face)
-                other_space = other_solution.plan.get_space_of_face(face)
-                if ((space.category.name in day_list and other_space.category.name not in day_list) or
-                        (space.category.name in night_list and
-                         other_space.category.name not in night_list)):
-                    difference_area += face.area
+                if space.category.mutable:
+                    mesh_area += face.area
+                    other_space = other_solution.plan.get_space_of_face(face)
+                    if ((space.category.name in day_list and
+                         other_space.category.name not in day_list) or
+                            (space.category.name in night_list and
+                             other_space.category.name not in night_list)):
+                        difference_area += face.area
 
-        distance = difference_area*100/mesh_area
+        distance = difference_area * 100 / mesh_area
         return distance
+
+
