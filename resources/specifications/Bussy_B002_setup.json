@@ -20,15 +20,15 @@
       "type": "kitchen",
       "variant": "l",
       "requiredArea": {
-        "min": 150000,
-        "max": 250000
+        "min": 100000,
+        "max": 200000
       }
     },
     {
       "type": "bedroom",
       "variant": "m",
       "requiredArea": {
-        "min": 100000,
+        "min": 90000,
         "max": 120000
       }
     },
@@ -36,15 +36,7 @@
       "type": "bedroom",
       "variant": "m",
       "requiredArea": {
-        "min": 100000,
-        "max": 120000
-      }
-    },
-    {
-      "type": "bedroom",
-      "variant": "m",
-      "requiredArea": {
-        "min": 100000,
+        "min": 90000,
         "max": 120000
       }
     },
@@ -52,7 +44,7 @@
       "type": "bathroom",
       "variant": "m",
       "requiredArea": {
-        "min": 60000,
+        "min": 30000,
         "max": 80000
       }
     },

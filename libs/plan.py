@@ -1751,7 +1751,7 @@ class Plan:
 
     def remove(self, plan_component):
         """
-        Adds a component to the plan
+        Remove a component to the plan
         :param plan_component:
         :return:
         """
@@ -2147,6 +2147,7 @@ class Plan:
         """
 
         yield from (space for space in self.spaces if space.category.circulation)
+
 
 
 if __name__ == '__main__':
