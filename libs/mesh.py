@@ -502,8 +502,10 @@ class Edge(MeshComponent):
         self._start = start
         self._next = next_edge
         self._face = face
-        # always add a pair Edge, because an edge should always have a pair edge
-        self._pair = pair if pair else Edge(mesh, pair=self)
+        self._pair = pair
+        # ensure that the pair edge is reciprocal
+        if pair is not None:
+            pair.pair = self
         # check the size of the edge (not really useful)
         super().__init__(mesh, _id)
         self.check_size()
@@ -1150,10 +1152,9 @@ class Edge(MeshComponent):
             return None
 
         # Create the new edge and its pair
-        new_edge = Edge(self.mesh, self.end, other.next, self.face)
+        new_edge = Edge(self.mesh, self.end, other.next, self.face, pair=None)
         self.face.edge = self  # preserve split face edge reference
-        new_edge.pair.start = other.end
-        new_edge.pair.next = self.next
+        new_edge.pair = Edge(self.mesh, other.end, self.next, pair=new_edge)
 
         # modify initial edges next edges to follow the laser_cut
         self.next = new_edge
@@ -1515,10 +1516,7 @@ class Edge(MeshComponent):
 
         # create the two new half edges
         new_edge = Edge(self.mesh, vertex, next_edge, edge.face, edge_pair)
-        new_edge.pair = edge_pair
-
         new_edge_pair = Edge(self.mesh, vertex, next_edge_pair, edge_pair.face, edge)
-        new_edge_pair.pair = edge
 
         vertex.edge = vertex.edge if vertex.edge is not None else new_edge
 
@@ -1927,10 +1925,8 @@ class Face(MeshComponent):
         edge_shared = best_near_vertex.snap_to_edge(best_shared_edge)
         best_near_vertex = edge_shared.start  # ensure existing vertex reference
         new_edge = Edge(self.mesh, best_near_vertex, best_vertex.edge.previous.pair, self)
-        new_edge.pair.face = self
-        new_edge.pair.start = best_vertex
+        new_edge.pair = Edge(self.mesh, best_vertex, edge_shared, self, new_edge)
         best_near_vertex.edge = new_edge
-        new_edge.pair.next = edge_shared
         edge_shared.previous.next = new_edge
         best_vertex.edge.pair.next = new_edge.pair
 
@@ -2691,6 +2687,11 @@ class Mesh:
         Creates a new face from a boundary
         :return:
         """
+        logging.debug("Mesh: Creating new face from boundary")
+
+        assert len(boundary) > 2, ("To form a face a boundary "
+                                   "of at least three points must be provided: {}".format(boundary))
+
         # check if the perimeter respects the ccw rotation
         # we use shapely LinearRing object
         sp_perimeter = LinearRing(boundary)
@@ -2708,23 +2709,24 @@ class Mesh:
 
         next_edge = initial_edge
 
-        # we traverse the perimeter backward
-        for i, point in enumerate(boundary[::-1]):
-            # for the last item we loop on the initial edge
-            if i == len(boundary) - 1:
-                initial_edge.next = next_edge
-                next_edge.pair.next = initial_edge.pair
-                initial_edge.pair.start = next_edge.start
-                break
-            # create a new vertex
-            vertex = Vertex(self, point[0], point[1])
-            # create a new edge starting from this vertex
-            current_edge = Edge(self, vertex, next_edge, initial_face)
-            current_edge.pair.start = next_edge.start
-            next_edge.pair.next = current_edge.pair
-            # add the edge to the vertex
-            vertex.edge = current_edge
-            next_edge = current_edge
+        previous_edge = next_edge
+        previous_pair_edge = None
+
+        for point in boundary[1:]:
+            new_vertex = Vertex(self, point[0], point[1])
+
+            new_edge = Edge(self, new_vertex, None, initial_face, None)
+            new_vertex.edge = new_edge
+
+            previous_edge.next = new_edge
+            new_pair_edge = Edge(self, new_vertex, previous_pair_edge, None, previous_edge)
+
+            previous_pair_edge = new_pair_edge
+            previous_edge = new_edge
+
+        previous_edge.next = initial_edge
+        new_pair_edge = Edge(self, initial_vertex, previous_pair_edge, None, previous_edge)
+        initial_edge.pair.next = new_pair_edge
 
         return initial_face
 
