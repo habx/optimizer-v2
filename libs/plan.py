@@ -1751,7 +1751,7 @@ class Plan:
 
     def remove(self, plan_component):
         """
-        Adds a component to the plan
+        Remove a component to the plan
         :param plan_component:
         :return:
         """
