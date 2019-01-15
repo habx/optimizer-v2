@@ -120,6 +120,30 @@ def square_shape(_: Dict) -> scoreFunction:
     return _score
 
 
+def component_surface_objective(params: Dict) -> scoreFunction:
+    """
+    Scores checks surface margins for cells containing components defined in params
+    :return:
+    """
+
+    def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
+
+    def _score(space: 'Space') -> float:
+        list_components = list(
+            p for p in params.keys() if p in space.components_category_associated())
+        score = 0
+        for component in list_components:
+            score += shift_from_interval(params[component]["min_area"],
+                                         params[component]["max_area"], space.area)
+        if list_components:
+            score /= len(list_components)
+
+        return score
+
+    return _score
+
+
 def few_corners(params: Dict) -> scoreFunction:
     """
     Scores a space by counting the number of corners.
@@ -205,6 +229,15 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
                                               "max_size_xs")
 
 # objective constraints
+component_surface_objective = SpaceConstraint(component_surface_objective,
+                                              {"max_ratio": 100.0,
+                                               "frontDoor": {"min_area": 20000,
+                                                             "max_area": 40000},
+                                               "duct": {"min_area": 10000,
+                                                        "max_area": 40000}
+                                               },
+                                              "component_surface_objective", imperative=False)
+
 square_shape = SpaceConstraint(square_shape,
                                {"max_ratio": 100.0},
                                "square_shape", imperative=False)
@@ -222,5 +255,6 @@ CONSTRAINTS = {
     "max_size_seed": max_size_constraint_seed,
     "max_size_s_seed": max_size_s_constraint_seed,
     "max_size_xs_seed": max_size_xs_constraint_seed,
-    "square_shape": square_shape
+    "square_shape": square_shape,
+    "component_surface_objective": component_surface_objective,
 }
