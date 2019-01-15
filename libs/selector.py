@@ -201,6 +201,47 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
         return
 
 
+def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns among all edges on the space border the one such as when the pair
+     face is added the size ratio defined as depth/width is clother to one
+    """
+
+    ref_edge = space.edge
+    biggest_shape_factor = None
+    edge_homogeneous_growth = None
+
+    if ref_edge and ref_edge.pair and ref_edge.pair.face and space.plan.get_space_of_face(
+            ref_edge.pair.face).category.name == 'empty':
+        face_added = ref_edge.pair.face
+
+        space_contact = space.plan.get_space_of_face(face_added)
+        space.add_face(face_added)
+        size_ratio = space.size.depth / space.size.width
+        space.remove_face(face_added)
+        space_contact.add_face(face_added)
+
+        biggest_shape_factor = max(size_ratio, 1 / size_ratio)
+        edge_homogeneous_growth = ref_edge
+
+    for edge in space.edges:
+        if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
+                edge.pair).category.name == 'empty':
+            face_added = edge.pair.face
+            space_contact = space.plan.get_space_of_face(face_added)
+            space.add_face(face_added)
+            size_ratio = space.size.depth / space.size.width
+            space.remove_face(face_added)
+            space_contact.add_face(face_added)
+            current_shape_factor = max(size_ratio, 1 / size_ratio)
+            if biggest_shape_factor is None or current_shape_factor <= biggest_shape_factor:
+                biggest_shape_factor = current_shape_factor
+                edge_homogeneous_growth = edge
+
+    if edge_homogeneous_growth:
+        yield edge_homogeneous_growth
+
+
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge that can be seeded for a duct
@@ -660,6 +701,20 @@ def space_area(min_area: float = None, max_area: float = None) -> Predicate:
     return _predicate
 
 
+def cell_with_component(has_component: bool = False) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if a space has components
+    :param has_component:
+    :return:
+    """
+
+    def _predicate(_: 'Edge', space: 'Space') -> bool:
+        return len(space.components_category_associated()) == 0 if not has_component else True
+
+    return _predicate
+
+
 # Catalog Selectors
 
 SELECTORS = {
@@ -807,6 +862,23 @@ SELECTORS = {
         ]
     ),
 
+    "homogeneous": Selector(homogeneous, name='homogeneous'),
+
+    "fuse_very_small_cell_mutable": Selector(
+        boundary_unique_longest,
+        [
+            space_area(max_area=20000)
+        ]
+    ),
+
+    "fuse_small_cell_without_components": Selector(
+        boundary_unique_longest,
+        [
+            space_area(max_area=30000),
+            cell_with_component(has_component=False)
+        ]
+    ),
+
     "other_seed_space": Selector(
         other_seed_space_edge,
         [
@@ -822,7 +894,6 @@ SELECTORS = {
     ),
     "single_edge": Selector(boundary_unique)
 }
-
 
 SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
