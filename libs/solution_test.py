@@ -6,7 +6,7 @@ Space planner Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
 
 from libs.grid import GRIDS
 from libs.selector import SELECTORS
@@ -57,12 +57,14 @@ def test_solution():
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-     .grow()
-     .shuffle(SHUFFLES['seed_square_shape'])
-     .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-     .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES['seed_square_shape']))
+     .grow(show=True)
+     .shuffle(SHUFFLES['seed_square_shape'], show=True)
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                                      "empty"), show=True)
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+           show=True)
+     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+     .shuffle(SHUFFLES['seed_square_shape'], show=True))
 
     plan.plot()
 
