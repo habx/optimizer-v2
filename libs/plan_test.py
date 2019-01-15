@@ -34,6 +34,20 @@ def test_floor_plan(input_file):
     assert plan.check()
 
 
+def test_serialization():
+    """
+    Test
+    :return:
+    """
+    plan = reader.create_plan_from_file(INPUT_FILES[0])
+    serialized_data = plan.serialize()
+    plan.mesh.check()
+    serialized_mesh = plan.mesh.serialize()
+    plan.mesh.deserialize(serialized_mesh)
+    # print(serialized_data)
+    # plan = plan.deserialize(serialized_data)
+    assert plan.mesh.check()
+
 def test_multiple_floors():
     """
     Test a plan with multiple floors

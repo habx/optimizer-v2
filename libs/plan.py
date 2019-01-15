@@ -8,7 +8,7 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union
+from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any
 import logging
 import uuid
 
@@ -103,13 +103,40 @@ class Space(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
-                 edge: Optional['Edge'],
+                 edge: Optional['Edge'] = None,
                  category: SpaceCategory = SPACE_CATEGORIES['empty'],
                  _id: Optional[uuid.UUID] = None):
         super().__init__(plan, floor, _id=_id)
         self._edges_id = [edge.id] if edge else []
-        self._faces_id = [edge.face._id] if edge and edge.face else []
+        self._faces_id = [edge.face.id] if edge and edge.face else []
         self.category = category
+
+    def serialize(self) -> Dict:
+        """
+        Returns a serialize version of the space
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "floor": str(self.floor.id),
+            "edges": list(map(str, self._edges_id)),
+            "faces": list(map(str, self._faces_id)),
+            "category": self.category.name
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Space':
+        """
+        Fills the space with the specified serialized data.
+        The plan and floor data is already filled.
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
+        self._faces_id = list(map(lambda x: uuid.UUID(x), value["faces"]))
+        self.category = SPACE_CATEGORIES[value["category"]]
+        return self
 
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
@@ -122,7 +149,7 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain immutable uuid).
         :return:
         """
-        new_space = Space(plan, self.floor, None, category=self.category, _id=self.id)
+        new_space = Space(plan, self.floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -1020,7 +1047,11 @@ class Space(PlanComponent):
                   .config(vertex=edge.end, coeff=coeff)
                   .apply_to(edge.start))
 
-        return self.cut(edge, vertex, angle, traverse, max_length=max_length)
+        cut_data = self.cut(edge, vertex, angle, traverse, max_length=max_length)
+        # clean vertex in mesh structure
+        if not cut_data and vertex.edge is None and vertex.mesh:
+            vertex.remove_from_mesh()
+        return cut_data
 
     def ortho_cut(self, edge: 'Edge') -> bool:
         """
@@ -1209,8 +1240,8 @@ class Linear(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
-                 edge: Optional[Edge],
-                 category: LinearCategory,
+                 edge: Optional[Edge] = None,
+                 category: Optional[LinearCategory] = None,
                  _id: Optional[uuid.UUID] = None):
 
         if edge and not plan.is_space_boundary(edge):
@@ -1223,12 +1254,37 @@ class Linear(PlanComponent):
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
 
+    def serialize(self) -> Dict:
+        """
+        Returns a serialize version of the space
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "floor": str(self.floor.id),
+            "edges": list(map(str, self._edges_id)),
+            "category": self.category.name
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Linear':
+        """
+        Fills the linear properties from the serialized value
+        :param value:
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
+        self.category = SPACE_CATEGORIES[value["category"]]
+        return self
+
     def clone(self, plan: 'Plan') -> 'Linear':
         """
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, self.floor,  None, self.category, _id=self.id)
+        new_linear = Linear(plan, self.floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -1346,7 +1402,7 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
     def __init__(self,
-                 mesh: 'Mesh',
+                 mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
                  meta: Optional[dict] = None):
         self.id = uuid.uuid4()
@@ -1356,6 +1412,32 @@ class Floor:
 
     def __repr__(self):
         return "Floor: {}".format(self.id)
+
+    def serialize(self) -> Dict:
+        """
+        Returns a serialized version of the floor
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "mesh": self.mesh.serialize(),
+            "level": self.level,
+            "meta": self.meta
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Floor':
+        """
+        Returns a serialized version of the floor
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self.mesh = Mesh().deserialize(value["mesh"])
+        self.level = value["level"]
+        self.meta = value["meta"]
+
+        return self
 
 
 class Plan:
@@ -1389,6 +1471,57 @@ class Plan:
         for space in self.spaces:
             output += space.__repr__() + ' | '
         return output
+
+    def clear(self):
+        """
+        Clears the data of the plan
+        :return:
+        """
+        self.name = ""
+        self.spaces = []
+        self.linears = []
+        self.floors = {}
+
+    def serialize(self) -> Dict[str, Any]:
+        """
+        Returns a serialize version of the plan
+        :return:
+        """
+        output = {
+            "name": self.name,
+            "spaces":  [space.serialize() for space in self.spaces],
+            "linears": [linear.serialize() for linear in self.linears],
+            "floors": [floor.serialize() for floor in self.floors.values()]
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Plan':
+        """
+        Adds plan data from serialized input value
+        :param value:
+        :return: a plan
+        """
+        self.clear()
+        self.name = value["name"]
+        # add floors
+        for floor in value["floors"]:
+            self.add_floor(Floor().deserialize(floor))
+        # add spaces
+        for space in value["spaces"]:
+            floor_id = uuid.UUID(space["floor"])
+            floor = self.floors[floor_id]
+            new_space = Space(self, floor).deserialize(space)
+            self._add_space(new_space)
+
+        # add linears
+        for linear in value["linears"]:
+            floor_id = uuid.UUID(linear["floor"])
+            floor = self.floors[floor_id]
+            new_linear = Linear(self, floor).deserialize(linear)
+            self._add_linear(new_linear)
+
+        return self
 
     def _watcher(self, modifications):
         """
@@ -2009,26 +2142,14 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Paris18_A501.json"
+        input_file = "Levallois_Meyronin.json"
         plan = reader.create_plan_from_file(input_file)
 
-        plan.plot(save=False)
-        plt.show()
-
-        for empty_space in plan.empty_spaces:
-            boundary_edges = list(empty_space.edges)
-
-            for edge in boundary_edges:
-                if edge.length > 30:
-                    empty_space.barycenter_cut(edge, 0)
-                    empty_space.barycenter_cut(edge, 1)
-
-        plan.plot(save=False)
-        plt.show()
+        plan.plot()
 
         assert plan.check()
 
-    # floor_plan()
+    floor_plan()
 
 
     def clone_and_change_plan():
@@ -2055,4 +2176,4 @@ if __name__ == '__main__':
         assert plan.spaces[0].id == plan_2.spaces[0].id
 
 
-    clone_and_change_plan()
+    # clone_and_change_plan()
