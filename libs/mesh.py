@@ -2724,9 +2724,7 @@ class Mesh:
         initial_edge.face = initial_face
         initial_vertex.edge = initial_edge
 
-        next_edge = initial_edge
-
-        previous_edge = next_edge
+        previous_edge = initial_edge
         previous_pair_edge = None
 
         for point in boundary[1:]:
