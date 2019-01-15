@@ -144,8 +144,8 @@ class Seeder:
         max_recursion = 10  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
-                                              .plant()
-                                              .grow(show=show, plot=self.plot))
+             .plant()
+             .grow(show=show, plot=self.plot))
             max_recursion -= 1
             if not recursive or self.plan.count_category_spaces("empty") == 0:
                 break
@@ -247,7 +247,7 @@ class Seeder:
         self.selectors[category_name] = selector
         return self
 
-    def _initialize_plot(self, plot: Optional['Plot']=None):
+    def _initialize_plot(self, plot: Optional['Plot'] = None):
         """
         Creates a plot
         :return:
@@ -546,6 +546,13 @@ class GrowthMethod:
 
 # Growth Methods
 
+fill_seed_category = GrowthMethod(
+    'default',
+    (CONSTRAINTS['max_size_s_seed'],),
+    (
+        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
+    )
+)
 
 fill_small_seed_category = GrowthMethod(
     'empty',
@@ -594,6 +601,11 @@ GROWTH_METHODS = {
     "frontDoor": front_door_seed_category,
 }
 
+FILL_METHODS_HOMOGENEOUS = {
+    "empty": fill_seed_category,
+    "default": None
+}
+
 FILL_METHODS = {
     "empty": classic_seed_category,
     "default": None
@@ -624,6 +636,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
+
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['finer_ortho_grid'].apply_to(plan)
@@ -631,13 +644,14 @@ if __name__ == '__main__':
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
-               .grow(show=True)
-               .shuffle(SHUFFLES['seed_square_shape'], show=True)
-               .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                                    "empty"), show=True)
-               .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True, show=True)
-               .simplify(SELECTORS["fuse_small_cell"], show=True)
-               .shuffle(SHUFFLES['seed_square_shape'], show=True))
+         .grow(show=True)
+         .shuffle(SHUFFLES['seed_square_shape'], show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                                          "empty"), show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+               show=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape'], show=True))
 
         plan.plot(show=True)
         plt.show()

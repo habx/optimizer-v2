@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import shutil
 
 
 # plots all files in specified folder on same html page
@@ -58,6 +59,13 @@ if __name__ == '__main__':
     repo = "../output/plots/" + module + "/"
     print("REPO IS", repo)
     startHTML(repo, module)
+
+    # file renaming
+    x = next(os.walk(repo))[2]
+    for current_x in x:
+        init_name = repo + current_x
+        fin_name = init_name.replace(" ", "")
+        shutil.move(init_name, init_name.replace(" ", ""))
 
     x = next(os.walk(repo))[2]
     for current_x in x:
