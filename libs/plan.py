@@ -225,6 +225,14 @@ class Space(PlanComponent):
         for edge_id in self._edges_id:
             yield self.mesh.get_edge(edge_id)
 
+    def is_reference(self, edge: 'Edge') -> bool:
+        """
+        Checks if an edge is a reference edge of the space
+        :param edge:
+        :return: True if the edge is a reference, False otherwise
+        """
+        return edge.id in self._edges_id
+
     @property
     def edge_is_none(self) -> bool:
         """
@@ -1852,7 +1860,7 @@ class Plan:
         :return:
         """
         for space in self.spaces:
-            if edge.id in space._edges_id:
+            if space.is_reference(edge):
                 return space
 
         return None
@@ -2086,12 +2094,12 @@ class Plan:
         for space in self.spaces:
             is_valid = is_valid and space.check()
             # check that a face only belongs to one space and one space only
-            for face_id in space._faces_id:
+            for face in space.faces:
                 for other_space in self.spaces:
                     if other_space is space:
                         continue
-                    if face_id in other_space._faces_id:
-                        logging.error("Plan: A face is in multiple space: %s", face_id)
+                    if other_space.has_face(face):
+                        logging.error("Plan: A face is in multiple space: %s", face)
                         is_valid = False
 
         if is_valid:

@@ -481,13 +481,9 @@ class Edge(MeshComponent):
     Half Edge class
     """
 
-    def __init__(self,
-                 mesh: 'Mesh',
-                 start: Optional[Vertex] = None,
-                 next_edge: Optional['Edge'] = None,
-                 face: Optional['Face'] = None,
-                 pair: Optional['Edge'] = None,
-                 _id: Optional[uuid.UUID] = None):
+    def __init__(self, mesh: 'Mesh', start: Optional[Vertex] = None,
+                 next_edge: Optional['Edge'] = None, pair: Optional['Edge'] = None,
+                 face: Optional['Face'] = None, _id: Optional[uuid.UUID] = None):
         """
         A half edge data structure implementation.
         By convention our half edge structure is based on a CCW rotation.
@@ -1152,7 +1148,7 @@ class Edge(MeshComponent):
             return None
 
         # Create the new edge and its pair
-        new_edge = Edge(self.mesh, self.end, other.next, self.face, pair=None)
+        new_edge = Edge(self.mesh, self.end, other.next, face=self.face)
         self.face.edge = self  # preserve split face edge reference
         new_edge.pair = Edge(self.mesh, other.end, self.next, pair=new_edge)
 
@@ -1526,8 +1522,8 @@ class Edge(MeshComponent):
         next_edge_pair = self.pair.next
 
         # create the two new half edges
-        new_edge = Edge(self.mesh, vertex, next_edge, edge.face, edge_pair)
-        new_edge_pair = Edge(self.mesh, vertex, next_edge_pair, edge_pair.face, edge)
+        new_edge = Edge(self.mesh, vertex, next_edge, edge_pair, edge.face)
+        new_edge_pair = Edge(self.mesh, vertex, next_edge_pair, edge, edge_pair.face)
 
         vertex.edge = vertex.edge if vertex.edge is not None else new_edge
 
@@ -1940,8 +1936,8 @@ class Face(MeshComponent):
         # create a new edge linking the vertex of the face to the enclosing face
         edge_shared = best_near_vertex.snap_to_edge(best_shared_edge)
         best_near_vertex = edge_shared.start  # ensure existing vertex reference
-        new_edge = Edge(self.mesh, best_near_vertex, best_vertex.edge.previous.pair, self)
-        new_edge.pair = Edge(self.mesh, best_vertex, edge_shared, self, new_edge)
+        new_edge = Edge(self.mesh, best_near_vertex, best_vertex.edge.previous.pair, face=self)
+        new_edge.pair = Edge(self.mesh, best_vertex, edge_shared, new_edge, self)
         best_near_vertex.edge = new_edge
         edge_shared.previous.next = new_edge
         best_vertex.edge.pair.next = new_edge.pair
@@ -2736,17 +2732,17 @@ class Mesh:
         for point in boundary[1:]:
             new_vertex = Vertex(self, point[0], point[1])
 
-            new_edge = Edge(self, new_vertex, None, initial_face, None)
+            new_edge = Edge(self, new_vertex, face=initial_face)
             new_vertex.edge = new_edge
 
             previous_edge.next = new_edge
-            new_pair_edge = Edge(self, new_vertex, previous_pair_edge, None, previous_edge)
+            new_pair_edge = Edge(self, new_vertex, previous_pair_edge, pair=previous_edge)
 
             previous_pair_edge = new_pair_edge
             previous_edge = new_edge
 
         previous_edge.next = initial_edge
-        new_pair_edge = Edge(self, initial_vertex, previous_pair_edge, None, previous_edge)
+        new_pair_edge = Edge(self, initial_vertex, previous_pair_edge, previous_edge)
         initial_edge.pair.next = new_pair_edge
 
         return initial_face

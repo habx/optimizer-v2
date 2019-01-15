@@ -2,8 +2,7 @@
 """
 Mesh Testing module
 """
-import copy
-from libs.mesh import Mesh, Vertex, Face
+from libs.mesh import Mesh, Vertex, Face, Edge
 
 
 def test_simple_mesh():
@@ -550,8 +549,10 @@ def test_face_clean():
     mesh = Mesh().from_boundary(perimeter)
 
     boundary_edge = mesh.boundary_edge.pair
-    new_edge = copy.copy(boundary_edge)
-    new_edge.pair = copy.copy(boundary_edge.pair)
+    new_edge = Edge(mesh, boundary_edge.start, boundary_edge.next,
+                    boundary_edge.pair, boundary_edge.face)
+    new_edge.pair = Edge(mesh, new_edge.end,
+                         boundary_edge.pair.next, new_edge, boundary_edge.pair.face)
     boundary_edge.face.edge = new_edge
     boundary_edge.previous.next = new_edge
     boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
