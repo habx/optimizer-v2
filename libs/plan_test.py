@@ -7,7 +7,7 @@ Test module for plan module
 import pytest
 
 from libs.plan import Plan, Space
-from libs.category import SPACE_CATEGORIES
+from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs import reader, reader_test
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
@@ -32,6 +32,28 @@ def test_floor_plan(input_file):
     plan.plot()
 
     assert plan.check()
+
+
+def test_serialization():
+    """
+    Test
+    :return:
+    """
+    import libs.writer as writer
+
+    plan = reader.create_plan_from_file(INPUT_FILES[0])
+
+    new_plan = Plan("from_saved_data")
+
+    for i in range(100):
+        serialized_data = plan.serialize()
+        writer.save_plan_as_json(serialized_data)
+
+        new_serialized_data = reader.get_plan_from_json(serialized_data["name"])
+        new_plan = Plan("from_saved_data").deserialize(new_serialized_data)
+
+    new_plan.plot()
+    assert new_plan.check()
 
 
 def test_multiple_floors():
@@ -642,6 +664,7 @@ def test_clone_change_plan():
     plan = Plan()
     plan.add_floor_from_boundary(perimeter)
     plan_2 = plan.clone()
+    plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan_2)

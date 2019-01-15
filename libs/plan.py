@@ -8,7 +8,7 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union
+from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any
 import logging
 import uuid
 
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
 from libs.mesh import Mesh, Face, Edge, Vertex, MeshOps
-from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES
+from libs.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.plot import plot_save, plot_edge, plot_polygon
 import libs.transformation as transformation
 from libs.size import Size
@@ -103,13 +103,40 @@ class Space(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
-                 edge: Optional['Edge'],
+                 edge: Optional['Edge'] = None,
                  category: SpaceCategory = SPACE_CATEGORIES['empty'],
                  _id: Optional[uuid.UUID] = None):
         super().__init__(plan, floor, _id=_id)
         self._edges_id = [edge.id] if edge else []
-        self._faces_id = [edge.face._id] if edge and edge.face else []
+        self._faces_id = [edge.face.id] if edge and edge.face else []
         self.category = category
+
+    def serialize(self) -> Dict:
+        """
+        Returns a serialize version of the space
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "floor": str(self.floor.id),
+            "edges": list(map(str, self._edges_id)),
+            "faces": list(map(str, self._faces_id)),
+            "category": self.category.name
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Space':
+        """
+        Fills the space with the specified serialized data.
+        The plan and floor data is already filled.
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
+        self._faces_id = list(map(lambda x: uuid.UUID(x), value["faces"]))
+        self.category = SPACE_CATEGORIES[value["category"]]
+        return self
 
     def __repr__(self):
         output = 'Space: ' + self.category.name + ' - ' + str(id(self))
@@ -122,7 +149,7 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain immutable uuid).
         :return:
         """
-        new_space = Space(plan, self.floor, None, category=self.category, _id=self.id)
+        new_space = Space(plan, self.floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -146,7 +173,7 @@ class Space(PlanComponent):
         if face is None:
             return False
 
-        return face._id in self._faces_id
+        return face.id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -197,6 +224,14 @@ class Space(PlanComponent):
         """
         for edge_id in self._edges_id:
             yield self.mesh.get_edge(edge_id)
+
+    def is_reference(self, edge: 'Edge') -> bool:
+        """
+        Checks if an edge is a reference edge of the space
+        :param edge:
+        :return: True if the edge is a reference, False otherwise
+        """
+        return edge.id in self._edges_id
 
     @property
     def edge_is_none(self) -> bool:
@@ -1020,7 +1055,11 @@ class Space(PlanComponent):
                   .config(vertex=edge.end, coeff=coeff)
                   .apply_to(edge.start))
 
-        return self.cut(edge, vertex, angle, traverse, max_length=max_length)
+        cut_data = self.cut(edge, vertex, angle, traverse, max_length=max_length)
+        # clean vertex in mesh structure
+        if not cut_data and vertex.edge is None and vertex.mesh:
+            vertex.remove_from_mesh()
+        return cut_data
 
     def ortho_cut(self, edge: 'Edge') -> bool:
         """
@@ -1209,8 +1248,8 @@ class Linear(PlanComponent):
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
-                 edge: Optional[Edge],
-                 category: LinearCategory,
+                 edge: Optional[Edge] = None,
+                 category: Optional[LinearCategory] = None,
                  _id: Optional[uuid.UUID] = None):
 
         if edge and not plan.is_space_boundary(edge):
@@ -1223,12 +1262,37 @@ class Linear(PlanComponent):
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
 
+    def serialize(self) -> Dict:
+        """
+        Returns a serialize version of the space
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "floor": str(self.floor.id),
+            "edges": list(map(str, self._edges_id)),
+            "category": self.category.name
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Linear':
+        """
+        Fills the linear properties from the serialized value
+        :param value:
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
+        self.category = LINEAR_CATEGORIES[value["category"]]
+        return self
+
     def clone(self, plan: 'Plan') -> 'Linear':
         """
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, self.floor,  None, self.category, _id=self.id)
+        new_linear = Linear(plan, self.floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -1346,7 +1410,7 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
     def __init__(self,
-                 mesh: 'Mesh',
+                 mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
                  meta: Optional[dict] = None):
         self.id = uuid.uuid4()
@@ -1356,6 +1420,32 @@ class Floor:
 
     def __repr__(self):
         return "Floor: {}".format(self.id)
+
+    def serialize(self) -> Dict:
+        """
+        Returns a serialized version of the floor
+        :return:
+        """
+        output = {
+            "id": str(self.id),
+            "mesh": self.mesh.serialize(),
+            "level": self.level,
+            "meta": self.meta
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Floor':
+        """
+        Returns a serialized version of the floor
+        :return:
+        """
+        self.id = uuid.UUID(value["id"])
+        self.mesh = Mesh().deserialize(value["mesh"])
+        self.level = value["level"]
+        self.meta = value["meta"]
+
+        return self
 
 
 class Plan:
@@ -1390,6 +1480,55 @@ class Plan:
             output += space.__repr__() + ' | '
         return output
 
+    def clear(self):
+        """
+        Clears the data of the plan
+        :return:
+        """
+        self.name = ""
+        self.spaces = []
+        self.linears = []
+        self.floors = {}
+
+    def serialize(self) -> Dict[str, Any]:
+        """
+        Returns a serialize version of the plan
+        :return:
+        """
+        output = {
+            "name": self.name,
+            "spaces":  [space.serialize() for space in self.spaces],
+            "linears": [linear.serialize() for linear in self.linears],
+            "floors": [floor.serialize() for floor in self.floors.values()]
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Plan':
+        """
+        Adds plan data from serialized input value
+        :param value:
+        :return: a plan
+        """
+        self.clear()
+        self.name = value["name"]
+        # add floors
+        for floor in value["floors"]:
+            self.add_floor(Floor().deserialize(floor))
+        # add spaces
+        for space in value["spaces"]:
+            floor_id = uuid.UUID(space["floor"])
+            floor = self.floors[floor_id]
+            Space(self, floor).deserialize(space)
+
+        # add linears
+        for linear in value["linears"]:
+            floor_id = uuid.UUID(linear["floor"])
+            floor = self.floors[floor_id]
+            Linear(self, floor).deserialize(linear)
+
+        return self
+
     def _watcher(self, modifications):
         """
         A watcher for mesh modification. The watcher must be manually called from the plan.
@@ -1397,7 +1536,7 @@ class Plan:
         :param modifications
         :return:
         """
-        logging.debug("Plan: Watcher called")
+        logging.debug("Plan: Updating plan from mesh watcher")
 
         inserted_faces = (modification for _id, modification in modifications.items()
                           if modification[0] == MeshOps.INSERT and type(modification[1]) == Face)
@@ -1405,13 +1544,16 @@ class Plan:
         removed_edges = (modification for _id, modification in modifications.items()
                          if modification[0] == MeshOps.REMOVE and type(modification[1]) == Edge)
 
+        inserted_edges = (modification for _id, modification in modifications.items()
+                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Edge)
+
         removed_faces = (modification for _id, modification in modifications.items()
                          if modification[0] == MeshOps.REMOVE and type(modification[1]) == Face)
 
         # add inserted face to the space of the receiving face
         # this must be done before removals
         for face_add in inserted_faces:
-            assert type(face_add[2]) == Face, ("Plan: an insertion op "
+            assert type(face_add[2]) == Face, ("Plan: an insertion op of a face "
                                                "should indicate the receiving face")
             face = face_add[1]
             # check if the face was not already added to the mesh
@@ -1425,6 +1567,16 @@ class Plan:
             if space:
                 logging.debug("Plan: Adding face from mesh update %s", face)
                 space.add_face_id(face)
+
+        # add inserted edge to the linear of the receiving face
+        for edge_add in inserted_edges:
+            assert edge_add[2] and type(edge_add[2]) == Edge, ("Plan: an insertion op of an edge "
+                                                               "should indicate the receiving edge")
+            receiving_edge = edge_add[2]
+            linear = self.get_linear(receiving_edge)
+            if linear is not None:
+                logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
+                linear.add_edge(edge_add[1])
 
         # remove edges
         for remove_edge in removed_edges:
@@ -1708,7 +1860,7 @@ class Plan:
         :return:
         """
         for space in self.spaces:
-            if edge.id in space._edges_id:
+            if space.is_reference(edge):
                 return space
 
         return None
@@ -1942,12 +2094,12 @@ class Plan:
         for space in self.spaces:
             is_valid = is_valid and space.check()
             # check that a face only belongs to one space and one space only
-            for face_id in space._faces_id:
+            for face in space.faces:
                 for other_space in self.spaces:
                     if other_space is space:
                         continue
-                    if face_id in other_space._faces_id:
-                        logging.debug("Plan: A face is in multiple space: %s", face_id)
+                    if other_space.has_face(face):
+                        logging.error("Plan: A face is in multiple space: %s", face)
                         is_valid = False
 
         if is_valid:
@@ -2010,26 +2162,14 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Paris18_A501.json"
+        input_file = "Massy_C303.json"
         plan = reader.create_plan_from_file(input_file)
 
-        plan.plot(save=False)
-        plt.show()
-
-        for empty_space in plan.empty_spaces:
-            boundary_edges = list(empty_space.edges)
-
-            for edge in boundary_edges:
-                if edge.length > 30:
-                    empty_space.barycenter_cut(edge, 0)
-                    empty_space.barycenter_cut(edge, 1)
-
-        plan.plot(save=False)
-        plt.show()
+        plan.plot()
 
         assert plan.check()
 
-    # floor_plan()
+    floor_plan()
 
 
     def clone_and_change_plan():
@@ -2056,4 +2196,4 @@ if __name__ == '__main__':
         assert plan.spaces[0].id == plan_2.spaces[0].id
 
 
-    clone_and_change_plan()
+    # clone_and_change_plan()
