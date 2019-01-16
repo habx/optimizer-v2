@@ -132,7 +132,7 @@ SPACE_CATEGORIES = {
     "dressing": SpaceCategory('dressing'),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
-    "landing": SpaceCategory("landing", circulation=True, needed_linears=[startingStep_linear]),
+    "circulationSpace": SpaceCategory("circulationSpace", circulation=True, needed_linears=[startingStep_linear]),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),

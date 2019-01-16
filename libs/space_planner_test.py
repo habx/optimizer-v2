@@ -12,7 +12,6 @@ from libs.grid import GRIDS
 from libs.selector import SELECTORS
 from libs.shuffle import SHUFFLES
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-
 from libs.space_planner import SpacePlanner
 
 test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
@@ -78,7 +77,7 @@ def test_duplex():
     plan.insert_linear((300, 0), (400, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((525, 150), (600, 150), LINEAR_CATEGORIES["startingStep"], floor_2)
 
-    GRIDS["ortho_grid"].apply_to(plan)
+    GRIDS["simple_grid"].apply_to(plan)
 
     plan.plot()
 
@@ -95,7 +94,7 @@ def test_duplex():
 
     plan.plot()
 
-    spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
+    spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)

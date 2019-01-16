@@ -12,6 +12,7 @@ from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
 from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.category import SPACE_CATEGORIES
 import networkx as nx
 
 
@@ -118,6 +119,11 @@ class SpacePlanner:
                     item_space.append(space)
             dict_items_spaces[item] = item_space
 
+        # circulationSpace case :
+        for j_space, space in enumerate(plan.mutable_spaces()):
+            if space.category.name == "seed":
+                space.category = SPACE_CATEGORIES["circulationSpace"]
+
         for item in self.spec.items:
             item_space = dict_items_spaces[item]
             if len(item_space) > 1:
@@ -150,17 +156,18 @@ class SpacePlanner:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
             logging.debug(self.spec.plan)
-            for i, sol in enumerate(self.manager.solver.solutions):
-                plan_solution = self.spec.plan.clone()
-                plan_solution = self._rooms_building(plan_solution, sol)
-                self.solutions_collector.add_solution(plan_solution)
-                logging.debug(plan_solution)
-                plan_solution.plot()
+            if len(self.manager.solver.solutions) > 0:
+                for i, sol in enumerate(self.manager.solver.solutions):
+                    plan_solution = self.spec.plan.clone()
+                    plan_solution = self._rooms_building(plan_solution, sol)
+                    self.solutions_collector.add_solution(plan_solution)
+                    logging.debug(plan_solution)
+                    plan_solution.plot()
 
-            best_sol = self.solutions_collector.best()
-            for sol in best_sol:
-                logging.debug(sol)
-                #sol.plan.plot()
+                best_sol = self.solutions_collector.best()
+                for sol in best_sol:
+                    logging.debug(sol)
+                    #sol.plan.plot()
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """

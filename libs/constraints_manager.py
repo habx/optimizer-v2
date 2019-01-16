@@ -171,11 +171,17 @@ class ConstraintsManager:
     def add_spaces_constraints(self) -> None:
         """
         add spaces constraints
+        - Each space has to be associated with an item and one time only :
+        special case of stairs:
+        they must be in a circulating room, otherwise: they are not allocated,
+        they are created a circulationSpace
         :return: None
         """
-        for j_space in range(self.sp.spec.plan.count_mutable_spaces()):
-            self.solver.add_constraint(
-                space_attribution_constraint(self, j_space))
+        for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            if ("startingStep" not in [component.category.name for component in
+                                       space.immutable_components()]):
+                self.solver.add_constraint(
+                    space_attribution_constraint(self, j_space))
 
     def add_item_constraints(self) -> None:
         """
@@ -460,13 +466,15 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        #[area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
-        #[area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
@@ -486,23 +494,27 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
-         {"item_category": ("living", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_category": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
     "office": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
     "dressing": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
@@ -510,6 +522,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ]
