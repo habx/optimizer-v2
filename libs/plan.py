@@ -1667,6 +1667,15 @@ class Plan:
         """
         return self.floor_count > 1
 
+    @property
+    def first_level(self) -> int:
+        """
+        Property
+        Returns the first level of the plan
+        :return:
+        """
+        return min(floor.level for floor in self.floors.values())
+
     def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
         """
         Returns the mesh of the floor_id
