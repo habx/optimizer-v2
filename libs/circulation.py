@@ -289,6 +289,14 @@ class PathCalculator:
         return graph.get_shortest_path(self, edge1, edge2)
 
 
+COST_RULES = {
+    'water_room_less_than_two_ducts': 10e5,
+    'water_room_default': 1000,
+    'window_room_less_than_two_windows': 10e10,
+    'window_room_default': 5000,
+    'default': 0
+}
+
 if __name__ == '__main__':
     import libs.reader as reader
     from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
@@ -335,17 +343,9 @@ if __name__ == '__main__':
         space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
 
-        cost_rules = {
-            'water_room_less_than_two_ducts': 10e5,
-            'water_room_default': 1000,
-            'window_room_less_than_two_windows': 10e10,
-            'window_room_default': 5000,
-            'default': 0
-        }
-
         for solution in space_planner.solutions_collector.best():
             solution.plan.plot()
-            circulator = Circulator(plan=solution.plan, cost_rules=cost_rules)
+            circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
             circulator.plot()
             logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
