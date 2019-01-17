@@ -634,7 +634,7 @@ if __name__ == '__main__':
         :return:
         """
         logging.debug("Start test")
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+        input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
 
         plan = reader.create_plan_from_file(input_file)

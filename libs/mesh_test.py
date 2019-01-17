@@ -2,8 +2,19 @@
 """
 Mesh Testing module
 """
-import copy
-from libs.mesh import Mesh, Vertex, Face
+from libs.mesh import Mesh, Vertex, Face, Edge
+
+
+def test_simple_mesh():
+    """
+    Test
+    :return:
+    """
+    perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
+    mesh = Mesh().from_boundary(perimeter)
+    mesh.boundary_edge.pair.barycenter_cut(0)
+    mesh.plot()
+    assert mesh.check()
 
 
 def test_outward_cut():
@@ -11,14 +22,34 @@ def test_outward_cut():
     Test
     :return:
     """
-    perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
+    perimeter = [(0, 0), (200, 0), (200, 200), (0, 200), (100, 100), (0, 100)]
     mesh = Mesh().from_boundary(perimeter)
 
     for edge in mesh.boundary_edges:
         if edge.pair.next_is_outward:
             edge.pair.recursive_barycenter_cut(1)
-            edge.previous.pair.recursive_barycenter_cut(0)
+            # edge.previous.pair.recursive_barycenter_cut(0)
 
+    mesh.plot()
+
+    assert mesh.check()
+
+
+def test_serialization():
+    """
+    Test a mesh serialization
+    :return:
+    """
+    import libs.writer as writer
+    import libs.reader as reader
+
+    perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
+    mesh = Mesh().from_boundary(perimeter)
+    geometry = mesh.serialize()
+    writer.save_mesh_as_json(geometry, "test")
+    new_geometry = reader.get_mesh_from_json("test");
+    mesh.deserialize(new_geometry)
+    mesh.plot()
     assert mesh.check()
 
 
@@ -120,6 +151,8 @@ def test_cut_inserted_face():
     edges = list(mesh.faces[1].edges)
     edges[1].recursive_barycenter_cut(0.5)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -149,7 +182,7 @@ def test_add_face():
     # print(mesh)
     face = mesh.faces[0]
 
-    # case one edge touching
+    """"# case one edge touching
     perimeter_2 = [(500, 250), (500, 450), (375, 375)]
     face = face.insert_face_from_boundary(perimeter_2)[0]
 
@@ -171,16 +204,17 @@ def test_add_face():
     # three following edges touching
     perimeter_6 = [(250, 250), (270, 250), (270, 475), (500, 475), (500, 500), (250, 500)]
     face_5 = mesh.new_face_from_boundary(perimeter_6)
-    face = face.insert_face(face_5)[0]
+    face = face.insert_face(face_5)[0]"""
 
     # enclosed face
     perimeter_7 = [(400, 25), (475, 25), (475, 100), (400, 100)]
     face_6 = mesh.new_face_from_boundary(perimeter_7)
     face.insert_face(face_6)
-
+    mesh.plot()
+    """
     for edge in mesh.boundary_edges:
         if edge.length > 50:
-            edge.pair.recursive_barycenter_cut(0.5)
+            edge.pair.recursive_barycenter_cut(0.5)"""
 
     assert mesh.check()
 
@@ -305,9 +339,11 @@ def test_remove_complex_edge():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
 
-    mesh.plot(save=False)
+    mesh.plot()
 
     mesh.faces[1].edge.remove()
+
+    # mesh.plot()
 
     assert mesh.check()
 
@@ -518,8 +554,10 @@ def test_face_clean():
     mesh = Mesh().from_boundary(perimeter)
 
     boundary_edge = mesh.boundary_edge.pair
-    new_edge = copy.copy(boundary_edge)
-    new_edge.pair = copy.copy(boundary_edge.pair)
+    new_edge = Edge(mesh, boundary_edge.start, boundary_edge.next,
+                    boundary_edge.pair, boundary_edge.face)
+    new_edge.pair = Edge(mesh, new_edge.end,
+                         boundary_edge.pair.next, new_edge, boundary_edge.pair.face)
     boundary_edge.face.edge = new_edge
     boundary_edge.previous.next = new_edge
     boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge

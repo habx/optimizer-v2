@@ -155,11 +155,12 @@ class SpacePlanner:
                 plan_solution = self._rooms_building(plan_solution, sol)
                 self.solutions_collector.add_solution(plan_solution)
                 logging.debug(plan_solution)
+                plan_solution.plot()
 
             best_sol = self.solutions_collector.best()
             for sol in best_sol:
                 logging.debug(sol)
-                sol.plan.plot()
+                #sol.plan.plot()
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
@@ -245,7 +246,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_A22.json"  # 5 Levallois_Letourneur / Antony_A22
+        input_file = "Bussy_B002.json"  # 5 Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS["ortho_grid"].apply_to(plan)

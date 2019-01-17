@@ -18,6 +18,7 @@ from libs.utils.geometry import (
     move_point
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
+from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
@@ -203,6 +204,26 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
     return input_floor_plan_dict
 
 
+def get_plan_from_json(file_name: str = 'Antony_A22',
+                       input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
+    """
+    Retrieves the data dictionary from an optimizer json input
+    :return:
+    """
+    file_path = file_name + ".json"
+    return get_json_from_file(file_path, input_folder)
+
+
+def get_mesh_from_json(file_name: str,
+                       input_folder: str = DEFAULT_MESHES_OUTPUT_FOLDER) -> Dict:
+    """
+    Retrieves the data dictionary from an optimizer json input
+    :return:
+    """
+    file_path = file_name + ".json"
+    return get_json_from_file(file_path, input_folder)
+
+
 def create_plan_from_file(input_file: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
@@ -227,14 +248,16 @@ def create_plan_from_file(input_file: str) -> plan.Plan:
             if external_space[1] in SPACE_CATEGORIES:
                 my_plan.insert_space_from_boundary(external_space[0],
                                                    category=SPACE_CATEGORIES[external_space[1]])
+    ##############################################################################################
 
-    for fixed_item in fixed_items:
-        if fixed_item[1] in SPACE_CATEGORIES:
-            my_plan.insert_space_from_boundary(fixed_item[0],
-                                               category=SPACE_CATEGORIES[fixed_item[1]])
-        if fixed_item[1] in LINEAR_CATEGORIES:
-            my_plan.insert_linear(fixed_item[0][0], fixed_item[0][1],
-                                  category=LINEAR_CATEGORIES[fixed_item[1]])
+    linears = (fixed_item for fixed_item in fixed_items if fixed_item[1] in LINEAR_CATEGORIES)
+    spaces = (fixed_item for fixed_item in fixed_items if fixed_item[1] in SPACE_CATEGORIES)
+
+    for linear in linears:
+        my_plan.insert_linear(linear[0][0], linear[0][1], category=LINEAR_CATEGORIES[linear[1]])
+
+    for space in spaces:
+        my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]])
 
     return my_plan
 

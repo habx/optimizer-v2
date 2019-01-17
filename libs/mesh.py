@@ -9,7 +9,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict
+from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union
 import copy
 import enum
 
@@ -59,8 +59,8 @@ class MeshComponent:
     """
     An abstract class for mesh component : vertex, edge or face
     """
-    def __init__(self, mesh: 'Mesh'):
-        self._id = uuid.uuid4()
+    def __init__(self, mesh: 'Mesh', _id: Optional[uuid.UUID] = None):
+        self._id = _id or uuid.uuid4()
         self._mesh = mesh
         mesh.add(self)
 
@@ -139,7 +139,8 @@ class Vertex(MeshComponent):
                  x: float = 0,
                  y: float = 0,
                  edge: 'Edge' = None,
-                 mutable: bool = True):
+                 mutable: bool = True,
+                 _id: Optional[uuid.UUID] = None):
         """
         A simple Vertex class with barycentric capability
         By default sets the vertex to the origin (0, 0)
@@ -151,7 +152,7 @@ class Vertex(MeshComponent):
         self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
         self._edge = edge
         self.mutable = mutable
-        super().__init__(mesh)
+        super().__init__(mesh, _id)
 
     def __repr__(self):
         return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=id(self))
@@ -370,7 +371,13 @@ class Vertex(MeshComponent):
             if not smallest_distance or new_distance < smallest_distance:
                 smallest_distance = new_distance
                 closest_edge = edge
+                # clean the vertex data structure
+                if intersection_vertex:
+                    intersection_vertex.remove_from_mesh()
                 intersection_vertex = projected_vertex
+            else:
+                # clean the vertex data structure
+                projected_vertex.remove_from_mesh()
 
         return (intersection_vertex,
                 closest_edge,
@@ -474,12 +481,9 @@ class Edge(MeshComponent):
     Half Edge class
     """
 
-    def __init__(self,
-                 mesh: 'Mesh',
-                 start: Optional[Vertex],
-                 next_edge: Optional['Edge'],
-                 face: Optional['Face'],
-                 pair: Optional['Edge'] = None):
+    def __init__(self, mesh: 'Mesh', start: Optional[Vertex] = None,
+                 next_edge: Optional['Edge'] = None, pair: Optional['Edge'] = None,
+                 face: Optional['Face'] = None, _id: Optional[uuid.UUID] = None):
         """
         A half edge data structure implementation.
         By convention our half edge structure is based on a CCW rotation.
@@ -494,10 +498,12 @@ class Edge(MeshComponent):
         self._start = start
         self._next = next_edge
         self._face = face
-        # always add a pair Edge, because an edge should always have a pair edge
-        self._pair = pair if pair else Edge(mesh, None, None, None, self)
+        self._pair = pair
+        # ensure that the pair edge is reciprocal
+        if pair is not None:
+            pair.pair = self
         # check the size of the edge (not really useful)
-        super().__init__(mesh)
+        super().__init__(mesh, _id)
         self.check_size()
 
     def __repr__(self):
@@ -1002,6 +1008,8 @@ class Edge(MeshComponent):
 
             logging.debug('Mesh: Removing an isolated edge: {0}'.format(self))
             isolated_edge = self if self.next is self.pair else self.pair
+            # remove end vertex from mesh
+            isolated_edge.end.remove_from_mesh()
             isolated_edge.preserve_references(isolated_edge.pair.next)
             isolated_edge.pair.preserve_references(isolated_edge.pair.next)
             isolated_edge.previous.next = isolated_edge.pair.next
@@ -1089,17 +1097,26 @@ class Edge(MeshComponent):
 
         # check if we've exceeded the max authorized length
         if max_length is not None and max_length < distance_to_edge:
+            # clean unused vertex
+            intersection_vertex.remove_from_mesh()
             return None
 
         # check if we have the right to cut
         if immutable and immutable(closest_edge):
+            # clean unused vertex
+            intersection_vertex.remove_from_mesh()
             return None
 
         # split the destination edge
         closest_edge = closest_edge.split(intersection_vertex)
 
         # if the destination edge cannot be split return None
-        return closest_edge.previous if closest_edge else None
+        if closest_edge is None:
+            # clean unused vertex
+            intersection_vertex.remove_from_mesh()
+            return None
+
+        return closest_edge.previous
 
     def link(self, other: 'Edge') -> Optional['Face']:
         """
@@ -1120,8 +1137,8 @@ class Edge(MeshComponent):
 
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            logging.debug('Mesh: Cannot link two edges ' +
-                          ' that are already linked:{0}-{1}'.format(self, other))
+            logging.warning('Mesh: Cannot link two edges ' +
+                            ' that are already linked:{0}-{1}'.format(self, other))
             return None
 
         # check if the edges are the same
@@ -1131,10 +1148,9 @@ class Edge(MeshComponent):
             return None
 
         # Create the new edge and its pair
-        new_edge = Edge(self.mesh, self.end, other.next, self.face)
+        new_edge = Edge(self.mesh, self.end, other.next, face=self.face)
         self.face.edge = self  # preserve split face edge reference
-        new_edge.pair.start = other.end
-        new_edge.pair.next = self.next
+        new_edge.pair = Edge(self.mesh, other.end, self.next, pair=new_edge)
 
         # modify initial edges next edges to follow the laser_cut
         self.next = new_edge
@@ -1148,7 +1164,7 @@ class Edge(MeshComponent):
             edge.face = new_face
 
         # store the specific mesh operation
-        self.mesh._store_modification(MeshOps.INSERT, new_face, self.face)
+        self.mesh.store_modification(MeshOps.INSERT, new_face, self.face)
 
         return new_face
 
@@ -1275,8 +1291,8 @@ class Edge(MeshComponent):
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
         if not self.contains(vertex):
-            logging.debug('Mesh: Trying to cut an edge on an outside vertex:' +
-                          ' {0} - {1}'.format(self, vertex))
+            logging.warning('Mesh: Trying to cut an edge on an outside vertex:' +
+                            ' {0} - {1}'.format(self, vertex))
             return None
 
         first_edge = self
@@ -1333,7 +1349,7 @@ class Edge(MeshComponent):
 
     def recursive_barycenter_cut(self, coeff: float,
                                  angle: float = 90.0,
-                                 traverse: str = 'relative') -> Optional[Tuple['Edge', 'Edge']]:
+                                 traverse: str = 'relative') -> TwoEdgesAndAFace:
         """
         Laser cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
@@ -1342,13 +1358,25 @@ class Edge(MeshComponent):
         :param traverse: type of recursion
         :return:
         """
-        vertex = (transformation.get['barycenter']
-                  .config(vertex=self.end, coeff=coeff)
-                  .apply_to(self.start))
-        return self.recursive_cut(vertex, angle, traverse=traverse)
+        if coeff == 0:
+            vertex = self.start
+        elif coeff == 1:
+            vertex = self.end
+        else:
+            vertex = (transformation.get['barycenter']
+                      .config(vertex=self.end, coeff=coeff)
+                      .apply_to(self.start))
+
+        cut_data = self.recursive_cut(vertex, angle, traverse=traverse)
+
+        # clean vertex if the cut fails
+        if cut_data is None and vertex.edge is None:
+            vertex.remove_from_mesh()
+
+        return cut_data
 
     def barycenter_cut(self, coeff: float = 0.5,
-                       angle: float = 90.0) -> Optional[Tuple['Edge', 'Edge']]:
+                       angle: float = 90.0) -> TwoEdgesAndAFace:
         """
         Cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
@@ -1356,10 +1384,22 @@ class Edge(MeshComponent):
         :param angle:
         :return:
         """
-        vertex = (transformation.get['barycenter']
-                  .config(vertex=self.end, coeff=coeff)
-                  .apply_to(self.start))
-        return self.cut(vertex, angle)
+        if coeff == 0:
+            vertex = self.start
+        elif coeff == 1:
+            vertex = self.end
+        else:
+            vertex = (transformation.get['barycenter']
+                      .config(vertex=self.end, coeff=coeff)
+                      .apply_to(self.start))
+
+        cut_data = self.cut(vertex, angle)
+
+        # clean vertex if the cut fails
+        if cut_data is None and vertex.edge is None:
+            vertex.remove_from_mesh()
+
+        return cut_data
 
     def ortho_cut(self, immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
         """
@@ -1367,6 +1407,8 @@ class Edge(MeshComponent):
         edge of the face
         :return: the new created faces
         """
+        projected_vertex = None
+
         for edge in self.siblings:
             # we do not check the two edges touching the vertex
             if edge is self or edge is self.previous:
@@ -1407,13 +1449,23 @@ class Edge(MeshComponent):
                 other_distance = other_projected_vertex.distance_to(self.start)
 
                 if other_distance < min_distance:
+                    # clean unused vertex
+                    if projected_vertex:
+                        projected_vertex.remove_from_mesh()
+
                     projected_vertex = other_projected_vertex
                     min_distance = other_distance
                     closest_edge = other_edge
 
+                else:
+                    # clean unused vertex
+                    other_projected_vertex.remove_from_mesh()
+
             split_edge = closest_edge.split(projected_vertex, immutable)
 
+            # check if we tried to split an immutable edge
             if split_edge is None:
+                projected_vertex.remove_from_mesh()
                 continue
 
             split_edge_previous = split_edge.previous
@@ -1422,9 +1474,14 @@ class Edge(MeshComponent):
             new_face = self_previous.link(split_edge_previous)
 
             if new_face is None:
+                projected_vertex.remove_from_mesh()
                 continue
 
             return self, split_edge, new_face
+
+        # clean unused vertex
+        if projected_vertex and not projected_vertex.edge:
+            projected_vertex.remove_from_mesh()
 
         return None
 
@@ -1465,11 +1522,8 @@ class Edge(MeshComponent):
         next_edge_pair = self.pair.next
 
         # create the two new half edges
-        new_edge = Edge(self.mesh, vertex, next_edge, edge.face, edge_pair)
-        new_edge.pair = edge_pair
-
-        new_edge_pair = Edge(self.mesh, vertex, next_edge_pair, edge_pair.face, edge)
-        new_edge_pair.pair = edge
+        new_edge = Edge(self.mesh, vertex, next_edge, edge_pair, edge.face)
+        new_edge_pair = Edge(self.mesh, vertex, next_edge_pair, edge, edge_pair.face)
 
         vertex.edge = vertex.edge if vertex.edge is not None else new_edge
 
@@ -1478,6 +1532,11 @@ class Edge(MeshComponent):
         new_edge.next = next_edge
         edge.next = new_edge
         edge_pair.next = new_edge_pair
+
+        # store modification
+        self.mesh.store_modification(MeshOps.INSERT, new_edge, self)
+        self.mesh.store_modification(MeshOps.INSERT, new_edge_pair, self.pair)
+        self.mesh.watch()
 
         return new_edge
 
@@ -1544,10 +1603,10 @@ class Face(MeshComponent):
     Face Class
     """
 
-    def __init__(self, mesh: 'Mesh', edge: 'Edge'):
+    def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[uuid.UUID] = None):
 
         self._edge = edge
-        super().__init__(mesh)
+        super().__init__(mesh, _id)
 
     def __repr__(self):
         output = 'Face: ['
@@ -1854,18 +1913,22 @@ class Face(MeshComponent):
                 if intersection_data is None:
                     continue
                 near_vertex, shared_edge, distance_to_vertex = intersection_data
-                # check whether we are projecting unto an immutable linear
-                """if not shared_edge.is_mutable:
-                    continue"""
                 projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
                 if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
                         and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
+                    # do not forget to clean unused vertex
+                    near_vertex.remove_from_mesh()
                     continue
                 if min_distance is None or distance_to_vertex < min_distance:
                     best_vertex = vertex
+                    # do not forget to clean unused vertex
+                    if best_near_vertex:
+                        best_near_vertex.remove_from_mesh()
                     best_near_vertex = near_vertex
                     best_shared_edge = shared_edge
                     min_distance = distance_to_vertex
+                else:
+                    near_vertex.remove_from_mesh()
 
         if min_distance is None:
             raise Exception('Cannot find and intersection point to insert face !:{0}'.format(face))
@@ -1873,11 +1936,9 @@ class Face(MeshComponent):
         # create a new edge linking the vertex of the face to the enclosing face
         edge_shared = best_near_vertex.snap_to_edge(best_shared_edge)
         best_near_vertex = edge_shared.start  # ensure existing vertex reference
-        new_edge = Edge(self.mesh, best_near_vertex, best_vertex.edge.previous.pair, self)
-        new_edge.pair.face = self
-        new_edge.pair.start = best_vertex
+        new_edge = Edge(self.mesh, best_near_vertex, best_vertex.edge.previous.pair, face=self)
+        new_edge.pair = Edge(self.mesh, best_vertex, edge_shared, new_edge, self)
         best_near_vertex.edge = new_edge
-        new_edge.pair.next = edge_shared
         edge_shared.previous.next = new_edge
         best_vertex.edge.pair.next = new_edge.pair
 
@@ -1927,6 +1988,8 @@ class Face(MeshComponent):
                 # preserve references for face and vertex
                 previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
                 previous_edge.pair.next.preserve_references(previous_edge)
+                # remove the edge from the mesh
+                previous_edge.pair.remove_from_mesh()
                 # remove the duplicate edges
                 previous_edge.pair = previous_edge.pair.next.pair
                 # swap the id to preserve references
@@ -1943,6 +2006,8 @@ class Face(MeshComponent):
 
         # forward check : at the end of the loop check forward for isolation
         if edge.pair.next.next is edge.pair:
+            # remove from the mesh
+            edge.pair.remove_from_mesh()
             edge.pair = touching_edge.pair
             # swap the id to preserve references
             edge.swap_id(touching_edge)
@@ -1967,6 +2032,9 @@ class Face(MeshComponent):
         # we swap self with the new inserted face
         # we remove the edges and vertices of the face from the mesh
         self.mesh.remove_face_and_children(face)
+        # we need to add back the removed vertices
+        for vertex in face.vertices:
+            vertex.add_to_mesh(self.mesh)
         # we add again the face to the mesh
         self.swap(face)
         return []
@@ -2122,9 +2190,9 @@ class Face(MeshComponent):
             created_faces = self._insert_face(face)
 
         # store the specific mesh operation
-        mesh._store_modification(MeshOps.INSERT, face, self)
+        mesh.store_modification(MeshOps.INSERT, face, self)
         for created_face in created_faces:
-            mesh._store_modification(MeshOps.INSERT, created_face, self)
+            mesh.store_modification(MeshOps.INSERT, created_face, self)
 
         return created_faces
 
@@ -2153,6 +2221,12 @@ class Face(MeshComponent):
         for vertex in vertex_1, vertex_2:
             edge = vertex.snap_to_edge(*self.edges)
             if edge is None:
+                # clean unused vertex
+                if not vertex_1.edge:
+                    vertex_1.remove_from_mesh()
+                if not vertex_2.edge:
+                    vertex_2.remove_from_mesh()
+
                 raise OutsideVertexError('Could not insert edge because vertex' +
                                          ' is not on the face boundary')
             edges.append(edge)
@@ -2190,6 +2264,8 @@ class Face(MeshComponent):
         if self.edge.next.next is not self.edge:
             return self
 
+        logging.debug("Face: Cleaning a two faced faces")
+
         edge_1 = self.edge
         edge_2 = self.edge.next
         # preserve the references
@@ -2197,7 +2273,10 @@ class Face(MeshComponent):
         edge_2.preserve_references(edge_1.pair)
         # change the pair
         edge_1.pair.pair, edge_2.pair.pair = edge_2.pair, edge_1.pair
-        # remove from the mesh
+
+        # remove from the mesh the removed components : face and two edges
+        edge_1.remove_from_mesh()
+        edge_2.remove_from_mesh()
         self.remove_from_mesh()
 
         return None
@@ -2275,7 +2354,8 @@ class Mesh:
     Mesh Class
     """
 
-    def __init__(self):
+    def __init__(self, _id: Optional[uuid.UUID] = None):
+        self._edge = None   # boundary edge of the mesh
         self._faces = {}
         self._edges = {}
         self._vertices = {}
@@ -2283,12 +2363,108 @@ class Mesh:
         self._watchers: [Callable[['MeshComponent', str], None]] = []
         self._modifications: Dict['uuid.UUID',
                                   Tuple['MeshOps', 'MeshComponent', Optional['MeshComponent']]] = {}
+        self.id = _id or uuid.uuid4()
 
     def __repr__(self):
         output = 'Mesh:\n'
         for face in self.faces:
             output += face.__repr__() + '\n'
         return output + '-' * 24
+
+    def clear(self):
+        """
+        Clears the data of the mesh
+        :return:
+        """
+        self._edge = None
+        self._faces = {}
+        self._edges = {}
+        self._vertices = {}
+        self._watchers = []
+        self._modifications = {}
+
+    def serialize(self) -> Dict[str, Union[str, Dict[str, Tuple]]]:
+        """
+        Stores the mesh geometric data in a json structure
+        The structure is as follow:
+        {
+            vertices: {id: (0.0, 012), id: (0.0, 0.13) ...}
+            edges: {id: (start_id, next_id, pair_id, face_id), }
+        }
+        the face_id of the empty face is -1 per convention
+        :return: a json
+        """
+        vertices = {str(vertex.id): vertex.coords for vertex in self.vertices}
+        edges = {str(edge.id): [str(edge.start.id),
+                                str(edge.next.id),
+                                str(edge.pair.id),
+                                str(edge.face.id) if edge.face else ""] for edge in self.edges}
+        output = {
+            "id": str(self.id),
+            "edge": str(self._edge.id) if self._edge else "",  # not really needed
+            "vertices": vertices,
+            "edges": edges
+        }
+
+        return output
+
+    def deserialize(self, value: Dict[str, Union[str, Dict[str, Tuple]]]) -> 'Mesh':
+        """
+        Creates the mesh from the input serialization value
+        :param value:
+        :return:
+        """
+        # make sure the mesh has no data
+        self.clear()
+        # preserve id reference
+        self.id = uuid.UUID(value["id"])
+
+        vertices = value["vertices"]
+        edges = value["edges"]
+
+        # create vertex
+        for _id, point in vertices.items():
+            _id = uuid.UUID(_id)
+            Vertex(self, point[0], point[1], _id=_id)
+
+        # create edges
+        for _id, edge in edges.items():
+            _id = uuid.UUID(_id)
+            start_id = uuid.UUID(edge[0])
+            face_id = uuid.UUID(edge[3]) if edge[3] else None
+            start = self.get_vertex(start_id)
+            edge = Edge(self, start, _id=_id)
+
+            # add the edge of the vertex
+            if not start.edge:
+                start.edge = edge
+
+            # add or create the face
+            if face_id:
+                if face_id in self._faces:
+                    face = self.get_face(face_id)
+                else:
+                    face = Face(self, edge, face_id)
+                edge.face = face
+
+        # add pair and next
+        for _id, edge in edges.items():
+            edge_id = uuid.UUID(_id)
+            next_id = uuid.UUID(edge[1])
+            pair_id = uuid.UUID(edge[2])
+            # We should find every edge
+            edge = self.get_edge(edge_id)
+            pair = self.get_edge(pair_id)
+            next_edge = self.get_edge(next_id)
+            edge.pair = pair
+            edge.next = next_edge
+
+        # add boundary edge
+        if value["edge"]:
+            edge_id = uuid.UUID(value["edge"])
+            self.boundary_edge = self.get_edge(edge_id)
+
+        return self
 
     def add_watcher(self, watcher: Callable[['MeshComponent', MeshOps], None]):
         """
@@ -2305,10 +2481,10 @@ class Mesh:
 
         self._watchers.append(watcher)
 
-    def _store_modification(self,
-                            op: 'MeshOps',
-                            component: 'MeshComponent',
-                            other_component: Optional['MeshComponent'] = None):
+    def store_modification(self,
+                           op: 'MeshOps',
+                           component: 'MeshComponent',
+                           other_component: Optional['MeshComponent'] = None):
         """
         Adds a modification to the modifications list.
         We check for duplicates or reversed modification.
@@ -2318,6 +2494,7 @@ class Mesh:
         • remove space n°1 + remove space n°1 = raise Error
         • remove space n°1 + add space n°1 = raise Error
         :param component:
+        :param other_component:
         :param op:
         :return:
         """
@@ -2355,7 +2532,7 @@ class Mesh:
         :param component:
         :return:
         """
-        self._store_modification(MeshOps.ADD, component)
+        self.store_modification(MeshOps.ADD, component)
 
         if type(component) == Vertex:
             self._add_vertex(component)
@@ -2392,21 +2569,21 @@ class Mesh:
             if component.id not in self._vertices:
                 logging.debug("Mesh: Vertex is not in mesh")
                 return
-            self._store_modification(MeshOps.REMOVE, component)
+            self.store_modification(MeshOps.REMOVE, component)
             self._remove_vertex(component)
 
         elif type(component) == Face:
             if component.id not in self._faces:
                 logging.warning("Mesh: face is not in mesh")
                 return
-            self._store_modification(MeshOps.REMOVE, component)
+            self.store_modification(MeshOps.REMOVE, component)
             self._remove_face(component)
 
         elif type(component) == Edge:
             if component.id not in self._edges:
                 logging.debug("Mesh: Edge is not in mesh")
                 return
-            self._store_modification(MeshOps.REMOVE, component)
+            self.store_modification(MeshOps.REMOVE, component)
             self._remove_edge(component)
 
     def _add_face(self, face: 'Face'):
@@ -2415,7 +2592,7 @@ class Mesh:
         :param face:
         :return: self
         """
-        self._faces[face._id] = face
+        self._faces[face.id] = face
 
     def _add_face_and_children(self, face: 'Face'):
         """
@@ -2436,7 +2613,7 @@ class Mesh:
         :param face:
         :return: self
         """
-        if face._id not in self._faces:
+        if face.id not in self._faces:
             raise ValueError('Cannot remove the face that' +
                              ' is not already in the mesh, {0}'.format(face))
 
@@ -2456,7 +2633,7 @@ class Mesh:
         :param face:
         :return: self
         """
-        del self._faces[face._id]
+        del self._faces[face.id]
 
     def get_face(self, _id: uuid.UUID) -> 'Face':
         """
@@ -2527,6 +2704,11 @@ class Mesh:
         Creates a new face from a boundary
         :return:
         """
+        logging.debug("Mesh: Creating new face from boundary")
+
+        assert len(boundary) > 2, ("To form a face a boundary "
+                                   "of at least three points must be provided: {}".format(boundary))
+
         # check if the perimeter respects the ccw rotation
         # we use shapely LinearRing object
         sp_perimeter = LinearRing(boundary)
@@ -2536,41 +2718,40 @@ class Mesh:
             raise ValueError('The perimeter crosses itself:{0}'.format(boundary))
 
         initial_vertex = Vertex(self, boundary[0][0], boundary[0][1], mutable=False)
-        initial_edge = Edge(self, initial_vertex, None, None)
+        initial_edge = Edge(self, initial_vertex)
         initial_face = Face(self, initial_edge)
 
         initial_edge.face = initial_face
         initial_vertex.edge = initial_edge
 
-        next_edge = initial_edge
+        previous_edge = initial_edge
+        previous_pair_edge = None
 
-        # we traverse the perimeter backward
-        for i, point in enumerate(boundary[::-1]):
-            # for the last item we loop on the initial edge
-            if i == len(boundary) - 1:
-                initial_edge.next = next_edge
-                next_edge.pair.next = initial_edge.pair
-                initial_edge.pair.start = next_edge.start
-                break
-            # create a new vertex
-            vertex = Vertex(self, point[0], point[1])
-            # create a new edge starting from this vertex
-            current_edge = Edge(self, vertex, next_edge, initial_face)
-            current_edge.pair.start = next_edge.start
-            next_edge.pair.next = current_edge.pair
-            # add the edge to the vertex
-            vertex.edge = current_edge
-            next_edge = current_edge
+        for point in boundary[1:]:
+            new_vertex = Vertex(self, point[0], point[1])
+
+            new_edge = Edge(self, new_vertex, face=initial_face)
+            new_vertex.edge = new_edge
+
+            previous_edge.next = new_edge
+            new_pair_edge = Edge(self, new_vertex, previous_pair_edge, pair=previous_edge)
+
+            previous_pair_edge = new_pair_edge
+            previous_edge = new_edge
+
+        previous_edge.next = initial_edge
+        new_pair_edge = Edge(self, initial_vertex, previous_pair_edge, previous_edge)
+        initial_edge.pair.next = new_pair_edge
 
         return initial_face
 
     @property
-    def edges(self) -> List['Edge']:
+    def edges(self) -> Generator[Edge, None, None]:
         """
         property
         :return: the faces of the mesh
         """
-        return list(edge for _, edge in self._edges.items())
+        return (edge for edge in self._edges.values())
 
     @property
     def vertices(self) -> Generator[Vertex, None, None]:
@@ -2578,17 +2759,7 @@ class Mesh:
         Returns all the vertices of the mesh
         :return:
         """
-        seen = []
-        for face in self.faces:
-            for edge in face.edges:
-                if edge.start not in seen:
-                    seen.append(edge.start)
-                    yield edge.start
-        # also check the boundary edges (face is None)
-        for edge in self.boundary_edges:
-            if edge.start not in seen:
-                seen.append(edge.start)
-                yield edge.start
+        return (vertex for vertex in self._vertices.values())
 
     def check_duplicate_vertices(self) -> bool:
         """
@@ -2612,7 +2783,7 @@ class Mesh:
         property
         :return: one of the external edge of the mesh
         """
-        return self._boundary_edge
+        return self._edge
 
     @boundary_edge.setter
     def boundary_edge(self, value: Edge):
@@ -2622,7 +2793,7 @@ class Mesh:
         """
         if value.face is not None:
             raise ValueError('An external edge cannot have a face: {0}'.format(value))
-        self._boundary_edge = value
+        self._edge = value
 
     @property
     def boundary_edges(self):
@@ -2684,12 +2855,28 @@ class Mesh:
         :return: boolean
         """
         is_valid = True
+        edges_id = []
+        vertices_id = []
 
         for face in self.faces:
             for edge in face.edges:
                 if edge is None:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Edge is None for:{0}'.format(face))
+                    return is_valid
+                edges_id.append(edge.id)
+                vertices_id.append(edge.start.id)
+                # check if all component are correctly stored in mesh
+                if edge.id not in self._edges:
+                    is_valid = False
+                    logging.error("Mesh: Edge id not stored in mesh for edge: %s", edge)
+                if edge.start.id not in self._vertices:
+                    is_valid = False
+                    logging.error("Mesh: Vertex id not stored in mesh for vertex: %s", edge.start)
+                if edge.pair.id not in self._edges:
+                    is_valid = False
+                    logging.error("Mesh: Edge id not stored in mesh for edge: %s", edge.pair)
+
                 if edge.face is not face:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Wrong face in edge:' +
@@ -2713,11 +2900,25 @@ class Mesh:
                     logging.warning('Mesh: Checking Mesh: folded edge found: {0}'.format(edge))
 
         for edge in self.boundary_edges:
+            edges_id.append(edge.id)
+            vertices_id.append(edge.start.id)
             if edge.face is not None:
                 logging.error('Mesh: Wrong edge in mesh boundary edges:{0}'.format(edge))
                 is_valid = False
 
         is_valid = is_valid and self.check_duplicate_vertices()
+
+        for edge_id in self._edges:
+            if edge_id not in edges_id:
+                is_valid = False
+                logging.error('Mesh: an extraneous edge was '
+                              'found in the mesh structure: %s', self._edges[edge_id])
+
+        for vertex_id in self._vertices:
+            if vertex_id not in vertices_id:
+                is_valid = False
+                logging.error('Mesh: an extraneous vertex was '
+                              'found in the mesh structure: %s', self._vertices[vertex_id])
 
         logging.info('Mesh: Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
@@ -2770,6 +2971,7 @@ class Mesh:
         :param boundary: list of coordinates tuples
         :return: a Mesh object
         """
+        self.clear()
         new_face = self.new_face_from_boundary(boundary)
         self.boundary_edge = new_face.edge.pair
 
@@ -2798,6 +3000,7 @@ if __name__ == '__main__':
 
     # plot()
 
+
     def merge_two_faces_edge():
         """
         Test
@@ -2823,6 +3026,7 @@ if __name__ == '__main__':
 
     # merge_two_faces_edge()
 
+
     def simplify_mesh():
         """
         Test
@@ -2841,6 +3045,7 @@ if __name__ == '__main__':
 
 
     # simplify_mesh()
+
 
     def insert_complex_face_1():
         """

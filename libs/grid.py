@@ -220,7 +220,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Levallois_A3_505.json")
+        plan = reader.create_plan_from_file("Massy_C303.json")
         new_plan = finer_ortho_grid.apply_to(plan)
         new_plan.check()
 

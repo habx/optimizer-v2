@@ -232,25 +232,3 @@ def distance(point_1: Coords2d, point_2: Coords2d) -> float:
     """
     vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
     return magnitude(vector)
-
-
-def polygon_distance(polygon_1: Polygon, polygon_2: Polygon) -> float:
-    """
-    Returns the distance between two polygons
-    :param polygon_1:
-    :param polygon_2:
-    :return:
-    """
-    if polygon_1 and polygon_2:
-        area1 = polygon_1.area
-        area2 = polygon_2.area
-        poly_union = polygon_1.union(polygon_2)
-        poly_inter = polygon_1.intersection(polygon_2)
-        poly_diff = poly_union.difference(poly_inter)
-        dist_area = poly_diff.area
-        dist = (dist_area * 100.0) / (area1 + area2)
-    elif not polygon_1 and not polygon_2:
-        dist = 0
-    else:
-        dist = 100
-    return dist
