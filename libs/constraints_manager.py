@@ -36,6 +36,8 @@ BIG_VARIANTS = ("m", "l", "xl")
 
 SMALL_VARIANTS = ("xs", "s")
 
+OPEN_ON_ADJACENCY_SIZE = 200
+
 
 class ConstraintSolver:
     """

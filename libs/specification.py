@@ -78,12 +78,12 @@ class Item:
 
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
-                 adjacencies: Optional[List['Item']] = None):
+                 open_on: Optional[List['Category']] = None):
         self.category = category
         self.variant = variant
         self.min_size = min_size
         self.max_size = max_size
-        self.adjacencies = adjacencies
+        self.open_on = open_on
         self.id = 0
 
     def __repr__(self):

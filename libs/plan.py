@@ -1237,6 +1237,29 @@ class Space(PlanComponent):
 
         return number_windows
 
+    def openings(self) -> ['Linear']:
+        """
+        Returns the associated openings
+        :return: ['Linear']
+        """
+        openings_list = []
+        for component in self.immutable_components():
+            if component.category.aperture:
+                openings_list.append(component)
+        return openings_list
+
+    def connected_spaces(self) -> ['Space']:
+        """
+        Returns the associated openings
+        :return: ['Space']
+        """
+        connected_spaces = []
+        for door in self.openings():
+            for space in door.adjacent_spaces():
+                if space is not self and space not in connected_spaces:
+                    connected_spaces.append(space)
+        return connected_spaces
+
 
 class Linear(PlanComponent):
     """
@@ -1401,6 +1424,19 @@ class Linear(PlanComponent):
             return is_valid
 
         return is_valid
+
+    def adjacent_spaces(self)->['Space']:
+        """
+        Returns the adjacent spaces
+        :return: ['Space']
+        """
+        spaces_list = []
+        for edge in self.edges:
+            if edge.face.space not in spaces_list:
+                spaces_list.append(edge.face.space)
+            if edge.pair.face.space not in spaces_list:
+                spaces_list.append(edge.pair.face.space)
+        return spaces_list
 
 
 class Floor:
