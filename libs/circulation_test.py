@@ -15,8 +15,7 @@ from libs.circulation import Circulator, COST_RULES
 
 from libs.space_planner import SpacePlanner
 
-test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
-              ("Vernouillet_A105.json", "Vernouillet_A105_setup.json")]
+test_files = [("Vernouillet_A105.json", "Vernouillet_A105_setup.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -43,7 +42,6 @@ def test_circulation(input_file, input_setup):
 
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
-
 
     for solution in space_planner.solutions_collector.best():
         circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)

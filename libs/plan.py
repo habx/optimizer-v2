@@ -35,7 +35,6 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional['uuid.UUID'] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id or uuid.uuid4()
@@ -1409,6 +1408,7 @@ class Floor:
     The level correspond to the stacking order of the floor.
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
+
     def __init__(self,
                  mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
@@ -1472,7 +1472,7 @@ class Plan:
         if mesh:
             new_floor = Floor(mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
-            mesh.add_watcher(lambda modifications:  self._watcher(modifications))
+            mesh.add_watcher(lambda modifications: self._watcher(modifications))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -1497,7 +1497,7 @@ class Plan:
         """
         output = {
             "name": self.name,
-            "spaces":  [space.serialize() for space in self.spaces],
+            "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
             "floors": [floor.serialize() for floor in self.floors.values()]
         }
@@ -2079,6 +2079,8 @@ class Plan:
 
         plot_save(save, show)
 
+        return ax
+
     def check(self) -> bool:
         """
         Used to verify plan consistency
@@ -2149,7 +2151,6 @@ class Plan:
         yield from (space for space in self.spaces if space.category.circulation)
 
 
-
 if __name__ == '__main__':
     import libs.reader as reader
 
@@ -2168,6 +2169,7 @@ if __name__ == '__main__':
         plan.plot()
 
         assert plan.check()
+
 
     floor_plan()
 
@@ -2194,6 +2196,5 @@ if __name__ == '__main__':
         space = plan.get_space_from_id(plan.spaces[0].id)
         assert space is plan.empty_space
         assert plan.spaces[0].id == plan_2.spaces[0].id
-
 
     # clone_and_change_plan()
