@@ -153,7 +153,9 @@ class Circulator:
         plots plan with circulation paths
         :return:
         """
+
         ax = self.plan.plot(show=show, save=False)
+
         paths = self.connecting_paths
         for path in paths:
             if len(path) == 1:
@@ -168,6 +170,7 @@ class Circulator:
                             linewidth=2,
                             color="blue",
                             solid_capstyle='butt')
+
         plot_save(save, show)
 
 
@@ -286,8 +289,21 @@ class PathCalculator:
         return graph.get_shortest_path(self, edge1, edge2)
 
 
+COST_RULES = {
+    'water_room_less_than_two_ducts': 10e5,
+    'water_room_default': 1000,
+    'window_room_less_than_two_windows': 10e10,
+    'window_room_default': 5000,
+    'default': 0
+}
+
 if __name__ == '__main__':
     import libs.reader as reader
+    from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+    from libs.selector import SELECTORS
+    from libs.grid import GRIDS
+    from libs.shuffle import SHUFFLES
+    from libs.space_planner import SpacePlanner
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -307,22 +323,32 @@ if __name__ == '__main__':
         """
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        plan = build_plan(input_file)
+        input_file = "Vernouillet_A105.json"
+        plan = reader.create_plan_from_file(input_file)
 
-        cost_rules = {
-            'water_room_less_than_two_ducts': 10e5,
-            'water_room_default': 1000,
-            'window_room_less_than_two_windows': 10e10,
-            'window_room_default': 5000,
-            'default': 0
-        }
+        GRIDS["ortho_grid"].apply_to(plan)
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
+        (seeder.plant()
+         .grow()
+         .shuffle(SHUFFLES["seed_square_shape"])
+         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+         .simplify(SELECTORS["fuse_small_cell"])
+         .shuffle(SHUFFLES["seed_square_shape"]))
 
-        circulator = Circulator(plan=plan, cost_rules=cost_rules)
+        input_setup = input_file[:-5] + "_setup.json"
+        spec = reader.create_specification_from_file(input_setup)
+        spec.plan = plan
 
-        circulator.connect()
-        logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
+        space_planner = SpacePlanner("test", spec)
+        space_planner.solution_research()
 
-        circulator.plot()
+        for solution in space_planner.solutions_collector.best():
+            solution.plan.plot()
+            circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
+            circulator.connect()
+            circulator.plot()
+            logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
 
 
     connect_plan()
