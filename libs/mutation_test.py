@@ -41,7 +41,7 @@ def test_ortho_cut(l_plan):
     :return:
     """
     mutation = MUTATIONS["ortho_projection_cut"]
-    mutation.apply_to(l_plan.empty_space.edge.next, [l_plan.empty_space])
+    mutation.apply_to(l_plan.empty_space.edge.next, l_plan.empty_space)
     assert l_plan.check()
 
 
@@ -52,7 +52,7 @@ def test_barycenter_cut(l_plan):
     :return:
     """
     mutation = MUTATION_FACTORIES["barycenter_cut"](0.5)
-    mutation.apply_to(l_plan.empty_space.edge.next, [l_plan.empty_space])
+    mutation.apply_to(l_plan.empty_space.edge.next, l_plan.empty_space)
     l_plan.plot()
     l_plan.mesh.plot()
     assert l_plan.check()
