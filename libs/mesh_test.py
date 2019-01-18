@@ -583,3 +583,56 @@ def test_simplify_mesh_triangle():
     edge.next.barycenter_cut(1.0, 100.0)
     mesh.simplify()
     assert mesh.check()
+
+
+def test_insert_external_face():
+    """
+    Add a face outside the mesh. The face must be adjacent.
+    +---------------+
+    |               |
+    |               +------+
+    |    Mesh       | face |
+    |               |      |
+    |               +------+
+    |               |
+    +---------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(500, 200), (700, 200), (700, 400), (500, 400)]
+    mesh = Mesh().from_boundary(perimeter)
+    face = mesh.new_face_from_boundary(face_perimeter)
+    mesh.insert_external_face(face)
+
+    mesh.plot()
+
+    assert mesh.check()
+
+
+def test_insert_complex_external_face():
+    """
+    Add a face outside the mesh. The face must be adjacent.
+    +------------+
+    |            |
+    |            +--------+
+    |   MESH     |   FACE |
+    |            +---+    |
+    |            |   |    |
+    +-------+----+   |    |
+            |  +-----+    |
+            |             |
+            +-------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(250, 0), (250, -200), (700, -200), (700, 400), (500, 400), (500, 200),
+                      (600, 200), (600, -100), (400, -100), (400, 0)]
+    mesh = Mesh().from_boundary(perimeter)
+    face = mesh.new_face_from_boundary(face_perimeter)
+    created_faces = mesh.insert_external_face(face)
+
+    mesh.plot()
+
+    assert mesh.check()
