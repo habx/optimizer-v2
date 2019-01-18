@@ -30,8 +30,9 @@ CATEGORIES_COLORS = {
     'terrace': 'silver',
     'garden': 'green',
     'loggia': 'silver',
-    'startingStep': 'brown',
-    'hole': 'brown'
+    'startingStep': 'r',
+    'hole': 'lightblue',
+    'stairsObstacle': 'brown'
 }
 
 
@@ -120,6 +121,7 @@ SPACE_CATEGORIES = {
     "duct": SpaceCategory('duct', mutable=False, seedable=True),
     "loadBearingWall": SpaceCategory('loadBearingWall', mutable=False),
     "hole": SpaceCategory('hole', mutable=False),
+    "stairsObstacle": SpaceCategory('stairsObstacle', mutable=False),
     "bedroom": SpaceCategory('bedroom', needed_linears=window_linears),
     "living": SpaceCategory('living', circulation=True, needed_linears=window_linears),
     "entrance": SpaceCategory('entrance', circulation=True, needed_linears=[frontDoor_linear]),

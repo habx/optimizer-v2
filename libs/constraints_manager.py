@@ -298,6 +298,35 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
         return ct == 1
 
 
+def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
+                        length: int) -> ortools.Constraint:
+    """
+    Opens on constraint : assure l'adjacence entre deux pièces
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param min_max: str
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    if item.opens_on:
+        for category_name in item.opens_on:
+            adjacency_sum = 0
+            for other_item in manager.sp.spec.items:
+                if other_item.category.name == category_name:
+                    adjacency_sum += manager.solver.solver.Sum(
+                        manager.solver.solver.Sum(
+                            int(j_space.adjacent_to(k_space, length)) *
+                            manager.solver.positions[item.id, j] *
+                            manager.solver.positions[other_item.id, k] for
+                            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+            if ct is None:
+                ct = (adjacency_sum >= 1)
+            else:
+                ct = manager.and_(ct, (adjacency_sum >= 1))
+    return ct
+
+
 def symmetry_breaker_constraint(manager: 'ConstraintsManager',
                                 item: Item) -> ortools.Constraint:
     """
@@ -458,18 +487,19 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
         [windows_constraint, {}],
+        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
-        [area_constraint, {"min_max": "max"}]
+        #[area_constraint, {"min_max": "max"}]
     ],
     "wc": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
@@ -491,8 +521,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_category": "kitchen"}]
     ],
     "kitchen": [
-        [components_adjacency_constraint,
-         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        # [components_adjacency_constraint,
+        #  {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,

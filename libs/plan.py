@@ -1202,15 +1202,26 @@ class Space(PlanComponent):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
-    def adjacent_to(self, other: Union['Space', 'Face']) -> bool:
+    def adjacent_to(self, other: Union['Space', 'Face'], length: int = None) -> bool:
         """
         Check the adjacency with an other space or face
+        with constraint of adjacency length
         :return:
         """
-        for edge in other.edges:
-            if self.has_edge(edge.pair):
+        if length is None:
+            for edge in other.edges:
+                if self.has_edge(edge.pair):
+                    return True
+            return False
+        else:
+            adjacency_length = 0
+            for edge in other.edges:
+                if self.has_edge(edge.pair):
+                    adjacency_length += edge.length
+            if adjacency_length >= length:
                 return True
-        return False
+            else:
+                return False
 
     def count_ducts(self) -> float:
         """
@@ -1693,6 +1704,17 @@ class Plan:
         :return:
         """
         return len(self.floors)
+
+    def floor_of_given_level(self, level: int) -> 'Floor':
+        """
+        Returns the floor of the given level
+        :return:
+        """
+        for floor in self.floors.values():
+            if floor.level == level:
+                return floor
+        logging.info("Plan: floor_of_given_level: No floor at this level")
+        return None
 
     @property
     def has_multiple_floors(self):

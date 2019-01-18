@@ -78,12 +78,13 @@ class Item:
 
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
-                 open_on: Optional[List['Category']] = None):
+                 opens_on: Optional[List['str']] = None, linked_to: Optional[List['str']] = None):
         self.category = category
         self.variant = variant
         self.min_size = min_size
         self.max_size = max_size
-        self.open_on = open_on
+        self.opens_on = opens_on
+        self.linked_to = linked_to
         self.id = 0
 
     def __repr__(self):

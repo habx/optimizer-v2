@@ -4,33 +4,51 @@
       "type": "entrance",
       "requiredArea": {
         "min": 25000,
-        "max": 50000
+        "max": 60000
       },
-      "variant": "m"
+      "variant": "m",
+      "opensOn": [],
+      "linkedTo":[]
     },
     {
       "type": "kitchen",
       "requiredArea": {
-        "min": 40000,
-        "max": 60000
+        "min": 50000,
+        "max": 100000
       },
+      "opensOn": ["living"],
+      "linkedTo":[],
       "variant": "s"
     },
     {
       "type": "living",
       "requiredArea": {
-        "min": 200000,
-        "max": 300000
+        "min": 150000,
+        "max": 250000
       },
+      "opensOn": ["kitchen"],
+      "linkedTo":[],
       "variant": "s"
     },
     {
       "type": "bedroom",
       "requiredArea": {
-        "min": 100000,
-        "max": 120000
+        "min": 120000,
+        "max": 180000
       },
-      "variant": "m"
+      "variant": "m",
+      "opensOn": [],
+      "linkedTo":[]
+    },
+    {
+      "type": "bedroom",
+      "requiredArea": {
+        "min": 120000,
+        "max": 180000
+      },
+      "variant": "m",
+      "opensOn": [],
+      "linkedTo":[]
     },
     {
       "type": "bathroom",
@@ -38,7 +56,9 @@
         "min": 40000,
         "max": 60000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": [],
+      "linkedTo":[]
     },
     {
       "type": "wc",
@@ -46,7 +66,9 @@
         "min": 10000,
         "max": 30000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": [],
+      "linkedTo":[]
     }
   ]
 }

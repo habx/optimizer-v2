@@ -5,10 +5,11 @@ Reader module : Used to read file from json input and create a plan.
 from typing import Dict, Sequence, Tuple, List
 import os
 import json
-
+import logging
 from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
+from libs.plan import Plan
 
 from libs.utils.geometry import (
     point_dict_to_tuple,
@@ -288,15 +289,22 @@ def create_specification_from_file(input_file: str):
     """
     spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
     specification = Specification(input_file)
-    for item in spec_dict['setup']:
-        _category = item['type']
+    for item in spec_dict["setup"]:
+        _category = item["type"]
         if _category not in SPACE_CATEGORIES:
-            raise ValueError('Space type not present in space categories: {0}'.format(_category))
-        required_area = item['requiredArea']
-        size_min = Size(area=required_area['min'])
-        size_max = Size(area=required_area['max'])
-        variant = item['variant']
-        new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max)
+            raise ValueError("Space type not present in space categories: {0}".format(_category))
+        required_area = item["requiredArea"]
+        size_min = Size(area=required_area["min"])
+        size_max = Size(area=required_area["max"])
+        variant = item["variant"]
+        opens_on = []
+        linked_to = []
+        if "opensOn" in list(item.keys()):
+            opens_on = item["opensOn"]
+        if "linkedTo" in list(item.keys()):
+            linked_to = item["linkedTo"]
+        new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max, opens_on,
+                        linked_to)
         specification.add_item(new_item)
 
     return specification
@@ -308,8 +316,17 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = 'Levallois_Letourneur_setup.json'
-        create_specification_from_file(input_file)
+        input_file = "begles-carrelets_C304_setup24.json"
+        spec = create_specification_from_file(input_file)
+        print(spec)
+
+
+    def plan_read():
+        input_file = "begles-carrelets_C304.json"
+        my_plan = create_plan_from_file(input_file)
+        my_plan.plot()
+        print(my_plan)
 
 
     specification_read()
+    plan_read()
