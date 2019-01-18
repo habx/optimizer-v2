@@ -390,6 +390,7 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
+    TODO : add this as a method to space
     """
     face = edge.pair.face
 
@@ -401,56 +402,7 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     if not other_space:
         return False
 
-    # case 1 : the only face of the space
-    if len(other_space._faces_id) == 1:
-        return True
-
-    # case 2 : fully enclosing face
-    face_edges = list(face.edges)
-    for edge in other_space.exterior_edges:
-        if edge not in face_edges:
-            break
-        face_edges.remove(edge)
-    else:
-        return False
-
-    # case 4 : standard case
-    forbidden_edges = list(face.edges)
-    other_space.change_reference_edges(forbidden_edges)
-    adjacent_faces = list(other_space.adjacent_faces(face))
-
-    if len(adjacent_faces) == 1:
-        return False
-
-    remaining_faces = adjacent_faces[:]
-
-    # temporarily remove the face_id from the other_space
-    other_space.remove_face_id(face)
-
-    # we must check to see if we split the other_space by removing the face
-    # for each adjacent face inside the other_space check if they are still connected
-    while remaining_faces:
-
-        adjacent_face = remaining_faces[0]
-        connected_faces = [adjacent_face]
-
-        for connected_face in other_space.connected_faces(adjacent_face):
-            # try to reach the other adjacent faces
-            if connected_face in remaining_faces:
-                remaining_faces.remove(connected_face)
-            connected_faces.append(connected_face)
-
-        remaining_faces.remove(adjacent_face)
-
-        if len(remaining_faces) != 0:
-            other_space.add_face_id(face)
-            return True
-        else:
-            break
-
-    other_space.add_face_id(face)
-    return False
-
+    return other_space.corner_stone(face)
 
 # predicate factories
 

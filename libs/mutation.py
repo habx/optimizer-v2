@@ -3,19 +3,21 @@
 Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
+TODO : we should distinguish mesh mutations from spaces mutations
 """
 from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
 
 import libs.transformation as transformation
+from libs.plan import Plan
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
     from libs.plan import Space
     from libs.utils.custom_types import TwoEdgesAndAFace
 
-EdgeMutation = Callable[['Edge', Sequence['Space']], Sequence['Space']]
-ReverseEdgeMutation = Callable[['Edge', Sequence['Space']], Sequence['Space']]
+EdgeMutation = Callable[['Edge', 'Space'], Sequence['Space']]
+ReverseEdgeMutation = EdgeMutation
 MutationFactoryFunction = Callable[..., EdgeMutation]
 
 
@@ -24,55 +26,93 @@ class Mutation:
     Mutation class
     Will mutate a face and return the modified spaces
     """
-    def __init__(self, mutation: EdgeMutation,
-                 reverse_mutation: Optional[ReverseEdgeMutation] = None,
+    def __init__(self,
+                 mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
+                 reversible: bool = True,
                  name: str = ''):
         self.name = name
         self._mutation = mutation
-        self._reverse_mutation = reverse_mutation
         self._spaces_modified = spaces_modified
+        self._initial_state = Plan("storage")
+        self.reversible = reversible
 
     def __repr__(self):
         return 'Mutation: {0}'.format(self.name)
 
-    def apply_to(self, edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
+    def apply_to(self, edge: 'Edge', space: 'Space') -> Sequence['Space']:
         """
         Applies the mutation to the edge
         :param edge:
-        :param spaces:
+        :param space:
         :return: the list of modified spaces
         """
-        return self._mutation(edge, spaces)
+        self._store_initial_sate(self.spaces_modified(edge, space))
+        return self._mutation(edge, space)
 
-    def reverse(self, edge_pair: 'Edge', spaces: Sequence['Space']):
+    def reverse(self, modified_spaces: Sequence['Space']):
         """
-        Reverse the mutation.
-        Note : some mutation cannot be reversed perfectly (for example when a space is split into
-        several spaces by the removal of a face)
-        :param edge_pair:
-        :param spaces
+        Reverse the mutation
+        :param: the modified spaces including newly created spaces
         :return:
         """
-        assert self._reverse_mutation, 'This mutation can not be reversed ! : {0}'.format(self)
-        return self._reverse_mutation(edge_pair, spaces)
+        logging.debug("Mutation: Reversing the mutation: %s", self)
 
-    def spaces_modified(self, edge: 'Edge', spaces: ['Space']) -> Sequence['Space']:
+        if not self.reversible:
+            logging.warning("Mutation: Trying to reverse an irreversible mutation: %s", self)
+            return
+
+        if len(modified_spaces) == 0:
+            logging.debug("Mutation: Reversing but no spaces were modified: %s", self)
+            return
+
+        # copy back the initial state into the plan
+        for space in modified_spaces:
+            initial_space = self._initial_state.get_space_from_id(space.id)
+            if not initial_space:
+                space.remove()
+            else:
+                space.copy(initial_space)
+
+        # remove all the spaces from the storage plan
+        self._initial_state.clear()
+
+    def _store_initial_sate(self, spaces_modified: Sequence['Space']):
+        """
+        Keeps an initial state of the modified spaces
+        :param spaces_modified: the spaces that will be modified by the mutation
+        :return: void
+        """
+        if len(spaces_modified) == 0:
+            return
+        self._initial_state.clear()
+        # add the plan floors to the temp plan
+        self._initial_state.floors = spaces_modified[0].plan.floors
+        # we store the cloned spaces in a temp plan structure
+        # we only clone the modified spaces for performance purposes
+        for space in spaces_modified:
+            space.clone(self._initial_state)
+
+    def spaces_modified(self, edge: 'Edge', space: 'Space') -> Sequence['Space']:
         """
         Returns the spaces that the mutation will modify
         A mutation can implement its own method or per convention the spaces modified will
         be the space of the pair of the specified edge and all the other specified spaces
+        This method is used in particular to reverse the mutation
         :return:
         """
         if self._spaces_modified:
-            return self._spaces_modified(edge, spaces)
+            return self._spaces_modified(edge, space)
 
-        other_space = spaces[0].plan.get_space_of_face(edge.face)
-        if other_space is None:
+        # per default we return the space and the other adjacent space according
+        # to the specific edge
+
+        # if the edge pair is a boundary of the mesh : no space will be modified
+        if not edge.pair.face:
             return []
-        modified_spaces = [other_space] + spaces
 
-        return modified_spaces
+        other_space = space.plan.get_space_of_face(edge.pair.face)
+        return [space, other_space] if other_space else [space]
 
 
 class MutationFactory:
@@ -80,9 +120,10 @@ class MutationFactory:
     Mutation Factory class
     Returns a Mutation instance when called
     """
-    def __init__(self, factory: MutationFactoryFunction, name: str = ''):
+    def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
         self.name = name or factory.__name__
         self.factory = factory
+        self.reversible = reversible
 
     def __call__(self, *args, **kwargs) -> Mutation:
         name = self.name
@@ -91,44 +132,43 @@ class MutationFactory:
         for key, value in kwargs.items():
             name += ', ' + key + ':{0}'.format(value)
 
-        return Mutation(self.factory(*args, **kwargs), name=name)
+        return Mutation(self.factory(*args, **kwargs), name=name, reversible=self.reversible)
 
 
 # Mutation Catalog
 
 # Face Mutations
 
-def swap_face(edge: 'Edge', spaces: [Optional['Space']]) -> Sequence['Space']:
+def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
-    Swaps the edge face: by removing it from the first space and adding it to the second space
+    Swaps the edge pair face: by adding it from the specified space and adding it to the other space
     Eventually merge the second space with all other specified spaces
     Returns a list of space :
     • the merged space
     • the newly created spaces by the removal of the face
-    The mutation is reversable : swap_face(edge.pair, swap_face(edge, spaces))
+    The mutation is reversible : swap_face(edge.pair, swap_face(edge, spaces))
     :param edge:
-    :param spaces:
+    :param space:
     :return: a list of space
     """
-    assert len(spaces) >= 2, "Mutation: At least two spaces must be provided"
-    assert spaces[0].has_face(edge.face), "Mutation: The edge must belong to the first space"
+    assert space.has_edge(edge), "Mutation: The edge must belong to the space"
 
-    if spaces[1].face:
-        assert (spaces[1].adjacent_to(edge.face),
-                "Mutation: The edge face must be adjacent to the second space")
+    plan = space.plan
+    face = edge.pair.face
 
-    face = edge.face
+    if not face:
+        logging.debug("Mutation: Trying to swap a face on the boundary of the mesh: %s", edge)
+        return []
 
-    logging.debug("Mutation: Swapping face %s of space %s to space %s", face, spaces[0], spaces[1])
+    other_space = plan.get_space_of_edge(edge.pair)
 
-    created_spaces = spaces[0].remove_face(face)
-    spaces[1].add_face(face)
+    logging.debug("Mutation: Swapping face %s of space %s to space %s", face, space, other_space)
 
-    if len(spaces) > 2:
-        logging.debug("Mutation: Swap face, merging spaces")
-        spaces[1].merge(*spaces[2:])
+    # only remove the face if it belongs to a space
+    created_spaces = other_space.remove_face(face) if other_space else []
+    space.add_face(face)
 
-    return [spaces[1]] + list(created_spaces)
+    return [space] + list(created_spaces)
 
 
 def add_aligned_face(_: 'Edge') -> Sequence['Space']:
@@ -142,17 +182,16 @@ def add_aligned_face(_: 'Edge') -> Sequence['Space']:
     pass
 
 
-def remove_edge(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
+def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Removes an edge from a space.
-    Not reversable
+    Not reversible
     :param edge:
-    :param spaces:
+    :param space:
     :return:
     """
-    assert len(spaces) == 1, "You must provide one space"
-    spaces[0].remove_internal_edge(edge)
-    return spaces
+    removed = space.remove_internal_edge(edge)
+    return [space] if removed else []
 
 # Cuts Mutation
 
@@ -161,17 +200,15 @@ def _space_modified_by_cut(cut_data: 'TwoEdgesAndAFace') -> bool:
     return cut_data and cut_data[2]
 
 
-def ortho_cut(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
+def ortho_cut(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Cutting an edge of a space orthogonally to the intersected edge
     :param edge:
-    :param spaces:
+    :param space:
     :return:
     """
-    assert len(spaces) == 1, "You must provide exactly one space"
-
-    space_modified = spaces[0].ortho_cut(edge)
-    return spaces if space_modified else []
+    space_modified = space.ortho_cut(edge)
+    return [space] if space_modified else []
 
 
 def barycenter_cut(coeff: float,
@@ -184,12 +221,10 @@ def barycenter_cut(coeff: float,
     :param traverse:
     :return: an action function
     """
-    def _action(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
-        assert len(spaces) == 1, "You must provide exactly one space"
-
-        cut_data = spaces[0].barycenter_cut(edge, coeff, angle, traverse)
-        return spaces if _space_modified_by_cut(cut_data) else []
+        cut_data = space.barycenter_cut(edge, coeff, angle, traverse)
+        return [space] if _space_modified_by_cut(cut_data) else []
 
     return _action
 
@@ -204,9 +239,7 @@ def translation_cut(dist: float,
     :param traverse:
     :return: an action function
     """
-    def _action(edge: 'Edge', spaces: Sequence['Space']) -> Sequence['Space']:
-
-        assert len(spaces) == 1, "You must provide exactly one space"
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
         # check the length of the edge. It cannot be inferior to the translation distance
         if edge.length < dist:
@@ -216,20 +249,20 @@ def translation_cut(dist: float,
                   .config(vector=edge.unit_vector, coeff=dist)
                   .apply_to(edge.start))
 
-        cut_data = spaces[0].cut(edge, vertex, angle=angle, traverse=traverse)
+        cut_data = space.cut(edge, vertex, angle=angle, traverse=traverse)
 
-        return spaces if _space_modified_by_cut(cut_data) else []
+        return [space] if _space_modified_by_cut(cut_data) else []
 
     return _action
 
 
 MUTATION_FACTORIES = {
-    "translation_cut": MutationFactory(translation_cut),
-    "barycenter_cut": MutationFactory(barycenter_cut)
+    "translation_cut": MutationFactory(translation_cut, reversible=False),
+    "barycenter_cut": MutationFactory(barycenter_cut, reversible=False)
 }
 
 MUTATIONS = {
-    "swap_face": Mutation(swap_face, swap_face),
-    "ortho_projection_cut": Mutation(ortho_cut),
-    "remove_edge": Mutation(remove_edge)
+    "swap_face": Mutation(swap_face),
+    "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
+    "remove_edge": Mutation(remove_edge, reversible=False)
 }

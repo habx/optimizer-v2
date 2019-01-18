@@ -97,7 +97,7 @@ class Action:
                 continue
 
             # get the list of the spaces that will be modified
-            spaces = self.mutation.spaces_modified(edge.pair, [space])
+            spaces = self.mutation.spaces_modified(edge, space)
 
             # if no spaces will be modified continue to the next edge
             if not spaces:
@@ -107,7 +107,7 @@ class Action:
             initial_score = self.score(spaces, opt_constraints)
 
             # we apply the mutation
-            modified_spaces = self.mutation.apply_to(edge.pair, spaces)
+            modified_spaces = self.mutation.apply_to(edge, space)
 
             if modified_spaces:
 
@@ -117,7 +117,7 @@ class Action:
                         logging.debug('Action: Constraint breached: %s - %s',
                                       constraint.name, space)
                         # reverse the change
-                        self.mutation.reverse(edge.pair, modified_spaces)
+                        self.mutation.reverse(modified_spaces)
                         # add the edge and the space to the cache
                         self.mark_as_tried(space, edge)
                         modified_spaces = []
@@ -130,7 +130,7 @@ class Action:
                         logging.debug("Action: poor global score: %s - %s",
                                       self, space)
                         # reverse the mutation
-                        self.mutation.reverse(edge.pair, modified_spaces)
+                        self.mutation.reverse(modified_spaces)
                         # add the edge and the space ot the cache
                         self.mark_as_tried(space, edge)
                         modified_spaces = []
