@@ -32,10 +32,9 @@ class PlanComponent:
     """
 
     def __init__(self,
-                 plan: 'Plan',
+                 plan: Optional['Plan'],
                  floor: 'Floor',
                  _id: Optional['uuid.UUID'] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id or uuid.uuid4()
@@ -76,6 +75,7 @@ class PlanComponent:
         :return:
         """
         self.plan.remove(self)
+        self.plan = None
 
     def add(self):
         """
@@ -153,6 +153,17 @@ class Space(PlanComponent):
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
+
+    def copy(self, other_space: 'Space'):
+        """
+        Copies the properties of the other_space into the space
+        :param other_space:
+        :return:
+        """
+        self._faces_id = other_space._faces_id[:]
+        self._edges_id = other_space._edges_id[:]
+        self.category = other_space.category
+        self.floor = other_space.floor
 
     @property
     def face(self) -> Face:
@@ -290,8 +301,10 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        assert self.is_boundary(edge), ("The edge has to be a boundary "
-                                        "edge: {0} of space: {1}".format(edge, self))
+        if not self.is_boundary(edge):
+            raise ValueError("The edge has to be a boundary "
+                             "edge: {0} of space: {1}".format(edge, self))
+
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
@@ -837,27 +850,35 @@ class Space(PlanComponent):
 
         assert len(self._edges_id), "The space is badly shaped: {}".format(self)
 
-    def change_reference_edges(self, forbidden_edges: Sequence['Edge']):
+    def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
+                               boundary_edge: Optional['Edge'] = None):
         """
         Changes the edge references of the space
         If all the edges of the boundary are in the forbidden list, the reference is simply
         removed from the list of edges id. It means that a hole is filled.
         :param forbidden_edges: a list of edges that cannot be used as reference
         (typically because they will cease to be on the boundary of the space)
+        :param boundary_edge
         """
         assert len(self._edges_id) == len(list(set(self._edges_id))), "Duplicate in edges !"
 
         for edge in self.reference_edges:
             if edge not in forbidden_edges:
                 continue
+            i = self._edges_id.index(edge.id)
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
                     assert other_edge.id not in self._edges_id, "The edge cannot already be a ref"
-                    i = self._edges_id.index(edge.id)
                     # we replace the edge id in place to preserve the list order
                     self._edges_id[i] = other_edge.id
                     break
             else:
+                if i == 0:
+                    logging.warning("Space: removing the first reference edge: %s", edge)
+                    if not boundary_edge:
+                        raise ValueError("Space: changing reference edges, you should have"
+                                         "specified a boundary edge !")
+                    self._edges_id[0] = boundary_edge.id
                 self.remove_edge(edge)
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
@@ -893,6 +914,65 @@ class Space(PlanComponent):
                 yield edge.pair.face
                 seen.append(edge.pair.face)
 
+    def corner_stone(self, face: 'Face') -> bool:
+        """
+        Returns True if the removal of this face will split the space
+        into several disconnected parts
+        :return:
+        """
+        if not face:
+            return False
+
+        # case 1 : the only face of the space
+        if len(self._faces_id) == 1:
+            return True
+
+        # case 2 : fully enclosing face
+        face_edges = list(face.edges)
+        for edge in self.exterior_edges:
+            if edge not in face_edges:
+                break
+            face_edges.remove(edge)
+        else:
+            return False
+
+        # case 4 : standard case
+        forbidden_edges = list(face.edges)
+        self.change_reference_edges(forbidden_edges)
+        adjacent_faces = list(self.adjacent_faces(face))
+
+        if len(adjacent_faces) == 1:
+            return False
+
+        remaining_faces = adjacent_faces[:]
+
+        # temporarily remove the face_id from the other_space
+        self.remove_face_id(face)
+
+        # we must check to see if we split the other_space by removing the face
+        # for each adjacent face inside the other_space check if they are still connected
+        while remaining_faces:
+
+            adjacent_face = remaining_faces[0]
+            connected_faces = [adjacent_face]
+
+            for connected_face in self.connected_faces(adjacent_face):
+                # try to reach the other adjacent faces
+                if connected_face in remaining_faces:
+                    remaining_faces.remove(connected_face)
+                connected_faces.append(connected_face)
+
+            remaining_faces.remove(adjacent_face)
+
+            if len(remaining_faces) != 0:
+                self.add_face_id(face)
+                return True
+            else:
+                break
+
+        self.add_face_id(face)
+        return False
+
     def merge(self, *spaces: 'Space') -> 'Space':
         """
         Merge the space with all the other provided spaces.
@@ -910,13 +990,12 @@ class Space(PlanComponent):
         :param space:
         :return:
         """
-        self_edges = list(self.edges)
-        forbidden_edges = [edge.pair for edge in space.exterior_edges if edge.pair in self_edges]
-        self.change_reference_edges(forbidden_edges)
         self._faces_id += space._faces_id
+        self._edges_id += space._edges_id[1:]  # preserve the holes
         space._faces_id = []
         space._edges_id = []
         space.remove()
+        self.set_edges()
         return self
 
     def insert_face(self, face: 'Face', container_face: Optional['Face'] = None):
@@ -1456,6 +1535,7 @@ class Floor:
     The level correspond to the stacking order of the floor.
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
+
     def __init__(self,
                  mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
@@ -1519,7 +1599,7 @@ class Plan:
         if mesh:
             new_floor = Floor(mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
-            mesh.add_watcher(lambda modifications:  self._watcher(modifications))
+            mesh.add_watcher(lambda modifications: self._watcher(modifications))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -1544,7 +1624,7 @@ class Plan:
         """
         output = {
             "name": self.name,
-            "spaces":  [space.serialize() for space in self.spaces],
+            "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
             "floors": [floor.serialize() for floor in self.floors.values()]
         }
@@ -2146,6 +2226,8 @@ class Plan:
 
         plot_save(save, show)
 
+        return ax
+
     def check(self) -> bool:
         """
         Used to verify plan consistency
@@ -2166,7 +2248,8 @@ class Plan:
                     if other_space is space:
                         continue
                     if other_space.has_face(face):
-                        logging.error("Plan: A face is in multiple space: %s", face)
+                        logging.error("Plan: A face is in multiple space: %s, %s - %s",
+                                      face, other_space, space)
                         is_valid = False
 
         if is_valid:
@@ -2216,7 +2299,6 @@ class Plan:
         yield from (space for space in self.spaces if space.category.circulation)
 
 
-
 if __name__ == '__main__':
     import libs.reader as reader
 
@@ -2235,6 +2317,7 @@ if __name__ == '__main__':
         plan.plot()
 
         assert plan.check()
+
 
     floor_plan()
 
@@ -2261,6 +2344,5 @@ if __name__ == '__main__':
         space = plan.get_space_from_id(plan.spaces[0].id)
         assert space is plan.empty_space
         assert plan.spaces[0].id == plan_2.spaces[0].id
-
 
     # clone_and_change_plan()

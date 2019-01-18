@@ -78,7 +78,7 @@ class Grid:
         _selector, _mutation = operator
         for edge in _selector.yield_from(space):
             logging.debug("Grid: Applying cut %s to edge %s of space %s", _mutation, edge, space)
-            mesh_has_changed = _mutation.apply_to(edge, [space])
+            mesh_has_changed = _mutation.apply_to(edge, space)
             if mesh_has_changed:
                 return True
         return False

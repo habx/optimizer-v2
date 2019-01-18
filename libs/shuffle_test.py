@@ -40,11 +40,12 @@ def test_seed_square_shape():
 
     new_space_boundary = [(62.5, 0), (62.5, 62.5), (0, 62.5), (0, 0)]
     seed = plan.insert_space_from_boundary(new_space_boundary, SPACE_CATEGORIES["seed"])
-    empty_space = plan.empty_space
 
-    MUTATIONS["swap_face"].apply_to(seed.edge.next.pair, [empty_space, seed])
-    MUTATIONS["swap_face"].apply_to(seed.edge.pair, [empty_space, seed])
+    MUTATIONS["swap_face"].apply_to(seed.edge.next, seed)
+    MUTATIONS["swap_face"].apply_to(seed.edge, seed)
     plan.empty_space.category = SPACE_CATEGORIES["seed"]
+
+    plan.plot()
 
     SHUFFLES["simple_shuffle"].run(plan)
 
@@ -65,10 +66,9 @@ def test_seed_square_shape_min_size():
 
     new_space_boundary = [(62.5, 0), (62.5, 62.5), (0, 62.5), (0, 0)]
     seed = plan.insert_space_from_boundary(new_space_boundary, SPACE_CATEGORIES["seed"])
-    empty_space = plan.empty_space
 
-    MUTATIONS["swap_face"].apply_to(seed.edge.next.pair, [empty_space, seed])
-    MUTATIONS["swap_face"].apply_to(seed.edge.pair, [empty_space, seed])
+    MUTATIONS["swap_face"].apply_to(seed.edge.next, seed)
+    MUTATIONS["swap_face"].apply_to(seed.edge, seed)
     plan.empty_space.category = SPACE_CATEGORIES["seed"]
 
     SHUFFLES["simple_shuffle_min_size"].run(plan)

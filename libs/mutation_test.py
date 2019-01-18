@@ -41,7 +41,7 @@ def test_ortho_cut(l_plan):
     :return:
     """
     mutation = MUTATIONS["ortho_projection_cut"]
-    mutation.apply_to(l_plan.empty_space.edge.next, [l_plan.empty_space])
+    mutation.apply_to(l_plan.empty_space.edge.next, l_plan.empty_space)
     assert l_plan.check()
 
 
@@ -52,7 +52,7 @@ def test_barycenter_cut(l_plan):
     :return:
     """
     mutation = MUTATION_FACTORIES["barycenter_cut"](0.5)
-    mutation.apply_to(l_plan.empty_space.edge.next, [l_plan.empty_space])
+    mutation.apply_to(l_plan.empty_space.edge.next, l_plan.empty_space)
     l_plan.plot()
     l_plan.mesh.plot()
     assert l_plan.check()
@@ -65,10 +65,10 @@ def test_remove_edge(l_plan):
     :return:
     """
     cut_mutation = MUTATION_FACTORIES["barycenter_cut"](0.5)
-    cut_mutation.apply_to(l_plan.empty_space.edge, [l_plan.empty_space])
+    cut_mutation.apply_to(l_plan.empty_space.edge, l_plan.empty_space)
     edge = list(l_plan.empty_space.faces)[0].edge.next
     remove_mutation = MUTATIONS["remove_edge"]
-    remove_mutation.apply_to(edge, [l_plan.empty_space])
+    remove_mutation.apply_to(edge, l_plan.empty_space)
     l_plan.plot()
     assert l_plan.check()
 
@@ -84,11 +84,14 @@ def test_swap_faces(l_plan):
     duct = [(1200, 500), (1200, 800), (1000, 800), (1000, 500)]
     duct_space = l_plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     cut_mutation = MUTATION_FACTORIES["barycenter_cut"](0.5)
-    cut_mutation.apply_to(duct_space.edge, [duct_space])
+    cut_mutation.apply_to(duct_space.edge, duct_space)
 
     swap_mutation = MUTATIONS["swap_face"]
     edge = duct_space.edge.previous
-    modified_spaces = swap_mutation.apply_to(edge, [duct_space, l_plan.empty_space])
-    swap_mutation.reverse(edge, modified_spaces)
+    modified_spaces = swap_mutation.apply_to(edge, duct_space)
+    swap_mutation.reverse(modified_spaces)
+
     l_plan.plot()
+
+
     assert l_plan.check()
