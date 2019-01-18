@@ -2086,10 +2086,21 @@ class Plan:
             except OutsideFaceError:
                 continue
         else:
-            # TODO: this should probably raise an exception but too many input blueprints are
-            # incorrect due to wrong load bearing walls geometry, it would fail too many tests
-            logging.error('Plan: Could not insert the space in the plan because '
-                          'it overlaps other non empty spaces: %s, %s', boundary, category)
+            try:
+                face_to_insert = floor.mesh.new_face_from_boundary(boundary)
+                new_exterior_faces = floor.mesh.insert_external_face(face_to_insert)
+                # add the eventually created holes
+                for face in new_exterior_faces:
+                    Space(self, floor, face.edge, SPACE_CATEGORIES["hole"])
+                # create the new space
+                new_space = Space(self, floor, face_to_insert.edge, category)
+                return new_space
+
+            except OutsideFaceError:
+                # TODO: this should probably raise an exception but too many input blueprints are
+                # incorrect due to wrong load bearing walls geometry, it would fail too many tests
+                logging.error('Plan: Could not insert the space in the plan because '
+                              'it overlaps other non empty spaces: %s, %s', boundary, category)
 
     def insert_linear(self,
                       point_1: Coords2d,

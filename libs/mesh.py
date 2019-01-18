@@ -2857,7 +2857,7 @@ class Mesh:
         :return:
         """
         if face.as_sp.within(self.boundary_as_sp):
-            raise ValueError("Mesh: The face should be on the exterior of the mesh :%s", face)
+            raise OutsideFaceError("Mesh: The face should be on the exterior of the mesh :%s", face)
 
         # create a fixed list of the face edges for ulterior navigation
         boundary_edges = list(self.boundary_edges)

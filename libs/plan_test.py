@@ -673,3 +673,54 @@ def test_clone_change_plan():
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
     assert plan.spaces[0].id == plan_2.spaces[0].id
+
+
+def test_insert_external_space():
+    """
+    Add a face outside the mesh. The face must be adjacent.
+    +---------------+
+    |               |
+    |               +------+
+    |    Mesh       | face |
+    |               |      |
+    |               +------+
+    |               |
+    +---------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(500, 200), (700, 200), (700, 400), (500, 400)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.plot()
+
+    assert plan.check()
+
+
+def test_insert_complex_external_space():
+    """
+    Add a face outside the mesh. The face must be adjacent.
+    +------------+
+    |            |
+    |            +--------+
+    |   MESH     |   FACE |
+    |            +---+    |
+    |            |   |    |
+    +-------+----+   |    |
+            |  +-----+    |
+            |             |
+            +-------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(250, 0), (250, -200), (700, -200), (700, 400), (500, 400), (500, 200),
+                      (600, 200), (600, -100), (400, -100), (400, 0)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.plot()
+
+    assert plan.check()
