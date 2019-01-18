@@ -136,6 +136,8 @@ if __name__ == '__main__':
 
     matplotlib.use('TkAgg')
 
+    logging.getLogger().setLevel(logging.DEBUG)
+
 
     def rectangular_plan(width: float, depth: float) -> Plan:
         """
@@ -152,7 +154,9 @@ if __name__ == '__main__':
         :return:
         """
         boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-        return Plan("square").add_floor_from_boundary(boundaries)
+        plan = Plan("square")
+        plan.add_floor_from_boundary(boundaries)
+        return plan
 
 
     def seed_square_shape():
@@ -169,10 +173,13 @@ if __name__ == '__main__':
 
         new_space_boundary = [(62.5, 0), (62.5, 62.5), (0, 62.5), (0, 0)]
         seed = plan.insert_space_from_boundary(new_space_boundary, SPACE_CATEGORIES["seed"])
-        empty_space = plan.empty_space
 
-        MUTATIONS["swap_face"].apply_to(seed.edge.next.pair, [empty_space, seed])
-        MUTATIONS["swap_face"].apply_to(seed.edge.pair, [empty_space, seed])
+        MUTATIONS["swap_face"].apply_to(seed.edge.next, seed)
+        MUTATIONS["swap_face"].apply_to(seed.edge, seed)
+
+        plan.plot()
+        plt.show()
+
         plan.empty_space.category = SPACE_CATEGORIES["seed"]
 
         SHUFFLES["simple_shuffle"].run(plan, show=True)
