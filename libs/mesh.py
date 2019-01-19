@@ -1708,6 +1708,15 @@ class Face(MeshComponent):
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
     @property
+    def as_sp_eroded(self) -> Polygon:
+        """
+        Returns a dilated Polygon corresponding to the face with a small buffer
+        This is useful to prevent floating point precision errors.
+        :return: Polygon
+        """
+        return self.as_sp.buffer(-COORD_EPSILON, 1)
+
+    @property
     def area(self) -> float:
         """
         Calculates and returns the area of the face
@@ -2815,7 +2824,15 @@ class Mesh:
         edge = None
         for edge in self.boundary_edges:
             vertices.append(edge.start.coords)
-        return LinearRing(vertices) if edge else None
+        return LinearRing(vertices[::-1]) if edge else None
+
+    @property
+    def as_sp(self):
+        """
+        Returns a polygon covering the mesh
+        :return:
+        """
+        return Polygon(self.boundary_as_sp)
 
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:
@@ -2850,13 +2867,18 @@ class Mesh:
 
     def insert_external_face(self, face: 'Face'):
         """
-        Inserts the face in the mesh
-        TODO : replace the None face with a face of type Exterior to enable more isomorphic code
-        This would enable to treat the external face as a normal face
-        :param face:
-        :return:
+        Inserts an outside face in the mesh.
+        The face cannot be contained by the mesh or an
+        OutsideFaceError will be raised.
+
+        TODO : We should replace the None face with a face of type Exterior
+               to enable more isomorphic code. This would also enable the proper
+               representation of a mesh with a hole
+
+        :param face: the face to add to the mesh
+        :return: void
         """
-        if face.as_sp.within(self.boundary_as_sp):
+        if not self.as_sp.disjoint(face.as_sp_eroded):
             raise OutsideFaceError("Mesh: The face should be on the exterior of the mesh :%s", face)
 
         # create a fixed list of the face edges for ulterior navigation

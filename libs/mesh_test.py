@@ -2,6 +2,7 @@
 """
 Mesh Testing module
 """
+import pytest
 from libs.mesh import Mesh, Vertex, Face, Edge
 
 
@@ -47,7 +48,7 @@ def test_serialization():
     mesh = Mesh().from_boundary(perimeter)
     geometry = mesh.serialize()
     writer.save_mesh_as_json(geometry, "test")
-    new_geometry = reader.get_mesh_from_json("test");
+    new_geometry = reader.get_mesh_from_json("test")
     mesh.deserialize(new_geometry)
     mesh.plot()
     assert mesh.check()
@@ -600,7 +601,7 @@ def test_insert_external_face():
     :return:
     """
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-    face_perimeter = [(500, 200), (700, 200), (700, 400), (500, 400)]
+    face_perimeter = [(499, 200), (700, 200), (700, 400), (500, 400)]
     mesh = Mesh().from_boundary(perimeter)
     face = mesh.new_face_from_boundary(face_perimeter)
     mesh.insert_external_face(face)
@@ -619,7 +620,8 @@ def test_insert_complex_external_face():
     |   MESH     |   FACE |
     |            +---+    |
     |            |   |    |
-    +-------+----+   |    |
+    +-------+--+-+   |    |
+            |  |     |    |
             |  +-----+    |
             |             |
             +-------------+
@@ -631,8 +633,23 @@ def test_insert_complex_external_face():
                       (600, 200), (600, -100), (400, -100), (400, 0)]
     mesh = Mesh().from_boundary(perimeter)
     face = mesh.new_face_from_boundary(face_perimeter)
-    created_faces = mesh.insert_external_face(face)
+    mesh.insert_external_face(face)
 
     mesh.plot()
 
     assert mesh.check()
+
+
+def test_insert_overlapping_face():
+    """
+    Add a face outside the mesh. The face slightly overlaps the mesh (> EPSILON_COORDS).
+    The method raises an OutsideFaceError
+    :return:
+    """
+    from libs.utils.custom_exceptions import OutsideFaceError
+    with pytest.raises(OutsideFaceError):
+        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+        face_perimeter = [(498, 200), (700, 200), (700, 400), (500, 400)]
+        mesh = Mesh().from_boundary(perimeter)
+        face = mesh.new_face_from_boundary(face_perimeter)
+        mesh.insert_external_face(face)

@@ -2078,6 +2078,7 @@ class Plan:
         :param floor
         """
         floor = floor or self.floor
+        face_to_insert = None
         for empty_space in self.empty_spaces_of_floor(floor):
             try:
                 new_space = empty_space.insert_space(boundary, category)
@@ -2097,10 +2098,13 @@ class Plan:
                 return new_space
 
             except OutsideFaceError:
-                # TODO: this should probably raise an exception but too many input blueprints are
-                # incorrect due to wrong load bearing walls geometry, it would fail too many tests
-                logging.error('Plan: Could not insert the space in the plan because '
-                              'it overlaps other non empty spaces: %s, %s', boundary, category)
+                if face_to_insert:
+                    floor.mesh.remove_face_and_children(face_to_insert)
+
+        # TODO: this should probably raise an exception but too many input blueprints are
+        # incorrect due to wrong load bearing walls geometry, it would fail too many tests
+        logging.error('Plan: Could not insert the space in the plan because '
+                      'it overlaps other non empty spaces: %s, %s', boundary, category)
 
     def insert_linear(self,
                       point_1: Coords2d,
@@ -2255,7 +2259,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Massy_C303.json"
+        input_file = "Levallois_Creuze.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot()
