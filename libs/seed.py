@@ -154,6 +154,23 @@ class Seeder:
 
         return self
 
+    def empty(self, selector: 'Selector'):
+        """
+        Makes selected space empty
+        :param selector:
+        :param show:
+        :return:
+        """
+
+        for space in self.plan.get_spaces("seed"):
+            if list(selector.yield_from(space)) and not space.components_category_associated():
+                print("LIST SELECTOR", list(selector.yield_from(space)))
+                # input("space selected {0} with area {1}".format(space, space.area))
+                # print("SPACE YIELDED FOR CORNER BIG CELL")
+                space.category = SPACE_CATEGORIES["empty"]
+
+        return self
+
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
         Merges the seed spaces according to the selector
@@ -554,6 +571,14 @@ fill_seed_category = GrowthMethod(
     )
 )
 
+fill_empty_seed_category = GrowthMethod(
+    'empty',
+    (CONSTRAINTS['max_size_s_seed'],),
+    (
+        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
+    )
+)
+
 fill_small_seed_category = GrowthMethod(
     'empty',
     (CONSTRAINTS["max_size_seed"],),
@@ -566,7 +591,8 @@ fill_small_seed_category = GrowthMethod(
 
 classic_seed_category = GrowthMethod(
     'default',
-    (CONSTRAINTS["max_size_s_seed"],),
+    # (CONSTRAINTS["max_size_s_seed"],),
+    (CONSTRAINTS["max_size_default_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
@@ -576,7 +602,8 @@ classic_seed_category = GrowthMethod(
 
 duct_seed_category = GrowthMethod(
     'duct',
-    (CONSTRAINTS["max_size_xs_seed"],),
+    # (CONSTRAINTS["max_size_xs_seed"],),
+    (CONSTRAINTS["max_size_duct_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
@@ -587,7 +614,8 @@ duct_seed_category = GrowthMethod(
 
 front_door_seed_category = GrowthMethod(
     'frontDoor',
-    (CONSTRAINTS["max_size_xs_seed"],),
+    # (CONSTRAINTS["max_size_xs_seed"],),
+    (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
         Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
@@ -603,6 +631,11 @@ GROWTH_METHODS = {
 
 FILL_METHODS_HOMOGENEOUS = {
     "empty": fill_seed_category,
+    "default": None
+}
+
+FILL_METHODS_HOMOGENEOUS_EMPTY = {
+    "empty": fill_empty_seed_category,
     "default": None
 }
 
@@ -631,6 +664,27 @@ if __name__ == '__main__':
     matplotlib.use('TkAgg')
 
 
+    def test_seed_multiple_floors():
+        """
+        Test
+        :return:
+        """
+        from category import LINEAR_CATEGORIES
+        boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
+        # boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
+
+        plan = Plan("test_plan")
+        floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
+        # floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
+
+        plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_1)
+        plan.insert_linear((200, 0), (300, 0), LINEAR_CATEGORIES["window"], floor_1)
+        # plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_2)
+        # plan.insert_linear((400, 0), (500, 0), LINEAR_CATEGORIES["window"], floor_2)
+
+        return plan
+
+
     def grow_a_plan():
         """
         Test
@@ -639,8 +693,11 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = "Antony_A22.json"
+        # input_file = "Paris18_A402.json"
+        plan = reader.create_plan_from_file(input_file)
 
-        plan = reader.create_plan_from_file("Massy_C102.json")
+        # plan = test_seed_multiple_floors()
 
         GRIDS['finer_ortho_grid'].apply_to(plan)
 
@@ -648,47 +705,25 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
                                           "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True))
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .empty(SELECTORS["corner_big_cell_area_70000"])
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                          "empty"), show=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
         plan.plot(show=True)
         plt.show()
-        plan.check()
 
+        for sp in plan.spaces:
+            sp_comp = sp.components_category_associated()
+        print("space area and category", sp.area, sp_comp, sp.category.name)
 
-    # grow_a_plan()
+    grow_a_plan()
 
-
-    def grow_a_plan_bug():
-        """
-        Test
-        :return:
-        """
-        logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-
-        plan = reader.create_plan_from_file("Massy_C102.json")
-
-        GRIDS['ortho_grid'].apply_to(plan)
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        (seeder.plant()
-         .grow(show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True)
-         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"),
-               show=True)
-         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True, show=True)
-         .simplify(SELECTORS["fuse_small_cell"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True))
-
-        plan.plot(show=True)
-        plt.show()
-        plan.check()
-
-
-    grow_a_plan_bug()

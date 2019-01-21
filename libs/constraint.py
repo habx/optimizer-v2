@@ -28,6 +28,7 @@ class Constraint:
     In this case, a mutation will be applied if it will increase the score of the modified spaces
     according to the constraint score function.
     """
+
     def __init__(self,
                  score_factory: scoreFunctionFactory,
                  params: Dict[str, Any], name: str = "",
@@ -110,14 +111,34 @@ def square_shape(_: Dict) -> scoreFunction:
     Scores the area / perimeter ratio of a space.
     :return:
     """
+
     def _score(space: 'Space') -> float:
         if (space is None or space.size is None or
                 space.size.depth is None or space.size.width is None):
             return 0.0
         rectangle_area = space.size.depth * space.size.width
-        return max((rectangle_area - space.area)/rectangle_area, 0.0)
+        return max((rectangle_area - space.area) / rectangle_area, 0.0)
 
     return _score
+
+
+#
+# def shape_factor(_: Dict) -> scoreFunction:
+#     """
+#     Scores the area / perimeter ratio of a space.
+#     :return:
+#     """
+#
+#     def _score(space: 'Space') -> float:
+#         if (space is None or space.size is None or
+#                 space.size.depth is None or space.size.width is None):
+#             return 0.0
+#         rectangle_area = space.size.depth * space.size.width
+#         ratio_rectangle = (space.size.depth * space.size.width) / rectangle_area
+#         ratio_space = space.perimeter / space.area
+#         return max((ratio_space - ratio_rectangle) / ratio_rectangle, 0.0)
+#
+#     return _score
 
 
 def component_surface_objective(params: Dict) -> scoreFunction:
@@ -127,19 +148,61 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
-        return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
+        # TODO : move in utils?
+        shift = max((val - val_max) / val_max, (val_min - val) / val, 0.0)
+        return shift
 
     def _score(space: 'Space') -> float:
         list_components = list(
             p for p in params.keys() if p in space.components_category_associated())
         score = 0
-        for component in list_components:
-            score += shift_from_interval(params[component]["min_area"],
-                                         params[component]["max_area"], space.area)
+        if not list_components:
+            list_components = ["default"]
         if list_components:
-            score /= len(list_components)
+            min_area = max(params[component]["min_area"] for component in list_components)
+            max_area = max(params[component]["max_area"] for component in list_components)
+            score = shift_from_interval(min_area,
+                                        max_area, space.area)
+
+        # seen = []
+        # print("list_components", list_components)
+        # for component in list_components:
+        #     if component not in seen:
+        #         seen.append(component)
+        #         min_area = params[component]["min_area"] * sum(
+        #             el is component for el in list_components)
+        #         max_area = params[component]["min_area"] * sum(
+        #             el is component for el in list_components)
+        #         score += shift_from_interval(min_area,
+        #                                      max_area, space.area)
+        # if list_components:
+        #     score /= len(seen)
+
+        # for component in list_components:
+        #     score += shift_from_interval(params[component]["min_area"],
+        #                                  params[component]["max_area"], space.area)
+        # if list_components:
+        #     score /= len(list_components)
+
+        # score = score * 100
 
         return score
+
+    return _score
+
+
+def number_of_components(params: Dict):
+    """
+    penalizes spaces containing high number of components, for components considered in params
+    :return:
+    """
+
+    def _score(space: 'Space') -> float:
+        if (space is None):
+            return 0.0
+        list_components = space.components_category_associated()
+        number_components = sum(comp in params.keys() for comp in list_components)
+        return (number_components) ** 2
 
     return _score
 
@@ -165,7 +228,7 @@ def few_corners(params: Dict) -> scoreFunction:
         if number_of_corners == 0:
             return 0
 
-        return math.fabs((number_of_corners - min_corners)/number_of_corners)
+        return math.fabs((number_of_corners - min_corners) / number_of_corners)
 
     return _score
 
@@ -228,15 +291,46 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
                                                "category_name": "seed"},
                                               "max_size_xs")
 
+max_size_duct_constraint_seed = SpaceConstraint(max_size,
+                                                {"max_size": Size(30000, 200, 200),
+                                                 "category_name": "seed"},
+                                                "max_size_xs")
+
+max_size_default_constraint_seed = SpaceConstraint(max_size,
+                                                   {"max_size": Size(60000, 300, 300),
+                                                    "category_name": "seed"},
+                                                   "max_size_xs")
+
+max_size_frontdoor_constraint_seed = SpaceConstraint(max_size,
+                                                     {"max_size": Size(30000, 200, 200),
+                                                      "category_name": "seed"},
+                                                     "max_size_xs")
+
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
-                                              {"max_ratio": 100.0,
-                                               "frontDoor": {"min_area": 20000,
-                                                             "max_area": 40000},
-                                               "duct": {"min_area": 10000,
-                                                        "max_area": 40000}
-                                               },
+                                              {
+                                                  "default": {"min_area": 20000,
+                                                              "max_area": 70000},
+                                                  "frontDoor": {"min_area": 20000,
+                                                                "max_area": 50000},
+                                                  "duct": {"min_area": 10000,
+                                                           "max_area": 30000},
+                                                  "window": {"min_area": 30000,
+                                                             "max_area": 60000},
+                                                  "doorWindow": {"min_area": 30000,
+                                                                 "max_area": 70000},
+                                                  "startingStep": {"min_area": 10000,
+                                                                   "max_area": 30000},
+                                              },
                                               "component_surface_objective", imperative=False)
+
+number_of_components = SpaceConstraint(number_of_components,
+                                       {
+                                           "duct": [],
+                                           "window": [],
+                                           "doorWindow": []
+                                       },
+                                       "number_of_components", imperative=False)
 
 square_shape = SpaceConstraint(square_shape,
                                {"max_ratio": 100.0},
@@ -247,7 +341,6 @@ few_corners_constraint = SpaceConstraint(few_corners,
                                          "few_corners",
                                          imperative=False)
 
-
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
     "min_size": min_size_constraint,
@@ -255,6 +348,10 @@ CONSTRAINTS = {
     "max_size_seed": max_size_constraint_seed,
     "max_size_s_seed": max_size_s_constraint_seed,
     "max_size_xs_seed": max_size_xs_constraint_seed,
+    "max_size_duct_constraint_seed": max_size_duct_constraint_seed,
+    "max_size_frontdoor_constraint_seed": max_size_frontdoor_constraint_seed,
+    "max_size_default_constraint_seed": max_size_default_constraint_seed,
     "square_shape": square_shape,
     "component_surface_objective": component_surface_objective,
+    "number_of_components": number_of_components,
 }
