@@ -1293,14 +1293,22 @@ class Space(PlanComponent):
                     return True
             return False
         else:
-            adjacency_length = 0
-            for edge in other.edges:
-                if self.has_edge(edge.pair):
-                    adjacency_length += edge.length
-            if adjacency_length >= length:
+            if self.adjacency_length(other) >= length:
                 return True
             else:
                 return False
+
+    def adjacency_length(self, other: Union['Space', 'Face']) -> float:
+        """
+        Returns the adjacency length with an other space or face
+        with constraint of adjacency length
+        :return: lenght
+        """
+        adjacency_length = 0
+        for edge in other.edges:
+            if self.has_edge(edge.pair):
+                adjacency_length += edge.length
+        return adjacency_length
 
     def count_ducts(self) -> float:
         """

@@ -22,47 +22,51 @@
                 "min": 200000,
                 "max": 300000
             },
-            "variant": "l"
+            "variant": "l",
+            "opensOn": ["kitchen"],
+            "linkedTo":[]
         },
         {
             "type": "kitchen",
             "requiredArea": {
-                "min": 80000,
+                "min": 70000,
                 "max": 150000
             },
-            "variant": "l"
+            "variant": "l",
+            "opensOn": ["living"],
+            "linkedTo":[]
         },
         {
             "type": "bedroom",
             "requiredArea": {
-                "min": 120000,
-                "max": 180000
+                "min": 90000,
+                "max": 130000
             },
-            "variant": "l"
+            "variant": "m"
         },
         {
             "type": "bedroom",
             "requiredArea": {
-                "min": 120000,
-                "max": 180000
+                "min": 90000,
+                "max": 130000
             },
-            "variant": "l"
+            "variant": "m"
         },
         {
             "type": "bedroom",
             "requiredArea": {
-                "min": 120000,
-                "max": 180000
+                "min": 90000,
+                "max": 130000
             },
-            "variant": "l"
+            "variant": "m"
         },
         {
             "type": "bedroom",
             "requiredArea": {
-                "min": 120000,
-                "max": 180000
+                "min": 90000,
+                "max": 130000
             },
-            "variant": "l"
+            "variant": "m"
         }
     ]
 }

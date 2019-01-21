@@ -177,37 +177,38 @@ class Solution:
         area_score = 0
         area_penalty = 0
         for item in self.collector.spec.items:
-            space = self.items_spaces[item]
-            # Min < SpaceArea < Max
-            if item.min_size.area <= space.area <= item.max_size.area:
-                item_area_score = 100
-            # good overflow
-            elif (item.max_size.area < space.area and
-                  space.category.name in good_overflow_categories):
-                item_area_score = 100
-            # overflow
-            else:
-                item_area_score = (100 - abs(item.required_area - space.area) /
-                                   item.required_area * 100)
-                if space.category.name == "entrance":
-                    if space.area < 20000:
-                        area_penalty += 1
-                elif space.category.name == "wc":
-                    if space.area < 10000:
-                        area_penalty += 1
-                    elif space.area > item.max_size.area:
-                        area_penalty += 3
-                elif space.category.name == "bathroom" or space.category.name == "wcBathroom":
-                    if space.area < 20000:
-                        area_penalty += 1
-                elif space.category.name == "bedroom":
-                    if space.area < 75000:
-                        area_penalty += 1
+            if item in self.items_spaces.keys():
+                space = self.items_spaces[item]
+                # Min < SpaceArea < Max
+                if item.min_size.area <= space.area <= item.max_size.area:
+                    item_area_score = 100
+                # good overflow
+                elif (item.max_size.area < space.area and
+                      space.category.name in good_overflow_categories):
+                    item_area_score = 100
+                # overflow
+                else:
+                    item_area_score = (100 - abs(item.required_area - space.area) /
+                                       item.required_area * 100)
+                    if space.category.name == "entrance":
+                        if space.area < 20000:
+                            area_penalty += 1
+                    elif space.category.name == "wc":
+                        if space.area < 10000:
+                            area_penalty += 1
+                        elif space.area > item.max_size.area:
+                            area_penalty += 3
+                    elif space.category.name == "bathroom" or space.category.name == "wcBathroom":
+                        if space.area < 20000:
+                            area_penalty += 1
+                    elif space.category.name == "bedroom":
+                        if space.area < 75000:
+                            area_penalty += 1
 
-            # Area score
-            area_score += item_area_score
-            logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
-                          item.id)
+                # Area score
+                area_score += item_area_score
+                logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
+                              item.id)
 
         area_score = round(area_score / self.collector.spec.number_of_items, 2) - area_penalty * 20
         logging.debug("Solution %i: Area score : %f", self._id, area_score)
@@ -220,7 +221,7 @@ class Solution:
         :return: score : float
         """
         shape_score = 100
-        for item in self.collector.spec.items:
+        for item in self.items_spaces.keys():
             space = self.items_spaces[item]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
@@ -272,7 +273,7 @@ class Solution:
             day_polygon_list.append(None)
             night_polygon_list.append(None)
 
-        for item in self.collector.spec.items:
+        for item in self.items_spaces.keys():
             associated_space = self.items_spaces[item]
             level = associated_space.floor.level
             # Day
@@ -347,7 +348,7 @@ class Solution:
         nbr_room_position_score = 0
         entrance_poly = self.get_rooms("entrance")[0].as_sp
         corridor_poly = None  # TODO
-        for item in self.collector.spec.items:
+        for item in self.items_spaces.keys():
             space = self.items_spaces[item]
             item_position_score = 0
             if item.category.name == "wc" and space == self.get_rooms("wc")[0]:
@@ -404,7 +405,7 @@ class Solution:
         :return: score : float
         """
         something_inside_score = 100
-        for item in self.collector.spec.items:
+        for item in self.items_spaces.keys():
             space = self.items_spaces[item]
             item_something_inside_score = 100
             #  duct or pillar or small bearing wall

@@ -154,7 +154,7 @@ class ConstraintsManager:
                     if (component.category.name == "window"
                             or component.category.name == "doorWindow"):
                         length += (self.solver.positions[item.id, j]
-                                   * int(component.length))
+                                   * int(component.length/10))
             self.windows_length[str(item.id)] = length
 
     def init_item_constraints_list(self) -> None:
@@ -180,10 +180,15 @@ class ConstraintsManager:
         :return: None
         """
         for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            print("level", space.floor.level)
+            print("area", space.area)
+            print("add_spaces_constraints",space.immutable_components())
+
             if ("startingStep" not in [component.category.name for component in
                                        space.immutable_components()]):
                 self.solver.add_constraint(
                     space_attribution_constraint(self, j_space))
+                print('space_constraint')
 
     def add_item_constraints(self) -> None:
         """
@@ -315,15 +320,15 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                 if other_item.category.name == category_name:
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
-                            int(j_space.adjacent_to(k_space, length)) *
+                            int(j_space.adjacency_length(k_space)) *
                             manager.solver.positions[item.id, j] *
                             manager.solver.positions[other_item.id, k] for
                             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
             if ct is None:
-                ct = (adjacency_sum >= 1)
+                ct = (adjacency_sum >= length)
             else:
-                ct = manager.and_(ct, (adjacency_sum >= 1))
+                ct = manager.and_(ct, (adjacency_sum >= length))
     return ct
 
 
@@ -336,17 +341,19 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
     :return: ct: ortools.Constraint
     """
     ct = None
-    if not (item.category.name in manager.symmetry_breaker_memo):
-        manager.symmetry_breaker_memo[item.category.name] = item.id
-    else:
-        for j in range(manager.sp.spec.plan.count_mutable_spaces()):
-            for k in range(manager.sp.spec.plan.count_mutable_spaces()):
+    if item.category.name in manager.symmetry_breaker_memo.keys():
+        for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 if k < j:
-                    ct = (manager.solver.positions[
-                              manager.symmetry_breaker_memo[item.category.name], j] *
-                          manager.solver.positions[item.id, k] == 0)
-                manager.symmetry_breaker_memo[item.category.name] = item.id
-
+                    if ct is None:
+                        ct = (manager.solver.positions[
+                                  manager.symmetry_breaker_memo[item.category.name], j] *
+                              manager.solver.positions[item.id, k] == 0)
+                    else:
+                        ct = manager.and_(ct, (manager.solver.positions[
+                                  manager.symmetry_breaker_memo[item.category.name], j] *
+                              manager.solver.positions[item.id, k] == 0))
+    manager.symmetry_breaker_memo[item.category.name] = item.id
     return ct
 
 
@@ -393,29 +400,40 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
 
 
 def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
-                              item_category: List[str], adj: bool = True,
+                              item_categories: List[str], adj: bool = True,
                               addition_rule: str = '') -> ortools.Constraint:
     """
     Item adjacency constraint :
     :param manager: 'ConstraintsManager'
     :param item: Item
-    :param item_category: List[str]
+    :param item_categories: List[str]
     :param adj: bool
     :param addition_rule: str
     :return: ct: ortools.Constraint
     """
     ct = None
-    for cat in item_category:
+    for cat in item_categories:
         adjacency_sum = 0
-        for num, num_item in enumerate(manager.sp.spec.items):
-            if num_item.category.name == cat:
-                adjacency_sum += manager.solver.solver.Sum(
-                    manager.solver.solver.Sum(
-                        int(j_space.adjacent_to(k_space)) *
-                        manager.solver.positions[item.id, j] *
-                        manager.solver.positions[num, k] for
-                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
-                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+        if cat == 'circulationSpace':
+            adjacency_sum += manager.solver.solver.Sum(
+                manager.solver.solver.Sum(
+                    int(j_space.adjacent_to(k_space)) *
+                    manager.solver.positions[item.id, j] *
+                    (manager.solver.solver.Sum(manager.solver.positions[x_item.id, k] for x_item in
+                                                  manager.sp.spec.items) == 0) for
+                    j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+        else:
+            for num, num_item in enumerate(manager.sp.spec.items):
+                if num_item.category.name == cat:
+                    adjacency_sum += manager.solver.solver.Sum(
+                        manager.solver.solver.Sum(
+                            int(j_space.adjacent_to(k_space)) *
+                            manager.solver.positions[item.id, j] *
+                            manager.solver.positions[num, k] for
+                            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+
         if adjacency_sum is not 0:
             if ct is None:
                 if adj:
@@ -488,11 +506,11 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [inside_adjacency_constraint, {}],
         [windows_constraint, {}],
         [opens_on_constraint, {"length": 220}],
-        #[area_constraint, {"min_max": "min"}]
+        [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
-        #[area_constraint, {"min_max": "max"}]
+        [area_constraint, {"min_max": "max"}]
     ],
     "wc": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -506,33 +524,33 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        #[area_constraint, {"min_max": "max"}],
+        [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_category": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_category": "kitchen"}]
+        [item_adjacency_constraint, {"item_categories": "kitchen"}]
     ],
     "kitchen": [
-        # [components_adjacency_constraint,
-        #  {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        #[area_constraint, {"min_max": "max"}],
+        [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
-         {"item_category": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
+         {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        #[area_constraint, {"min_max": "max"}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
@@ -569,11 +587,11 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "wc": [
         [item_adjacency_constraint,
-         {"item_category": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
         [item_adjacency_constraint,
-         {"item_category": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
 
@@ -592,10 +610,10 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "dressing": [
         [item_adjacency_constraint,
-         {"item_category": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
         [item_adjacency_constraint,
-         {"item_category": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }

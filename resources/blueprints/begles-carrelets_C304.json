@@ -1,404 +1,404 @@
 {
-    "apartment": {
-        "area": 996852,
-        "blueprints": [
-            {
-                "externalSpaces": [
-                    {
-                        "area": 164400,
-                        "polygon": [
-                            21,
-                            22,
-                            7,
-                            6
-                        ],
-                        "type": "balcony"
-                    }
-                ],
-                "externalWalls": [
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9
-                ],
-                "fixedItems": [
-                    {
-                        "coef1": 580,
-                        "coef2": 696,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 6,
-                        "vertex2": 7,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 60,
-                        "coef2": 176,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 6,
-                        "vertex2": 7,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 821,
-                        "coef2": 929,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 7,
-                        "vertex2": 8,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 321,
-                        "coef2": 429,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 7,
-                        "vertex2": 8,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 4,
-                        "coef2": 1000,
-                        "type": "duct",
-                        "vertex1": 1,
-                        "vertex2": 2,
-                        "width": 35
-                    },
-                    {
-                        "coef1": 0,
-                        "coef2": 1000,
-                        "type": "startingStep",
-                        "vertex1": 10,
-                        "vertex2": 11,
-                        "width": 100
-                    }
-                ],
-                "stairsObstacles": [
-                    [
-                        12,
-                        13,
-                        14,
-                        15,
-                        16,
-                        17,
-                        18,
-                        19,
-                        20
-                    ]
-                ],
-                "holes": [
-                ],
-                "level": 2,
-                "loadBearingWalls": [],
-                "rooms": [],
-                "unsplittableZones": [],
-                "vertices": [
-                    {
-                        "x": 170.0,
-                        "y": -14.0
-                    },
-                    {
-                        "x": 160.0,
-                        "y": -14.0
-                    },
-                    {
-                        "x": 160.0,
-                        "y": -112.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": -112.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": -304.0
-                    },
-                    {
-                        "x": 10.0,
-                        "y": -304.0
-                    },
-                    {
-                        "x": 10.0,
-                        "y": -684.0
-                    },
-                    {
-                        "x": 790.0,
-                        "y": -684.0
-                    },
-                    {
-                        "x": 790.0,
-                        "y": 156.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": 156.0
-                    },
-                    {
-                        "x": 360,
-                        "y": -119
-                    },
-                    {
-                        "x": 360,
-                        "y": -199
-                    },
-                    {
-                        "x": 170,
-                        "y": -280
-                    },
-                    {
-                        "x": 170,
-                        "y": -299
-                    },
-                    {
-                        "x": 260,
-                        "y": -299
-                    },
-                    {
-                        "x": 260,
-                        "y": -209
-                    },
-                    {
-                        "x": 255,
-                        "y": -209
-                    },
-                    {
-                        "x": 256,
-                        "y": -207
-                    },
-                    {
-                        "x": 360,
-                        "y": -207
-                    },
-                    {
-                        "x": 360,
-                        "y": -119
-                    },
-                    {
-                        "x": 170,
-                        "y": -119
-                    },
-                    {
-                        "x": 10,
-                        "y": -916
-                    },
-                    {
-                        "x": 821,
-                        "y": -916
-                    }
-                  ]
-            },
-            {
-                "externalSpaces": [
-                    {
-                        "area": 340608,
-                        "polygon": [
-                            5,
-                            4,
-                            17,
-                            18,
-                            19,
-                            20
-                        ],
-                        "type": "balcony",
-                        "windows": [
-                            0,
-                            1,
-                            2
-                        ]
-                    }
-                ],
-                "externalWalls": [
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9
-                ],
-                "fixedItems": [
-                    {
-                        "coef1": 547,
-                        "coef2": 857,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 4,
-                        "vertex2": 5,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 159,
-                        "coef2": 314,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 4,
-                        "vertex2": 5,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 481,
-                        "coef2": 588,
-                        "sillHeight": 0,
-                        "type": "doorWindow",
-                        "vertex1": 5,
-                        "vertex2": 6,
-                        "width": 90
-                    },
-                    {
-                        "coef1": 25,
-                        "coef2": 520,
-                        "type": "frontDoor",
-                        "vertex1": 7,
-                        "vertex2": 8,
-                        "width": 100
-                    },
-                    {
-                        "coef1": 596,
-                        "coef2": 1000,
-                        "type": "duct",
-                        "vertex1": 2,
-                        "vertex2": 3,
-                        "width": 40
-                    },
-                    {
-                        "coef1": 112,
-                        "coef2": 1000,
-                        "type": "duct",
-                        "vertex1": 9,
-                        "vertex2": 0,
-                        "width": 45
-                    },
-                    {
-                        "coef1": 0,
-                        "coef2": 1000,
-                        "type": "startingStep",
-                        "vertex1": 15,
-                        "vertex2": 16,
-                        "width": 100
-                    }
-                ],
-                "holes": [
-                    [
-                        10,
-                        11,
-                        12,
-                        13,
-                        14
-                    ]
-                ],
-                "stairsObstacles": [
-                ],
-                "level": 3,
-                "loadBearingWalls": [],
-                "rooms": [],
-                "unsplittableZones": [],
-                "vertices": [
-                    {
-                        "x": 160.0,
-                        "y": -112.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": -112.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": -304.0
-                    },
-                    {
-                        "x": 10.0,
-                        "y": -304.0
-                    },
-                    {
-                        "x": 10.0,
-                        "y": -684.0
-                    },
-                    {
-                        "x": 590.0,
-                        "y": -684.0
-                    },
-                    {
-                        "x": 590.0,
-                        "y": 156.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": 156.0
-                    },
-                    {
-                        "x": 170.0,
-                        "y": -46.0
-                    },
-                    {
-                        "x": 160.0,
-                        "y": -46.0
-                    },
-                    {
-                        "x": 170,
-                        "y": -299
-                    },
-                    {
-                        "x": 360,
-                        "y": -299
-                    },
-                    {
-                        "x": 360,
-                        "y": -119
-                    },
-                    {
-                        "x": 170,
-                        "y": -119
-                    },
-                    {
-                        "x": 170,
-                        "y": -299
-                    },
-                    {
-                        "x": 360,
-                        "y": -209
-                    },
-                    {
-                        "x": 360,
-                        "y": -299
-                    },
-                    {
-                        "x": 10,
-                        "y": -916
-                    },
-                    {
-                        "x": 821,
-                        "y": -916
-                    },
-                     {
-                        "x": 822,
-                        "y":156
-                    },
-                    {
-                        "x": 590,
-                        "y":156
-                    }
-                ]
-            }
+  "apartment": {
+    "area": 996852,
+    "blueprints": [
+      {
+        "externalSpaces": [
+          {
+            "area": 164400,
+            "polygon": [
+              21,
+              22,
+              7,
+              6
+            ],
+            "type": "balcony"
+          }
         ],
-        "id": "C304.2",
-        "levels": [
-            2,
-            3
+        "externalWalls": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
         ],
-        "north": [
-            0.0,
-            1.0
+        "fixedItems": [
+          {
+            "coef1": 580,
+            "coef2": 696,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 6,
+            "vertex2": 7,
+            "width": 90
+          },
+          {
+            "coef1": 60,
+            "coef2": 176,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 6,
+            "vertex2": 7,
+            "width": 90
+          },
+          {
+            "coef1": 821,
+            "coef2": 929,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 7,
+            "vertex2": 8,
+            "width": 90
+          },
+          {
+            "coef1": 321,
+            "coef2": 429,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 7,
+            "vertex2": 8,
+            "width": 90
+          },
+          {
+            "coef1": 4,
+            "coef2": 1000,
+            "type": "duct",
+            "vertex1": 1,
+            "vertex2": 2,
+            "width": 35
+          },
+          {
+            "coef1": 0,
+            "coef2": 1000,
+            "type": "startingStep",
+            "vertex1": 10,
+            "vertex2": 11,
+            "width": 100
+          }
+        ],
+        "stairsObstacles": [
+          [
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ]
+        ],
+        "holes": [
+        ],
+        "level": 2,
+        "loadBearingWalls": [],
+        "rooms": [],
+        "unsplittableZones": [],
+        "vertices": [
+          {
+            "x": 170.0,
+            "y": -14.0
+          },
+          {
+            "x": 160.0,
+            "y": -14.0
+          },
+          {
+            "x": 160.0,
+            "y": -112.0
+          },
+          {
+            "x": 170.0,
+            "y": -112.0
+          },
+          {
+            "x": 170.0,
+            "y": -304.0
+          },
+          {
+            "x": 10.0,
+            "y": -304.0
+          },
+          {
+            "x": 10.0,
+            "y": -684.0
+          },
+          {
+            "x": 790.0,
+            "y": -684.0
+          },
+          {
+            "x": 790.0,
+            "y": 156.0
+          },
+          {
+            "x": 170.0,
+            "y": 156.0
+          },
+          {
+            "x": 360,
+            "y": -119
+          },
+          {
+            "x": 360,
+            "y": -199
+          },
+          {
+            "x": 170,
+            "y": -280
+          },
+          {
+            "x": 170,
+            "y": -299
+          },
+          {
+            "x": 260,
+            "y": -299
+          },
+          {
+            "x": 260,
+            "y": -209
+          },
+          {
+            "x": 255,
+            "y": -209
+          },
+          {
+            "x": 256,
+            "y": -207
+          },
+          {
+            "x": 360,
+            "y": -207
+          },
+          {
+            "x": 360,
+            "y": -119
+          },
+          {
+            "x": 170,
+            "y": -119
+          },
+          {
+            "x": 10,
+            "y": -916
+          },
+          {
+            "x": 821,
+            "y": -916
+          }
         ]
-    }
+      },
+      {
+        "externalSpaces": [
+          {
+            "area": 340608,
+            "polygon": [
+              5,
+              4,
+              17,
+              18,
+              19,
+              20
+            ],
+            "type": "balcony",
+            "windows": [
+              0,
+              1,
+              2
+            ]
+          }
+        ],
+        "externalWalls": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "fixedItems": [
+          {
+            "coef1": 547,
+            "coef2": 857,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 4,
+            "vertex2": 5,
+            "width": 90
+          },
+          {
+            "coef1": 159,
+            "coef2": 314,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 4,
+            "vertex2": 5,
+            "width": 90
+          },
+          {
+            "coef1": 481,
+            "coef2": 588,
+            "sillHeight": 0,
+            "type": "doorWindow",
+            "vertex1": 5,
+            "vertex2": 6,
+            "width": 90
+          },
+          {
+            "coef1": 25,
+            "coef2": 520,
+            "type": "frontDoor",
+            "vertex1": 7,
+            "vertex2": 8,
+            "width": 100
+          },
+          {
+            "coef1": 596,
+            "coef2": 1000,
+            "type": "duct",
+            "vertex1": 2,
+            "vertex2": 3,
+            "width": 40
+          },
+          {
+            "coef1": 112,
+            "coef2": 1000,
+            "type": "duct",
+            "vertex1": 9,
+            "vertex2": 0,
+            "width": 45
+          },
+          {
+            "coef1": 0,
+            "coef2": 1000,
+            "type": "startingStep",
+            "vertex1": 15,
+            "vertex2": 16,
+            "width": 100
+          }
+        ],
+        "holes": [
+          [
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        ],
+        "stairsObstacles": [
+        ],
+        "level": 3,
+        "loadBearingWalls": [],
+        "rooms": [],
+        "unsplittableZones": [],
+        "vertices": [
+          {
+            "x": 160.0,
+            "y": -112.0
+          },
+          {
+            "x": 170.0,
+            "y": -112.0
+          },
+          {
+            "x": 170.0,
+            "y": -304.0
+          },
+          {
+            "x": 10.0,
+            "y": -304.0
+          },
+          {
+            "x": 10.0,
+            "y": -684.0
+          },
+          {
+            "x": 590.0,
+            "y": -684.0
+          },
+          {
+            "x": 590.0,
+            "y": 156.0
+          },
+          {
+            "x": 170.0,
+            "y": 156.0
+          },
+          {
+            "x": 170.0,
+            "y": -46.0
+          },
+          {
+            "x": 160.0,
+            "y": -46.0
+          },
+          {
+            "x": 170,
+            "y": -299
+          },
+          {
+            "x": 360,
+            "y": -299
+          },
+          {
+            "x": 360,
+            "y": -119
+          },
+          {
+            "x": 170,
+            "y": -119
+          },
+          {
+            "x": 170,
+            "y": -299
+          },
+          {
+            "x": 360,
+            "y": -209
+          },
+          {
+            "x": 360,
+            "y": -299
+          },
+          {
+            "x": 10,
+            "y": -916
+          },
+          {
+            "x": 821,
+            "y": -916
+          },
+          {
+            "x": 822,
+            "y": 156
+          },
+          {
+            "x": 590,
+            "y": 156
+          }
+        ]
+      }
+    ],
+    "id": "C304.2",
+    "levels": [
+      2,
+      3
+    ],
+    "north": [
+      0.0,
+      1.0
+    ]
+  }
 }

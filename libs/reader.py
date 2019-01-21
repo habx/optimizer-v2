@@ -197,6 +197,7 @@ def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coord
     :param input_blueprint_dict:
     :return:
     """
+    vertices = input_blueprint_dict['vertices']
     load_bearing_walls = input_blueprint_dict['loadBearingWalls']
     output = []
     for load_bearing_wall in load_bearing_walls:
