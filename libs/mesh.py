@@ -1708,6 +1708,15 @@ class Face(MeshComponent):
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
     @property
+    def as_sp_eroded(self) -> Polygon:
+        """
+        Returns a dilated Polygon corresponding to the face with a small buffer
+        This is useful to prevent floating point precision errors.
+        :return: Polygon
+        """
+        return self.as_sp.buffer(-COORD_EPSILON, 1)
+
+    @property
     def area(self) -> float:
         """
         Calculates and returns the area of the face
@@ -2815,7 +2824,15 @@ class Mesh:
         edge = None
         for edge in self.boundary_edges:
             vertices.append(edge.start.coords)
-        return LinearRing(vertices) if edge else None
+        return LinearRing(vertices[::-1]) if edge else None
+
+    @property
+    def as_sp(self):
+        """
+        Returns a polygon covering the mesh
+        :return:
+        """
+        return Polygon(self.boundary_as_sp)
 
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:
@@ -2847,6 +2864,115 @@ class Mesh:
             modified_edges += face.recursive_simplify()
 
         return modified_edges
+
+    def insert_external_face(self, face: 'Face'):
+        """
+        Inserts an outside face in the mesh.
+        The face cannot be contained by the mesh or an
+        OutsideFaceError will be raised.
+
+        TODO : We should replace the None face with a face of type Exterior
+               to enable more isomorphic code. This would also enable the proper
+               representation of a mesh with a hole
+
+        :param face: the face to add to the mesh
+        :return: void
+        """
+        if not self.as_sp.disjoint(face.as_sp_eroded):
+            raise OutsideFaceError("Mesh: The face should be on the exterior of the mesh :%s", face)
+
+        # create a fixed list of the face edges for ulterior navigation
+        boundary_edges = list(self.boundary_edges)
+
+        # snap the external vertices of the mesh to the face edges
+        for edge in self.boundary_edges:
+            vertex = edge.start
+            face_edges = list(face.edges)
+            new_edge = vertex.snap_to_edge(*face_edges)
+            if new_edge is not None:
+                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', vertex)
+
+        # snap face vertices to edges of the container face
+        # for performance purpose we store the snapped vertices and the corresponding edge
+        shared_edges = []
+        face_edges = list(face.edges)
+        for edge in face_edges:
+            vertex = edge.start
+            vertex.start = edge  # we need to do this to ensure proper snapping direction
+            edge_shared = vertex.snap_to_edge(*boundary_edges)
+            if edge_shared is not None:
+                shared_edges.append((edge_shared, edge))
+                # after a split: update list of edges
+                boundary_edges = list(self.boundary_edges)
+
+        # the face should have at least one edge in common with the mesh
+        if not shared_edges:
+            raise ValueError("Mesh: Cannot add a face that is not adjacent to the mesh: %s", face)
+
+        touching_edge, edge, new_face = None, None, None
+        # NB: touching_edge is the edge on the container face
+        all_faces = []
+
+        # connect the edges together
+        for shared in shared_edges:
+            # touching edge is on the boundary of the mesh, edge is inside the face
+            touching_edge, edge = shared
+            previous_edge = edge.previous
+            previous_touching_edge = touching_edge.previous
+
+            # connect the correct edges
+            previous_touching_edge.next = previous_edge.pair
+            edge.pair.next = touching_edge
+
+            # insure proper mesh boundary edge reference
+            self.boundary_edge = touching_edge
+
+            # backward check for isolation
+            # first check for 2-edged face
+            # if a 2 edged face is found we keep the edge and remove the touching edge
+            # we preserve id for eventual references
+            if previous_edge.pair.next.next is previous_edge.pair:
+                # preserve references for face and vertex
+                previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
+                previous_edge.pair.next.preserve_references(previous_edge)
+                # remove the edge from the mesh
+                previous_edge.pair.remove_from_mesh()
+                # remove the duplicate edges
+                previous_edge.pair = previous_edge.pair.next.pair
+                # swap the id to preserve references
+                previous_edge.swap_id(previous_touching_edge)
+                # remove the edge from the mesh
+                previous_touching_edge.remove_from_mesh()
+
+            # else check for new face creation
+            elif previous_edge.pair not in self.boundary_edges:
+                new_face = Face(self, previous_edge.pair)
+                all_faces.append(new_face)
+                for orphan_edge in previous_edge.pair.siblings:
+                    orphan_edge.face = new_face
+
+        # forward check : at the end of the loop check forward for isolation
+        if edge.pair.next.next is edge.pair:
+            # remove from the mesh
+            edge.pair.remove_from_mesh()
+            edge.pair = touching_edge.pair
+            # swap the id to preserve references
+            edge.swap_id(touching_edge)
+            # remove the edge from the mesh
+            touching_edge.remove_from_mesh()
+            # find the new exterior face
+            for face in all_faces:
+                if not face.as_sp_linear_ring.is_ccw:
+                    for edge in face.edges:
+                        edge.face = None
+                    self.boundary_edge = edge
+                    all_faces.remove(face)
+                    face.remove_from_mesh()
+                    break
+            else:
+                raise Exception("Mesh: A boundary face should have been found !!")
+
+        return all_faces
 
     def check(self) -> bool:
         """
