@@ -488,7 +488,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [inside_adjacency_constraint, {}],
         [windows_constraint, {}],
         [opens_on_constraint, {"length": 220}],
-        [area_constraint, {"min_max": "min"}]
+        #[area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
@@ -499,14 +499,14 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        #[area_constraint, {"min_max": "max"}],
+        [area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
@@ -524,7 +524,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         # [components_adjacency_constraint,
         #  {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
          {"item_category": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
@@ -532,7 +532,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "bedroom": [
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
