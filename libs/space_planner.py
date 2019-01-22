@@ -156,11 +156,13 @@ class SpacePlanner:
                 self.solutions_collector.add_solution(plan_solution)
                 logging.debug(plan_solution)
                 plan_solution.plot()
+                if i > 0:
+                    break
 
             best_sol = self.solutions_collector.best()
             for sol in best_sol:
                 logging.debug(sol)
-                #sol.plan.plot()
+                # sol.plan.plot()
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
