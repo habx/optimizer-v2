@@ -41,16 +41,6 @@
       "linkedTo":[]
     },
     {
-      "type": "bedroom",
-      "requiredArea": {
-        "min": 120000,
-        "max": 180000
-      },
-      "variant": "m",
-      "opensOn": [],
-      "linkedTo":[]
-    },
-    {
       "type": "bathroom",
       "requiredArea": {
         "min": 40000,
