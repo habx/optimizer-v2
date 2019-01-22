@@ -164,9 +164,6 @@ class Seeder:
 
         for space in self.plan.get_spaces("seed"):
             if list(selector.yield_from(space)) and not space.components_category_associated():
-                print("LIST SELECTOR", list(selector.yield_from(space)))
-                # input("space selected {0} with area {1}".format(space, space.area))
-                # print("SPACE YIELDED FOR CORNER BIG CELL")
                 space.category = SPACE_CATEGORIES["empty"]
 
         return self
@@ -718,7 +715,8 @@ if __name__ == '__main__':
 
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
-            print("space area and category", sp.area, sp_comp, sp.category.name)
+            logging.debug(
+                "space area and category {0} {1} {2}".format(sp.area, sp_comp, sp.category.name))
 
 
     grow_a_plan()
