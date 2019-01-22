@@ -173,106 +173,12 @@ def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space] + list(created_spaces)
 
 
-def swap_aligned_face_good(edge: 'Edge', space: 'Space') -> Sequence['Space']:
-    """
-    Adds all the faces of the aligned edges
-    • checks if the edge is just after a corner
-    • gather all the next aligned edges
-    • for each edge add the corresponding faces
-    :return:
-    """
-
-    from libs.utils.graph import Graph_nx
-    from copy import deepcopy
-    graph_space = Graph_nx()
-    for face in space.faces:
-        graph_space.add_node(id(face))
-    for face in space.faces:
-        for adjacent_face in space.adjacent_faces(face):
-            graph_space.add_edge(id(face), id(adjacent_face))
-
-    assert space.has_face(edge.face), "Mutation: The edge must belong to the first space"
-
-    plan = space.plan
-    other_space = plan.get_space_of_edge(edge.pair)
-
-    if other_space.face:
-        assert (other_space.adjacent_to(edge.face),
-                "Mutation: The edge face must be adjacent to the second space")
-
-    # checks if the edge is just after a corner
-    # TODO : add selector for this if possible?
-    if space.next_is_aligned(space.previous_edge(edge)):
-        return []
-
-    # checks if the edge is between two mutable spaces
-    # TODO : add selector for this
-    if edge.is_mesh_boundary or not other_space.mutable or not space.mutable:
-        return []
-
-    assert not space.next_is_aligned(
-        space.previous_edge(edge)), "edge is not right after a corner"
-
-    # do not consider spaces with less than two faces
-    # TODO : add selector for this
-    if len(space._faces_id) <= 1:
-        return []
-
-    # list of aligned edges
-    aligned_edges = []
-    for aligned in space.next_aligned_siblings(edge):
-        if not other_space.has_edge(aligned.pair):
-            break
-        aligned_edges.append(aligned)
-
-    list_face_aligned = []
-    for aligned in aligned_edges:
-        if aligned.face not in list_face_aligned:
-            list_face_aligned.append(aligned.face)
-
-    count_exchanged_face = 0
-
-    # input("aligned_edges {0}".format(aligned_edges))
-
-    face_removed = True
-    while face_removed:
-        face_removed = False
-        for aligned_face in list_face_aligned:
-            # no space removal
-            if len(space._faces_id) <= 1:
-                break
-
-            # do not enable removing face inducing cut space
-            # TODO : deal with copy or deepcopy in graph utils
-            graph_space_tmp = deepcopy(graph_space)
-            graph_space_tmp.remove_node(id(aligned_face))
-            if not graph_space_tmp.is_connected():
-                logging.debug("graph not connected")
-                break
-            else:
-                graph_space.remove_node(id(aligned_face))
-
-            created_spaces = space.remove_face(aligned_face)
-            list_face_aligned.remove(aligned_face)
-            face_removed = True
-
-            other_space.add_face(aligned_face)
-
-            count_exchanged_face += 1
-
-        if count_exchanged_face == 0:
-            # no operation performed in the process
-            return []
-
-    return [space] + [other_space]
-
-
 def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Adds all the faces of the aligned edges
     • checks if the edge is just after a corner
     • gather all the next aligned edges
-    • for each edge add the corresponding faces
+    • for each edge add the corresponding faces in an order avoiding space cutting
     :return:
     """
 
@@ -284,27 +190,6 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     if other_space.face:
         assert (other_space.adjacent_to(edge.face),
                 "Mutation: The edge face must be adjacent to the second space")
-
-    #if space.next_is_aligned(space.previous_edge(edge)):
-    #    return []
-
-    # # checks if the edge is just after a corner
-    # # TODO : add selector for this if possible?
-    # if space.next_is_aligned(space.previous_edge(edge)):
-    #     return []
-    #
-    # # checks if the edge is between two mutable spaces
-    # # TODO : add selector for this
-    # if edge.is_mesh_boundary or not other_space.mutable or not space.mutable:
-    #     return []
-    #
-    # assert not space.next_is_aligned(
-    #     space.previous_edge(edge)), "edge is not right after a corner"
-    #
-    # # do not consider spaces with less than two faces
-    # # TODO : add selector for this
-    # if len(space._faces_id) <= 1:
-    #     return []
 
     # list of aligned edges
     aligned_edges = []

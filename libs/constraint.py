@@ -142,29 +142,6 @@ def component_surface_objective(params: Dict) -> scoreFunction:
             max_area = max(params[component]["max_area"] for component in list_components)
             score = shift_from_interval(min_area,
                                         max_area, space.area)
-
-        # seen = []
-        # print("list_components", list_components)
-        # for component in list_components:
-        #     if component not in seen:
-        #         seen.append(component)
-        #         min_area = params[component]["min_area"] * sum(
-        #             el is component for el in list_components)
-        #         max_area = params[component]["min_area"] * sum(
-        #             el is component for el in list_components)
-        #         score += shift_from_interval(min_area,
-        #                                      max_area, space.area)
-        # if list_components:
-        #     score /= len(seen)
-
-        # for component in list_components:
-        #     score += shift_from_interval(params[component]["min_area"],
-        #                                  params[component]["max_area"], space.area)
-        # if list_components:
-        #     score /= len(list_components)
-
-        # score = score * 100
-
         return score
 
     return _score
@@ -270,6 +247,17 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
                                                "category_name": "seed"},
                                               "max_size_xs")
 
+ELEMENT_CONSTRAINT_SEED = {
+    'duct': SpaceConstraint(max_size,
+                            {"max_size": Size(30000, 200, 200),
+                             "category_name": "seed"},
+                            "max_size_xs"),
+    'frontDoor': SpaceConstraint(max_size,
+                                 {"max_size": Size(30000, 200, 200),
+                                  "category_name": "seed"},
+                                 "max_size_xs")
+}
+
 max_size_duct_constraint_seed = SpaceConstraint(max_size,
                                                 {"max_size": Size(30000, 200, 200),
                                                  "category_name": "seed"},
@@ -327,8 +315,8 @@ CONSTRAINTS = {
     "max_size_seed": max_size_constraint_seed,
     "max_size_s_seed": max_size_s_constraint_seed,
     "max_size_xs_seed": max_size_xs_constraint_seed,
-    "max_size_duct_constraint_seed": max_size_duct_constraint_seed,
-    "max_size_frontdoor_constraint_seed": max_size_frontdoor_constraint_seed,
+    "max_size_duct_constraint_seed": ELEMENT_CONSTRAINT_SEED['duct'],
+    "max_size_frontdoor_constraint_seed": ELEMENT_CONSTRAINT_SEED['frontDoor'],
     "max_size_default_constraint_seed": max_size_default_constraint_seed,
     "square_shape": square_shape,
     "component_surface_objective": component_surface_objective,

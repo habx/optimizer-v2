@@ -90,7 +90,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 100
+        max_num_sol = 50000
         nbr_solutions = 0
         while self.solver.NextSolution():
             sol_positions = []
@@ -449,7 +449,7 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
-        # [windows_constraint, {}],
+        [windows_constraint, {}],
         [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
@@ -460,13 +460,13 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        # [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
-        # [area_constraint, {"min_max": "max"}],
+        #[area_constraint, {"min_max": "max"}],
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
@@ -481,8 +481,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_category": "kitchen"}]
     ],
     "kitchen": [
-        # [components_adjacency_constraint,
-        # {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,

@@ -125,14 +125,6 @@ square_shape_shuffle_component = Shuffle('square_shape', [swap_seed_action], (),
                                           CONSTRAINTS['few_corners'],
                                           CONSTRAINTS['component_surface_objective']])
 
-square_shape_shuffle_component_aligned_SAVE = Shuffle('swap_aligned',
-                                                      [swap_aligned_action],
-                                                      (),
-                                                      [CONSTRAINTS['square_shape'],
-                                                       CONSTRAINTS['few_corners'],
-                                                       CONSTRAINTS['component_surface_objective'],
-                                                       CONSTRAINTS['number_of_components']])
-
 square_shape_shuffle_component_aligned = Shuffle('swap_aligned',
                                                  [swap_aligned_action],
                                                  (),

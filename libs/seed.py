@@ -591,7 +591,6 @@ fill_small_seed_category = GrowthMethod(
 
 classic_seed_category = GrowthMethod(
     'default',
-    # (CONSTRAINTS["max_size_s_seed"],),
     (CONSTRAINTS["max_size_default_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
@@ -600,9 +599,32 @@ classic_seed_category = GrowthMethod(
     )
 )
 
+ELEMENT_SEED_CATEGORIES = {
+    "duct": GrowthMethod(
+        'duct',
+        (CONSTRAINTS["max_size_duct_constraint_seed"],),
+        (
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
+            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        )
+    ),
+    "frontDoor": GrowthMethod(
+        'frontDoor',
+        (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        (
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
+            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        )
+    )
+}
+
 duct_seed_category = GrowthMethod(
     'duct',
-    # (CONSTRAINTS["max_size_xs_seed"],),
     (CONSTRAINTS["max_size_duct_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
@@ -614,7 +636,6 @@ duct_seed_category = GrowthMethod(
 
 front_door_seed_category = GrowthMethod(
     'frontDoor',
-    # (CONSTRAINTS["max_size_xs_seed"],),
     (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
@@ -625,8 +646,8 @@ front_door_seed_category = GrowthMethod(
 
 GROWTH_METHODS = {
     "default": classic_seed_category,
-    "duct": duct_seed_category,
-    "frontDoor": front_door_seed_category,
+    "duct": ELEMENT_SEED_CATEGORIES['duct'],
+    "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
 }
 
 FILL_METHODS_HOMOGENEOUS = {
@@ -658,6 +679,7 @@ if __name__ == '__main__':
 
     matplotlib.use('TkAgg')
 
+
     def test_seed_multiple_floors():
         """
         Test
@@ -687,7 +709,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A002.json"
+        input_file = "Antony_A22.json"
         # input_file = "Paris18_A402.json"
         plan = reader.create_plan_from_file(input_file)
 
@@ -717,6 +739,7 @@ if __name__ == '__main__':
 
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
-        print("space area and category", sp.area, sp_comp, sp.category.name)
+            print("space area and category", sp.area, sp_comp, sp.category.name)
 
-    # grow_a_plan()
+
+    grow_a_plan()
