@@ -92,12 +92,6 @@ class Action:
         # for each edge of the space yielded by the selector apply the mutation
         all_modified_spaces = []
 
-        # list_face_ids = {}
-        # list_edges_ids = {}
-        # for sp in space.plan.spaces:
-        #     list_face_ids[sp] = sp._faces_id[:]
-        #     list_edges_ids[sp] = sp._edges_id[:]
-
         for edge in self.selector.yield_from(space, *selector_optional_args):
 
             # for performance purpose we check if we have already tried this edge
@@ -138,17 +132,7 @@ class Action:
                         logging.debug("Action: poor global score: %s - %s",
                                       self, space)
                         # reverse the mutation
-                        # all_spaces=[]
-                        # for sp in space.plan.spaces:
-                        #    all_spaces.append(space)
-
                         self.mutation.reverse(modified_spaces)
-
-
-                        # for sp in space.plan.spaces:
-                        #     sp._faces_id[:] = list_face_ids[sp][:]
-                        #     sp._edges_id[:] = list_edges_ids[sp][:]
-
                         # add the edge and the space ot the cache
                         self.mark_as_tried(space, edge)
                         modified_spaces = []

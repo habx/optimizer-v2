@@ -141,7 +141,7 @@ class Seeder:
         """
         if show:
             self._initialize_plot()
-        max_recursion = 20  # to prevent infinite loops
+        max_recursion = 40  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
              .plant()
@@ -631,11 +631,6 @@ GROWTH_METHODS = {
 
 FILL_METHODS_HOMOGENEOUS = {
     "empty": fill_seed_category,
-    "default": None
-}
-
-FILL_METHODS_HOMOGENEOUS_EMPTY = {
-    "empty": fill_empty_seed_category,
     "default": None
 }
 

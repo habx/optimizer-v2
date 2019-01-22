@@ -122,25 +122,6 @@ def square_shape(_: Dict) -> scoreFunction:
     return _score
 
 
-#
-# def shape_factor(_: Dict) -> scoreFunction:
-#     """
-#     Scores the area / perimeter ratio of a space.
-#     :return:
-#     """
-#
-#     def _score(space: 'Space') -> float:
-#         if (space is None or space.size is None or
-#                 space.size.depth is None or space.size.width is None):
-#             return 0.0
-#         rectangle_area = space.size.depth * space.size.width
-#         ratio_rectangle = (space.size.depth * space.size.width) / rectangle_area
-#         ratio_space = space.perimeter / space.area
-#         return max((ratio_space - ratio_rectangle) / ratio_rectangle, 0.0)
-#
-#     return _score
-
-
 def component_surface_objective(params: Dict) -> scoreFunction:
     """
     Scores checks surface margins for cells containing components defined in params
@@ -148,9 +129,7 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
-        # TODO : move in utils?
-        shift = max((val - val_max) / val_max, (val_min - val) / val, 0.0)
-        return shift
+        return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
         list_components = list(
