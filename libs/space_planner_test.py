@@ -15,7 +15,7 @@ from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.space_planner import SpacePlanner
 
 test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
-              ("Levallois_Letourneur.json", "Levallois_Letourneur_setup.json")]
+              ("begles-carrelets_C304.json", "begles-carrelets_C304_setup.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -99,11 +99,3 @@ def test_duplex():
 
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
-
-
-if __name__ == '__main__':
-
-    import logging
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    test_duplex()

@@ -129,10 +129,3 @@ def test_duplex():
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
 
-
-if __name__ == '__main__':
-
-    import logging
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    test_duplex()
