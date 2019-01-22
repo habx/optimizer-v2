@@ -26,6 +26,7 @@ class Mutation:
     Mutation class
     Will mutate a face and return the modified spaces
     """
+
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
@@ -120,6 +121,7 @@ class MutationFactory:
     Mutation Factory class
     Returns a Mutation instance when called
     """
+
     def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
         self.name = name or factory.__name__
         self.factory = factory
@@ -171,6 +173,65 @@ def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space] + list(created_spaces)
 
 
+def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    Adds all the faces of the aligned edges
+    • checks if the edge is just after a corner
+    • gather all the next aligned edges
+    • for each edge add the corresponding faces in an order avoiding space cutting
+    :return:
+    """
+
+    assert space.has_face(edge.face), "Mutation: The edge must belong to the first space"
+
+    plan = space.plan
+    other_space = plan.get_space_of_edge(edge.pair)
+
+    if other_space.face:
+        assert (other_space.adjacent_to(edge.face),
+                "Mutation: The edge face must be adjacent to the second space")
+
+    # list of aligned edges
+    aligned_edges = []
+    for aligned in space.next_aligned_siblings(edge):
+        if not other_space.has_edge(aligned.pair):
+            break
+        aligned_edges.append(aligned)
+
+    list_face_aligned = []
+    for aligned in aligned_edges:
+        if aligned.face not in list_face_aligned:
+            list_face_aligned.append(aligned.face)
+
+    count_exchanged_face = 0
+
+    face_removed = True
+    while face_removed:
+        face_removed = False
+        for aligned_face in list_face_aligned:
+            # no space removal
+            if len(space._faces_id) <= 1:
+                break
+
+            if space.corner_stone(aligned_face):
+                logging.debug("graph not connected CORNER STONE")
+                break
+
+            space.remove_face(aligned_face)
+            list_face_aligned.remove(aligned_face)
+            face_removed = True
+
+            other_space.add_face(aligned_face)
+
+            count_exchanged_face += 1
+
+        if count_exchanged_face == 0:
+            # no operation performed in the process
+            return []
+
+    return [space, other_space]
+
+
 def add_aligned_face(_: 'Edge') -> Sequence['Space']:
     """
     Adds all the faces of the aligned edges
@@ -192,6 +253,7 @@ def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     removed = space.remove_internal_edge(edge)
     return [space] if removed else []
+
 
 # Cuts Mutation
 
@@ -221,8 +283,8 @@ def barycenter_cut(coeff: float,
     :param traverse:
     :return: an action function
     """
-    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         cut_data = space.barycenter_cut(edge, coeff, angle, traverse)
         return [space] if _space_modified_by_cut(cut_data) else []
 
@@ -239,8 +301,8 @@ def translation_cut(dist: float,
     :param traverse:
     :return: an action function
     """
-    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         # check the length of the edge. It cannot be inferior to the translation distance
         if edge.length < dist:
             return []
@@ -263,6 +325,7 @@ MUTATION_FACTORIES = {
 
 MUTATIONS = {
     "swap_face": Mutation(swap_face),
+    "swap_aligned_face": Mutation(swap_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
     "remove_edge": Mutation(remove_edge, reversible=False)
 }

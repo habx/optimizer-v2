@@ -16,6 +16,17 @@ class Graph_nx:
     def __init__(self):
         self.graph = nx.Graph()
 
+    def shallow_copy(self):
+        """
+        shallow copy of the graph
+        :return:
+        """
+        graph_copy = nx.Graph()
+        graph_copy.graph = self.graph.copy()
+
+        return graph_copy
+
+
     def add_edge(self, i: Any, j: Any):
         """
         add edge to the graph, linking input nodes
@@ -29,6 +40,13 @@ class Graph_nx:
         :return:
         """
         self.graph.add_node(n)
+
+    def remove_node(self, n: Any):
+        """
+        remove node to the graph
+        :return:
+        """
+        self.graph.remove_node(n)
 
     def is_connected(self):
         """

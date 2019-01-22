@@ -21,6 +21,7 @@ from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
 from libs.mesh import MIN_ANGLE
+from libs.mutation import MUTATIONS
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -141,7 +142,6 @@ def other_seed_space_edge(space: 'Space', seeder: 'Seeder', *_) -> Generator['Ed
     and not pointing to another seed
     """
     assert seeder, "The associated seed object must be provided"
-
     for edge in space.edges:
         face = edge.pair.face
         if face is None:
@@ -403,6 +403,27 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
         return False
 
     return other_space.corner_stone(face)
+
+
+def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns True if the removal of the edge's face from the space
+    will cut it in several spaces or is the only face
+    """
+    edge_corner = None
+    for edge in space.edges:
+        if not space.next_is_aligned(edge):
+            edge_corner = edge
+            break
+    yield edge_corner
+
+
+def check_corner_edge(edge: 'Edges', space: 'Space') -> Generator['Edge', bool, None]:
+    """
+    Returns True if the removal of the edge's face from the space
+    will cut it in several spaces or is the only face
+    """
+    return not space.next_is_aligned(space.previous_edge(edge))
 
 # predicate factories
 
@@ -667,6 +688,9 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
+
+
+
 # Catalog Selectors
 
 SELECTORS = {
@@ -800,6 +824,13 @@ SELECTORS = {
         ]
     ),
 
+    "farthest_couple_middle_space_area_min_50000": Selector(
+        farthest_edges_barycenter(0.5),
+        [
+            space_area(min_area=50000)
+        ]
+    ),
+
     "area_max_100000": Selector(
         boundary_unique,
         [
@@ -819,7 +850,7 @@ SELECTORS = {
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
         [
-            space_area(max_area=20000)
+            space_area(max_area=10000)
         ]
     ),
 
@@ -838,13 +869,31 @@ SELECTORS = {
             is_not(corner_stone)
         ]
     ),
+
     "corner_stone": Selector(
         boundary,
         [
             corner_stone
         ]
     ),
-    "single_edge": Selector(boundary_unique)
+    "single_edge": Selector(boundary_unique),
+
+    "corner_big_cell_area_70000": Selector(
+        corner_edge,
+        [
+            space_area(min_area=70000),
+        ]
+    ),
+
+    "swap_aligned": Selector(
+
+        other_seed_space_edge,
+        [
+            adjacent_to_other_space,
+            check_corner_edge,
+            is_not(corner_stone)
+        ]
+    ),
 }
 
 SELECTOR_FACTORIES = {

@@ -23,7 +23,9 @@ from libs.size import Size
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
-from libs.utils.geometry import dot_product, normal_vector, ccw_angle
+from libs.utils.geometry import dot_product, normal_vector, ccw_angle, pseudo_equal
+
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
 
 class PlanComponent:
@@ -349,6 +351,32 @@ class Space(PlanComponent):
         """
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
+
+    def next_is_aligned(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the next edge is approximately aligned with this one,
+        using a pseudo equality on the angle
+        :return: boolean
+        """
+        is_aligned = pseudo_equal(self.next_angle(edge), 180, ANGLE_EPSILON)
+        return is_aligned
+
+    def next_aligned_siblings(self, edge: Edge) -> Generator['Edge', 'Edge', None]:
+        """
+        Returns the edges that are aligned with edge, follows it and contiguous
+        Starts with the edge itself, then all the next ones
+        :return:
+        """
+        yield edge
+        # forward check
+
+        aligned = True
+        while aligned:
+            if self.next_is_aligned(edge):
+                yield self.next_edge(edge)
+                edge = self.next_edge(edge)
+            else:
+                aligned = False
 
     def siblings(self, edge: 'Edge') -> Generator[Edge, None, None]:
         """
