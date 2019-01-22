@@ -623,27 +623,6 @@ ELEMENT_SEED_CATEGORIES = {
     )
 }
 
-duct_seed_category = GrowthMethod(
-    'duct',
-    (CONSTRAINTS["max_size_duct_constraint_seed"],),
-    (
-        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-    )
-)
-
-front_door_seed_category = GrowthMethod(
-    'frontDoor',
-    (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
-    (
-        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-    )
-)
-
 GROWTH_METHODS = {
     "default": classic_seed_category,
     "duct": ELEMENT_SEED_CATEGORIES['duct'],

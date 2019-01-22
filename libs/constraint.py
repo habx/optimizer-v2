@@ -258,20 +258,10 @@ ELEMENT_CONSTRAINT_SEED = {
                                  "max_size_xs")
 }
 
-max_size_duct_constraint_seed = SpaceConstraint(max_size,
-                                                {"max_size": Size(30000, 200, 200),
-                                                 "category_name": "seed"},
-                                                "max_size_xs")
-
 max_size_default_constraint_seed = SpaceConstraint(max_size,
                                                    {"max_size": Size(60000, 300, 300),
                                                     "category_name": "seed"},
                                                    "max_size_xs")
-
-max_size_frontdoor_constraint_seed = SpaceConstraint(max_size,
-                                                     {"max_size": Size(30000, 200, 200),
-                                                      "category_name": "seed"},
-                                                     "max_size_xs")
 
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
