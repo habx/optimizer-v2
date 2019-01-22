@@ -617,6 +617,16 @@ ELEMENT_SEED_CATEGORIES = {
                    True),
             Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
         )
+    ),
+    "startingStep": GrowthMethod(
+        'startingStep',
+        (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        (
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
+            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        )
     )
 }
 

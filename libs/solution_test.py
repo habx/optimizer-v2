@@ -75,7 +75,7 @@ def test_duplex():
                   (0, 800)]
     boundaries_2 = [(0, 500), (400, 500), (400, 400), (1000, 400), (1000, 800), (0, 800)]
 
-    plan = Plan("multiple_floors")
+    plan = Plan("Solution_Tests_Multiple_floors")
     floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
     floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
 
@@ -106,22 +106,29 @@ def test_duplex():
     plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["ortho_grid"].apply_to(plan)
+    GRIDS["sequence_grid"].apply_to(plan)
 
     plan.plot()
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow(show=True)
-     .shuffle(SHUFFLES['seed_square_shape'], show=True)
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
      .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
                                       "empty"), show=True)
      .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
            show=True)
      .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape'], show=True))
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+     .empty(SELECTORS["corner_big_cell_area_70000"])
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                      "empty"), show=True)
+     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
     plan.plot()
+    logging.debug("number of mutables spaces, %i",
+                  len([space for space in plan.spaces if space.mutable]))
 
     spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
     spec.plan = plan
@@ -129,3 +136,8 @@ def test_duplex():
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
 
+
+if __name__ == '__main__':
+    import logging
+    logging.getLogger().setLevel(logging.DEBUG)
+    test_duplex()
