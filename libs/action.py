@@ -24,6 +24,7 @@ class Action:
     The repeat flag specifies whether to keep applying the mutation after an edge has
     been successfully mutated.
     """
+
     def __init__(self, selector: 'Selector', mutation: 'Mutation', multiple_mutations: bool = False,
                  name: str = ''):
         self.name = name or '{0} + {1}'.format(selector.name, mutation.name)
@@ -90,6 +91,7 @@ class Action:
 
         # for each edge of the space yielded by the selector apply the mutation
         all_modified_spaces = []
+
         for edge in self.selector.yield_from(space, *selector_optional_args):
 
             # for performance purpose we check if we have already tried this edge

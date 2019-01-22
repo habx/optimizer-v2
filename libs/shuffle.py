@@ -13,7 +13,6 @@ from libs.selector import SELECTORS
 from libs.constraint import CONSTRAINTS
 from libs.action import Action
 
-
 if TYPE_CHECKING:
     from libs.action import Action
     from libs.constraint import Constraint
@@ -24,6 +23,7 @@ class Shuffle:
     """
     Shuffle class
     """
+
     def __init__(self,
                  name: str,
                  actions: Sequence['Action'],
@@ -108,7 +108,7 @@ class Shuffle:
 
 swap_seed_action = Action(SELECTORS['other_seed_space'], MUTATIONS['swap_face'])
 swap_action = Action(SELECTORS["space_boundary"], MUTATIONS["swap_face"])
-
+swap_aligned_action = Action(SELECTORS["swap_aligned"], MUTATIONS["swap_aligned_face"])
 
 simple_shuffle = Shuffle('simple', [swap_action], (), [CONSTRAINTS['square_shape']])
 simple_shuffle_min_size = Shuffle('simple_min_size', [swap_action], (),
@@ -120,9 +120,24 @@ few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS
 square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAINTS['square_shape'],
                                                                         CONSTRAINTS['few_corners']])
 
+square_shape_shuffle_component = Shuffle('square_shape', [swap_seed_action], (),
+                                         [CONSTRAINTS['square_shape'],
+                                          CONSTRAINTS['few_corners'],
+                                          CONSTRAINTS['component_surface_objective']])
+
+square_shape_shuffle_component_aligned = Shuffle('swap_aligned',
+                                                 [swap_aligned_action],
+                                                 (),
+                                                 [CONSTRAINTS['square_shape'],
+                                                  CONSTRAINTS['few_corners'],
+                                                  CONSTRAINTS['component_surface_objective'],
+                                                  CONSTRAINTS['number_of_components']])
+
 SHUFFLES = {
     "seed_few_corner": few_corner_shuffle,
     "seed_square_shape": square_shape_shuffle,
+    "seed_square_shape_component": square_shape_shuffle_component,
+    "seed_square_shape_component_aligned": square_shape_shuffle_component_aligned,
     "simple_shuffle": simple_shuffle,
     "simple_shuffle_min_size": simple_shuffle_min_size
 }
@@ -186,5 +201,6 @@ if __name__ == '__main__':
 
         plan.plot()
         plan.check()
+
 
     seed_square_shape()

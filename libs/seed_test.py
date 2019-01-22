@@ -5,7 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
 from libs.shuffle import SHUFFLES
 
 from libs.grid import GRIDS
@@ -41,8 +41,8 @@ def test_seed_multiple_floors():
     (seeder.plant()
      .grow()
      .shuffle(SHUFFLES['seed_square_shape'])
-     .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-     .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
      .simplify(SELECTORS["fuse_small_cell"])
      .shuffle(SHUFFLES['seed_square_shape']))
 
@@ -63,8 +63,8 @@ def test_grow_a_plan(input_file):
     (seeder.plant()
            .grow()
            .shuffle(SHUFFLES['seed_square_shape'])
-           .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-           .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
            .simplify(SELECTORS["fuse_small_cell"])
            .shuffle(SHUFFLES['seed_square_shape']))
 
@@ -122,3 +122,4 @@ def test_simple_seed_test():
     Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
     my_plan.plot()
     assert my_plan.check()
+
