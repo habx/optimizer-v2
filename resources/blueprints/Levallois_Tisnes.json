@@ -4,34 +4,7 @@
         "blueprints": [
             {
                 "externalSpaces": [
-                    {
-                        "area": 154210,
-                        "polygon": [
-                            [
-                                -4314,
-                                -1711
-                            ],
-                            [
-                                -4185,
-                                -1715
-                            ],
-                            [
-                                -4144,
-                                -521
-                            ],
-                            [
-                                -4273,
-                                -516
-                            ]
-                        ],
-                        "type": "balcony",
-                        "windows": [
-                            0,
-                            1,
-                            2,
-                            3
-                        ]
-                    }
+
                 ],
                 "externalWalls": [
                     0,

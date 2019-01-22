@@ -137,12 +137,9 @@ def _get_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
     for external_space in external_spaces:
         if 'polygon' in external_space.keys():
             external_space_points = external_space["polygon"]
-            print(external_space_points)
-            external_space_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
-                                    external_space_points]
-            if external_space_poly[0] == external_space_poly[len(external_space_poly) - 1]:
-                external_space_poly.remove(external_space_poly[len(external_space_poly) - 1])
-            my_plan.insert_space_from_boundary(external_space_poly,
+            if external_space_points[0] == external_space_points[len(external_space_points) - 1]:
+                external_space_points.remove(external_space_points[len(external_space_points) - 1])
+            my_plan.insert_space_from_boundary(external_space_points,
                                                category=SPACE_CATEGORIES[external_space["type"]],
                                                floor=my_plan.floor_of_given_level(
                                                    input_blueprint_dict["level"]))
