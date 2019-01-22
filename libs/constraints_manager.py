@@ -534,8 +534,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": "kitchen"}]
     ],
     "kitchen": [
-        # [components_adjacency_constraint,
-        #  {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,

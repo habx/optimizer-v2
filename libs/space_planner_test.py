@@ -99,3 +99,6 @@ def test_duplex():
 
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
+
+if __name__ == '__main__':
+    test_duplex()
