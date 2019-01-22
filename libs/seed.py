@@ -141,7 +141,7 @@ class Seeder:
         """
         if show:
             self._initialize_plot()
-        max_recursion = 10  # to prevent infinite loops
+        max_recursion = 20  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
              .plant()
@@ -663,7 +663,6 @@ if __name__ == '__main__':
 
     matplotlib.use('TkAgg')
 
-
     def test_seed_multiple_floors():
         """
         Test
@@ -725,5 +724,4 @@ if __name__ == '__main__':
             sp_comp = sp.components_category_associated()
         print("space area and category", sp.area, sp_comp, sp.category.name)
 
-    grow_a_plan()
-
+    # grow_a_plan()

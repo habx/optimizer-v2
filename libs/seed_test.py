@@ -124,4 +124,3 @@ def test_simple_seed_test():
     assert my_plan.check()
 
 
-test_seed_multiple_floors()
