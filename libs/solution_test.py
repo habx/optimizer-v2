@@ -8,7 +8,7 @@ from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification
 from libs.plan import Plan
 from libs.grid import GRIDS
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS, FILL_METHODS_HOMOGENEOUS
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
 from libs.selector import SELECTORS
 from libs import reader
 from libs.space_planner import SpacePlanner
@@ -106,7 +106,7 @@ def test_duplex():
     plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["sequence_grid"].apply_to(plan)
+    GRIDS["ortho_grid"].apply_to(plan)
 
     plan.plot()
 

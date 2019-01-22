@@ -1793,7 +1793,7 @@ class Plan:
         """
         return len(self.floors)
 
-    def floor_of_given_level(self, level: int) -> 'Floor':
+    def floor_of_given_level(self, level: int) -> Optional['Floor']:
         """
         Returns the floor of the given level
         :return:
@@ -2318,8 +2318,17 @@ class Plan:
         Returns an iterator on mutable spaces
         :return:
         """
-
         yield from (space for space in self.spaces if space.category.circulation)
+
+    def front_door(self) -> Optional['Linear']:
+        """
+        Returns the front door
+        :return:
+        """
+        for linear in self.linears:
+            if linear.category.name == 'frontDoor':
+                return linear
+        return None
 
 
 if __name__ == '__main__':

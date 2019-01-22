@@ -57,28 +57,30 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
     :return:
     """
     floor_vertices = input_blueprint_dict["vertices"]
-    stairs_obstacles = input_blueprint_dict["stairsObstacles"]
-    if stairs_obstacles:
-        for stairs_obstacle in stairs_obstacles:
-            stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
-                                     stairs_obstacle]
-            if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
-                stairs_obstacles_poly.remove(stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
-            my_plan.insert_space_from_boundary(stairs_obstacles_poly,
-                                               category=SPACE_CATEGORIES["stairsObstacle"],
-                                               floor=my_plan.floor_of_given_level(
-                                                   input_blueprint_dict["level"]))
-    holes = input_blueprint_dict["holes"]
-    if holes:
-        for hole in holes:
-            hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
-                         hole]
-            if hole_poly[0] == hole_poly[len(hole_poly)-1]:
-                hole_poly.remove(hole_poly[len(hole_poly)-1])
-            my_plan.insert_space_from_boundary(hole_poly,
-                                               category=SPACE_CATEGORIES["hole"],
-                                               floor=my_plan.floor_of_given_level(
-                                                   input_blueprint_dict["level"]))
+    if "stairsObstacles" in input_blueprint_dict.keys():
+        stairs_obstacles = input_blueprint_dict["stairsObstacles"]
+        if stairs_obstacles:
+            for stairs_obstacle in stairs_obstacles:
+                stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
+                                         stairs_obstacle]
+                if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
+                    stairs_obstacles_poly.remove(stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
+                my_plan.insert_space_from_boundary(stairs_obstacles_poly,
+                                                   category=SPACE_CATEGORIES["stairsObstacle"],
+                                                   floor=my_plan.floor_of_given_level(
+                                                       input_blueprint_dict["level"]))
+    if "holes" in input_blueprint_dict.keys():
+        holes = input_blueprint_dict["holes"]
+        if holes:
+            for hole in holes:
+                hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
+                             hole]
+                if hole_poly[0] == hole_poly[len(hole_poly)-1]:
+                    hole_poly.remove(hole_poly[len(hole_poly)-1])
+                my_plan.insert_space_from_boundary(hole_poly,
+                                                   category=SPACE_CATEGORIES["hole"],
+                                                   floor=my_plan.floor_of_given_level(
+                                                       input_blueprint_dict["level"]))
 
 
 def _get_fixed_item_perimeter(fixed_item: Dict,

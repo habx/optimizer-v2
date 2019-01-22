@@ -180,15 +180,10 @@ class ConstraintsManager:
         :return: None
         """
         for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            print("level", space.floor.level)
-            print("area", space.area)
-            print("add_spaces_constraints",space.immutable_components())
-
             if ("startingStep" not in [component.category.name for component in
                                        space.immutable_components()]):
                 self.solver.add_constraint(
                     space_attribution_constraint(self, j_space))
-                print('space_constraint')
 
     def add_item_constraints(self) -> None:
         """
@@ -309,7 +304,7 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
     Opens on constraint : assure l'adjacence entre deux pièces
     :param manager: 'ConstraintsManager'
     :param item: Item
-    :param min_max: str
+    :param length: int
     :return: ct: ortools.Constraint
     """
     ct = None
@@ -420,7 +415,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                     int(j_space.adjacent_to(k_space)) *
                     manager.solver.positions[item.id, j] *
                     (manager.solver.solver.Sum(manager.solver.positions[x_item.id, k] for x_item in
-                                                  manager.sp.spec.items) == 0) for
+                                               manager.sp.spec.items) == 0) for
                     j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         else:
