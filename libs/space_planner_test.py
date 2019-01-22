@@ -98,15 +98,8 @@ def test_duplex():
      .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
     plan.plot()
-    logging.debug("number of mutables spaces, %i",
-                  len([space for space in plan.spaces if space.mutable]))
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
     space_planner.solution_research()
-
-if __name__ == '__main__':
-    import logging
-    logging.getLogger().setLevel(logging.DEBUG)
-    test_duplex()
