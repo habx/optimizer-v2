@@ -288,5 +288,4 @@ if __name__ == '__main__':
         space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
 
-
     space_planning()

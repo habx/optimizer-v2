@@ -1321,22 +1321,32 @@ class Space(PlanComponent):
                     return True
             return False
         else:
-            if self.adjacency_length(other) >= length:
+            if self.maximum_adjacency_length(other) >= length:
                 return True
             else:
                 return False
 
-    def adjacency_length(self, other: Union['Space', 'Face']) -> float:
+    def maximum_adjacency_length(self, other: Union['Space', 'Face']) -> float:
         """
-        Returns the adjacency length with an other space or face
+        Returns the maximum adjacency length with an other space or face
         with constraint of adjacency length
-        :return: lenght
+        :return: float : length
         """
-        adjacency_length = 0
+        adjacency_length = []
+        previous_edge = False
+        number_of_adjacenies = 0
         for edge in other.edges:
             if self.has_edge(edge.pair):
-                adjacency_length += edge.length
-        return adjacency_length
+                if not previous_edge:
+                    adjacency_length.append(edge.length)
+                    number_of_adjacenies += 1
+                    previous_edge = True
+                else:
+                    adjacency_length[number_of_adjacenies-1] += edge.length
+            else:
+                previous_edge = False
+
+        return max(adjacency_length)
 
     def count_ducts(self) -> float:
         """
@@ -1376,7 +1386,7 @@ class Space(PlanComponent):
 
     def connected_spaces(self) -> ['Space']:
         """
-        Returns the associated openings
+        Returns the connected spaces
         :return: ['Space']
         """
         connected_spaces = []
@@ -1558,10 +1568,10 @@ class Linear(PlanComponent):
         """
         spaces_list = []
         for edge in self.edges:
-            if edge.face.space not in spaces_list:
-                spaces_list.append(edge.face.space)
-            if edge.pair.face.space not in spaces_list:
-                spaces_list.append(edge.pair.face.space)
+            if self.plan.get_space_of_edge(edge) not in spaces_list:
+                spaces_list.append(self.plan.get_space_of_edge(edge))
+            if self.plan.get_space_of_edge(edge.pair) not in spaces_list:
+                spaces_list.append(self.plan.get_space_of_edge(edge.pair))
         return spaces_list
 
 

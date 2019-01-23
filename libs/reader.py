@@ -5,7 +5,6 @@ Reader module : Used to read file from json input and create a plan.
 from typing import Dict, Sequence, Tuple, List
 import os
 import json
-import logging
 from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
@@ -18,7 +17,7 @@ from libs.utils.geometry import (
     normal_vector,
     move_point
 )
-from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
+from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 
 LOAD_BEARING_WALL_WIDTH = 15.0
@@ -42,7 +41,7 @@ def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
 def _get_perimeter(input_blueprint_dict: Dict) -> Sequence[Coords2d]:
     """
     Returns a vertices list of the perimeter points of an blueprint
-    :param input_floor_plan_dict:
+    :param input_blueprint_dict: Dict
     :return:
     """
     perimeter_walls = input_blueprint_dict["externalWalls"]
@@ -52,8 +51,9 @@ def _get_perimeter(input_blueprint_dict: Dict) -> Sequence[Coords2d]:
 
 def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
     """
-    Returns a vertices list of the perimeter points of an blueprint
-    :param input_floor_plan_dict:
+    Insert stairsObstacles and holes on a plan
+    :param input_blueprint_dict: Dict
+    :param my_plan: 'Plan'
     :return:
     """
     floor_vertices = input_blueprint_dict["vertices"]
@@ -64,7 +64,8 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
                 stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                                          stairs_obstacle]
                 if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
-                    stairs_obstacles_poly.remove(stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
+                    stairs_obstacles_poly.remove(
+                        stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
                 my_plan.insert_space_from_boundary(stairs_obstacles_poly,
                                                    category=SPACE_CATEGORIES["stairsObstacle"],
                                                    floor=my_plan.floor_of_given_level(
