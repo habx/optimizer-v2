@@ -12,11 +12,10 @@ from libs.grid import GRIDS
 from libs.selector import SELECTORS
 from libs.shuffle import SHUFFLES
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-
 from libs.space_planner import SpacePlanner
 
 test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
-              ("Levallois_Letourneur.json", "Levallois_Letourneur_setup.json")]
+              ("begles-carrelets_C304.json", "begles-carrelets_C304_setup.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -53,7 +52,7 @@ def test_duplex():
     boundaries = [(0, 0), (1000, 0), (1000, 500), (200, 500)]
     boundaries_2 = [(0, 0), (800, 0), (800, 500), (200, 500)]
 
-    plan = Plan("multiple_floors")
+    plan = Plan("SpacePlanner_Tests_Multiple_floors")
     floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
     floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
 
@@ -78,24 +77,28 @@ def test_duplex():
     plan.insert_linear((300, 0), (400, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((525, 150), (600, 150), LINEAR_CATEGORIES["startingStep"], floor_2)
 
-    GRIDS["ortho_grid"].apply_to(plan)
+    GRIDS["simple_grid"].apply_to(plan)
 
     plan.plot()
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow(show=True)
-     .shuffle(SHUFFLES['seed_square_shape'], show=True)
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
      .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
                                       "empty"), show=True)
      .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
            show=True)
      .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape'], show=True))
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+     .empty(SELECTORS["corner_big_cell_area_70000"])
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                      "empty"), show=True)
+     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
     plan.plot()
-
-    spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
+    spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)

@@ -249,35 +249,35 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
 
 ELEMENT_CONSTRAINT_SEED = {
     'duct': SpaceConstraint(max_size,
-                            {"max_size": Size(30000, 200, 200),
+                            {"max_size": Size(40000, 200, 200),
                              "category_name": "seed"},
                             "max_size_xs"),
     'frontDoor': SpaceConstraint(max_size,
-                                 {"max_size": Size(30000, 200, 200),
+                                 {"max_size": Size(50000, 200, 200),
                                   "category_name": "seed"},
                                  "max_size_xs")
 }
 
 max_size_default_constraint_seed = SpaceConstraint(max_size,
-                                                   {"max_size": Size(60000, 300, 300),
+                                                   {"max_size": Size(70000, 300, 300),
                                                     "category_name": "seed"},
                                                    "max_size_xs")
 
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
                                               {
-                                                  "default": {"min_area": 20000,
+                                                  "default": {"min_area": 40000,
                                                               "max_area": 70000},
-                                                  "frontDoor": {"min_area": 20000,
+                                                  "frontDoor": {"min_area": 30000,
                                                                 "max_area": 50000},
-                                                  "duct": {"min_area": 10000,
-                                                           "max_area": 30000},
-                                                  "window": {"min_area": 30000,
-                                                             "max_area": 60000},
-                                                  "doorWindow": {"min_area": 30000,
-                                                                 "max_area": 70000},
-                                                  "startingStep": {"min_area": 10000,
-                                                                   "max_area": 30000},
+                                                  "duct": {"min_area": 30000,
+                                                           "max_area": 50000},
+                                                  "window": {"min_area": 40000,
+                                                             "max_area": 70000},
+                                                  "doorWindow": {"min_area": 60000,
+                                                                 "max_area": 90000},
+                                                  "startingStep": {"min_area": 20000,
+                                                                   "max_area": 40000},
                                               },
                                               "component_surface_objective", imperative=False)
 
@@ -285,7 +285,9 @@ number_of_components = SpaceConstraint(number_of_components,
                                        {
                                            "duct": [],
                                            "window": [],
-                                           "doorWindow": []
+                                           "doorWindow": [],
+                                           "startingStep": [],
+                                           "frontDoor": []
                                        },
                                        "number_of_components", imperative=False)
 

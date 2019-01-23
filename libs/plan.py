@@ -1309,15 +1309,47 @@ class Space(PlanComponent):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
-    def adjacent_to(self, other: Union['Space', 'Face']) -> bool:
+    def adjacent_to(self, other: Union['Space', 'Face'], length: int = None) -> bool:
         """
         Check the adjacency with an other space or face
+        with constraint of adjacency length
         :return:
         """
+        if length is None:
+            for edge in other.edges:
+                if self.has_edge(edge.pair):
+                    return True
+            return False
+        else:
+            if self.maximum_adjacency_length(other) >= length:
+                return True
+            else:
+                return False
+
+    def maximum_adjacency_length(self, other: Union['Space', 'Face']) -> float:
+        """
+        Returns the maximum adjacency length with an other space or face
+        with constraint of adjacency length
+        :return: float : length
+        """
+        adjacency_length = []
+        previous_edge = False
+        number_of_adjacenies = 0
         for edge in other.edges:
             if self.has_edge(edge.pair):
-                return True
-        return False
+                if not previous_edge:
+                    adjacency_length.append(edge.length)
+                    number_of_adjacenies += 1
+                    previous_edge = True
+                else:
+                    adjacency_length[number_of_adjacenies-1] += edge.length
+            else:
+                previous_edge = False
+
+        if adjacency_length:
+            return max(adjacency_length)
+        else:
+            return 0
 
     def count_ducts(self) -> float:
         """
@@ -1343,6 +1375,29 @@ class Space(PlanComponent):
             self.plan.linears)
 
         return number_windows
+
+    def openings(self) -> ['Linear']:
+        """
+        Returns the associated openings
+        :return: ['Linear']
+        """
+        openings_list = []
+        for component in self.immutable_components():
+            if component.category.aperture:
+                openings_list.append(component)
+        return openings_list
+
+    def connected_spaces(self) -> ['Space']:
+        """
+        Returns the connected spaces
+        :return: ['Space']
+        """
+        connected_spaces = []
+        for door in self.openings():
+            for space in door.adjacent_spaces():
+                if space is not self and space not in connected_spaces:
+                    connected_spaces.append(space)
+        return connected_spaces
 
 
 class Linear(PlanComponent):
@@ -1508,6 +1563,19 @@ class Linear(PlanComponent):
             return is_valid
 
         return is_valid
+
+    def adjacent_spaces(self)->['Space']:
+        """
+        Returns the adjacent spaces
+        :return: ['Space']
+        """
+        spaces_list = []
+        for edge in self.edges:
+            if self.plan.get_space_of_edge(edge) not in spaces_list:
+                spaces_list.append(self.plan.get_space_of_edge(edge))
+            if self.plan.get_space_of_edge(edge.pair) not in spaces_list:
+                spaces_list.append(self.plan.get_space_of_edge(edge.pair))
+        return spaces_list
 
 
 class Floor:
@@ -1766,6 +1834,17 @@ class Plan:
         """
         return len(self.floors)
 
+    def floor_of_given_level(self, level: int) -> Optional['Floor']:
+        """
+        Returns the floor of the given level
+        :return:
+        """
+        for floor in self.floors.values():
+            if floor.level == level:
+                return floor
+        logging.info("Plan: floor_of_given_level: No floor at this level")
+        return None
+
     @property
     def has_multiple_floors(self):
         """
@@ -1774,6 +1853,15 @@ class Plan:
         :return:
         """
         return self.floor_count > 1
+
+    @property
+    def first_level(self) -> int:
+        """
+        Property
+        Returns the first level of the plan
+        :return:
+        """
+        return min(floor.level for floor in self.floors.values())
 
     def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
         """
@@ -2271,8 +2359,17 @@ class Plan:
         Returns an iterator on mutable spaces
         :return:
         """
-
         yield from (space for space in self.spaces if space.category.circulation)
+
+    def front_door(self) -> Optional['Linear']:
+        """
+        Returns the front door
+        :return:
+        """
+        for linear in self.linears:
+            if linear.category.name == 'frontDoor':
+                return linear
+        return None
 
 
 if __name__ == '__main__':

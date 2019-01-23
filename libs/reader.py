@@ -5,10 +5,10 @@ Reader module : Used to read file from json input and create a plan.
 from typing import Dict, Sequence, Tuple, List
 import os
 import json
-
 from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
+from libs.plan import Plan
 
 from libs.utils.geometry import (
     point_dict_to_tuple,
@@ -17,7 +17,7 @@ from libs.utils.geometry import (
     normal_vector,
     move_point
 )
-from libs.utils.custom_types import Coords2d, FourCoords2d, ListCoords2d
+from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 
 LOAD_BEARING_WALL_WIDTH = 15.0
@@ -38,16 +38,50 @@ def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
     return list_files
 
 
-def _get_perimeter(input_floor_plan_dict: Dict) -> Sequence[Coords2d]:
+def _get_perimeter(input_blueprint_dict: Dict) -> Sequence[Coords2d]:
     """
-    Returns a vertices list of the perimeter points of an apartment
-    :param input_floor_plan_dict:
+    Returns a vertices list of the perimeter points of an blueprint
+    :param input_blueprint_dict: Dict
     :return:
     """
-    apartment = input_floor_plan_dict['apartment']
-    perimeter_walls = apartment['externalWalls']
-    vertices = apartment['vertices']
-    return [(vertices[i]['x'], vertices[i]['y']) for i in perimeter_walls]
+    perimeter_walls = input_blueprint_dict["externalWalls"]
+    floor_vertices = input_blueprint_dict["vertices"]
+    return [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in perimeter_walls]
+
+
+def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
+    """
+    Insert stairsObstacles and holes on a plan
+    :param input_blueprint_dict: Dict
+    :param my_plan: 'Plan'
+    :return:
+    """
+    floor_vertices = input_blueprint_dict["vertices"]
+    if "stairsObstacles" in input_blueprint_dict.keys():
+        stairs_obstacles = input_blueprint_dict["stairsObstacles"]
+        if stairs_obstacles:
+            for stairs_obstacle in stairs_obstacles:
+                stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
+                                         stairs_obstacle]
+                if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
+                    stairs_obstacles_poly.remove(
+                        stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
+                my_plan.insert_space_from_boundary(stairs_obstacles_poly,
+                                                   category=SPACE_CATEGORIES["stairsObstacle"],
+                                                   floor=my_plan.floor_of_given_level(
+                                                       input_blueprint_dict["level"]))
+    if "holes" in input_blueprint_dict.keys():
+        holes = input_blueprint_dict["holes"]
+        if holes:
+            for hole in holes:
+                hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
+                             hole]
+                if hole_poly[0] == hole_poly[len(hole_poly)-1]:
+                    hole_poly.remove(hole_poly[len(hole_poly)-1])
+                my_plan.insert_space_from_boundary(hole_poly,
+                                                   category=SPACE_CATEGORIES["hole"],
+                                                   floor=my_plan.floor_of_given_level(
+                                                       input_blueprint_dict["level"]))
 
 
 def _get_fixed_item_perimeter(fixed_item: Dict,
@@ -91,40 +125,28 @@ def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) ->
     return point_1, point_2, point_3, point_4
 
 
-def _get_external_space_perimeter(external_space_coords: List) -> ListCoords2d:
+def _get_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
     """
     Returns a list with the perimeter of external space.
-    :param external_space_coords:
-    :return: list
+    :param input_blueprint_dict:
+    :return:
     """
-    list_points = []
-    for point in external_space_coords:
-        list_points.append(tuple((point[0], point[1])))
-
-    list_points = tuple(list_points)
-
-    return list_points
-
-
-def _get_external_spaces(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
-    """
-    Returns a list with the perimeter of external space.
-    :param input_floor_plan_dict:
-    :return: list
-    """
-    apartment = input_floor_plan_dict['apartment']
-    external_spaces = apartment['externalSpaces']
+    external_spaces = input_blueprint_dict['externalSpaces']
+    floor_vertices = input_blueprint_dict["vertices"]
 
     output = []
     for external_space in external_spaces:
         if 'polygon' in external_space.keys():
-            coords = _get_external_space_perimeter(external_space['polygon'])
-            output.append((coords, external_space['type']))
+            external_space_points = external_space["polygon"]
+            if external_space_points[0] == external_space_points[len(external_space_points) - 1]:
+                external_space_points.remove(external_space_points[len(external_space_points) - 1])
+            my_plan.insert_space_from_boundary(external_space_points,
+                                               category=SPACE_CATEGORIES[external_space["type"]],
+                                               floor=my_plan.floor_of_given_level(
+                                                   input_blueprint_dict["level"]))
 
-    return output
 
-
-def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
+def _get_fixed_items_perimeters(input_blueprint_dict: Dict) -> Sequence[Tuple[Coords2d, Dict]]:
     """
     Returns a list with the perimeter of each fixed items.
     NOTE: we are using the pandas dataframe because we do not want to recalculate
@@ -132,12 +154,11 @@ def _get_fixed_items_perimeters(input_floor_plan_dict: Dict) -> Sequence[Tuple[C
     it would be much better to read and store the geometry
     of each fixed items as list of vertices instead of the way it's done by using barycentric and
     width data. It would be faster and enable us any fixed item shape.
-    :param input_floor_plan_dict:
+    :param input_blueprint_dict:
     :return: list
     """
-    apartment = input_floor_plan_dict['apartment']
-    vertices = apartment['vertices']
-    fixed_items = apartment['fixedItems']
+    vertices = input_blueprint_dict['vertices']
+    fixed_items = input_blueprint_dict['fixedItems']
     output = []
     for fixed_item in fixed_items:
         coords = _get_fixed_item_perimeter(fixed_item, vertices)
@@ -170,15 +191,14 @@ def _get_load_bearing_wall_perimeter(load_bearing_wall: List[int],
     return _rectangle_from_segment((point_1, point_2), LOAD_BEARING_WALL_WIDTH)
 
 
-def _get_load_bearings_walls(input_floor_plan_dict: Dict) -> Sequence[Tuple[Coords2d, str]]:
+def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coords2d, str]]:
     """
     Returns a proper format with type and coordinates for each load bearing wall
-    :param input_floor_plan_dict:
+    :param input_blueprint_dict:
     :return:
     """
-    apartment = input_floor_plan_dict['apartment']
-    vertices = apartment['vertices']
-    load_bearing_walls = apartment['loadBearingWalls']
+    vertices = input_blueprint_dict['vertices']
+    load_bearing_walls = input_blueprint_dict['loadBearingWalls']
     output = []
     for load_bearing_wall in load_bearing_walls:
         coords = _get_load_bearing_wall_perimeter(load_bearing_wall, vertices)
@@ -227,37 +247,32 @@ def get_mesh_from_json(file_name: str,
 def create_plan_from_file(input_file: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
-    TODO : adapt for multiple floors plan
     :param input_file: the path to a json file
     :return: a plan object
     """
     floor_plan_dict = get_json_from_file(input_file)
-
-    perimeter = _get_perimeter(floor_plan_dict)
     file_name = os.path.splitext(os.path.basename(input_file))[0]
     my_plan = plan.Plan(file_name)
-    my_plan.add_floor_from_boundary(perimeter)
+    apartment = floor_plan_dict['apartment']
 
-    fixed_items = _get_load_bearings_walls(floor_plan_dict)
-    fixed_items += _get_fixed_items_perimeters(floor_plan_dict)
+    for blueprint_dict in apartment["blueprints"]:
+        perimeter = _get_perimeter(blueprint_dict)
+        my_plan.add_floor_from_boundary(perimeter, floor_level=blueprint_dict["level"])
+        _get_external_spaces(blueprint_dict, my_plan)
+        _get_not_floor_space(blueprint_dict, my_plan)
+        fixed_items = _get_load_bearings_walls(blueprint_dict)
+        fixed_items += _get_fixed_items_perimeters(blueprint_dict)
+        linears = (fixed_item for fixed_item in fixed_items if fixed_item[1] in LINEAR_CATEGORIES)
+        spaces = (fixed_item for fixed_item in fixed_items if fixed_item[1] in SPACE_CATEGORIES)
 
-    # TODO : ADAPT EXTERNAL SPACES FOR ALL PLANS - temporary dirty fix
-    if input_file == "Groslay_A-00-01_oldformat.json":
-        external_spaces = _get_external_spaces(floor_plan_dict)
-        for external_space in external_spaces:
-            if external_space[1] in SPACE_CATEGORIES:
-                my_plan.insert_space_from_boundary(external_space[0],
-                                                   category=SPACE_CATEGORIES[external_space[1]])
-    ##############################################################################################
+        for linear in linears:
+            my_plan.insert_linear(linear[0][0], linear[0][1], category=LINEAR_CATEGORIES[linear[1]],
+                                  floor=my_plan.floor_of_given_level(blueprint_dict["level"]))
 
-    linears = (fixed_item for fixed_item in fixed_items if fixed_item[1] in LINEAR_CATEGORIES)
-    spaces = (fixed_item for fixed_item in fixed_items if fixed_item[1] in SPACE_CATEGORIES)
-
-    for linear in linears:
-        my_plan.insert_linear(linear[0][0], linear[0][1], category=LINEAR_CATEGORIES[linear[1]])
-
-    for space in spaces:
-        my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]])
+        for space in spaces:
+            my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]],
+                                               floor=my_plan.floor_of_given_level(
+                                                   blueprint_dict["level"]))
 
     return my_plan
 
@@ -288,15 +303,22 @@ def create_specification_from_file(input_file: str):
     """
     spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
     specification = Specification(input_file)
-    for item in spec_dict['setup']:
-        _category = item['type']
+    for item in spec_dict["setup"]:
+        _category = item["type"]
         if _category not in SPACE_CATEGORIES:
-            raise ValueError('Space type not present in space categories: {0}'.format(_category))
-        required_area = item['requiredArea']
-        size_min = Size(area=required_area['min'])
-        size_max = Size(area=required_area['max'])
-        variant = item['variant']
-        new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max)
+            raise ValueError("Space type not present in space categories: {0}".format(_category))
+        required_area = item["requiredArea"]
+        size_min = Size(area=required_area["min"])
+        size_max = Size(area=required_area["max"])
+        variant = item["variant"]
+        opens_on = []
+        linked_to = []
+        if "opensOn" in list(item.keys()):
+            opens_on = item["opensOn"]
+        if "linkedTo" in list(item.keys()):
+            linked_to = item["linkedTo"]
+        new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max, opens_on,
+                        linked_to)
         specification.add_item(new_item)
 
     return specification
@@ -308,8 +330,17 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = 'Levallois_Letourneur_setup.json'
-        create_specification_from_file(input_file)
+        input_file = "begles-carrelets_C304_setup.json"
+        spec = create_specification_from_file(input_file)
+        print(spec)
+
+
+    def plan_read():
+        input_file = "begles-carrelets_C304.json"
+        my_plan = create_plan_from_file(input_file)
+        my_plan.plot()
+        print(my_plan)
 
 
     specification_read()
+    plan_read()
