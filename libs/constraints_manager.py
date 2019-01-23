@@ -315,7 +315,7 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                 if other_item.category.name == category_name:
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
-                            int(j_space.adjacency_length(k_space)) *
+                            int(j_space.maximum_adjacency_length(k_space)) *
                             manager.solver.positions[item.id, j] *
                             manager.solver.positions[other_item.id, k] for
                             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
