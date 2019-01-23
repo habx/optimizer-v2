@@ -613,3 +613,10 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ]
 }
 
+if __name__ == '__main__':
+    import logging
+    import libs.constraint_manager_test as cmt
+
+    logging.getLogger().setLevel(logging.DEBUG)
+
+    cmt.test_basic_case()
