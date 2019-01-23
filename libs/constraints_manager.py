@@ -612,3 +612,4 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }
+

@@ -1346,7 +1346,10 @@ class Space(PlanComponent):
             else:
                 previous_edge = False
 
-        return max(adjacency_length)
+        if adjacency_length:
+            return max(adjacency_length)
+        else:
+            return 0
 
     def count_ducts(self) -> float:
         """
