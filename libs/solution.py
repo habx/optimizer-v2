@@ -7,7 +7,7 @@ Creates the following classes:
 TODO : fusion of the entrance for small apartment untreated
 
 """
-from typing import List, Dict
+from typing import List, Dict, Optional
 from libs.specification import Specification, Item
 from libs.plan import Plan, Space
 import logging
@@ -55,7 +55,7 @@ class SolutionsCollector:
         logging.debug("SolutionsCollector : Distance_matrix : {0}".format(distance_matrix))
         return distance_matrix
 
-    def best(self) -> ['Solution']:
+    def best(self) -> Optional[List['Solution']]:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
@@ -67,6 +67,11 @@ class SolutionsCollector:
         :param: plan
         :return: best solutions
         """
+
+        if not self.solutions:
+            logging.warning("Solution : 0 solutions")
+            return []
+
         best_sol_list = []
 
         list_scores = []

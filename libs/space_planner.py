@@ -296,5 +296,13 @@ if __name__ == '__main__':
         space_planner.solution_research()
 
     space_planning()
+    # import libs.constraint_manager_test as cmt
+    #
+    # cmt.test_basic_case()
 
+    # import libs.space_planner_test as spt
+    # spt.test_duplex()
+
+    # import libs.solution_test as st
+    # st.test_duplex()
 
