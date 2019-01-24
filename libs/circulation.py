@@ -53,11 +53,12 @@ class Circulator:
     def multilevel_connection(self):
         number_of_floors = self.plan.floor_count
         space_connection_between_floors = []
+
         if number_of_floors > 1:
-            for f in range(number_of_floors):
+            for level in self.plan.list_level:
 
                 for space in self.plan.spaces:
-                    if space.floor.level is f and "startingStep" in space.components_category_associated():
+                    if space.floor.level is level and "startingStep" in space.components_category_associated():
                         space_connection_between_floors.append(space)
                         break
 
@@ -107,25 +108,35 @@ class Circulator:
         ensures circulation spaces are all connected
         :return:
         """
-        father_node = None
+
+        father_nodes = {}
+
         for room in self.plan.mutable_spaces():
             if room.category.name is 'entrance':
-                father_node = room
+                father_nodes[room.floor.level] = room
                 break
         else:
             for room in self.plan.mutable_spaces():
                 if room.category.name is 'living':
-                    father_node = room
+                    father_nodes[room.floor.level] = room
                     break
 
-        if not father_node:
+        if not father_nodes:
             return True
 
+        start_level = list(father_nodes.keys())[0]
+
+        father_node = [room for room in self.plan.spaces if
+                       room.floor.level is not start_level and "startingStep"
+                       in room.components_category_associated()]
+
+        father_nodes[father_node[0].floor.level] = father_node[0]
+
         for node in self.connectivity_graph.nodes():
-            if not self.connectivity_graph.has_path(node, father_node):
-                path, cost = self.draw_path(father_node, node)
+            if not self.connectivity_graph.has_path(node, father_nodes[node.floor.level]):
+                path, cost = self.draw_path(father_nodes[node.floor.level], node)
                 self.actualize_path(path)
-                self.connectivity_graph.add_edge(node, father_node)
+                self.connectivity_graph.add_edge(node, father_nodes[node.floor.level])
 
     def actualize_path(self, path):
         """
@@ -173,20 +184,24 @@ class Circulator:
 
         ax = self.plan.plot(show=show, save=False)
 
-        paths = self.connecting_paths
-        for path in paths:
-            if len(path) == 1:
-                ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
-            else:
-                for i in range(len(path) - 1):
-                    v1 = path[i]
-                    v2 = path[i + 1]
-                    x_coords = [v1.x, v2.x]
-                    y_coords = [v1.y, v2.y]
-                    ax.plot(x_coords, y_coords, 'k',
-                            linewidth=2,
-                            color="blue",
-                            solid_capstyle='butt')
+        number_of_floors = self.plan.floor_count
+
+        for i in range(number_of_floors):
+            _ax = ax[i]
+            paths = self.connecting_paths
+            for path in paths:
+                if len(path) == 1:
+                    _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
+                else:
+                    for i in range(len(path) - 1):
+                        v1 = path[i]
+                        v2 = path[i + 1]
+                        x_coords = [v1.x, v2.x]
+                        y_coords = [v1.y, v2.y]
+                        _ax.plot(x_coords, y_coords, 'k',
+                                 linewidth=2,
+                                 color="blue",
+                                 solid_capstyle='butt')
 
         plot_save(save, show)
 
@@ -316,11 +331,12 @@ COST_RULES = {
 
 if __name__ == '__main__':
     import libs.reader as reader
-    from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+    from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
     from libs.space_planner import SpacePlanner
+    from category import SPACE_CATEGORIES
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -333,35 +349,89 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
 
-    def connect_plan():
+    def test_duplex():
         """
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A105.json"
-        plan = reader.create_plan_from_file(input_file)
+        boundaries = [(0, 500), (400, 500), (400, 0), (1500, 0), (1500, 700), (1000, 700),
+                      (1000, 800),
+                      (0, 800)]
+        boundaries_2 = [(0, 500), (400, 500), (400, 400), (1000, 400), (1000, 800), (0, 800)]
 
-        GRIDS["ortho_grid"].apply_to(plan)
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
+        plan = Plan("Solution_Tests_Multiple_floors")
+        floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
+        floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
+
+        terrace_coords = [(400, 400), (400, 200), (1300, 200), (1300, 700), (1000, 700),
+                          (1000, 400)]
+        plan.insert_space_from_boundary(terrace_coords, SPACE_CATEGORIES["terrace"], floor_1)
+        garden_coords = [(400, 200), (400, 0), (1500, 0), (1500, 700), (1300, 700), (1300, 200)]
+        plan.insert_space_from_boundary(garden_coords, SPACE_CATEGORIES["garden"], floor_1)
+        duct_coords = [(350, 500), (400, 500), (400, 520), (350, 520)]
+        plan.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
+        duct_coords = [(350, 780), (400, 780), (400, 800), (350, 800)]
+        plan.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
+        hole_coords = [(400, 700), (650, 700), (650, 800), (400, 800)]
+        plan.insert_space_from_boundary(hole_coords, SPACE_CATEGORIES["hole"], floor_1)
+        plan.insert_linear((650, 800), (650, 700), LINEAR_CATEGORIES["startingStep"], floor_1)
+        plan.insert_linear((275, 500), (340, 500), LINEAR_CATEGORIES["frontDoor"], floor_1)
+        plan.insert_linear((550, 400), (750, 400), LINEAR_CATEGORIES["doorWindow"], floor_1)
+        plan.insert_linear((1000, 450), (1000, 650), LINEAR_CATEGORIES["doorWindow"], floor_1)
+        plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_1)
+
+        duct_coords = [(350, 500), (400, 500), (400, 520), (350, 520)]
+        plan.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_2)
+        duct_coords = [(350, 780), (400, 780), (400, 800), (350, 800)]
+        plan.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_2)
+        hole_coords = [(400, 700), (650, 700), (650, 800), (400, 800)]
+        plan.insert_space_from_boundary(hole_coords, SPACE_CATEGORIES["hole"], floor_2)
+        plan.insert_linear((650, 800), (650, 700), LINEAR_CATEGORIES["startingStep"], floor_2)
+        plan.insert_linear((500, 400), (600, 400), LINEAR_CATEGORIES["window"], floor_2)
+        plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
+        plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
+
+        GRIDS["sequence_grid"].apply_to(plan)
+
+        plan.plot()
+
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
-         .grow()
-         .shuffle(SHUFFLES["seed_square_shape"])
-         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-         .simplify(SELECTORS["fuse_small_cell"])
-         .shuffle(SHUFFLES["seed_square_shape"]))
+         .grow(show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
+                                          "empty"), show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+               show=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .empty(SELECTORS["corner_big_cell_area_70000"])
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                          "empty"), show=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
-        input_setup = input_file[:-5] + "_setup.json"
-        spec = reader.create_specification_from_file(input_setup)
+        plan.plot()
+
+        spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
         spec.plan = plan
 
         space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
 
+        return space_planner
+
+
+    def connect_plan():
+        """
+        Test
+        :return:
+        """
+
+        space_planner = test_duplex()
+
         for solution in space_planner.solutions_collector.best():
-            solution.plan.plot()
+            #solution.plan.plot()
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
             circulator.plot()
