@@ -50,6 +50,21 @@ class Circulator:
 
         return path_min, cost_min
 
+    def multilevel_connection(self):
+        number_of_floors = self.plan.floor_count
+        space_connection_between_floors = []
+        if number_of_floors > 1:
+            for f in range(number_of_floors):
+
+                for space in self.plan.spaces:
+                    if space.floor.level is f and "startingStep" in space.components_category_associated():
+                        space_connection_between_floors.append(space)
+                        break
+
+        for i in range(number_of_floors - 1):
+            self.connectivity_graph.add_edge(space_connection_between_floors[i],
+                                             space_connection_between_floors[i + 1])
+
     def init_connectivity_graph(self):
         """
         builds a connectivity graph of the plan, each circulation space is a node
@@ -65,6 +80,8 @@ class Circulator:
                 if other is not space and other.adjacent_to(space):
                     # if spaces are adjacent, they are connected in the graph
                     self.connectivity_graph.add_edge(space, other)
+
+        self.multilevel_connection()
 
         self.set_circulation_path()
 
@@ -129,7 +146,7 @@ class Circulator:
         connected_room = None
         cost_min = None
         for other in self.plan.circulation_spaces():
-            if other is not space:
+            if other is not space and space.floor.level is other.floor.level:
                 path, cost = self.draw_path(space, other)
                 if cost_min is None or cost < cost_min:
                     cost_min = cost
