@@ -13,7 +13,6 @@ OR-Tools : google constraint programing solver
 
 """
 from typing import List, Callable, Optional
-import logging
 
 from ortools.constraint_solver import pywrapcp as ortools
 

@@ -10,7 +10,6 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict
 from libs.specification import Specification, Item
 from libs.plan import Plan, Space
-from libs.category import SPACE_CATEGORIES
 import logging
 
 CORRIDOR_SIZE = 120
