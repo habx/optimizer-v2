@@ -4,13 +4,13 @@ Solution collector module
 Creates the following classes:
 • SolutionsCollector: finds the best rooms layouts in given solution list
 • Solution : rooms layout solution
-TODO : multi-level apartment untreated
 TODO : fusion of the entrance for small apartment untreated
 
 """
 from typing import List, Dict
 from libs.specification import Specification, Item
 from libs.plan import Plan, Space
+from libs.category import SPACE_CATEGORIES
 import logging
 
 CORRIDOR_SIZE = 120
@@ -212,6 +212,10 @@ class Solution:
                 logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
                               item.id)
 
+        for space in self.plan.spaces:
+            if space.category.name == "circulationSpace":
+                area_penalty += 1
+
         area_score = round(area_score / nbr_rooms, 2) - area_penalty * 20
         logging.debug("Solution %i: Area score : %f", self._id, area_score)
         return area_score
@@ -256,6 +260,31 @@ class Solution:
                         logging.debug("Solution %i: Size bonus : %i", self._id, 0)
                         return 0
         logging.debug("Solution %i: Size bonus : %i", self._id, 10)
+        return 10
+
+    def _externals_spaces_bonus(self) -> float:
+        """
+        Good ordering externals spaces size bonus
+        :return: score : float
+        """
+        for item1 in self.collector.spec.items:
+            for item2 in self.collector.spec.items:
+                if (item1 != item2 and self.items_spaces[item1].connected_spaces()
+                        and self.items_spaces[item2].connected_spaces()):
+                    item1_ext_spaces_area = sum([ext_space.area
+                                                 for ext_space in
+                                                 self.items_spaces[item1].connected_spaces()
+                                                 if ext_space.category.external])
+                    item2_ext_spaces_area = sum([ext_space.area
+                                                 for ext_space in
+                                                 self.items_spaces[item1].connected_spaces()
+                                                 if ext_space.category.external])
+
+                    if (item1.required_area < item2.required_area and
+                            item1_ext_spaces_area > item2_ext_spaces_area):
+                        logging.debug("Solution %i: External spaces bonus : %i", self._id, 0)
+                        return 0
+        logging.debug("Solution %i: External spaces : %i", self._id, 10)
         return 10
 
     def _night_and_day_score(self) -> float:

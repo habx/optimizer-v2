@@ -267,7 +267,7 @@ max_size_default_constraint_seed = SpaceConstraint(max_size,
 component_surface_objective = SpaceConstraint(component_surface_objective,
                                               {
                                                   "default": {"min_area": 40000,
-                                                              "max_area": 70000},
+                                                              "max_area": 60000},
                                                   "frontDoor": {"min_area": 30000,
                                                                 "max_area": 50000},
                                                   "duct": {"min_area": 30000,

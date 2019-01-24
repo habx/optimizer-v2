@@ -5,7 +5,6 @@ Creates the following classes:
 • ConstraintSolver: Encapsulation of the OR-Tools solver adapted to our problem
 • ConstraintsManager : attributes the spaces of the plan created by the seeder to the items.
 TODO : the adjacency constraint of spaces within the same room is not completed
-TODO : multi-level apartment untreated
 TODO : fusion of the entrance for small apartment untreated
 
 OR-Tools : google constraint programing solver
@@ -37,6 +36,7 @@ BIG_VARIANTS = ("m", "l", "xl")
 SMALL_VARIANTS = ("xs", "s")
 
 OPEN_ON_ADJACENCY_SIZE = 200
+BIG_EXTERNAL_SPACE = 7000
 
 
 class ConstraintSolver:
@@ -301,7 +301,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
     """
-    Opens on constraint : assure l'adjacence entre deux pièces
+    Opens on constraint : check the adjacency between two rooms if open on, otherwise impose the
+    presence of a window in the room
     :param manager: 'ConstraintsManager'
     :param item: Item
     :param length: int
@@ -324,6 +325,8 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                 ct = (adjacency_sum >= length)
             else:
                 ct = manager.and_(ct, (adjacency_sum >= length))
+    else:
+        ct = components_adjacency_constraint(manager, item, WINDOW_CATEGORY, True, "Or")
     return ct
 
 
@@ -496,11 +499,35 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
+def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    externals connection constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+
+    has_to_be_connected = False
+    for space in manager.sp.spec.plan.spaces:
+        if space.category.external and space.area > BIG_EXTERNAL_SPACE:
+            has_to_be_connected = True
+
+    if has_to_be_connected:
+        adjacency_sum = manager.solver.solver.Sum(
+            manager.solver.positions[item.id, j] for j, space in
+            enumerate(manager.sp.spec.plan.mutable_spaces())
+            if [ext_space for ext_space in space.connected_spaces() if ext_space.category.external]
+            is not [])
+        ct = (adjacency_sum >= 1)
+
+    return ct
+
+
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
         [windows_constraint, {}],
-        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
@@ -534,8 +561,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": "kitchen"}]
     ],
     "kitchen": [
-        [components_adjacency_constraint,
-         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
@@ -543,15 +569,13 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
-        [components_adjacency_constraint,
-         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
     "office": [
-        [components_adjacency_constraint,
-         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
@@ -589,7 +613,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
-
+        [externals_connection_constraint, {}]
     ],
     "dining": [
 

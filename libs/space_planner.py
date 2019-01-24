@@ -270,9 +270,9 @@ if __name__ == '__main__':
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_70000"])
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
+         # .empty(SELECTORS["corner_big_cell_area_70000"])
+         # .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+         #                                  "empty"), show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
@@ -285,7 +285,24 @@ if __name__ == '__main__':
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
 
+        for space in plan.spaces:
+            print(space, space.area)
+        for item in spec.items:
+            print(item)
+            print('min',item.min_size.area)
+            print('max',item.max_size.area)
+
         space_planner = SpacePlanner("test", spec)
         space_planner.solution_research()
 
-    space_planning()
+    #space_planning()
+    # import libs.constraint_manager_test as cmt
+    #
+    # cmt.test_basic_case()
+
+    # import libs.space_planner_test as spt
+    # spt.test_duplex()
+
+    import libs.solution_test as st
+    st.test_duplex()
+

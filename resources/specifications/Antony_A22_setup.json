@@ -33,8 +33,8 @@
     {
       "type": "bedroom",
       "requiredArea": {
-        "min": 120000,
-        "max": 180000
+        "min": 90000,
+        "max": 140000
       },
       "variant": "m",
       "opensOn": [],
@@ -43,8 +43,8 @@
     {
       "type": "bedroom",
       "requiredArea": {
-        "min": 120000,
-        "max": 180000
+        "min": 90000,
+        "max": 140000
       },
       "variant": "m",
       "opensOn": [],
