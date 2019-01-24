@@ -30,24 +30,35 @@ def test_basic_case():
                            floor_1)
         plan.insert_linear((1000, 25 + i * 100), (1000, 75 + i * 100), LINEAR_CATEGORIES["window"],
                            floor_1)
-        plan.insert_linear((0, 75 + i * 100), (0, 25 + i * 100),LINEAR_CATEGORIES["window"],
+        plan.insert_linear((0, 75 + i * 100), (0, 25 + i * 100), LINEAR_CATEGORIES["window"],
                            floor_1)
         plan.insert_linear((75 + i * 100, 1000), (25 + i * 100, 1000), LINEAR_CATEGORIES["window"],
                            floor_1)
-    plan.plot()
+
     GRIDS["ortho_grid"].apply_to(plan)
 
     plan.plot()
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
     (seeder.plant()
-     .grow()
-     .shuffle(SHUFFLES["seed_square_shape"])
-     .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                          "empty"))
-     .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES["seed_square_shape"]))
+     .grow(show=True)
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                      "empty"), show=True)
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+           show=True)
+     .empty(SELECTORS["farthest_couple_middle_space_area_min_50000"])
+     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                                      "empty"), show=True)
+     )
+     # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+     # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+     # .empty(SELECTORS["corner_big_cell_area_70000"])
+     # .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+     #                                  "empty"), show=True)
+     # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+     # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+
+    plan.plot()
 
 
 
