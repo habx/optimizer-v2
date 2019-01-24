@@ -13,10 +13,9 @@ OR-Tools : google constraint programing solver
 
 """
 from typing import List, Callable, Optional
-
 from ortools.constraint_solver import pywrapcp as ortools
-
 from libs.specification import Item
+import logging
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
@@ -526,7 +525,6 @@ def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) -
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
-        [windows_constraint, {}],
         [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
@@ -598,7 +596,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
 T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
-
+        [windows_constraint, {}],
     ],
     "entrance": [
 
