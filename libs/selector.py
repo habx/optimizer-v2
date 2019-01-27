@@ -21,7 +21,6 @@ from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
 from libs.mesh import MIN_ANGLE
-from libs.mutation import MUTATIONS
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -418,7 +417,7 @@ def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     yield edge_corner
 
 
-def check_corner_edge(edge: 'Edges', space: 'Space') -> Generator['Edge', bool, None]:
+def check_corner_edge(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
@@ -688,9 +687,6 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
-
-
-
 # Catalog Selectors
 
 SELECTORS = {
@@ -858,7 +854,7 @@ SELECTORS = {
         boundary_unique_longest,
         [
             space_area(max_area=30000),
-            cell_with_component(has_component=False)
+            cell_with_component()
         ]
     ),
 
