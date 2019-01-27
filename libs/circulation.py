@@ -13,7 +13,6 @@ from libs.mesh import Edge
 from libs.plot import plot_save
 from libs.utils.graph import Graph_nx, EdgeGraph
 from libs.category import LINEAR_CATEGORIES
-from tools.build_plan import build_plan
 
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
@@ -29,7 +28,8 @@ class Circulator:
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
         self.connectivity_graph = Graph_nx()
-        self.connecting_paths = []
+        self.connecting_paths = {level: [] for level in plan.list_level}
+        self.circulation_cost = 0
 
     def draw_path(self, space1: Space, space2: Space) -> Tuple['List[Vertex]', float]:
         """
@@ -51,12 +51,14 @@ class Circulator:
         return path_min, cost_min
 
     def multilevel_connection(self):
+        """
+        in multi-lvel case, adds a connection between spaces containing the stair at each level
+        """
         number_of_floors = self.plan.floor_count
         space_connection_between_floors = []
 
         if number_of_floors > 1:
             for level in self.plan.list_level:
-
                 for space in self.plan.spaces:
                     if space.floor.level is level and "startingStep" in space.components_category_associated():
                         space_connection_between_floors.append(space)
@@ -130,20 +132,22 @@ class Circulator:
                        room.floor.level is not start_level and "startingStep"
                        in room.components_category_associated()]
 
-        father_nodes[father_node[0].floor.level] = father_node[0]
+        for f in father_node:
+            father_nodes[f.floor.level] = f
 
         for node in self.connectivity_graph.nodes():
             if not self.connectivity_graph.has_path(node, father_nodes[node.floor.level]):
                 path, cost = self.draw_path(father_nodes[node.floor.level], node)
-                self.actualize_path(path)
+                self.circulation_cost += cost
+                self.actualize_path(path,node.floor.level)
                 self.connectivity_graph.add_edge(node, father_nodes[node.floor.level])
 
-    def actualize_path(self, path):
+    def actualize_path(self, path: List, level: int):
         """
         update based on computed corridor path
         :return:
         """
-        self.connecting_paths.append(path)
+        self.connecting_paths[level].append(path)
         # when a circulation has been set, it can be used to connect every other spaces
         # without cost increase
         self.path_calculator.set_corridor_to_zero_cost(path)
@@ -164,7 +168,8 @@ class Circulator:
                     path_min = path
                     connected_room = other
         if path_min is not None:
-            self.actualize_path(path_min)
+            self.actualize_path(path_min, space.floor.level)
+            self.circulation_cost += cost_min
 
         return connected_room
 
@@ -188,7 +193,7 @@ class Circulator:
 
         for i in range(number_of_floors):
             _ax = ax[i]
-            paths = self.connecting_paths
+            paths = self.connecting_paths[i]
             for path in paths:
                 if len(path) == 1:
                     _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
@@ -431,7 +436,7 @@ if __name__ == '__main__':
         space_planner = test_duplex()
 
         for solution in space_planner.solutions_collector.best():
-            #solution.plan.plot()
+            # solution.plan.plot()
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
             circulator.plot()
