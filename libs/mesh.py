@@ -2251,7 +2251,7 @@ class Face(MeshComponent):
 
         cropped_perimeter = intersection.exterior.coords[::-1]
         cropped_perimeter.pop()  # remove the duplicate point that shapely returns
-        self.insert_face_from_boundary(cropped_perimeter)
+        return self.insert_face_from_boundary(cropped_perimeter)
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
         """

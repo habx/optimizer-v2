@@ -8,7 +8,7 @@ TODO : we should structure this with a point class and a vector class
 from typing import Optional, Any, Sequence, Dict
 import numpy as np
 import shapely as sp
-from shapely.geometry import Point, LineString, LinearRing, Polygon
+from shapely.geometry import Point, LineString, LinearRing
 from random import randint
 
 from libs.utils.custom_types import Vector2d, Coords2d
@@ -232,3 +232,33 @@ def distance(point_1: Coords2d, point_2: Coords2d) -> float:
     """
     vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
     return magnitude(vector)
+
+
+def rectangle(reference_point: Coords2d,
+              orientation_vector: Vector2d,
+              width: float,
+              height: float) -> [Coords2d]:
+    """
+    Returns the perimeter points of a rectangle
+           WIDTH
+       +--------------+
+       |              |
+       |              | HEIGHT
+       | VECTOR       |
+       | *--->        |
+      [P]-------------+
+    REF POINT
+
+    :param reference_point:
+    :param orientation_vector:
+    :param width:
+    :param height:
+    :return: a list of 4 coordinates points
+    """
+    orientation_vector = normalized_vector(orientation_vector)
+    output = [reference_point]
+    output += [move_point(reference_point, orientation_vector, coeff=width)]
+    output += [move_point(output[1], normal_vector(orientation_vector), coeff=height)]
+    output += [move_point(output[2], orientation_vector, coeff=-width)]
+
+    return output

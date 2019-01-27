@@ -10,6 +10,8 @@ import logging
 
 import libs.transformation as transformation
 from libs.plan import Plan
+import libs.utils.geometry as geometry
+from libs.utils.custom_exceptions import OutsideFaceError
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -49,7 +51,10 @@ class Mutation:
         :return: the list of modified spaces
         """
         self._store_initial_sate(self.spaces_modified(edge, space))
-        return self._mutation(edge, space)
+        output = self._mutation(edge, space)
+        # update the plan if need be
+        space.plan.update_from_mesh()
+        return output
 
     def reverse(self, modified_spaces: Sequence['Space']):
         """
@@ -232,17 +237,6 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space, other_space]
 
 
-def add_aligned_face(_: 'Edge') -> Sequence['Space']:
-    """
-    Adds all the faces of the aligned edges
-    • checks if the edge is just after a corner
-    • gather all the next aligned edges
-    • for each edge add the corresponding faces
-    :return:
-    """
-    pass
-
-
 def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Removes an edge from a space.
@@ -318,9 +312,27 @@ def translation_cut(dist: float,
     return _action
 
 
+def insert_rectangle(width: float, height: float) -> EdgeMutation:
+    """
+    Inserts a rectangular face aligned with the edge
+    :param width:
+    :param height:
+    :return:
+    """
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+        rectangle = geometry.rectangle(edge.start.coords, edge.vector, width, height)
+        try:
+            return space.face.insert_crop_face_from_boundary(rectangle)
+        except OutsideFaceError:
+            return []
+
+    return _action
+
+
 MUTATION_FACTORIES = {
     "translation_cut": MutationFactory(translation_cut, reversible=False),
-    "barycenter_cut": MutationFactory(barycenter_cut, reversible=False)
+    "barycenter_cut": MutationFactory(barycenter_cut, reversible=False),
+    "rectangle_cut": MutationFactory(insert_rectangle, reversible=False)
 }
 
 MUTATIONS = {
