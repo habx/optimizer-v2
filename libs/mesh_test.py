@@ -653,3 +653,69 @@ def test_insert_overlapping_face():
         mesh = Mesh().from_boundary(perimeter)
         face = mesh.new_face_from_boundary(face_perimeter)
         mesh.insert_external_face(face)
+
+
+def test_insert_crop_face():
+    """
+    Inserts and crops a face
+    +------------+
+    | FACE A     |
+    |      +-----+---+
+    |      | FACE B  |
+    |      +---------+
+    +------------+
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(50, 25), (150, 25), (150, 75), (50, 75)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    mesh.plot()
+
+
+def test_insert_crop_face_fail():
+    """
+    Tries to insert and crops a face.
+    Should raise outside face error.
+    +------------+
+    | FACE A     |
+    |            +--------+
+    |            | FACE B |
+    |            +--------+
+    +------------+
+    :return:
+    """
+    from libs.utils.custom_exceptions import OutsideFaceError
+
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(100, 25), (150, 25), (150, 75), (100, 75)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    with pytest.raises(OutsideFaceError):
+        face.insert_crop_face_from_boundary(b)
+
+
+def test_cardinality_2():
+    """
+    Tests the cardinality method of the edge class
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    mesh = Mesh().from_boundary(a)
+    edge = mesh.boundary_edge
+    assert edge.cardinality == 2
+
+
+def test_cardinality_3():
+    """
+    Tests the cardinality method of the edge class
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(50, 25), (150, 25), (150, 75), (50, 75)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    edge = mesh.boundary_edge.pair.next.next
+    assert edge.cardinality == 3

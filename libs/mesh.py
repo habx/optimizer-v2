@@ -599,6 +599,22 @@ class Edge(MeshComponent):
         return self.pair.face is self.face
 
     @property
+    def cardinality(self) -> int:
+        """
+        Counts the number of edges linked to the start or end of the edge
+        Example : this edge has a cardinality of 5
+             +               +
+             |     EDGE      |
+        +----*---------------*
+             |               |
+             +               +
+        :return:
+        """
+        number_edges_start = len(list(self.start.edges)) - 1
+        number_edges_end = len(list(self.end.edges)) - 1
+        return number_edges_end + number_edges_start
+
+    @property
     def absolute_angle(self) -> float:
         """
         Returns the ccw angle in degrees between he (0,1) vector and the edge
@@ -2218,6 +2234,24 @@ class Face(MeshComponent):
         except OutsideFaceError:
             self.mesh.remove_face_and_children(face_to_insert)
             raise
+
+    def insert_crop_face_from_boundary(self, perimeter: [Coords2d]) -> ['Face']:
+        """
+        Inserts a face inside the receiving face and crops the face if necessary to include
+        in receiving face
+        :param perimeter:
+        :return:
+        """
+        assert len(perimeter) >= 3, "The specified perimeter must have at least 3 points"
+        face_polygon = Polygon(perimeter + [perimeter[0]])
+        intersection = face_polygon.intersection(self.as_sp)
+
+        if intersection.is_empty or intersection.geom_type != "Polygon":
+            raise OutsideFaceError
+
+        cropped_perimeter = intersection.exterior.coords[::-1]
+        cropped_perimeter.pop()  # remove the duplicate point that shapely returns
+        self.insert_face_from_boundary(cropped_perimeter)
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
         """

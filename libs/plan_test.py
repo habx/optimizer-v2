@@ -752,7 +752,7 @@ def test_maximum_adjacency_length():
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
     length = plan.spaces[0].maximum_adjacency_length(plan.spaces[2])
 
-    assert(length == 200, "test_maximum_adjacency_length")
+    assert length == 200, "test_maximum_adjacency_length"
 
 
 def test_adjacent_spaces():
@@ -781,4 +781,4 @@ def test_adjacent_spaces():
     print(adjacent_spaces)
     print(plan.spaces)
 
-    assert(adjacent_spaces == plan.spaces, "adjacent_spaces")
+    assert adjacent_spaces == plan.spaces, "adjacent_spaces"
