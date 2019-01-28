@@ -435,12 +435,12 @@ if __name__ == '__main__':
 
         space_planner = test_duplex()
 
-        for solution in space_planner.solutions_collector.best():
-            # solution.plan.plot()
-            circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
-            circulator.connect()
-            circulator.plot()
-            logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
+        if space_planner.solutions_collector.solutions:
+            for solution in space_planner.solutions_collector.best():
+                circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
+                circulator.connect()
+                circulator.plot()
+                logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
 
 
     connect_plan()
