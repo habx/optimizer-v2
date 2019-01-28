@@ -1772,6 +1772,7 @@ class Plan:
             if space:
                 logging.debug("Plan: Removing face from space from mesh update %s", face)
                 space.remove_face_id(face)
+                space.set_edges()
 
     def update_from_mesh(self):
         """

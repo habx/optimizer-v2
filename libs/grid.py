@@ -46,14 +46,14 @@ class Grid:
         logging.debug("Grid: Applying Grid %s to plan %s", self.name, plan)
 
         for operator in self.operators:
-            self.apply_operator(plan, operator)
+            self._apply_operator(plan, operator)
             # we simplify the mesh between each operator
             plan.mesh.simplify()
             plan.update_from_mesh()
 
         return plan
 
-    def apply_operator(self, plan: 'Plan', operator: Tuple['Selector', 'Mutation']):
+    def _apply_operator(self, plan: 'Plan', operator: Tuple['Selector', 'Mutation']):
         """
         Apply operation to the empty spaces of the plan
         :param plan:
@@ -61,14 +61,14 @@ class Grid:
         :return:
         """
         for empty_space in plan.empty_spaces:
-            mesh_has_changed = self.select_and_slice(empty_space, operator)
+            mesh_has_changed = self._select_and_slice(empty_space, operator)
             if mesh_has_changed:
-                return self.apply_operator(plan, operator)
+                return self._apply_operator(plan, operator)
         return
 
     @staticmethod
-    def select_and_slice(space: 'Space',
-                         operator: Tuple['Selector', 'Mutation']) -> bool:
+    def _select_and_slice(space: 'Space',
+                          operator: Tuple['Selector', 'Mutation']) -> bool:
         """
         Selects the correct edges and applies the slice transformation to them
         :param space:
@@ -204,11 +204,17 @@ finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                      (SELECTORS["edge_min_150"],
                                       MUTATION_FACTORIES['barycenter_cut'](0.5)))
 
+rectangle_grid = Grid("rectangle", [
+    (SELECTORS["duct_edge_min_80"],
+     MUTATION_FACTORIES["rectangle_cut"](80, 180))
+])
+
 GRIDS = {
     "ortho_grid": ortho_grid,
     "sequence_grid": sequence_grid,
     "simple_grid": simple_grid,
-    "finer_ortho_grid": finer_ortho_grid
+    "finer_ortho_grid": finer_ortho_grid,
+    "rectangle_grid": rectangle_grid
 }
 
 if __name__ == '__main__':
@@ -221,7 +227,7 @@ if __name__ == '__main__':
         :return:
         """
         plan = reader.create_plan_from_file("Massy_C303.json")
-        new_plan = finer_ortho_grid.apply_to(plan)
+        new_plan = rectangle_grid.apply_to(plan)
         new_plan.check()
 
         new_plan.plot(save=False)

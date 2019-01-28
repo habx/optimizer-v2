@@ -669,9 +669,46 @@ def test_insert_crop_face():
     a = [(0, 0), (100, 0), (100, 100), (0, 100)]
     b = [(50, 25), (150, 25), (150, 75), (50, 75)]
     mesh = Mesh().from_boundary(a)
+    mesh.boundary_edge.pair.next.split_barycenter(0.6)
     face = mesh.faces[0]
     face.insert_crop_face_from_boundary(b)
     mesh.plot()
+    assert mesh.check()
+
+
+def test_insert_touching_face():
+    """
+
+    :return:
+    """
+    a = [(0, 0), (250, 0), (250, 250), (750, 250), (750, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    b = [(200, 250), (800, 250), (800, 750), (200, 750)]
+    c = [(750, 250), (750, 0), (1500, 0), (1500, 250)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    face.insert_crop_face_from_boundary(c)
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_insert_identical_face():
+    """
+
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = a
+    mesh = Mesh().from_boundary(a)
+
+    face = mesh.faces[0]
+    face.insert_face_from_boundary(b)
+
+    #face = mesh.faces[0]
+    #face.insert_face_from_boundary(b)
+
+    mesh.plot()
+    assert mesh.check()
 
 
 def test_insert_crop_face_fail():

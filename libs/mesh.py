@@ -412,6 +412,7 @@ class Vertex(MeshComponent):
                 if self.edge is not None:
                     for edge in list(self.edges):
                         edge.start = other
+                    self.edge = None
                 # remove the vertex from the mesh
                 if self.mesh:
                     self.remove_from_mesh()
@@ -439,9 +440,15 @@ class Vertex(MeshComponent):
                 if self.edge is None:
                     best_edge = new_edge
                     break
-                # check if we have a correct edge
-                # TODO we only need this if the face has an internal edge
-                # (we could check to improve the speed of the method)
+
+                internal_edge = (edge.is_internal or edge.pair.next
+                                 or edge.pair.next.pair.next.is_internal)
+
+                if not internal_edge:
+                    best_edge = new_edge
+                    break
+
+                # check if we have a correct edge in case of an internal edge
                 new_angle = ccw_angle(new_edge.vector, self.edge.vector)
                 if min_angle is None or min_angle > new_angle:
                     best_edge = new_edge
@@ -507,10 +514,11 @@ class Edge(MeshComponent):
         self.check_size()
 
     def __repr__(self):
-        output = 'Edge:[({x1}, {y1}), ({x2}, {y2})]'.format(x1=self.start.x,
+        output = 'Edge:[({x1}, {y1}), ({x2}, {y2})] - {i}'.format(x1=self.start.x,
                                                             y1=self.start.y,
                                                             x2=self.end.x,
-                                                            y2=self.end.y)
+                                                            y2=self.end.y,
+                                                            i=id(self))
         return output
 
     @property
@@ -1628,7 +1636,7 @@ class Face(MeshComponent):
         output = 'Face: ['
         for edge in self.edges:
             output += '({0}, {1})'.format(*edge.start.coords)
-        return output + ']'
+        return output + '] - {}'.format(id(self))
 
     def swap(self, face: Optional['Face'] = None):
         """
@@ -1645,6 +1653,12 @@ class Face(MeshComponent):
         # swap edge references
         for edge in self.edges:
             edge.face = new_face
+
+        # preserve vertices references
+        for vertex in new_face.vertices:
+            for edge in self.edges:
+                if edge.start is vertex:
+                    vertex.edge = edge
 
         self.remove_from_mesh()
         return new_face
@@ -1895,6 +1909,9 @@ class Face(MeshComponent):
                 new_vertices.append(Vertex(self.mesh, *geom_object.coords[0]))
                 new_vertices.append(Vertex(self.mesh, *geom_object.coords[-1]))
 
+        if new_vertices:
+            logging.debug("Mesh: Slicing a face on multiple vertices: %s", new_vertices)
+
         for vertex in new_vertices:
             new_edge = vertex.snap_to_edge(*self.edges)
             if new_edge is None:
@@ -2047,7 +2064,7 @@ class Face(MeshComponent):
 
         return sorted_faces
 
-    def _insert_identical_face(self, face) -> List['Face']:
+    def _insert_identical_face(self, face: 'Face') -> List['Face']:
         """
         insert a identical face
         :param face:
@@ -2083,11 +2100,11 @@ class Face(MeshComponent):
         # split the face edges if they touch a vertex of the container face
         # TODO : this is highly inefficient as we try to intersect every edge with every vertex
 
-        for vertex in self.vertices:
+        for _vertex in self.vertices:
             face_edges = list(face.edges)
-            new_edge = vertex.snap_to_edge(*face_edges)
+            new_edge = _vertex.snap_to_edge(*face_edges)
             if new_edge is not None:
-                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', vertex)
+                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', _vertex)
 
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
@@ -2215,9 +2232,15 @@ class Face(MeshComponent):
             created_faces = self._insert_face(face)
 
         # store the specific mesh operation
+        receiving_face_was_deleted = True
         mesh.store_modification(MeshOps.INSERT, face, self)
         for created_face in created_faces:
+            if created_face is self:
+                receiving_face_was_deleted = False
+                continue
             mesh.store_modification(MeshOps.INSERT, created_face, self)
+        if receiving_face_was_deleted:
+            mesh.store_modification(MeshOps.REMOVE, self)
 
         return created_faces
 
@@ -2244,7 +2267,12 @@ class Face(MeshComponent):
         """
         assert len(perimeter) >= 3, "The specified perimeter must have at least 3 points"
         face_polygon = Polygon(perimeter + [perimeter[0]])
-        intersection = face_polygon.intersection(self.as_sp)
+        self_polygon = self.as_sp.buffer(0)
+
+        if not face_polygon.is_valid or not self_polygon.is_valid:
+            raise ValueError("Badly formed polygons")
+
+        intersection = face_polygon.intersection(self_polygon)
 
         if intersection.is_empty or intersection.geom_type != "Polygon":
             raise OutsideFaceError
@@ -2309,6 +2337,8 @@ class Face(MeshComponent):
 
         logging.debug("Face: Cleaning a two faced faces")
 
+        mesh = self.mesh
+
         edge_1 = self.edge
         edge_2 = self.edge.next
         # preserve the references
@@ -2321,6 +2351,8 @@ class Face(MeshComponent):
         edge_1.remove_from_mesh()
         edge_2.remove_from_mesh()
         self.remove_from_mesh()
+
+        mesh.watch()
 
         return None
 
@@ -3048,10 +3080,10 @@ class Mesh:
                 if edge.start.edge is None:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Vertex has no edge: {0}'.format(edge.start))
-                if edge.start.edge.start is not edge.start:
+                if edge.start.edge is None or edge.start.edge.start is not edge.start:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Wrong edge attribution in: ' +
-                                  '{0}'.format(edge.start))
+                                  '{0} - {1}'.format(edge.start, edge))
                 if edge.next.next is edge:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: 2-edges face found:{0}'.format(edge))
@@ -3067,6 +3099,12 @@ class Mesh:
                 is_valid = False
 
         is_valid = is_valid and self.check_duplicate_vertices()
+
+        for vertex in self.vertices:
+            if vertex.edge not in self.edges:
+                logging.error("Mesh: Vertex has a reference edge outside of the mesh:"
+                              "{} - {}".format(vertex, vertex.edge))
+                is_valid = False
 
         for edge_id in self._edges:
             if edge_id not in edges_id:
@@ -3224,4 +3262,25 @@ if __name__ == '__main__':
 
         assert mesh.check()
 
-    insert_complex_face_1()
+    # insert_complex_face_1()
+
+    def insert_identical_face():
+        """
+
+        :return:
+        """
+        a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+        b = a
+        mesh = Mesh().from_boundary(a)
+
+        face = mesh.faces[0]
+        face.insert_face_from_boundary(b)
+
+        face = mesh.faces[0]
+        face.insert_face_from_boundary(b)
+
+        mesh.plot()
+        assert mesh.check()
+
+
+    insert_identical_face()

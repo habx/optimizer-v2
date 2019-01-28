@@ -109,3 +109,18 @@ def test_rectangle_cut(l_plan):
     l_plan.plot()
 
     assert l_plan.check()
+
+
+def test_rectangle_cut_split(l_plan):
+    """
+    Test the mutation
+    :param l_plan:
+    :return:
+    """
+    rectangle_mutation = MUTATION_FACTORIES["rectangle_cut"](100, 100, 20)
+    edge = l_plan.mesh.boundary_edge.pair
+    modified_spaces = rectangle_mutation.apply_to(edge, l_plan.empty_space)
+
+    l_plan.plot()
+
+    assert l_plan.check()

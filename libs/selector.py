@@ -203,7 +203,7 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
 def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-     face is added the size ratio defined as depth/width is clother to one
+     face is added the size ratio defined as depth/width is closer to one
     """
 
     ref_edge = space.edge
@@ -617,7 +617,7 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     :return: function
     """
 
-    def _predicate(edge: 'Edge', space: 'Space'):
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
         linear_edges = []
         for sibling in edge.siblings:
             linear = space.plan.get_linear(sibling)
@@ -648,6 +648,22 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
                 return True
 
         return False
+
+    return _predicate
+
+
+def adjacent_to_space(*category_names: str) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate that returns True if the edge.pair belongs to a space of the
+    specified category name
+    :param category_names:
+    :return: a predicate
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        space = space.plan.get_space_of_edge(edge.pair)
+        return space is not None and space.category.name in category_names
 
     return _predicate
 
@@ -890,6 +906,14 @@ SELECTORS = {
             is_not(corner_stone)
         ]
     ),
+
+    "duct_edge_min_80": Selector(
+        boundary,
+        [
+            adjacent_to_space("duct"),
+            edge_length(min_length=50)
+        ]
+    )
 }
 
 SELECTOR_FACTORIES = {

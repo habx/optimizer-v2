@@ -237,27 +237,30 @@ def distance(point_1: Coords2d, point_2: Coords2d) -> float:
 def rectangle(reference_point: Coords2d,
               orientation_vector: Vector2d,
               width: float,
-              height: float) -> [Coords2d]:
+              height: float,
+              offset: float = 0) -> [Coords2d]:
     """
     Returns the perimeter points of a rectangle
-           WIDTH
-       +--------------+
-       |              |
-       |              | HEIGHT
-       | VECTOR       |
-       | *--->        |
-      [P]-------------+
-    REF POINT
+                    WIDTH
+                +--------------+
+                |              |
+                |              | HEIGHT
+                | VECTOR       |
+      <-offset->| *--->        |
+    [P]---------+--------------+
+  REF POINT
 
     :param reference_point:
     :param orientation_vector:
     :param width:
     :param height:
+    :param offset:
     :return: a list of 4 coordinates points
     """
     orientation_vector = normalized_vector(orientation_vector)
-    output = [reference_point]
-    output += [move_point(reference_point, orientation_vector, coeff=width)]
+    point = move_point(reference_point, orientation_vector, coeff=offset)
+    output = [point]
+    output += [move_point(output[0], orientation_vector, coeff=width)]
     output += [move_point(output[1], normal_vector(orientation_vector), coeff=height)]
     output += [move_point(output[2], orientation_vector, coeff=-width)]
 
