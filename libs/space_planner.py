@@ -280,19 +280,7 @@ if __name__ == '__main__':
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
 
-        for space in plan.spaces:
-            print(space, space.area)
-        for item in spec.items:
-            print(item)
-            print('min', item.min_size.area)
-            print('max', item.max_size.area)
-
         space_planner = SpacePlanner("test", spec)
         best_solutions = space_planner.solution_research()
 
     space_planning()
-
-
-
-
-

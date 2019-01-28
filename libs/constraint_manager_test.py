@@ -93,7 +93,6 @@ def t1_test():
     entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
     spec = Specification("simple_test", plan_t1, [bathroom, entrance, living])
-    print(spec)
 
     space_planner_t1 = SpacePlanner("t1", spec)
     best_t1 = space_planner_t1.solution_research()
@@ -132,7 +131,6 @@ def t1_bis_test():
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=80000), Size(area=100000), ["bedroom"])
     bedroom = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=80000), Size(area=100000), ["living"])
     spec = Specification("simple_test", plan_t1_bis, [bathroom, entrance, living, bedroom])
-    print(spec)
 
     space_planner_t1_bis = SpacePlanner("t1_bis", spec)
     best_t1_bis = space_planner_t1_bis.solution_research()
@@ -174,8 +172,7 @@ def t3_test():
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     spec = Specification("simple_test", plan_t3, [bathroom, entrance, living, bedroom1, bedroom2])
-    print(spec)
-    print("plan_t3", plan_t3)
+
     space_planner_t3 = SpacePlanner("t3", spec)
     best_t3 = space_planner_t3.solution_research()
     assert len(space_planner_t3.solutions_collector.solutions) == 3
@@ -213,7 +210,6 @@ def t3_balcony_test():
     plan_t3_balcony.insert_space_from_boundary(bedroom_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t3_balcony.remove_null_spaces()
     plan_t3_balcony.plot()
-    print("plan_t3_balcony", plan_t3_balcony)
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
@@ -221,7 +217,6 @@ def t3_balcony_test():
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     spec = Specification("simple_test", plan_t3_balcony, [bathroom, entrance, living, bedroom1, bedroom2])
-    print(spec)
 
     space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
     best_t3 = space_planner_t3_balcony.solution_research()
@@ -263,7 +258,6 @@ def t3_bis_test():
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     spec = Specification("simple_test", plan_t3_bis, [bathroom, entrance, living, bedroom1, bedroom2])
-    print(spec)
 
     space_planner_t3_bis = SpacePlanner("t3_bis", spec)
     best_t3_bis = space_planner_t3_bis.solution_research()

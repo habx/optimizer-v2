@@ -15,6 +15,7 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
+import logging
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
@@ -166,8 +167,6 @@ class ConstraintsManager:
             for item in self.sp.spec.items:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
                     self.item_constraints[item.category.name].append(constraint)
-
-        print("ConstraintsManager : CONSTRAINTS", self.item_constraints)
         logging.debug("ConstraintsManager : CONSTRAINTS", self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
@@ -296,7 +295,6 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
     :return: ct: ortools.Constraint
     """
     ct = None
-    print(item)
     for j_item in manager.sp.spec.items:
         if item.required_area < j_item.required_area:
             if ct is None:
@@ -306,7 +304,6 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
                 new_ct = (manager.windows_length[str(item.id)] <=
                           manager.windows_length[str(j_item.id)])
                 ct = manager.solver.solver.Min(ct, new_ct)
-    print(ct)
     if ct is None:
         return ct
     else:
