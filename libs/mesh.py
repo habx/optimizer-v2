@@ -1560,7 +1560,7 @@ class Edge(MeshComponent):
         # store modification
         self.mesh.store_modification(MeshOps.INSERT, new_edge, self)
         self.mesh.store_modification(MeshOps.INSERT, new_edge_pair, self.pair)
-        self.mesh.watch()
+        # self.mesh.watch()
 
         return new_edge
 
@@ -2030,6 +2030,7 @@ class Face(MeshComponent):
                 # preserve references for face and vertex
                 previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
                 previous_edge.pair.next.preserve_references(previous_edge)
+                previous_touching_edge.preserve_references(previous_edge)
                 # remove the edge from the mesh
                 previous_edge.pair.remove_from_mesh()
                 # remove the duplicate edges
@@ -2049,6 +2050,7 @@ class Face(MeshComponent):
         # forward check : at the end of the loop check forward for isolation
         if edge.pair.next.next is edge.pair:
             # remove from the mesh
+            touching_edge.preserve_references(edge)
             edge.pair.remove_from_mesh()
             edge.pair = touching_edge.pair
             # swap the id to preserve references
@@ -2300,6 +2302,7 @@ class Face(MeshComponent):
 
                 raise OutsideVertexError('Could not insert edge because vertex' +
                                          ' is not on the face boundary')
+            self.mesh.watch()  # TODO this is ugly but necessary to correctly update the linear
             edges.append(edge)
 
         return edges[0]

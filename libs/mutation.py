@@ -321,10 +321,13 @@ def insert_rectangle(width: float, height: float, offset: float = 0) -> EdgeMuta
     :return:
     """
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+        face = space.largest_face
         rectangle = geometry.rectangle(edge.start.coords, edge.vector, width, height, offset)
         try:
-            return space.face.insert_crop_face_from_boundary(rectangle)
+            return face.insert_crop_face_from_boundary(rectangle)
         except OutsideFaceError:
+            logging.debug("Mutation: Trying to insert rectangular face outside of face: %s",
+                          face)
             return []
 
     return _action

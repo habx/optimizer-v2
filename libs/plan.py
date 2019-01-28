@@ -176,6 +176,15 @@ class Space(PlanComponent):
         """
         return self.edge.face if self.edge else None
 
+    @property
+    def largest_face(self) -> Face:
+        """
+        property
+        The face of the reference edge of the space
+        :return:
+        """
+        return max(list(self.faces), key=lambda face: face.area)
+
     def has_face(self, face: 'Face') -> bool:
         """
         returns True if the face belongs to the space
@@ -2385,12 +2394,13 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Levallois_Creuze.json"
+        input_file = "Antony_B22.json"
         plan = reader.create_plan_from_file(input_file)
 
-        plan.plot()
+        plan.plot(save=False)
+        plt.show()
 
-        assert plan.check()
+        plan.check()
 
 
     floor_plan()

@@ -205,7 +205,7 @@ finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                       MUTATION_FACTORIES['barycenter_cut'](0.5)))
 
 rectangle_grid = Grid("rectangle", [
-    (SELECTORS["duct_edge_min_80"],
+    (SELECTORS["duct_edge_min_50"],
      MUTATION_FACTORIES["rectangle_cut"](80, 180))
 ])
 

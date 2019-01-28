@@ -907,7 +907,7 @@ SELECTORS = {
         ]
     ),
 
-    "duct_edge_min_80": Selector(
+    "duct_edge_min_50": Selector(
         boundary,
         [
             adjacent_to_space("duct"),
