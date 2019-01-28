@@ -14,7 +14,7 @@ from libs.selector import SELECTORS, SELECTOR_FACTORIES
 if TYPE_CHECKING:
     from libs.mutation import Mutation
     from libs.selector import Selector
-    from libs.plan import Plan, Space
+    from libs.plan import Plan, Space, Edge
 
 
 class Grid:
@@ -23,9 +23,10 @@ class Grid:
     TODO : for clarity purpose we should probably replace the operator concept by an Action instance
     """
 
-    def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation']]):
+    def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation', bool]]):
         self.name = name
         self.operators = operators or []
+        self._seen: ['Edge'] = []  # use to modify an edge only once
 
     def clone(self, name: str = "") -> 'Grid':
         """
@@ -53,7 +54,7 @@ class Grid:
 
         return plan
 
-    def _apply_operator(self, plan: 'Plan', operator: Tuple['Selector', 'Mutation']):
+    def _apply_operator(self, plan: 'Plan', operator: Tuple['Selector', 'Mutation', bool]):
         """
         Apply operation to the empty spaces of the plan
         :param plan:
@@ -66,24 +67,27 @@ class Grid:
                 return self._apply_operator(plan, operator)
         return
 
-    @staticmethod
-    def _select_and_slice(space: 'Space',
-                          operator: Tuple['Selector', 'Mutation']) -> bool:
+    def _select_and_slice(self, space: 'Space',
+                          operator: Tuple['Selector', 'Mutation', bool]) -> bool:
         """
         Selects the correct edges and applies the slice transformation to them
         :param space:
         :param operator:
         :return:
         """
-        _selector, _mutation = operator
+        _selector, _mutation, apply_once = operator
         for edge in _selector.yield_from(space):
+            if edge in self._seen:
+                continue
             logging.debug("Grid: Applying cut %s to edge %s of space %s", _mutation, edge, space)
             mesh_has_changed = _mutation.apply_to(edge, space)
+            if apply_once:
+                self._seen.append(edge)
             if mesh_has_changed:
                 return True
         return False
 
-    def extend(self, name: str = "", *operators: Tuple['Selector', 'Mutation']) -> 'Grid':
+    def extend(self, name: str = "", *operators: Tuple['Selector', 'Mutation', bool]) -> 'Grid':
         """
         Adds one or several operators to the grid, returns a new grid.
         Can be used to extend grids for example.
@@ -101,54 +105,54 @@ class Grid:
 simple_grid = Grid("simple_grid", [
     (
         SELECTOR_FACTORIES["edges_length"]([], [[100]]),
-        MUTATION_FACTORIES["barycenter_cut"](0.5)
+        MUTATION_FACTORIES["barycenter_cut"](0.5), False
     )
 ])
 
 sequence_grid = Grid('sequence_grid', [
     (
         SELECTORS["previous_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["next_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["previous_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["next_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["previous_angle_salient_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["close_to_window"],
-        MUTATIONS['remove_edge']
+        MUTATIONS['remove_edge'], False
     ),
     (
         SELECTORS["between_windows"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["between_edges_between_windows"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["aligned_edges"],
-        MUTATION_FACTORIES['barycenter_cut'](1.0)
+        MUTATION_FACTORIES['barycenter_cut'](1.0), False
     ),
     (
         SELECTORS["edge_min_150"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["close_to_window"],
-        MUTATIONS['remove_edge']
+        MUTATIONS['remove_edge'], False
 
     )
 ])
@@ -156,57 +160,57 @@ sequence_grid = Grid('sequence_grid', [
 ortho_grid = Grid('ortho_grid', [
     (
         SELECTORS["previous_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["next_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["previous_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["next_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
+        MUTATIONS['ortho_projection_cut'], False
     ),
     (
         SELECTORS["previous_angle_salient_ortho"],
-        MUTATION_FACTORIES['barycenter_cut'](0)
+        MUTATION_FACTORIES['barycenter_cut'](0), False
     ),
     (
         SELECTORS["next_angle_salient_ortho"],
-        MUTATION_FACTORIES['barycenter_cut'](1.0)
+        MUTATION_FACTORIES['barycenter_cut'](1.0), False
     ),
     (
         SELECTORS["edge_min_500"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["between_windows"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["between_edges_between_windows"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["edge_min_300"],
-        MUTATION_FACTORIES['barycenter_cut'](0.5)
+        MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
         SELECTORS["aligned_edges"],
-        MUTATION_FACTORIES['barycenter_cut'](1.0)
+        MUTATION_FACTORIES['barycenter_cut'](1.0), False
     )
 ])
 
 finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                      (SELECTORS["edge_min_150"],
-                                      MUTATION_FACTORIES['barycenter_cut'](0.5)))
+                                      MUTATION_FACTORIES['barycenter_cut'](0.5), False))
 
 rectangle_grid = Grid("rectangle", [
     (SELECTORS["duct_edge_min_50"],
-     MUTATION_FACTORIES["rectangle_cut"](80, 180))
+     MUTATION_FACTORIES["rectangle_cut"](180), True)
 ])
 
 GRIDS = {

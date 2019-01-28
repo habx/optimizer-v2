@@ -53,7 +53,7 @@ def test_simple_ortho_grid():
     :return:
     """
     simple_ortho_grid = Grid('simple_ortho_grid', [(SELECTORS["previous_angle_salient_ortho"],
-                                                    MUTATIONS['ortho_projection_cut'])])
+                                                    MUTATIONS['ortho_projection_cut'], False)])
 
     plan = reader.create_plan_from_file("Antony_A22.json")
     new_plan = simple_ortho_grid.apply_to(plan)

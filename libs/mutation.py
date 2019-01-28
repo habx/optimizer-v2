@@ -312,7 +312,8 @@ def translation_cut(dist: float,
     return _action
 
 
-def insert_rectangle(width: float, height: float, offset: float = 0) -> EdgeMutation:
+def insert_rectangle(height: float,
+                     width: Optional[float] = None, offset: float = 0) -> EdgeMutation:
     """
     Inserts a rectangular face aligned with the edge
     :param width:
@@ -321,8 +322,9 @@ def insert_rectangle(width: float, height: float, offset: float = 0) -> EdgeMuta
     :return:
     """
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+        _width = width or edge.length
         face = space.largest_face
-        rectangle = geometry.rectangle(edge.start.coords, edge.vector, width, height, offset)
+        rectangle = geometry.rectangle(edge.start.coords, edge.vector, _width, height, offset)
         try:
             return face.insert_crop_face_from_boundary(rectangle)
         except OutsideFaceError:
