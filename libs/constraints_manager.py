@@ -15,7 +15,6 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
-import logging
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
@@ -27,7 +26,7 @@ DAY_ROOMS = ("living", "dining", "kitchen", "cellar")
 
 PRIVATE_ROOMS = ("bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace")
 
-WINDOW_CATEGORY = ("window", "doorWindow")
+WINDOW_CATEGORY = ["window", "doorWindow"]
 
 BIG_VARIANTS = ("m", "l", "xl")
 
@@ -246,7 +245,7 @@ def space_attribution_constraint(manager: 'ConstraintsManager',
 
 
 def item_attribution_constraint(manager: 'ConstraintsManager',
-                                 item: Item) -> ortools.Constraint:
+                                item: Item) -> ortools.Constraint:
     """
     Each item has to be associated with a space
     :param manager: 'ConstraintsManager'
@@ -515,7 +514,8 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
-def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) \
+        -> ortools.Constraint:
     """
     externals connection constraint
     :param manager: 'ConstraintsManager'
@@ -530,16 +530,13 @@ def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) -
             has_to_be_connected = True
             break
 
-    print([space.connected_spaces() for j, space in
-            enumerate(manager.sp.spec.plan.mutable_spaces())
-            if [ext_space for ext_space in space.connected_spaces() if ext_space.category.external]
-            is not []])
     if has_to_be_connected:
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
-            if [ext_space for ext_space in space.connected_spaces() if ext_space.category.external]
-            is not [])
+            if max([ext_space.area for ext_space in space.connected_spaces()
+                    if ext_space is not None and ext_space.category.external],
+                   default=0) > BIG_EXTERNAL_SPACE)
         ct = (adjacency_sum >= 1)
 
     return ct

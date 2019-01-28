@@ -290,17 +290,9 @@ if __name__ == '__main__':
         space_planner = SpacePlanner("test", spec)
         best_solutions = space_planner.solution_research()
 
-    #space_planning()
+    space_planning()
 
-    # import libs.constraint_manager_test as cmt
-    # cmt.test_basic_case()
 
-    from libs.space_planner_test import simple_test
-    # # spt.test_duplex()
-    simple_test()
-
-    # import libs.solution_test as st
-    # st.test_duplex()
 
 
 
