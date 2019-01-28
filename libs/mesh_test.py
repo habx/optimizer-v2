@@ -692,7 +692,7 @@ def test_insert_touching_face():
     assert mesh.check()
 
 
-def test_insert_identical_face():
+def test_double_insert_identical_face():
     """
 
     :return:
@@ -704,8 +704,8 @@ def test_insert_identical_face():
     face = mesh.faces[0]
     face.insert_face_from_boundary(b)
 
-    #face = mesh.faces[0]
-    #face.insert_face_from_boundary(b)
+    face = mesh.faces[0]
+    face.insert_face_from_boundary(b)
 
     mesh.plot()
     assert mesh.check()

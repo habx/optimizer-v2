@@ -104,7 +104,7 @@ def test_rectangle_cut(l_plan):
     """
     rectangle_mutation = MUTATION_FACTORIES["rectangle_cut"](100, 100)
     edge = l_plan.mesh.boundary_edge.pair
-    modified_spaces = rectangle_mutation.apply_to(edge, l_plan.empty_space)
+    rectangle_mutation.apply_to(edge, l_plan.empty_space)
 
     l_plan.plot()
 
@@ -119,7 +119,7 @@ def test_rectangle_cut_split(l_plan):
     """
     rectangle_mutation = MUTATION_FACTORIES["rectangle_cut"](100, 100, 20)
     edge = l_plan.mesh.boundary_edge.pair
-    modified_spaces = rectangle_mutation.apply_to(edge, l_plan.empty_space)
+    rectangle_mutation.apply_to(edge, l_plan.empty_space)
 
     l_plan.plot()
 

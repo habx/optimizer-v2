@@ -515,10 +515,10 @@ class Edge(MeshComponent):
 
     def __repr__(self):
         output = 'Edge:[({x1}, {y1}), ({x2}, {y2})] - {i}'.format(x1=self.start.x,
-                                                            y1=self.start.y,
-                                                            x2=self.end.x,
-                                                            y2=self.end.y,
-                                                            i=id(self))
+                                                                  y1=self.start.y,
+                                                                  x2=self.end.x,
+                                                                  y2=self.end.y,
+                                                                  i=id(self))
         return output
 
     @property
