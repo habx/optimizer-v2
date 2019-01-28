@@ -7,11 +7,12 @@ and a customer input setup
 
 """
 import logging
+from typing import List, Optional
 from libs.specification import Specification
 from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS, FILL_METHODS_HOMOGENEOUS
 from libs.category import SPACE_CATEGORIES
 import networkx as nx
 
@@ -140,7 +141,7 @@ class SpacePlanner:
         assert plan.check()
         return plan
 
-    def solution_research(self) -> None:
+    def solution_research(self) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
         :return: None
@@ -168,6 +169,7 @@ class SpacePlanner:
                 for sol in best_sol:
                     logging.debug(sol)
                     #sol.plan.plot()
+                    return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
@@ -262,19 +264,12 @@ if __name__ == '__main__':
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
-         .grow(show=True)
-         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-               show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         # .empty(SELECTORS["corner_big_cell_area_70000"])
-         # .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-         #                                  "empty"), show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+         .grow()
+         #.shuffle(SHUFFLES["seed_square_shape"])
+         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
+         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"])
+         .shuffle(SHUFFLES["seed_square_shape"]))
 
         plan.plot()
         logging.debug("number of mutables spaces, %i",
@@ -289,20 +284,23 @@ if __name__ == '__main__':
             print(space, space.area)
         for item in spec.items:
             print(item)
-            print('min',item.min_size.area)
-            print('max',item.max_size.area)
+            print('min', item.min_size.area)
+            print('max', item.max_size.area)
 
         space_planner = SpacePlanner("test", spec)
-        space_planner.solution_research()
+        best_solutions = space_planner.solution_research()
 
-    space_planning()
+    #space_planning()
+
     # import libs.constraint_manager_test as cmt
-    #
     # cmt.test_basic_case()
 
-    # import libs.space_planner_test as spt
-    # spt.test_duplex()
+    from libs.space_planner_test import simple_test
+    # # spt.test_duplex()
+    simple_test()
 
     # import libs.solution_test as st
     # st.test_duplex()
+
+
 

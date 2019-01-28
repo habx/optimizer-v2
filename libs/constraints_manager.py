@@ -162,10 +162,13 @@ class ConstraintsManager:
         """
         self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
         if self.sp.spec.typology >= 3:
+            for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
+                self.item_constraints["all"].append(constraint)
             for item in self.sp.spec.items:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
                     self.item_constraints[item.category.name].append(constraint)
 
+        print("ConstraintsManager : CONSTRAINTS", self.item_constraints)
         logging.debug("ConstraintsManager : CONSTRAINTS", self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
@@ -242,6 +245,20 @@ def space_attribution_constraint(manager: 'ConstraintsManager',
     return ct
 
 
+def item_attribution_constraint(manager: 'ConstraintsManager',
+                                 item: Item) -> ortools.Constraint:
+    """
+    Each item has to be associated with a space
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = (manager.solver.solver.Sum(
+        manager.solver.positions[item.id, j_space]
+        for j_space in range(manager.sp.spec.plan.count_mutable_spaces())) >= 1)
+    return ct
+
+
 def area_constraint(manager: 'ConstraintsManager', item: Item,
                     min_max: str) -> ortools.Constraint:
     """
@@ -280,6 +297,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
     :return: ct: ortools.Constraint
     """
     ct = None
+    print(item)
     for j_item in manager.sp.spec.items:
         if item.required_area < j_item.required_area:
             if ct is None:
@@ -289,7 +307,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
                 new_ct = (manager.windows_length[str(item.id)] <=
                           manager.windows_length[str(j_item.id)])
                 ct = manager.solver.solver.Min(ct, new_ct)
-
+    print(ct)
     if ct is None:
         return ct
     else:
@@ -510,7 +528,12 @@ def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) -
     for space in manager.sp.spec.plan.spaces:
         if space.category.external and space.area > BIG_EXTERNAL_SPACE:
             has_to_be_connected = True
+            break
 
+    print([space.connected_spaces() for j, space in
+            enumerate(manager.sp.spec.plan.mutable_spaces())
+            if [ext_space for ext_space in space.connected_spaces() if ext_space.category.external]
+            is not []])
     if has_to_be_connected:
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
@@ -528,10 +551,11 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "min"}]
     ],
     "entrance": [
-        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
+        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
         [area_constraint, {"min_max": "max"}]
     ],
     "wc": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
@@ -540,6 +564,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
@@ -547,17 +572,20 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": "kitchen"}]
     ],
     "kitchen": [
+        [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
@@ -566,18 +594,21 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
+        [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
     "office": [
+        [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
     "dressing": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
@@ -585,6 +616,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "laundry": [
+        [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],

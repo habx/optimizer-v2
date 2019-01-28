@@ -47,9 +47,9 @@ def test_circulation(input_file, input_setup):
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
-    space_planner.solution_research()
+    best_solutions = space_planner.solution_research()
 
     if space_planner.solutions_collector.solutions:
-        for solution in space_planner.solutions_collector.best():
+        for solution in best_solutions:
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()

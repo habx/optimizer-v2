@@ -599,7 +599,8 @@ classic_seed_category = GrowthMethod(
 ELEMENT_SEED_CATEGORIES = {
     "duct": GrowthMethod(
         'duct',
-        (CONSTRAINTS["max_size_duct_constraint_seed"],),
+        (CONSTRAINTS["max_size_duct_constraint_seed"],
+         CONSTRAINTS["min_size_duct_constraint_seed"]),
         (
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),

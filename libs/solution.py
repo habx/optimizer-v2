@@ -10,6 +10,7 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict, Optional
 from libs.specification import Specification, Item
 from libs.plan import Plan, Space
+#from libs.circulation import Circulator, COST_RULES
 import logging
 
 CORRIDOR_SIZE = 120
@@ -291,6 +292,22 @@ class Solution:
         logging.debug("Solution %i: External spaces : %i", self._id, 10)
         return 10
 
+    def _circulation_penalty(self) -> float:
+        """
+        Circulation penalty
+        :return: score : float
+        """
+        circulator = Circulator(plan=self.plan, cost_rules=COST_RULES)
+        circulator.connect()
+        connecting_paths = circulator.connecting_paths()
+
+        if connecting_paths == []:
+            return 0
+        else:
+
+            circulation_penalty = 0
+            return circulation_penalty
+
     def _night_and_day_score(self) -> float:
         """
         Night and day score
@@ -500,7 +517,7 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score - self._good_size_bonus()
+        solution_score = solution_score + self._good_size_bonus()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 

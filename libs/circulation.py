@@ -330,23 +330,23 @@ if __name__ == '__main__':
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
         (seeder.plant()
          .grow()
-         .shuffle(SHUFFLES["seed_square_shape"])
+         #.shuffle(SHUFFLES["seed_square_shape"])
          .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
          .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-         .simplify(SELECTORS["fuse_small_cell"])
+         .simplify(SELECTORS["fuse_small_cell_without_components"])
          .shuffle(SHUFFLES["seed_square_shape"]))
 
         input_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_setup)
         spec.plan = plan
-
+        plan.plot()
         space_planner = SpacePlanner("test", spec)
-        space_planner.solution_research()
+        best_solutions = space_planner.solution_research()
 
-        for solution in space_planner.solutions_collector.best():
-            solution.plan.plot()
+        for solution in best_solutions:
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
+            circulator.connecting_paths()
             circulator.plot()
             logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
 
