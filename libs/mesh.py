@@ -1604,17 +1604,17 @@ class Edge(MeshComponent):
             |       New face          |
             |                         |
             |       Line cut          |
-        +---*-----------+-------------*--+
+        +---*-----------+-------------*---+
             |           ^             |
             |           | offset      |
             |           |             |
             |           |             |
             +-----------+-------------+
-            +---------+EDGE +---------->
+            +---------+EDGE+---------->
 
         :param offset:
         :param vector:
-        :return: a list of the created faces
+        :return: a list of the created faces including the initial face
         """
         logging.debug("Edge: Slicing a face from edge %s with offset %s and vector %s",
                       self, offset, vector)

@@ -6,6 +6,24 @@ import pytest
 from libs.mesh import Mesh, Vertex, Face, Edge
 
 
+def rectangular_mesh(width: float, depth: float) -> Mesh:
+    """
+    a simple rectangular plan
+
+    0, depth   width, depth
+     +------------+
+     |            |
+     |            |
+     |            |
+     +------------+
+    0, 0     width, 0
+
+    :return:
+    """
+    perimeter = [(0, 0), (width, 0), (width, depth), (0, depth)]
+    return Mesh().from_boundary(perimeter)
+
+
 def test_simple_mesh():
     """
     Test
@@ -785,3 +803,14 @@ def test_cardinality_3():
     face.insert_crop_face_from_boundary(b)
     edge = mesh.boundary_edge.pair.next.next
     assert edge.cardinality == 3
+
+
+def test_slice():
+    """
+    Tests the slice operator
+    :return:
+    """
+    mesh = rectangular_mesh(100, 200)
+    mesh.boundary_edge.pair.slice(50, (1, 1))
+    mesh.plot()
+    assert mesh.check()
