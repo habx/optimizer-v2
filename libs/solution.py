@@ -10,7 +10,7 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict, Optional
 from libs.specification import Specification, Item
 from libs.plan import Plan, Space
-#from libs.circulation import Circulator, COST_RULES
+from libs.circulation import Circulator, COST_RULES
 import logging
 
 CORRIDOR_SIZE = 120
@@ -299,14 +299,19 @@ class Solution:
         """
         circulator = Circulator(plan=self.plan, cost_rules=COST_RULES)
         circulator.connect()
-        connecting_paths = circulator.connecting_paths()
+        cost = circulator.circulation_cost
+        circulation_penalty = 0
 
-        if connecting_paths == []:
-            return 0
-        else:
-
-            circulation_penalty = 0
-            return circulation_penalty
+        if cost > 10e5:  # water_room_less_than_two_ducts
+            circulation_penalty += 100
+        elif cost > 5000:  # window_room_default
+            circulation_penalty += 50
+        elif cost > 1000:  # water_room_default
+            circulation_penalty += 30
+        elif cost - (self.collector.spec.typology - 1) * 200 > 0:
+            circulation_penalty += 15
+        logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
+        return circulation_penalty
 
     def _night_and_day_score(self) -> float:
         """
@@ -459,6 +464,9 @@ class Solution:
             position_score = position_score + item_position_score
 
         position_score = position_score / nbr_room_position_score
+        if len(self.get_rooms("wc")) > 1 and self.plan.floor_count > 1:
+            if self.get_rooms("wc")[0].floor != self.get_rooms("wc")[1]:
+                position_score += 100 / nbr_room_position_score
         logging.debug("Solution %i: Position score : %f", self._id, position_score)
 
         return position_score
@@ -517,7 +525,7 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus()
+        solution_score = solution_score + self._good_size_bonus() - self._circulation_penalty()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 

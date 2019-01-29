@@ -51,13 +51,6 @@ def test_basic_case():
      .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
                                       "empty"), show=True)
      )
-     # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     # .empty(SELECTORS["corner_big_cell_area_70000"])
-     # .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-     #                                  "empty"), show=True)
-     # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
     plan.plot()
 
@@ -216,7 +209,8 @@ def t3_balcony_test():
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
-    spec = Specification("simple_test", plan_t3_balcony, [bathroom, entrance, living, bedroom1, bedroom2])
+    spec = Specification("simple_test", plan_t3_balcony, [bathroom, entrance, living, bedroom1,
+                                                          bedroom2])
 
     space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
     best_t3 = space_planner_t3_balcony.solution_research()
@@ -257,7 +251,8 @@ def t3_bis_test():
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
-    spec = Specification("simple_test", plan_t3_bis, [bathroom, entrance, living, bedroom1, bedroom2])
+    spec = Specification("simple_test", plan_t3_bis, [bathroom, entrance, living, bedroom1,
+                                                      bedroom2])
 
     space_planner_t3_bis = SpacePlanner("t3_bis", spec)
     best_t3_bis = space_planner_t3_bis.solution_research()
