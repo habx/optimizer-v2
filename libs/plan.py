@@ -514,6 +514,20 @@ class Space(PlanComponent):
 
         return max_x - min_x, max_y - min_y
 
+    def minimum_rotated_rectangle(self) -> Optional[Tuple[Coords2d, Coords2d, Coords2d, Coords2d]]:
+        """
+        Returns the smallest minimum rotated rectangle
+        We rely on shapely minimum_rotated_rectangle method
+        :return:
+        """
+        if not self.edge:
+            return None
+
+        output = self.as_sp.minimum_rotated_rectangle.exterior.coords[:]
+        output.pop()
+
+        return output
+
     @property
     def size(self, edge: Optional[Edge] = None) -> Size:
         """

@@ -93,7 +93,9 @@ def test_oriented_selector(weird_plan):
     selector = SELECTOR_FACTORIES["oriented_edges"](["horizontal"])
     edges = list(selector.yield_from(weird_plan.empty_space))
     weird_plan.plot()
-    assert str(edges) == "[Edge:[(1000.0, 800.0), (1200.0, 800.0)]]"
+    result = [(edge.start.coords, edge.end.coords) for edge in edges]
+
+    assert result == [((1000.0, 800.0), (1200.0, 800.0))]
 
 
 def test_boundary_selector(l_plan):
@@ -114,8 +116,8 @@ def test_previous_angle_salient_non_ortho_selector(l_plan):
     """
     selector = SELECTORS["previous_angle_salient_non_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
-    assert str(edges) == ("[Edge:[(500.0, 200.0), (1000.0, 0.0)], " +
-                          "Edge:[(200.0, 500.0), (0.0, 500.0)]]")
+    result = [(edge.start.coords, edge.end.coords) for edge in edges]
+    assert result == [((500.0, 200.0), (1000.0, 0.0)), ((200.0, 500.0), (0.0, 500.0))]
 
 
 def test_next_angle_salient_non_ortho(l_plan):
@@ -126,8 +128,8 @@ def test_next_angle_salient_non_ortho(l_plan):
     """
     selector = SELECTORS["next_angle_salient_non_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
-    assert str(edges) == ("[Edge:[(0.0, 0.0), (500.0, 200.0)],"
-                          " Edge:[(500.0, 1000.0), (200.0, 500.0)]]")
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(0.0, 0.0), (500.0, 200.0)],[(500.0, 1000.0), (200.0, 500.0)]]
 
 
 def test_next_angle_convex_non_ortho(l_plan):
@@ -138,7 +140,8 @@ def test_next_angle_convex_non_ortho(l_plan):
     """
     selector = SELECTORS["next_angle_convex_non_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
-    assert str(edges) == "[Edge:[(1200.0, 1200.0), (500.0, 1000.0)]]"
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(1200.0, 1200.0), (500.0, 1000.0)]]
 
 
 def test_previous_angle_convex_non_ortho(l_plan):
@@ -149,7 +152,8 @@ def test_previous_angle_convex_non_ortho(l_plan):
     """
     selector = SELECTORS["previous_angle_convex_non_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
-    assert str(edges) == "[Edge:[(500.0, 1000.0), (200.0, 500.0)]]"
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(500.0, 1000.0), (200.0, 500.0)]]
 
 
 def test_previous_angle_salient_ortho(l_plan):
@@ -160,7 +164,8 @@ def test_previous_angle_salient_ortho(l_plan):
     """
     selector = SELECTORS["previous_angle_salient_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
-    assert str(edges) == "[Edge:[(1000.0, 400.0), (1200.0, 400.0)]]"
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(1000.0, 400.0), (1200.0, 400.0)]]
 
 
 def test_corner_stone():
@@ -178,4 +183,5 @@ def test_corner_stone():
 
     selector = SELECTORS["corner_stone"]
     edges = list(selector.yield_from(plan.empty_space))
-    assert str(edges) == "[Edge:[(250.0, 125.0), (250.0, 0.0)]]"
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(250.0, 125.0), (250.0, 0.0)]]

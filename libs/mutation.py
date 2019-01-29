@@ -312,17 +312,22 @@ def translation_cut(dist: float,
     return _action
 
 
-def insert_rectangle(height: float,
-                     width: Optional[float] = None, offset: float = 0) -> EdgeMutation:
+def insert_aligned_rectangle(height: float,
+                             width: Optional[float] = None,
+                             absolute_offset: float = 0,
+                             relative_offset: Optional[float] = None) -> EdgeMutation:
     """
     Inserts a rectangular face aligned with the edge
     :param width:
     :param height:
-    :param offset:
+    :param absolute_offset:
+    :param relative_offset:
     :return:
     """
+
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         _width = width or edge.length
+        offset = (relative_offset * edge.length) if relative_offset else absolute_offset
         face = space.largest_face
         rectangle = geometry.rectangle(edge.start.coords, edge.vector, _width, height, offset)
         try:
@@ -338,7 +343,7 @@ def insert_rectangle(height: float,
 MUTATION_FACTORIES = {
     "translation_cut": MutationFactory(translation_cut, reversible=False),
     "barycenter_cut": MutationFactory(barycenter_cut, reversible=False),
-    "rectangle_cut": MutationFactory(insert_rectangle, reversible=False)
+    "rectangle_cut": MutationFactory(insert_aligned_rectangle, reversible=False),
 }
 
 MUTATIONS = {

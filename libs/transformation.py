@@ -106,7 +106,7 @@ def _projection_action(source_vertex: 'Vertex',
     # create an extended shapely lineString from the edge
     sp_edge = edge.as_sp_extended
     # create a line to the edge at the vertex position
-    sp_line = source_vertex.sp_line(vector)
+    sp_line = source_vertex.sp_half_line(vector)
     temp_intersection_point = sp_edge.intersection(sp_line)
 
     # we are only interested in a clean intersection

@@ -14,21 +14,12 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
-def test_floor_plan(input_file):
+def test_read_floor_plan(input_file):
     """
     Test. We create a simple grid on several real blue prints.
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-
-    for empty_space in plan.empty_spaces:
-        boundary_edges = list(empty_space.edges)
-
-        for edge in boundary_edges:
-            if edge.length > 30:
-                empty_space.barycenter_cut(edge, 0)
-                empty_space.barycenter_cut(edge, 1)
-
     plan.plot()
 
     assert plan.check()
@@ -782,3 +773,39 @@ def test_adjacent_spaces():
     print(plan.spaces)
 
     assert adjacent_spaces == plan.spaces, "adjacent_spaces"
+
+
+@pytest.fixture
+def l_plan() -> 'Plan':
+    """
+    Creates a weirdly shaped plan
+
+                 500, 1000       1200, 1200
+                     +---------------+
+                     |               |
+                   |                 |
+        0, 500   |                   |
+           +--+ 200, 500   1000, 400 |
+           |                   +-----+ 1200, 400
+           |      500, 200     |
+           |      ---*--       |
+           |   ---      ---    |
+           +---            ----+
+         0, 0              1000, 0
+
+    :return:
+    """
+    boundaries = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
+                  (500, 1000), (200, 500), (0, 500)]
+    plan = Plan("L_shaped")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
+
+
+def test_min_rotated_rectangle(l_plan):
+    """
+    Test the minimum_rotated_rectangle method
+    :return:
+    """
+    assert l_plan.empty_space.minimum_rotated_rectangle() == [(1200.0, 0.0), (1200.0, 1200.0),
+                                                              (0.0, 1200.0), (0.0, 0.0)]

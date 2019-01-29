@@ -18,6 +18,7 @@ for edge in selector.catalog['boundary'].yield_from(space):
 
 """
 from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
+import math
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
 from libs.mesh import MIN_ANGLE
@@ -264,7 +265,38 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
                 yield edge.pair
 
 
+def adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the pair edge of each duct that has a rectangular form
+    :param space:
+    :param _:
+    :return:
+    """
+    plan = space.plan
+    space.bounding_box()
+    for duct in plan.get_spaces("duct"):
+        box = duct.bounding_box()
+        is_rectangular = math.fabs(box[0]*box[1] - duct.area) < EPSILON
+        if is_rectangular:
+            yield from (edge.pair for edge in duct.edges if space.has_edge(edge.pair))
+
+
+def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the pair edge of each duct that has a rectangular form
+    :param space:
+    :param _:
+    :return:
+    """
+    plan = space.plan
+    for duct in plan.get_spaces("duct"):
+        for edge in duct.edges:
+            if space.has_edge(edge.pair):
+                yield edge.pair
+                break
+
 # Query factories
+
 
 def farthest_edges_barycenter(coeff: float = 0) -> EdgeQuery:
     """
@@ -631,8 +663,8 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
             start_point_dist, end_point_dist = None, None
             if ccw_angle(edge.vector, linear_edge.opposite_vector) >= 90.0 - MIN_ANGLE:
                 continue
-            start_point_line = linear_edge.start.sp_line(linear_edge.normal)
-            end_point_line = linear_edge.end.sp_line(linear_edge.normal)
+            start_point_line = linear_edge.start.sp_half_line(linear_edge.normal)
+            end_point_line = linear_edge.end.sp_half_line(linear_edge.normal)
             start_point_intersection = start_point_line.intersection(edge.as_sp)
             end_point_intersection = end_point_line.intersection(edge.as_sp)
             if (not start_point_intersection.is_empty
@@ -699,6 +731,26 @@ def cell_with_component(has_component: bool = False) -> Predicate:
 
     def _predicate(_: 'Edge', space: 'Space') -> bool:
         return len(space.components_category_associated()) == 0 if not has_component else True
+
+    return _predicate
+
+
+def longest_of_space() -> Predicate:
+    """
+    Predicate
+    Returns True if the edge is the longest. With memoization included.
+    :return:
+    """
+    cache = {}
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        cached_edge = cache.get(space.id, None)
+        if cached_edge:
+            return cached_edge == edge.id
+
+        longest_edge = max(space.edges, key=lambda e: e.length)
+        cache[space.id] = longest_edge.id
+        return longest_edge is edge
 
     return _predicate
 
@@ -907,13 +959,15 @@ SELECTORS = {
         ]
     ),
 
-    "duct_edge_min_50": Selector(
-        boundary,
+    "duct_edge_min_10": Selector(
+        adjacent_to_rectangular_duct,
         [
-            adjacent_to_space("duct"),
-            edge_length(min_length=50)
+            edge_length(min_length=10)
         ]
-    )
+    ),
+
+    "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct)
+
 }
 
 SELECTOR_FACTORIES = {

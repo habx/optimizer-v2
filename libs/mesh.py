@@ -24,14 +24,16 @@ from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndA
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
     unit_vector,
-    normalized_vector,
+    unit,
     barycenter,
     move_point,
     same_half_plane,
     opposite_vector,
     pseudo_equal,
     dot_product,
-    normal_vector
+    normal_vector,
+    truncate,
+    distance
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -148,8 +150,8 @@ class Vertex(MeshComponent):
         :param y: float, y-axis coordinates
         :param edge: one edge starting from the vertex
         """
-        self._x = float(np.around(float(x), decimals=COORD_DECIMAL))
-        self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
+        self._x = truncate(x)
+        self._y = truncate(y)
         self._edge = edge
         self.mutable = mutable
         super().__init__(mesh, _id)
@@ -463,23 +465,50 @@ class Vertex(MeshComponent):
         """
         return other.x - self.x, other.y - self.y
 
-    def sp_line(self,
-                vector: Vector2d,
-                length: float = LINE_LENGTH) -> LineString:
+    def sp_half_line(self,
+                     vector: Vector2d,
+                     length: float = LINE_LENGTH) -> LineString:
         """
         Returns a shapely LineString starting
         from the vertex, slightly moved in the opposite vector and following the vector
         and of the given length
+
+        Example :
+        -Ɛ/2     Full line
+        <- * ------------->
+        vertex  length
+
         :param vector: direction of the lineString
         :param length: float length of the lineString
-        :return:
+        :return: a LineString object
         """
         length = length or LINE_LENGTH
-        vector = normalized_vector(vector)
+        vector = unit(vector)
         # to ensure proper intersection we shift slightly the start point
         start_point = move_point(self.coords, vector, -1 / 2 * COORD_EPSILON)
-        end_point = (start_point[0] + vector[0] * length,
-                     start_point[1] + vector[1] * length)
+        end_point = move_point(start_point, vector, length)
+        return LineString([start_point, end_point])
+
+    def sp_full_line(self,
+                     vector: Vector2d,
+                     length: float = LINE_LENGTH) -> LineString:
+        """
+        Returns a shapely LineString of length = 2 * specified length, centered on the
+        specified vertex and with the specified vector orientation
+
+        Example :
+                Full line
+        <----------- * ------------->
+           length  vertex  length
+
+        :param vector: direction of the lineString
+        :param length: float length of the lineString
+        :return: a Linestring object
+        """
+        length = length or LINE_LENGTH
+        vector = unit(vector)
+        start_point = move_point(self.coords, vector, -length)
+        end_point = move_point(start_point, vector, length)
         return LineString([start_point, end_point])
 
 
@@ -747,7 +776,7 @@ class Edge(MeshComponent):
         Returns a unit vector with the same direction as the edge
         :return: vector of length 1
         """
-        return normalized_vector(self.vector)
+        return unit(self.vector)
 
     @property
     def end(self) -> Optional[Vertex]:
@@ -862,7 +891,7 @@ class Edge(MeshComponent):
         :param vertex:
         :return: shapely LineString
         """
-        return vertex.sp_line(self.normal)
+        return vertex.sp_half_line(self.normal)
 
     @property
     def as_sp(self) -> LineString:
@@ -1878,12 +1907,12 @@ class Face(MeshComponent):
                vector: Vector2d,
                length: Optional[float] = None) -> List['Face']:
         """
-        Cuts a face according to a linestring
+        Cuts a face according to a linestring crossing the vertex and along the vector
         :param vertex:
         :param vector:
         :return:
         """
-        line = vertex.sp_line(vector, length=length)
+        line = vertex.sp_half_line(vector, length=length)
         intersection_points = self.as_sp_linear_ring.intersection(line)
         new_faces = [self]
 
@@ -2264,6 +2293,8 @@ class Face(MeshComponent):
         """
         Inserts a face inside the receiving face and crops the face if necessary to include
         in receiving face
+        NOTE : we do not insert face that will have a hole, or face that will be split into
+        several polygons.
         :param perimeter:
         :return:
         """
@@ -2272,15 +2303,41 @@ class Face(MeshComponent):
         self_polygon = self.as_sp.buffer(0)
 
         if not face_polygon.is_valid or not self_polygon.is_valid:
-            raise ValueError("Badly formed polygons")
+            raise ValueError("Mesh: Insert and Crop: Badly formed polygons")
 
         intersection = face_polygon.intersection(self_polygon)
 
         if intersection.is_empty or intersection.geom_type != "Polygon":
             raise OutsideFaceError
 
+        # to prevent crossing polygons we need to do this with shapely
+        intersection.buffer(0)
+
+        if intersection.area < COORD_EPSILON:
+            logging.debug("Mesh: Insert and Crop: small intersection ignored")
+            return []
+
         cropped_perimeter = intersection.exterior.coords[::-1]
-        cropped_perimeter.pop()  # remove the duplicate point that shapely returns
+        # remove the last point because shapely returns a looped structure
+        cropped_perimeter.pop()
+        # we need to remove duplicates because shapely will sometimes return weird things...
+        # first we clean the perimeter by truncating the value to the project resolution
+        cropped_perimeter = list(map(lambda x: (truncate(x[0]), truncate(x[1])), cropped_perimeter))
+        # then we search for consecutive duplicates and remove them
+        number_of_points = len(cropped_perimeter)
+        duplicate_points = []
+        for i in range(number_of_points):
+            j = (i + 1) % number_of_points
+            if distance(cropped_perimeter[j], cropped_perimeter[i]) < COORD_EPSILON:
+                duplicate_points.append(cropped_perimeter[i])
+
+        for duplicate in duplicate_points:
+            cropped_perimeter.remove(duplicate)
+
+        if len(cropped_perimeter) < 3:
+            logging.debug("Mesh: Insert and Crop: The intersection has less than 3 points")
+            return []
+
         return self.insert_face_from_boundary(cropped_perimeter)
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):

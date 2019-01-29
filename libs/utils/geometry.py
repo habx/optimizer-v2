@@ -13,6 +13,17 @@ from random import randint
 
 from libs.utils.custom_types import Vector2d, Coords2d
 
+COORD_DECIMAL = 4  # number of decimal of the points coordinates
+
+
+def truncate(value: float)-> float:
+    """
+    Rounds a value to the specified precision
+    :param value:
+    :return:
+    """
+    return float(np.around(float(value), decimals=COORD_DECIMAL))
+
 
 def magnitude(vector: Vector2d) -> float:
     """
@@ -30,7 +41,7 @@ def direction_vector(point_1: Coords2d, point_2: Coords2d) -> Vector2d:
     :return: tuple containing x, y values
     """
     output_vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
-    return normalized_vector(output_vector)
+    return unit(output_vector)
 
 
 def ccw_angle(vector_1: Vector2d, vector_2: Optional[Vector2d] = None) -> float:
@@ -114,10 +125,10 @@ def normal_vector(vector: Vector2d) -> Vector2d:
     :return: a tuple containing x, y values
     """
     vector = -vector[1], vector[0]
-    return normalized_vector(vector)
+    return unit(vector)
 
 
-def normalized_vector(vector: Vector2d) -> Vector2d:
+def unit(vector: Vector2d) -> Vector2d:
     """
     Returns a vector of same direction but of length 1.
     Note: to prevent division per zero, if the vector is equal to (0, 0) return (0,0)
@@ -257,7 +268,7 @@ def rectangle(reference_point: Coords2d,
     :param offset:
     :return: a list of 4 coordinates points
     """
-    orientation_vector = normalized_vector(orientation_vector)
+    orientation_vector = unit(orientation_vector)
     point = move_point(reference_point, orientation_vector, coeff=offset)
     output = [point]
     output += [move_point(output[0], orientation_vector, coeff=width)]

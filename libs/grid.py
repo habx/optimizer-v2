@@ -47,6 +47,7 @@ class Grid:
         logging.debug("Grid: Applying Grid %s to plan %s", self.name, plan)
 
         for operator in self.operators:
+            self._seen = []
             self._apply_operator(plan, operator)
             # we simplify the mesh between each operator
             plan.mesh.simplify()
@@ -209,8 +210,10 @@ finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                       MUTATION_FACTORIES['barycenter_cut'](0.5), False))
 
 rectangle_grid = Grid("rectangle", [
-    (SELECTORS["duct_edge_min_50"],
-     MUTATION_FACTORIES["rectangle_cut"](180), True)
+    (SELECTORS["duct_edge_min_10"],
+     MUTATION_FACTORIES["rectangle_cut"](180), True),
+    (SELECTORS["duct_edge_min_10"],
+     MUTATION_FACTORIES["rectangle_cut"](180, 180, relative_offset=1.0), True)
 ])
 
 GRIDS = {
@@ -230,7 +233,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Massy_C303.json")
+        plan = reader.create_plan_from_file("Bussy_B002.json")
         new_plan = rectangle_grid.apply_to(plan)
         new_plan.check()
 
