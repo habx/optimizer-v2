@@ -1383,7 +1383,7 @@ class Space(PlanComponent):
         """
         openings_list = []
         for component in self.immutable_components():
-            if component.category in LINEAR_CATEGORIES and component.category.aperture:
+            if component.category in LINEAR_CATEGORIES.values() and component.category.aperture:
                 openings_list.append(component)
         return openings_list
 

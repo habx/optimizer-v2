@@ -132,4 +132,4 @@ def test_duplex():
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
-    space_planner.solution_research()
+    best_solutions = space_planner.solution_research()

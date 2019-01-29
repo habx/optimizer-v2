@@ -52,7 +52,7 @@ class Circulator:
 
     def multilevel_connection(self):
         """
-        in multi-lvel case, adds a connection between spaces containing the stair at each level
+        in multi-level case, adds a connection between spaces containing the stair at each level
         """
         number_of_floors = self.plan.floor_count
         space_connection_between_floors = []
@@ -60,7 +60,8 @@ class Circulator:
         if number_of_floors > 1:
             for level in self.plan.list_level:
                 for space in self.plan.spaces:
-                    if space.floor.level is level and "startingStep" in space.components_category_associated():
+                    if (space.floor.level is level and "startingStep" in
+                            space.components_category_associated()):
                         space_connection_between_floors.append(space)
                         break
 
@@ -291,7 +292,6 @@ class PathCalculator:
             else:
                 rule = 'water_room_default'
 
-
         elif (edge in self.component_edges['window_edges'] and list(
                 needed_linear for needed_linear in space.category.needed_linears if
                 needed_linear.window_type)):
@@ -307,7 +307,7 @@ class PathCalculator:
         computes the cost of an edge
         :return: float
         """
-        cost = edge.length / 100
+        cost = edge.length
 
         rule = self.rule_type(edge, space)
         # rule='default'
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     from libs.grid import GRIDS
     from libs.shuffle import SHUFFLES
     from libs.space_planner import SpacePlanner
-    from category import SPACE_CATEGORIES
+    from libs.category import SPACE_CATEGORIES
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -420,9 +420,9 @@ if __name__ == '__main__':
 
         spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
         spec.plan = plan
-
+        plan.plot()
         space_planner = SpacePlanner("test", spec)
-        space_planner.solution_research()
+        best_solutions = space_planner.solution_research()
 
         return space_planner
 

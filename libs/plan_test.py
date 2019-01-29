@@ -752,7 +752,7 @@ def test_maximum_adjacency_length():
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
     length = plan.spaces[0].maximum_adjacency_length(plan.spaces[2])
 
-    assert(length == 200, "test_maximum_adjacency_length")
+    assert length == 200, "test_maximum_adjacency_length"
 
 
 def test_adjacent_spaces():
@@ -776,9 +776,31 @@ def test_adjacent_spaces():
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
     plan.insert_linear((500, 250), (500, 350), LINEAR_CATEGORIES["doorWindow"], floor)
 
-    print(plan.linears[0])
     adjacent_spaces = plan.linears[0].adjacent_spaces()
-    print(adjacent_spaces)
-    print(plan.spaces)
 
-    assert(adjacent_spaces == plan.spaces, "adjacent_spaces")
+    assert adjacent_spaces == plan.spaces, "adjacent_spaces"
+
+
+def test_connected_spaces():
+    """
+    Add a doorWindow between the empty space and the balcony.
+    The balcony is connected to the empty space
+    +---------------+
+    |               |
+    |               +-------+
+    |    empty      |balcony|
+    |               |       |
+    |               +-------+
+    |               |
+    +---------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(500, 200), (700, 200), (700, 400), (500, 400)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.insert_linear((500, 250), (500, 350), LINEAR_CATEGORIES["doorWindow"], floor)
+
+    assert plan.spaces[1] in plan.spaces[0].connected_spaces(), "connected_spaces"
