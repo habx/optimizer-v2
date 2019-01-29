@@ -1981,8 +1981,9 @@ class Face(MeshComponent):
         if new_vertices:
             logging.debug("Mesh: Slicing a face on multiple vertices: %s", new_vertices)
 
+        face_edges = list(self.edges)
         for vertex in new_vertices:
-            new_edge = vertex.snap_to_edge(*self.edges)
+            new_edge = vertex.snap_to_edge(*face_edges)
             if new_edge is None:
                 raise Exception('This is impossible ! We should have found an intersection !!')
             new_mesh_objects = new_edge.cut(vertex, vector=vector)

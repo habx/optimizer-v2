@@ -811,6 +811,46 @@ def test_slice():
     :return:
     """
     mesh = rectangular_mesh(100, 200)
-    mesh.boundary_edge.pair.slice(50, (1, 1))
+    mesh.boundary_edge.pair.slice(50, (0.5, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_double_slice():
+    """
+    Tests the slice operator
+    :return:
+    """
+    mesh = rectangular_mesh(100, 200)
+    hole = [(0, 50), (50, 50), (50, 100), (0, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(25, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_internal_edge():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(15, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_edge():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(25, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_edge_2():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(50, (0, 1))
     mesh.plot()
     assert mesh.check()
