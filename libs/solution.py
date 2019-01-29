@@ -302,11 +302,11 @@ class Solution:
         cost = circulator.circulation_cost
         circulation_penalty = 0
 
-        if cost > 10e5:  # water_room_less_than_two_ducts
+        if cost > COST_RULES["water_room_less_than_two_ducts"]:
             circulation_penalty += 100
-        elif cost > 5000:  # window_room_default
+        elif cost > COST_RULES["window_room_default"]:
             circulation_penalty += 50
-        elif cost > 1000:  # water_room_default
+        elif cost > COST_RULES["water_room_default"]:
             circulation_penalty += 30
         elif cost - (self.collector.spec.typology - 1) * 200 > 0:
             circulation_penalty += 15
