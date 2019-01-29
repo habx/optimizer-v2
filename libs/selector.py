@@ -258,7 +258,6 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
-        yield edge_along_plan.next_ortho().next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
     else:
         for edge in space.edges:
