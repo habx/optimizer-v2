@@ -224,7 +224,7 @@ def test_add_border_overlapping_face():
     hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
     hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
 
-    plan = Plan()
+    plan = Plan("test_add_border_overlapping_face")
     plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)
@@ -250,7 +250,7 @@ def test_add_face_touching_internal_edge():
     hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
     hole_3 = [(50, 200), (150, 200), (150, 300), (50, 300)]
 
-    plan = Plan()
+    plan = Plan("add_face_touching_internal_edge")
     plan.add_floor_from_boundary(perimeter)
 
     plan.empty_space.insert_face_from_boundary(hole)

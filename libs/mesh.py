@@ -508,7 +508,7 @@ class Vertex(MeshComponent):
         length = length or LINE_LENGTH
         vector = unit(vector)
         start_point = move_point(self.coords, vector, -length)
-        end_point = move_point(start_point, vector, length)
+        end_point = move_point(self.coords, vector, length)
         return LineString([start_point, end_point])
 
 
@@ -1593,6 +1593,45 @@ class Edge(MeshComponent):
 
         return new_edge
 
+    def slice(self, offset: float, vector: Optional[Vector2d] = None) -> ['Face']:
+        """
+        Cuts the face of the edge according to the offset and the vector provided.
+        Note: Can result in the creation of multiple faces.
+
+        Example:
+            +-------------------------+
+            |                         |
+            |       New face          |
+            |                         |
+            |       Line cut          |
+        +---*-----------+-------------*--+
+            |           ^             |
+            |           | offset      |
+            |           |             |
+            |           |             |
+            +-----------+-------------+
+            +---------+EDGE +---------->
+
+        :param offset:
+        :param vector:
+        :return: a list of the created faces
+        """
+        logging.debug("Edge: Slicing a face from edge %s with offset %s and vector %s",
+                      self, offset, vector)
+
+        if offset < 0:
+            raise ValueError("Edge: Slice: The offset must be a positive float")
+
+        if self.face is None:
+            raise ValueError("Edge Slice: The edge must fave a non null face")
+
+        point = move_point(self.start.coords, self.normal, offset)
+        vertex = Vertex(self.mesh, point[0], point[1])
+        created_faces = self.face.slice(vertex, vector)
+        vertex.remove_from_mesh()
+
+        return created_faces
+
     def split_barycenter(self, coeff: float) -> 'Edge':
         """
         Splits the edge at the provided barycentric position. A vertex is created.
@@ -1902,17 +1941,18 @@ class Face(MeshComponent):
 
         return self
 
-    def _slice(self,
-               vertex: Vertex,
-               vector: Vector2d,
-               length: Optional[float] = None) -> List['Face']:
+    def slice(self,
+              vertex: Vertex,
+              vector: Vector2d,
+              length: Optional[float] = LINE_LENGTH) -> List['Face']:
         """
         Cuts a face according to a linestring crossing the vertex and along the vector
         :param vertex:
         :param vector:
+        :param length
         :return:
         """
-        line = vertex.sp_half_line(vector, length=length)
+        line = vertex.sp_full_line(vector, length=length)
         intersection_points = self.as_sp_linear_ring.intersection(line)
         new_faces = [self]
 
@@ -2187,9 +2227,10 @@ class Face(MeshComponent):
             sliced_faces_temp = sliced_faces[:]
             for sliced_face in sliced_faces_temp:
                 sliced_faces.remove(sliced_face)  # to prevent duplicates
-                sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector,
-                                                   internal_edge.length)
+                sliced_faces += sliced_face.slice(internal_edge.start, internal_edge.vector)
+
         # if no face was created we proceed with a standard insert
+        # note this should not really happen
         if len(sliced_faces) == 1:
             face_copy.swap(face)
             return self._insert_face(face)
@@ -2256,8 +2297,13 @@ class Face(MeshComponent):
         # Check if the receiving face has an internal edge because this is a very special
         # case and has to be treated differently
         internal_edges = list(self.internal_edges)
+        intersects_an_internal_edge = False
+        for edge in internal_edges:
+            if edge.as_sp.intersects(face.as_sp):
+                intersects_an_internal_edge = True
+                break
 
-        if internal_edges:
+        if intersects_an_internal_edge:
             created_faces = self._insert_face_over_internal_edge(face, internal_edges)
         else:
             created_faces = self._insert_face(face)
@@ -3111,6 +3157,12 @@ class Mesh:
         vertices_id = []
 
         for face in self.faces:
+            # check for correct form
+            face_polygon = face.as_sp.buffer(0)
+            if not face_polygon.is_simple or not face_polygon.is_valid:
+                logging.error("Mesh: face is not a simple polygon: %s", face)
+                is_valid = False
+
             for edge in face.edges:
                 if edge is None:
                     is_valid = False
@@ -3177,6 +3229,14 @@ class Mesh:
                 is_valid = False
                 logging.error('Mesh: an extraneous vertex was '
                               'found in the mesh structure: %s', self._vertices[vertex_id])
+
+        # check for overlapping pb
+        faces_area = sum(face.area for face in self.faces)
+        mesh_area = self.as_sp.area
+        if not pseudo_equal(faces_area, mesh_area, COORD_EPSILON**2):
+            logging.error("Mesh: Faces are overlapping, total face area %s, total mesh area %s",
+                          faces_area, mesh_area)
+            is_valid = False
 
         logging.info('Mesh: Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
