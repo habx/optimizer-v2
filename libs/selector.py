@@ -17,7 +17,7 @@ for edge in selector.catalog['boundary'].yield_from(space):
     do something with each edge (like a mutation for example)
 
 """
-from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
+from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING, List
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
 from libs.mesh import MIN_ANGLE
@@ -25,7 +25,7 @@ from libs.mutation import MUTATIONS
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
-    from libs.plan import Space
+    from libs.plan import Space, Plan
     from libs.seed import Seeder
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
@@ -804,10 +804,12 @@ def has_pair() -> Predicate:
     Returns a predicate indicating if an edge has a pair
     :return:
     """
+
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
         return not edge.pair is None
 
     return _predicate
+
 
 def has_space_pair() -> Predicate:
     """
@@ -815,6 +817,7 @@ def has_space_pair() -> Predicate:
     Returns a predicate indicating if a space has a pair through a given edge
     :return:
     """
+
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         if not edge.pair:
             return False
@@ -824,6 +827,7 @@ def has_space_pair() -> Predicate:
         return True
 
     return _predicate
+
 
 def next_aligned_category(cat: str) -> Predicate:
     """
@@ -1006,6 +1010,7 @@ SELECTORS = {
     "seed_duct": Selector(seed_duct),
 
     "seed_empty_furthest_couple": Selector(farthest_edges_barycenter()),
+
 
     "farthest_couple_start_space_area_min_100000": Selector(
         farthest_edges_barycenter(),

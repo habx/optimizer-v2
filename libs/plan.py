@@ -962,6 +962,15 @@ class Space(PlanComponent):
                 yield edge.pair.face
                 seen.append(edge.pair.face)
 
+    def face_is_adjacent(self, face: Face)-> bool:
+        """
+        Returns True if the face is adjacent to the space
+        :return:
+        """
+        if [edge for edge in face.edges if edge.pair is not None and self.has_edge(edge.pair)]:
+            return True
+        return False
+
     def corner_stone(self, face: 'Face') -> bool:
         """
         Returns True if the removal of this face will split the space

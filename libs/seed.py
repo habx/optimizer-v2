@@ -174,6 +174,50 @@ class Seeder:
 
         return self
 
+    def face_on_side(self, aligned_edges: List['Edge']) -> Generator[
+        'Face', bool, None]:
+        # TODO : A PASSER DANS SPACE????
+        if aligned_edges:
+            face_ini = aligned_edges[0].face
+            list_swapped_faces = [face_ini]
+            add = [face_ini]
+            added = True
+            while added:
+                added = False
+                for face_ini in add:
+                    for face in self.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
+                        if not [
+                            edge for edge in aligned_edges if
+                            edge.pair in face.edges] and face not in list_swapped_faces:
+                            list_swapped_faces.append(face)
+                            add.append(face)
+                            added = True
+            for f in list_swapped_faces:
+                yield f
+
+    def divide_space(self, space: 'Space', aligned_edges: List['Edge']):
+
+        if not aligned_edges:
+            return
+
+        list_swapped_faces = [face for face in
+                              self.face_on_side(aligned_edges)]
+
+        for face in list_swapped_faces:
+            self.plan.get_space_of_face(face).remove_face(face)
+
+        if list_swapped_faces:
+            space_created = Space(self.plan, space.floor,
+                                  list_swapped_faces[0].edge,
+                                  SPACE_CATEGORIES["empty"])
+            list_swapped_faces.remove(list_swapped_faces[0])
+
+        while list_swapped_faces:
+            for face in list_swapped_faces:
+                if space_created.face_is_adjacent(face):
+                    space_created.add_face(face)
+                    list_swapped_faces.remove(face)
+
     def divide_along_walls(self, selector: 'Selector'):
         """
         divide the empty space along all seed space walls
@@ -182,46 +226,78 @@ class Seeder:
         :return:
         """
 
-        for space in self.plan.spaces:
-            if space.mutable:
-                print("INI space area", space.area)
-
         for seed_space in self.plan.get_spaces("seed"):
             for edge in selector.yield_from(seed_space):
-                aligned_edges = list(edge.oriented_aligned_siblings())
-                if aligned_edges:
-                    space = self.plan.get_space_of_edge(aligned_edges[0])
-                    face_ini = aligned_edges[0].face
-                    add = True
-                    list_swapped_faces = []
-                    while add:
-                        add = False
-                        for face in space.adjacent_faces(face_ini):
-                            if not [
-                                edge for edge in aligned_edges if
-                                edge.pair in face.edges] and face not in list_swapped_faces:
-                                list_swapped_faces.append(face)
-                                add = True
-                        if add:
-                            face_ini = list_swapped_faces[-1]
-                    if list_swapped_faces:
-                        space.remove_face(list_swapped_faces[0])
-                        space_created = Space(self.plan, space.floor, list_swapped_faces[0].edge,
-                                           SPACE_CATEGORIES["empty"])
-                        for face in list_swapped_faces[1:]:
-                            space.remove_face(face)
-                            space_created.add_face(face)
-                #break
-            #break
-        for space in self.plan.spaces:
-            if space.mutable:
-                print("FINAL space area", space.area)
+                aligned_edges_all = list(edge.oriented_aligned_siblings())
+                aligned_edges = []
+                for edge in aligned_edges_all:
+                    if self.plan.get_space_of_edge(
+                            edge).category.name is not "empty" or self.plan.get_space_of_edge(
+                        edge.pair).category.name is not "empty":
+                        # input("break {0}".format(edge))
+                        break
+                    # print("added edge",edge,"edge is",self.plan.get_space_of_edge(
+                    #    edge).category.name,"edge pairs is",self.plan.get_space_of_edge(
+                    #    edge.pair).category.name)
+                    aligned_edges.append(edge)
 
-                #print("aligned_edges", aligned_edges)
-                #input("swaped face {0}".format(list_swapped_faces))
-                # space.divide_along_line(aligned_edges)
+                print("aligned_edges", aligned_edges)
+                input("aligned_edges_all {0}".format(aligned_edges_all))
 
-                # input("edge and aligned_edges {0} {1}".format(edge, aligned_edges))
+                list_space_to_divide = []
+                for edge in aligned_edges:
+                    space = self.plan.get_space_of_edge(edge)
+                    if space not in list_space_to_divide:
+                        list_space_to_divide.append(space)
+                        aligned_edges_in_space=list(edge for edge in aligned_edges if space.has_edge(edge))
+                        self.divide_space(space, aligned_edges_in_space)
+
+                # if aligned_edges:
+                #     space = self.plan.get_space_of_edge(aligned_edges[0])
+                #     face_ini = aligned_edges[0].face
+                #     add = True
+                #     list_swapped_faces = [face_ini]
+                #     while add:
+                #         add = False
+                #         for face in space.adjacent_faces(face_ini):
+                #             if not [
+                #                 edge for edge in aligned_edges if
+                #                 edge.pair in face.edges] and face not in list_swapped_faces:
+                #                 list_swapped_faces.append(face)
+                #                 add = True
+                #         if add:
+                #             face_ini = list_swapped_faces[-1]
+                #
+                #     list_swapped_faces = [face for face in
+                #                           self.face_on_side(aligned_edges)]
+                #
+                #     print("aligned_edges", aligned_edges)
+                #     print("nb swap faces", len(list_swapped_faces))
+                #
+                #     for face in list_swapped_faces:
+                #         self.plan.get_space_of_face(face).remove_face(face)
+                #
+                #     if list_swapped_faces:
+                #         space_created = Space(self.plan, space.floor,
+                #                               list_swapped_faces[0].edge,
+                #                               SPACE_CATEGORIES["empty"])
+                #         list_swapped_faces.remove(list_swapped_faces[0])
+                #
+                #     while list_swapped_faces:
+                #         for face in list_swapped_faces:
+                #             if space_created.face_is_adjacent(face):
+                #                 space_created.add_face(face)
+                #                 list_swapped_faces.remove(face)
+
+
+                # break
+            # break
+
+            # print("aligned_edges", aligned_edges)
+            # input("swaped face {0}".format(list_swapped_faces))
+            # space.divide_along_line(aligned_edges)
+
+            # input("edge and aligned_edges {0} {1}".format(edge, aligned_edges))
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
@@ -837,7 +913,6 @@ if __name__ == '__main__':
             sp_comp = sp.components_category_associated()
             logging.debug(
                 "space area and category {0} {1} {2}".format(sp.area, sp_comp, sp.category.name))
-
 
 
     def grow_a_plan_2():
