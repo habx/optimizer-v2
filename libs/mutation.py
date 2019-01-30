@@ -12,6 +12,7 @@ import libs.transformation as transformation
 from libs.plan import Plan
 import libs.utils.geometry as geometry
 from libs.utils.custom_exceptions import OutsideFaceError
+from libs.utils.custom_types import Vector2d
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -249,6 +250,48 @@ def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space] if removed else []
 
 
+def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    Removes an edge an all the aligned edges to it
+    Not reversible
+    :param edge:
+    :param space:
+    :return: the modified spaces
+    Example:
+             ^           ^          ^         ^
+             |           |          |         |
+             |           |          |         |
+    *------->*---------->*--------->*-------->*--...
+     aligned |    Edge   | aligned  | aligned |
+     Edge    |           | Edge     | Edge    |
+             v           v          v         v
+
+    """
+    # find all aligned edges
+    # we check forward with the edge and backward with the edge pair
+    line_edges = [edge]
+    for current_edge in (edge, edge.pair):
+        keep_going = True
+        while keep_going:
+            keep_going = False
+            for _edge in current_edge.end.edges:
+                angle = geometry.ccw_angle(_edge.vector, current_edge.opposite_vector)
+                if geometry.pseudo_equal(angle, 180, geometry.ANGLE_EPSILON):
+                    # if we encounter a space edge we stop
+                    if space.is_boundary(edge):
+                        break
+                    line_edges.append(_edge)
+                    current_edge = _edge
+                    keep_going = True
+                    break
+
+    removed = False
+    for line_edge in line_edges:
+        if space.is_internal(line_edge):
+            removed += space.remove_internal_edge(line_edge)
+
+    return [space] if removed else []
+
 # Cuts Mutation
 
 
@@ -340,15 +383,43 @@ def insert_aligned_rectangle(height: float,
     return _action
 
 
+def slice_cut(offset: float,
+              padding: float = 20,
+              vector: Optional[Vector2d] = None) -> EdgeMutation:
+    """
+    Cuts the face with a slice
+    :param offset:
+    :param padding:
+    :param vector:
+    :return:
+    """
+
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+        face = edge.face
+
+        # check depth of the face, if the face is not deep enough do not slice
+        deep_enough = (edge.clearance - padding) >= offset
+        if not deep_enough:
+            return []
+        _vector = vector or edge.vector
+        # slice the face
+        created_faces = edge.slice(offset, _vector)
+        return [space] if len(created_faces) > 1 else []
+
+    return _action
+
+
 MUTATION_FACTORIES = {
     "translation_cut": MutationFactory(translation_cut, reversible=False),
     "barycenter_cut": MutationFactory(barycenter_cut, reversible=False),
     "rectangle_cut": MutationFactory(insert_aligned_rectangle, reversible=False),
+    "slice_cut": MutationFactory(slice_cut, reversible=False)
 }
 
 MUTATIONS = {
     "swap_face": Mutation(swap_face),
     "swap_aligned_face": Mutation(swap_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
-    "remove_edge": Mutation(remove_edge, reversible=False)
+    "remove_edge": Mutation(remove_edge, reversible=False),
+    "remove_line": Mutation(remove_line, reversible=False)
 }

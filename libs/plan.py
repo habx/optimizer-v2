@@ -1166,7 +1166,7 @@ class Space(PlanComponent):
             return False
 
         return edge.recursive_cut(vertex, angle, traverse=traverse, callback=callback,
-                                  max_length=max_length, immutable=immutable)
+                                  max_length=max_length)
 
     def barycenter_cut(self, edge: Optional[Edge] = None, coeff: float = 0.5,
                        angle: float = 90.0, traverse: str = 'absolute',

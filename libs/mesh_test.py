@@ -854,3 +854,8 @@ def test_slice_on_edge_2():
     mesh.boundary_edge.pair.previous.slice(50, (0, 1))
     mesh.plot()
     assert mesh.check()
+
+
+def test_clearance():
+    mesh = rectangular_mesh(100, 200)
+    assert mesh.boundary_edge.pair.clearance == 200

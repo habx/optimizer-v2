@@ -14,6 +14,7 @@ from random import randint
 from libs.utils.custom_types import Vector2d, Coords2d
 
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
 
 def truncate(value: float)-> float:

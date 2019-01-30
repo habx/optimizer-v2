@@ -114,6 +114,16 @@ def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from space.edges
 
 
+def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges of the face
+    :param space:
+    :return:
+    """
+    for face in space.faces:
+        yield from face.edges
+
+
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge reference face
@@ -369,6 +379,34 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     return _selector
 
 
+def face_min_dimensions(min_width: Optional[float] = None,
+                        min_depth: Optional[float] = None) -> EdgeQuery:
+    """
+    Returns an edge from a space that has a width or a depth
+    :param min_width:
+    :param min_depth:
+    :return: an EdgeQuery
+    """
+
+    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+
+        if min_width is None and min_depth is None:
+            raise ValueError("Selector: Face min dimensions, depth or width must be provided")
+
+        if not space.edge:
+            return
+
+        for face in space.faces:
+            box = face.bounding_box()
+            if ((min_width is not None and box[0] <= min_width)
+                    or (min_depth is not None and box[1] <= min_depth)):
+                # return the edge of the face with the minimum cardinality that is not on
+                # the boundary of the space
+                non_boundary_edges = (edge for edge in face.edges if space.is_internal(edge))
+                yield min(non_boundary_edges, key=lambda e: e.cardinality)
+
+    return _selector
+
 # predicates
 
 
@@ -609,19 +647,23 @@ def is_linear(*category_names: str) -> Predicate:
 def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
     """
     Predicate factory
-    Returns a predicate indicating if an edge is between two linears of the provided category
+    Returns a predicate indicating if an edge is on, before, after
+    or between two linears of the provided category
     :param category_names: tuple of linear category names
-    :param position : where should the edge be : before, after, between
+    :param position : where should the edge be : before, after, between, on
     :return:
     """
 
-    position_valid_values = 'before', 'after', 'between'
+    position_valid_values = 'before', 'after', 'between', 'on'
 
     if position not in position_valid_values:
         raise ValueError('Wrong position value in predicate factory touches_linear:' +
                          ' {0}'.format(position))
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if position == 'on':
+            linear = space.plan.get_linear(edge)
+            return linear and linear.category.name in category_names
         if position == 'before':
             next_linear = space.plan.get_linear(edge.next)
             return next_linear and next_linear.category.name in category_names
@@ -843,6 +885,15 @@ SELECTORS = {
         ]
     ),
 
+    "all_aligned_edges": Selector(
+        boundary_faces,
+        [
+            edge_angle(180.0, 180.0),
+            is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
+            is_not(is_linear('window', 'doorWindow', 'frontDoor'))
+        ]
+    ),
+
     "edge_min_150": Selector(
         boundary,
         [
@@ -966,11 +1017,14 @@ SELECTORS = {
         ]
     ),
 
-    "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct)
+    "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct),
+
+    "window_doorWindow": Selector(boundary, [touches_linear("window", "doorWindow", position="on")])
 
 }
 
 SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
     "edges_length": SelectorFactory(lambda: boundary, [edge_length]),
+    "face_min_dimensions": SelectorFactory(face_min_dimensions)
 }

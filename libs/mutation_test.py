@@ -124,3 +124,42 @@ def test_rectangle_cut_split(l_plan):
     l_plan.plot()
 
     assert l_plan.check()
+
+
+def test_slice_cut(l_plan):
+    rectangle_mutation = MUTATION_FACTORIES["slice_cut"](100)
+    edge = l_plan.mesh.boundary_edge.pair
+    rectangle_mutation.apply_to(edge, l_plan.empty_space)
+
+    l_plan.plot()
+
+    assert l_plan.check()
+
+
+def test_slice_cut_too_close():
+    boundary = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    plan = Plan("Slice too close")
+    plan.add_floor_from_boundary(boundary)
+    rectangle_mutation = MUTATION_FACTORIES["slice_cut"](90)
+    edge = plan.mesh.boundary_edge.pair
+    rectangle_mutation.apply_to(edge, plan.empty_space)
+
+    plan.plot()
+
+    assert plan.check()
+
+
+def test_remove_line(l_plan):
+    """
+    Remove a whole line
+    :return:
+    """
+    from libs.grid import GRIDS
+
+    plan = GRIDS["finer_ortho_grid"].apply_to(l_plan)
+    edge = plan.mesh.boundary_edge.pair.next.next
+    MUTATIONS["remove_line"].apply_to(edge, plan.empty_space)
+
+    plan.plot()
+
+    assert plan.check()

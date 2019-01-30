@@ -894,6 +894,26 @@ class Edge(MeshComponent):
         return vertex.sp_half_line(self.normal)
 
     @property
+    def clearance(self) -> float:
+        """
+        Returns the depth of the face along the normal of the edge from the middle of the face
+        :return:
+        """
+        if not self.face:
+            return 0.0
+
+        vertex = self.barycenter(0.5)
+        line = vertex.sp_half_line(self.normal)
+        vertex.remove_from_mesh()
+
+        intersection = line.intersection(self.face.as_sp_linear_ring)
+        if intersection.is_empty or intersection.geom_type != "MultiPoint":
+            raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+        output = distance(intersection[0].coords[0], intersection[1].coords[0])
+
+        return output
+
+    @property
     def as_sp(self) -> LineString:
         """
         The edge as shapely LineString
@@ -1625,6 +1645,9 @@ class Edge(MeshComponent):
         if self.face is None:
             raise ValueError("Edge Slice: The edge must fave a non null face")
 
+        # per convention we slice parallel to the edge direction
+        vector = vector or self.vector
+
         point = move_point(self.start.coords, self.normal, offset)
         vertex = Vertex(self.mesh, point[0], point[1])
         created_faces = self.face.slice(vertex, vector)
@@ -1860,9 +1883,9 @@ class Face(MeshComponent):
         """
         Returns the bounding rectangular box of the face according to the direction vector
         :param vector:
-        :return:
+        :return: the width and depth of the box
         """
-        vector = vector or self.edge.unit_vector
+        vector = unit(vector) if vector is not None else self.edge.unit_vector
         total_x = 0
         max_x = 0
         min_x = 0

@@ -101,6 +101,17 @@ class Grid:
             new_grid.operators.append(operator)
         return new_grid
 
+    def __add__(self, other: 'Grid') -> 'Grid':
+        """
+        Returns a grid that is the concatenation of the two grids
+        :param other: the other grid
+        :return: a new grid
+        """
+        new_grid = self.clone("{} + {}".format(self.name, other.name))
+        for operator in other.operators:
+            new_grid.operators.append(operator)
+        return new_grid
+
 
 # grid
 simple_grid = Grid("simple_grid", [
@@ -216,12 +227,38 @@ rectangle_grid = Grid("rectangle", [
      MUTATION_FACTORIES["rectangle_cut"](180, 180, relative_offset=1.0), True)
 ])
 
+duct_grid = Grid("duct", [
+
+    (SELECTORS["duct_edge_min_10"],
+     MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
+
+    (SELECTORS["duct_edge_min_10"],
+     MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True),
+
+    (SELECTORS["duct_edge_min_10"],
+     MUTATION_FACTORIES["barycenter_cut"](1, traverse="no"), True),
+
+    (SELECTORS["all_aligned_edges"],
+     MUTATION_FACTORIES['barycenter_cut'](1.0), False)
+
+])
+
+window_grid = Grid("window", [
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](300), True)
+])
+
+remove_small_faces_grid = Grid("small_faces", [
+    (SELECTOR_FACTORIES["face_min_dimensions"]([19, 19]), MUTATIONS["remove_line"], False)
+])
+
 GRIDS = {
     "ortho_grid": ortho_grid,
     "sequence_grid": sequence_grid,
     "simple_grid": simple_grid,
     "finer_ortho_grid": finer_ortho_grid,
-    "rectangle_grid": rectangle_grid
+    "rectangle_grid": rectangle_grid,
+    "duct": duct_grid,
+    "test_grid": window_grid + duct_grid + remove_small_faces_grid
 }
 
 if __name__ == '__main__':
@@ -233,10 +270,9 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Bussy_B002.json")
-        new_plan = rectangle_grid.apply_to(plan)
+        plan = reader.create_plan_from_file("Bussy_A101.json")
+        new_plan = (window_grid + duct_grid + remove_small_faces_grid).apply_to(plan)
         new_plan.check()
-
         new_plan.plot(save=False)
         plt.show()
 
