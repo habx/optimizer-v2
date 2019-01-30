@@ -838,11 +838,10 @@ def next_aligned_category(cat: str) -> Predicate:
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
-
-        plan = space.plan
-
+        plan=space.plan
         if edge.next_is_aligned and plan.get_space_of_edge(
-                edge.next) is not None and plan.get_space_of_edge(edge.next).category.name is cat:
+                edge.next) is not None and plan.get_space_of_edge(
+            edge.next).category.name is cat:
             return True
         elif edge.next.pair.next_is_ortho and plan.get_space_of_edge(
                 edge.next.pair.next) is not None and plan.get_space_of_edge(
@@ -850,6 +849,7 @@ def next_aligned_category(cat: str) -> Predicate:
             return True
         else:
             return False
+
 
     return _predicate
 
@@ -1010,7 +1010,6 @@ SELECTORS = {
     "seed_duct": Selector(seed_duct),
 
     "seed_empty_furthest_couple": Selector(farthest_edges_barycenter()),
-
 
     "farthest_couple_start_space_area_min_100000": Selector(
         farthest_edges_barycenter(),

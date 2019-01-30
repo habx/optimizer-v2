@@ -231,25 +231,24 @@ class Seeder:
                 aligned_edges_all = list(edge.oriented_aligned_siblings())
                 aligned_edges = []
                 for edge in aligned_edges_all:
-                    if self.plan.get_space_of_edge(
-                            edge).category.name is not "empty" or self.plan.get_space_of_edge(
-                        edge.pair).category.name is not "empty":
-                        # input("break {0}".format(edge))
+                    space_of_edge = self.plan.get_space_of_edge(edge)
+                    space_of_edge_pair = self.plan.get_space_of_edge(edge.pair)
+                    if space_of_edge is None or space_of_edge_pair is None:
                         break
-                    # print("added edge",edge,"edge is",self.plan.get_space_of_edge(
-                    #    edge).category.name,"edge pairs is",self.plan.get_space_of_edge(
-                    #    edge.pair).category.name)
+                    if space_of_edge.category.name is not "empty" or space_of_edge_pair.category.name is not "empty":
+                        break
                     aligned_edges.append(edge)
 
-                print("aligned_edges", aligned_edges)
-                input("aligned_edges_all {0}".format(aligned_edges_all))
+                # print("aligned_edges", aligned_edges)
+                # input("aligned_edges_all {0}".format(aligned_edges_all))
 
                 list_space_to_divide = []
                 for edge in aligned_edges:
                     space = self.plan.get_space_of_edge(edge)
                     if space not in list_space_to_divide:
                         list_space_to_divide.append(space)
-                        aligned_edges_in_space=list(edge for edge in aligned_edges if space.has_edge(edge))
+                        aligned_edges_in_space = list(
+                            edge for edge in aligned_edges if space.has_edge(edge))
                         self.divide_space(space, aligned_edges_in_space)
 
                 # if aligned_edges:
@@ -288,7 +287,6 @@ class Seeder:
                 #             if space_created.face_is_adjacent(face):
                 #                 space_created.add_face(face)
                 #                 list_swapped_faces.remove(face)
-
 
                 # break
             # break
@@ -938,9 +936,9 @@ if __name__ == '__main__':
         input_file = "Antony_A22.json"
         plan = reader.create_plan_from_file(input_file)
 
-        #plan = test_seed_multiple_floors()
+        # plan = test_seed_multiple_floors()
 
-        GRIDS['ortho_grid'].apply_to(plan)
+        GRIDS['finer_ortho_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()

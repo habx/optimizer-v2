@@ -944,17 +944,11 @@ class Edge(MeshComponent):
         parall = True
         while parall:
             if current_edge.next_is_aligned:
-                # input("initial_edge and yield {0} {1}".format(self, current_edge.next))
                 list_parall.append(current_edge.next)
-                #print("list_parall",list_parall)
                 current_edge = current_edge.next
             elif current_edge.next.pair.next_is_ortho:
-                # input(
-                #    "initial_edge LOOP and yield {0} {1}".format(self, current_edge.next.pair.next))
-                #yield current_edge.next.pair.next
                 list_parall.append(current_edge.next.pair.next)
                 current_edge=current_edge.next.pair.next
-                #print("list_parall", list_parall)
             else:
                 parall = False
         for edge in list_parall:
