@@ -68,6 +68,7 @@ if __name__ == '__main__':
         shutil.move(init_name, init_name.replace(" ", ""))
 
     x = next(os.walk(repo))[2]
+    x.sort()
     for current_x in x:
         print("current_x", current_x)
         if current_x.endswith(".svg"):
