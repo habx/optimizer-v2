@@ -49,9 +49,10 @@ class ConstraintSolver:
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
+        self.cells_item: List[ortools.IntVar] = []
         self.positions = {}  # List[List[ortools.IntVar]] = [[]]
         # For the decision builder
-        self.positions_flat: List[ortools.IntVar] = []
+        #self.positions_flat: List[ortools.IntVar] = []
         self.init_positions()
         self.solutions = []
 
@@ -60,14 +61,17 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        self.positions = {(i_item, j_space): self.solver.IntVar(0, 1, "positions[{0},{1}]"
-                                                                .format(i_item, j_space))
-                          for i_item in range(self.items_nbr)
-                          for j_space in range(self.spaces_nbr)}
+        self.cells_item = [self.solver.IntVar(0, self.items_nbr-1,
+                                              "cells_item[{0}]".format(j_space))
+                           for j_space in range(self.spaces_nbr)]
 
-        self.positions_flat = [self.positions[i_item, j_space]
-                               for i_item in range(self.items_nbr)
-                               for j_space in range(self.spaces_nbr)]
+        for i_item in range(self.items_nbr):
+            for j_space in range(self.spaces_nbr):
+                self.positions[i_item, j_space] = (self.cells_item[j_space] == i_item)
+
+        # self.positions_flat = [self.positions[i_item, j_space]
+        #                        for i_item in range(self.items_nbr)
+        #                        for j_space in range(self.spaces_nbr)]
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
         """
@@ -84,9 +88,10 @@ class ConstraintSolver:
         :return: None
         """
         # Decision builder
-        db = self.solver.Phase(self.positions_flat, self.solver.INT_VAR_DEFAULT,
+        self.solver.
+        restart = self.solver.ConstantRestart(1000)
+        db = self.solver.Phase(self.cells_item, self.solver.INT_VAR_DEFAULT,
                                self.solver.ASSIGN_MAX_VALUE)
-
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
@@ -96,11 +101,11 @@ class ConstraintSolver:
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
                 logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
-                    self.positions[i_item, j].Value() for j in
+                    self.cells_item[j_space].Value() == i_item for j_space in
                     range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
-                    sol_positions[i_item].append(self.positions[i_item, j_space].Value())
+                    sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
             self.solutions.append(sol_positions)
 
             # Number of solutions
