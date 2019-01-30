@@ -668,5 +668,8 @@ if __name__ == '__main__':
     import libs.constraints_manager_test as cmt
 
     logging.getLogger().setLevel(logging.DEBUG)
-
-    cmt.test_basic_case()
+    cmt.t1_test()
+    cmt.t1_bis_test()
+    cmt.t3_test()
+    cmt.t3_balcony_test()
+    cmt.t3_bis_test()
