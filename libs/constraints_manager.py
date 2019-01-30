@@ -88,8 +88,6 @@ class ConstraintSolver:
         :return: None
         """
         # Decision builder
-        self.solver.
-        restart = self.solver.ConstantRestart(1000)
         db = self.solver.Phase(self.cells_item, self.solver.INT_VAR_DEFAULT,
                                self.solver.ASSIGN_MAX_VALUE)
         self.solver.NewSearch(db)
