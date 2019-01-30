@@ -59,6 +59,7 @@ class MeshComponent:
     """
     An abstract class for mesh component : vertex, edge or face
     """
+
     def __init__(self, mesh: 'Mesh', _id: Optional[uuid.UUID] = None):
         self._id = _id or uuid.uuid4()
         self._mesh = mesh
@@ -936,6 +937,86 @@ class Edge(MeshComponent):
                 break
             yield edge
 
+    def oriented_aligned_siblings(self) -> Generator['Edge', 'Edge', None]:
+
+        list_parall = []
+        current_edge = self
+        parall = True
+        while parall:
+            if current_edge.next_is_aligned:
+                # input("initial_edge and yield {0} {1}".format(self, current_edge.next))
+                list_parall.append(current_edge.next)
+                #print("list_parall",list_parall)
+                current_edge = current_edge.next
+            elif current_edge.next.pair.next_is_ortho:
+                # input(
+                #    "initial_edge LOOP and yield {0} {1}".format(self, current_edge.next.pair.next))
+                #yield current_edge.next.pair.next
+                list_parall.append(current_edge.next.pair.next)
+                current_edge=current_edge.next.pair.next
+                #print("list_parall", list_parall)
+            else:
+                parall = False
+        for edge in list_parall:
+            yield edge
+
+
+    # def oriented_aligned_siblings(self, backward: bool = False) -> Generator[
+    #     'Edge', 'Edge', None]:
+    #     yield self
+    #
+    #
+    #     if not backward:
+    #         # forward check
+    #         list_siblings = []
+    #         increment=True
+    #         edge_res=self
+    #         while edge_res.aligned_siblings:
+    #             for edge in edge_res.aligned_siblings:
+    #                 print("edge_res",edge_res,"edge",self)
+    #                 print("ccw_angle(edge.vector,self.vector)",ccw_angle(edge.vector,self.vector))
+    #                 if pseudo_equal(ccw_angle(edge.vector,self.vector),180,5):
+    #                     list_siblings.append(edge)
+    #                     edge_res=edge_res.next.pair.next
+    #                     break
+    #             else:
+    #                 edge_res = edge_res.next.pair.next
+    #                 print("NO PARALL, edge_res", edge_res, "edge", self)
+    #                 increment=False
+    #
+    #             # if pseudo_equal(ccw_angle(self.vector,edge.vector),180,1):
+    #             #     input("self {0} and edge {1} and alignment {2}".format(self, edge,
+    #             #                                                            edge.previous_is_aligned))
+    #         input("edge {0} and list siblings is {1}".format(self, list_siblings))
+    #             #     yield edge
+    #     else:
+    #         for edge in self.previous.reverse_siblings:
+    #             if not edge.next_is_aligned:
+    #                 break
+    #             yield edge
+
+    # def line_from_edge(self) -> Generator['Edge', 'Edge', None]:
+    #     """
+    #     Returns the edges that are aligned with self and contiguous. When an edge has not aligned
+    #     sibling, then the sibling with angle clothest to 180 is selected
+    #     :return:
+    #     """
+    #     yield self
+    #
+    #     for edge in self.next.siblings:
+    #         edge_space = plan.get_space_of_edge(
+    #             edge)
+    #         if not edge.previous_is_aligned or edge_space is None \
+    #                 or edge_space.category.name is not cat:
+    #             break
+    #         yield edge
+    #     # backward check
+    #     for edge in self.previous.reverse_siblings:
+    #         if not edge.next_is_aligned or edge_space is None \
+    #                 or edge_space.category.name is not cat:
+    #             break
+    #         yield edge
+
     def is_linked_to_face(self, face: 'Face') -> bool:
         """
         Indicates if an edge is still linked to its face
@@ -1286,8 +1367,9 @@ class Edge(MeshComponent):
             return None
 
         # do not cut an immutable edge
-        if immutable and immutable(self):
-            return None
+        # if immutable and immutable(self):
+        #    return None
+        immutable = False
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
         if not self.contains(vertex):
@@ -2364,7 +2446,7 @@ class Mesh:
     """
 
     def __init__(self, _id: Optional[uuid.UUID] = None):
-        self._edge = None   # boundary edge of the mesh
+        self._edge = None  # boundary edge of the mesh
         self._faces = {}
         self._edges = {}
         self._vertices = {}
@@ -3126,7 +3208,6 @@ if __name__ == '__main__':
 
     # plot()
 
-
     def merge_two_faces_edge():
         """
         Test
@@ -3152,7 +3233,6 @@ if __name__ == '__main__':
 
     # merge_two_faces_edge()
 
-
     def simplify_mesh():
         """
         Test
@@ -3172,7 +3252,6 @@ if __name__ == '__main__':
 
     # simplify_mesh()
 
-
     def insert_complex_face_1():
         """
         Test
@@ -3189,5 +3268,6 @@ if __name__ == '__main__':
         mesh.plot()
 
         assert mesh.check()
+
 
     insert_complex_face_1()

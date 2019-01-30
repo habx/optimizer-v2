@@ -114,6 +114,17 @@ def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from space.edges
 
 
+def any(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges of the face
+    :param space:
+    :return:
+    """
+    if space.face:
+        for face in space.faces:
+            yield from face.edges
+
+
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge reference face
@@ -242,6 +253,45 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge_homogeneous_growth
 
 
+def homogeneous_shape_factor(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns among all edges on the space border the one such as when the pair
+     face is added the shape factor is smaller
+    """
+
+    ref_edge = space.edge
+    biggest_shape_factor = None
+    edge_homogeneous_growth = None
+
+    if ref_edge and ref_edge.pair and ref_edge.pair.face and space.plan.get_space_of_face(
+            ref_edge.pair.face).category.name == 'empty':
+        face_added = ref_edge.pair.face
+
+        space_contact = space.plan.get_space_of_face(face_added)
+        space.add_face(face_added)
+        biggest_shape_factor = space.perimeter / space.area
+        space.remove_face(face_added)
+        space_contact.add_face(face_added)
+
+        edge_homogeneous_growth = ref_edge
+
+    for edge in space.edges:
+        if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
+                edge.pair).category.name == 'empty':
+            face_added = edge.pair.face
+            space_contact = space.plan.get_space_of_face(face_added)
+            space.add_face(face_added)
+            current_shape_factor = space.perimeter / space.area
+            space.remove_face(face_added)
+            space_contact.add_face(face_added)
+            if biggest_shape_factor is None or current_shape_factor <= biggest_shape_factor:
+                biggest_shape_factor = current_shape_factor
+                edge_homogeneous_growth = edge
+
+    if edge_homogeneous_growth:
+        yield edge_homogeneous_growth
+
+
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge that can be seeded for a duct
@@ -259,6 +309,9 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
+        aligned = list(edge_along_plan.next_ortho().next_ortho().aligned_siblings)
+        yield from (edge.pair for edge in aligned if edge.length > 50)
+        # yield edge_along_plan.next_ortho().next_ortho().pair
     else:
         for edge in space.edges:
             if edge.next_ortho() is edge.next:
@@ -364,6 +417,18 @@ def adjacent_to_other_space(edge: 'Edge', space: 'Space') -> bool:
     return space_pair is not space and space.mutable
 
 
+def adjacent_to_empty_space(edge: 'Edge', space: 'Space') -> bool:
+    """
+        Predicate
+        Returns True if the edge is adjacent to another space
+        :param edge:
+        :param space:
+        :return:
+        """
+    space_pair = space.plan.get_space_of_face(edge.pair.face)
+    return space_pair is not space and space_pair is not None and space_pair.category.name is 'empty'
+
+
 def not_adjacent_to_seed(edge: 'Edge', space: 'Space') -> bool:
     """
     return True if the edge.pair does not belong to a space of category seed
@@ -407,8 +472,7 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
 
 def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
+    Returns a corner edge of the space
     """
     edge_corner = None
     for edge in space.edges:
@@ -418,12 +482,33 @@ def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     yield edge_corner
 
 
-def check_corner_edge(edge: 'Edges', space: 'Space') -> Generator['Edge', bool, None]:
+def corner_edges_ortho(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
+    Returns edges at orthogonal corners of the space
     """
+    for edge in space.edges:
+        if space.next_is_orho(edge) or space.previous_is_orho(edge):
+            yield edge
+
+
+def check_corner_edge(edge: 'Edges', space: 'Space', previous: bool = False):
+    """
+    Returns True if the edge is right after (or right before if previous) a corner
+    """
+    if previous:
+        return not space.next_is_aligned(edge)
+
     return not space.next_is_aligned(space.previous_edge(edge))
+
+
+def next_is_ortho(edge: 'Edges', space: 'Space'):
+    return space.next_is_ortho(edge)
+
+
+def previous_is_ortho(edge: 'Edges', space: 'Space'):
+    previous_edge = space.previous_edge(edge)
+    return space.next_is_orho(previous_edge)
+
 
 # predicate factories
 
@@ -653,6 +738,31 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     return _predicate
 
 
+def cutting_linear(*category_names: str) -> Predicate:
+    """
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space'):
+        linear_edges = []
+
+        for sibling in edge.siblings:
+            linear = space.plan.get_linear(sibling)
+            if linear and linear.category.name in category_names:
+                linear_edges.append(sibling)
+
+        if not linear_edges:
+            return False
+
+        for linear_edge in linear_edges:
+            if edge.start.as_sp.buffer(1).crosses(linear_edge.as_sp_extended):
+                # if edge.as_sp_extended.crosses(linear_edge.as_sp_extended):
+                return True
+
+        return False
+
+    return _predicate
+
+
 def space_area(min_area: float = None, max_area: float = None) -> Predicate:
     """
     Predicate factory
@@ -688,7 +798,56 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
+def has_pair() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge has a pair
+    :return:
+    """
+    def _predicate(edge: 'Edge', _: 'Space') -> bool:
+        return not edge.pair is None
 
+    return _predicate
+
+def has_space_pair() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if a space has a pair through a given edge
+    :return:
+    """
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if not edge.pair:
+            return False
+        else:
+            if space.plan.get_space_of_edge(edge.pair) is None:
+                return False
+        return True
+
+    return _predicate
+
+def next_aligned_category(cat: str) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge has as next aligned siblings an edge that in a
+    space with specified category
+    :return:
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+
+        plan = space.plan
+
+        if edge.next_is_aligned and plan.get_space_of_edge(
+                edge.next) is not None and plan.get_space_of_edge(edge.next).category.name is cat:
+            return True
+        elif edge.next.pair.next_is_ortho and plan.get_space_of_edge(
+                edge.next.pair.next) is not None and plan.get_space_of_edge(
+            edge.next.pair.next).category.name is cat:
+            return True
+        else:
+            return False
+
+    return _predicate
 
 
 # Catalog Selectors
@@ -704,6 +863,29 @@ SELECTORS = {
             edge_angle(180.0, 270.0, previous=True),
             aligned_edges_length(min_length=150.0),
             is_previous(aligned_edges_length(min_length=150.0))
+        ]
+    ),
+
+    "after_corner": Selector(
+        boundary,
+        [
+            check_corner_edge,
+        ]
+    ),
+
+    "after_ortho_corner": Selector(
+        boundary,
+        [
+            # check_corner_edge(previous=True),
+            previous_is_ortho
+        ]
+    ),
+
+    "before_ortho_corner": Selector(
+        boundary,
+        [
+            # check_corner_edge,
+            next_is_ortho
         ]
     ),
 
@@ -755,6 +937,14 @@ SELECTORS = {
         ]
     ),
 
+    "cutting_linear": Selector(
+        any,
+        [
+            cutting_linear('window', 'doorWindow', 'frontDoor'),
+            not_space_boundary
+        ]
+    ),
+
     "between_windows": Selector(
         boundary,
         [
@@ -776,6 +966,13 @@ SELECTORS = {
             edge_angle(180.0, 180.0),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
             is_not(is_linear('window', 'doorWindow', 'frontDoor'))
+        ]
+    ),
+
+    "edge_min_120": Selector(
+        boundary,
+        [
+            edge_length(min_length=120.0)
         ]
     ),
 
@@ -847,6 +1044,8 @@ SELECTORS = {
 
     "homogeneous": Selector(homogeneous, name='homogeneous'),
 
+    "homogeneous_shape_factor": Selector(homogeneous_shape_factor, name='homogeneous'),
+
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
         [
@@ -857,7 +1056,7 @@ SELECTORS = {
     "fuse_small_cell_without_components": Selector(
         boundary_unique_longest,
         [
-            space_area(max_area=30000),
+            space_area(max_area=10000),
             cell_with_component(has_component=False)
         ]
     ),
@@ -878,10 +1077,10 @@ SELECTORS = {
     ),
     "single_edge": Selector(boundary_unique),
 
-    "corner_big_cell_area_70000": Selector(
+    "corner_big_cell_area_90000": Selector(
         corner_edge,
         [
-            space_area(min_area=70000),
+            space_area(min_area=90000),
         ]
     ),
 
@@ -892,6 +1091,23 @@ SELECTORS = {
             adjacent_to_other_space,
             check_corner_edge,
             is_not(corner_stone)
+        ]
+    ),
+
+    "add_aligned": Selector(
+
+        boundary,
+        [
+            adjacent_to_empty_space,
+            previous_is_ortho,
+        ]
+    ),
+    "corner_edges_ortho": Selector(
+
+        corner_edges_ortho,
+        [
+            has_space_pair(),
+            next_aligned_category('empty'),
         ]
     ),
 }

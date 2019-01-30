@@ -352,6 +352,26 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
 
+    def next_is_orho(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the next edge is approximately orthogonal with this one,
+        using a pseudo equality on the angle
+        :param edge:
+        :return: boolean
+        """
+        is_ortho = pseudo_equal(self.next_angle(edge), 90, ANGLE_EPSILON)
+        return is_ortho
+
+    def previous_is_orho(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the previous edge is approximately orthogonal with this one,
+        using a pseudo equality on the angle
+        :param edge:
+        :return: boolean
+        """
+        is_ortho = pseudo_equal(self.previous_angle(edge), 90, ANGLE_EPSILON)
+        return is_ortho
+
     def next_is_aligned(self, edge: 'Edge') -> bool:
         """
         Indicates if the next edge is approximately aligned with this one,
@@ -1325,6 +1345,20 @@ class Space(PlanComponent):
                 return True
             else:
                 return False
+
+    def adjacent_spaces(self, length: int = None) -> List['Space']:
+        """
+        Gets the list of spaces adjacent to a given one
+        :return: List['Space']
+        """
+        spaces_list = []
+        for edge in self.edges:
+            if edge.pair:
+                adjacent_space = self.plan.get_space_of_edge(edge.pair)
+                if adjacent_space and adjacent_space not in spaces_list and self.adjacent_to(
+                        adjacent_space, length):
+                    spaces_list.append(adjacent_space)
+        return spaces_list
 
     def maximum_adjacency_length(self, other: Union['Space', 'Face']) -> float:
         """

@@ -67,8 +67,11 @@ class Seeder:
         :return:
         """
         for component in self.plan.get_components():
+
             if ((component.category.seedable and self.growth_methods["default"])
                     or component.category.name in self.selectors):
+
+                # input("component {0} and edge {1}".format(component,component.edge))
 
                 if isinstance(component, Space):
                     for edge in self.space_seed_edges(component):
@@ -117,7 +120,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-
+                    # input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -141,7 +144,7 @@ class Seeder:
         """
         if show:
             self._initialize_plot()
-        max_recursion = 40  # to prevent infinite loops
+        max_recursion = 100  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
              .plant()
@@ -154,19 +157,71 @@ class Seeder:
 
         return self
 
-    def empty(self, selector: 'Selector'):
+    def empty(self, selector: 'Selector', except_component: List['str'] = []):
         """
         Makes selected space empty
+        :param selector:
+        :return:
+        """
+
+        for space in self.plan.get_spaces("seed"):
+            if list(selector.yield_from(space)) and not [comp for comp in
+                                                         space.components_category_associated() if
+                                                         comp in except_component]:
+                # if list(selector.yield_from(space)) and not space.components_category_associated():
+                # if list(selector.yield_from(space)) and space.mutable:
+                space.category = SPACE_CATEGORIES["empty"]
+
+        return self
+
+    def divide_along_walls(self, selector: 'Selector'):
+        """
+        divide the empty space along all seed space walls
         :param selector:
         :param show:
         :return:
         """
 
-        for space in self.plan.get_spaces("seed"):
-            if list(selector.yield_from(space)) and not space.components_category_associated():
-                space.category = SPACE_CATEGORIES["empty"]
+        for space in self.plan.spaces:
+            if space.mutable:
+                print("INI space area", space.area)
 
-        return self
+        for seed_space in self.plan.get_spaces("seed"):
+            for edge in selector.yield_from(seed_space):
+                aligned_edges = list(edge.oriented_aligned_siblings())
+                if aligned_edges:
+                    space = self.plan.get_space_of_edge(aligned_edges[0])
+                    face_ini = aligned_edges[0].face
+                    add = True
+                    list_swapped_faces = []
+                    while add:
+                        add = False
+                        for face in space.adjacent_faces(face_ini):
+                            if not [
+                                edge for edge in aligned_edges if
+                                edge.pair in face.edges] and face not in list_swapped_faces:
+                                list_swapped_faces.append(face)
+                                add = True
+                        if add:
+                            face_ini = list_swapped_faces[-1]
+                    if list_swapped_faces:
+                        space.remove_face(list_swapped_faces[0])
+                        space_created = Space(self.plan, space.floor, list_swapped_faces[0].edge,
+                                           SPACE_CATEGORIES["empty"])
+                        for face in list_swapped_faces[1:]:
+                            space.remove_face(face)
+                            space_created.add_face(face)
+                #break
+            #break
+        for space in self.plan.spaces:
+            if space.mutable:
+                print("FINAL space area", space.area)
+
+                #print("aligned_edges", aligned_edges)
+                #input("swaped face {0}".format(list_swapped_faces))
+                # space.divide_along_line(aligned_edges)
+
+                # input("edge and aligned_edges {0} {1}".format(edge, aligned_edges))
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
@@ -599,33 +654,77 @@ classic_seed_category = GrowthMethod(
 ELEMENT_SEED_CATEGORIES = {
     "duct": GrowthMethod(
         'duct',
+        # (CONSTRAINTS["max_size_duct_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
         )
     ),
     "frontDoor": GrowthMethod(
         'frontDoor',
+        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+        )
+    ),
+    "window": GrowthMethod(
+        'window',
+        # (CONSTRAINTS["max_size_window_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
+        (CONSTRAINTS["max_size_window_constraint_seed"],),
+        (
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            # Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+        )
+    ),
+    "doorWindow": GrowthMethod(
+        'doorWindow',
+        # (CONSTRAINTS["max_size_window_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
+        (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
+        (
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            # Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
     "startingStep": GrowthMethod(
         'startingStep',
+        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
         )
     )
 }
@@ -634,6 +733,8 @@ GROWTH_METHODS = {
     "default": classic_seed_category,
     "duct": ELEMENT_SEED_CATEGORIES['duct'],
     "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
+    "window": ELEMENT_SEED_CATEGORIES['window'],
+    "doorWindow": ELEMENT_SEED_CATEGORIES['doorWindow'],
 }
 
 FILL_METHODS_HOMOGENEOUS = {
@@ -695,8 +796,15 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_A22.json"
+        input_file = "Massy_C204.json"
         # input_file = "Paris18_A402.json"
+        # input_file = "Antony_B22.json"
+        # input_file = "Groslay_A-00-01_oldformat.json"
+        # input_file = "Paris18_A301.json"
+        # input_file = "Sartrouville_RDC.json"
+        # input_file = "Massy_C204.json"
+        # input_file = "Bussy_A101.json"
+        # input_file = "Bussy_A001.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -707,16 +815,18 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
                                           "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_70000"])
+         .empty(SELECTORS["corner_big_cell_area_90000"], except_component=["window", "doorWindow"])
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
                                           "empty"), show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+               show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
@@ -729,4 +839,56 @@ if __name__ == '__main__':
                 "space area and category {0} {1} {2}".format(sp.area, sp_comp, sp.category.name))
 
 
-    grow_a_plan()
+
+    def grow_a_plan_2():
+        """
+        Test
+        :return:
+        """
+        logging.debug("Start test")
+        input_file = reader.get_list_from_folder()[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+        # input_file = "Antony_A22.json"
+        # input_file = "Paris18_A402.json"
+        # input_file = "Antony_B22.json"
+        # input_file = "Groslay_A-00-01_oldformat.json"
+        # input_file = "Paris18_A301.json"
+        # input_file = "Sartrouville_RDC.json"
+        # input_file = "Massy_C204.json"
+        # input_file = "Bussy_A101.json"
+        # input_file = "Bussy_A001.json"
+        # input_file = "Bussy_Regis.json"
+        # input_file = "Massy_C102.json"
+        # input_file = "Antony_A22.json"
+        input_file = "Antony_A22.json"
+        plan = reader.create_plan_from_file(input_file)
+
+        #plan = test_seed_multiple_floors()
+
+        GRIDS['ortho_grid'].apply_to(plan)
+
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
+        (seeder.plant()
+         .grow(show=True)
+         .divide_along_walls(SELECTORS["corner_edges_ortho"]))
+        # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+        # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
+
+        plan.plot(show=True)
+        plt.show()
+
+        for sp in plan.spaces:
+            sp_comp = sp.components_category_associated()
+            if sp.size and sp.category.name is not "empty" and sp.mutable:
+                logging.debug(
+                    "space area and category {0} {1} {2} {3}".format(sp_comp,
+                                                                     sp.category.name, sp.size,
+                                                                     sp.as_sp.centroid.coords.xy))
+            elif sp.category.name is not "empty" and sp.mutable:
+                logging.debug(
+                    "space area and category {0} {1} {2}".format(sp.area, sp_comp,
+                                                                 sp.category.name))
+
+
+    grow_a_plan_2()

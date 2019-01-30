@@ -134,6 +134,10 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     def _score(space: 'Space') -> float:
         list_components = list(
             p for p in params.keys() if p in space.components_category_associated())
+
+        if space.category.name is "empty":
+            return 0
+
         score = 0
         if not list_components:
             list_components = ["default"]
@@ -142,6 +146,7 @@ def component_surface_objective(params: Dict) -> scoreFunction:
             max_area = max(params[component]["max_area"] for component in list_components)
             score = shift_from_interval(min_area,
                                         max_area, space.area)
+        score = 10 * score
         return score
 
     return _score
@@ -158,7 +163,40 @@ def number_of_components(params: Dict):
             return 0.0
         list_components = space.components_category_associated()
         number_components = sum(comp in params.keys() for comp in list_components)
-        return (number_components) ** 2
+        for adjacent_space in space.adjacent_spaces():
+            list_components = adjacent_space.components_category_associated()
+            number_components += sum(comp in params.keys() for comp in list_components)
+        return number_components ** 2
+
+    return _score
+
+
+def aligned_spaces(params: Dict):
+    """
+    better scores when corner of spaces are corner of adjacent spaces as well
+    :return:
+    """
+
+    def _score(space: 'Space') -> float:
+        if (space is None or space.category.name in params[
+            "excluded"]):
+            return 0.0
+        non_proper_arrangement = 0
+        corner_edges = [edge for edge in space.edges if edge.pair and
+                        (space.previous_is_orho(edge) or space.next_is_orho(
+                            edge))]
+
+        for edge in corner_edges:
+            space_pair = space.plan.get_space_of_edge(edge.pair)
+
+            if space_pair and space_pair.category.name not in params[
+                "excluded"] and not (
+                    space_pair.next_is_orho(edge.pair) or space_pair.previous_is_orho(edge.pair)):
+                non_proper_arrangement += 1
+
+        print("space", space, "non_proper_arrangement", non_proper_arrangement)
+
+        return non_proper_arrangement
 
     return _score
 
@@ -249,35 +287,43 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
 
 ELEMENT_CONSTRAINT_SEED = {
     'duct': SpaceConstraint(max_size,
-                            {"max_size": Size(40000, 200, 200),
+                            {"max_size": Size(35000, 200, 200),
                              "category_name": "seed"},
-                            "max_size_xs"),
+                            "max_size_duct"),
     'frontDoor': SpaceConstraint(max_size,
                                  {"max_size": Size(50000, 200, 200),
                                   "category_name": "seed"},
-                                 "max_size_xs")
+                                 "max_size_frontDoor"),
+    'window': SpaceConstraint(max_size,
+                              {"max_size": Size(80000, 300, 300),
+                               "category_name": "seed"},
+                              "max_size_window"),
+    'doorWindow': SpaceConstraint(max_size,
+                                  {"max_size": Size(90000, 400, 300),
+                                   "category_name": "seed"},
+                                  "max_size_doorWindow")
 }
 
 max_size_default_constraint_seed = SpaceConstraint(max_size,
-                                                   {"max_size": Size(70000, 300, 300),
+                                                   {"max_size": Size(60000, 300, 300),
                                                     "category_name": "seed"},
                                                    "max_size_xs")
 
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
                                               {
-                                                  "default": {"min_area": 40000,
-                                                              "max_area": 60000},
-                                                  "frontDoor": {"min_area": 30000,
+                                                  "default": {"min_area": 15000,
+                                                              "max_area": 70000},
+                                                  "frontDoor": {"min_area": 20000,
                                                                 "max_area": 50000},
-                                                  "duct": {"min_area": 30000,
-                                                           "max_area": 50000},
-                                                  "window": {"min_area": 40000,
-                                                             "max_area": 70000},
-                                                  "doorWindow": {"min_area": 60000,
-                                                                 "max_area": 90000},
-                                                  "startingStep": {"min_area": 20000,
-                                                                   "max_area": 40000},
+                                                  "duct": {"min_area": 10000,
+                                                           "max_area": 30000},
+                                                  "window": {"min_area": 50000,
+                                                             "max_area": 80000},
+                                                  "doorWindow": {"min_area": 50000,
+                                                                 "max_area": 80000},
+                                                  "startingStep": {"min_area": 10000,
+                                                                   "max_area": 30000},
                                               },
                                               "component_surface_objective", imperative=False)
 
@@ -286,10 +332,12 @@ number_of_components = SpaceConstraint(number_of_components,
                                            "duct": [],
                                            "window": [],
                                            "doorWindow": [],
-                                           "startingStep": [],
                                            "frontDoor": []
                                        },
                                        "number_of_components", imperative=False)
+
+aligned_spaces = SpaceConstraint(aligned_spaces, {"excluded": ['empty']},
+                                 "aligned_spaces", imperative=False)
 
 square_shape = SpaceConstraint(square_shape,
                                {"max_ratio": 100.0},
@@ -309,8 +357,11 @@ CONSTRAINTS = {
     "max_size_xs_seed": max_size_xs_constraint_seed,
     "max_size_duct_constraint_seed": ELEMENT_CONSTRAINT_SEED['duct'],
     "max_size_frontdoor_constraint_seed": ELEMENT_CONSTRAINT_SEED['frontDoor'],
+    "max_size_window_constraint_seed": ELEMENT_CONSTRAINT_SEED['window'],
+    "max_size_doorWindow_constraint_seed": ELEMENT_CONSTRAINT_SEED['doorWindow'],
     "max_size_default_constraint_seed": max_size_default_constraint_seed,
     "square_shape": square_shape,
     "component_surface_objective": component_surface_objective,
     "number_of_components": number_of_components,
+    "aligned_spaces": aligned_spaces
 }

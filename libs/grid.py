@@ -149,27 +149,79 @@ sequence_grid = Grid('sequence_grid', [
     (
         SELECTORS["close_to_window"],
         MUTATIONS['remove_edge']
-
-    )
+    ),
 ])
 
+# ortho_grid = Grid('ortho_grid', [
+#     (
+#         SELECTORS["previous_angle_salient_non_ortho"],
+#         MUTATIONS['ortho_projection_cut']
+#     ),
+#     (
+#         SELECTORS["next_angle_salient_non_ortho"],
+#         MUTATIONS['ortho_projection_cut']
+#     ),
+#     (
+#         SELECTORS["previous_angle_convex_non_ortho"],
+#         MUTATIONS['ortho_projection_cut']
+#     ),
+#     (
+#         SELECTORS["next_angle_convex_non_ortho"],
+#         MUTATIONS['ortho_projection_cut']
+#     ),
+#     (
+#         SELECTORS["previous_angle_salient_ortho"],
+#         MUTATION_FACTORIES['barycenter_cut'](0)
+#     ),
+#     (
+#         SELECTORS["next_angle_salient_ortho"],
+#         MUTATION_FACTORIES['barycenter_cut'](1.0)
+#     ),
+#     (
+#         SELECTORS["edge_min_500"],
+#         MUTATION_FACTORIES['barycenter_cut'](0.5)
+#     ),
+#     (
+#         SELECTORS["between_windows"],
+#         MUTATION_FACTORIES['barycenter_cut'](0.5)
+#     ),
+#     (
+#         SELECTORS["between_edges_between_windows"],
+#         MUTATION_FACTORIES['barycenter_cut'](0.5)
+#     ),
+#     (
+#         SELECTORS["edge_min_300"],
+#         MUTATION_FACTORIES['barycenter_cut'](0.5)
+#     ),
+#     (
+#         SELECTORS["aligned_edges"],
+#         MUTATION_FACTORIES['barycenter_cut'](1.0)
+#     )
+# ])
+
+
+# (
+#     SELECTORS["after_corner"],
+#     MUTATION_FACTORIES['absolute_cut'](100)
+# ),
+
 ortho_grid = Grid('ortho_grid', [
-    (
-        SELECTORS["previous_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
-    ),
-    (
-        SELECTORS["next_angle_salient_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
-    ),
-    (
-        SELECTORS["previous_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
-    ),
-    (
-        SELECTORS["next_angle_convex_non_ortho"],
-        MUTATIONS['ortho_projection_cut']
-    ),
+    # (
+    #     SELECTORS["previous_angle_salient_non_ortho"],
+    #     MUTATIONS['ortho_projection_cut']
+    # ),
+    # (
+    #     SELECTORS["next_angle_salient_non_ortho"],
+    #     MUTATIONS['ortho_projection_cut']
+    # ),
+    # (
+    #     SELECTORS["previous_angle_convex_non_ortho"],
+    #     MUTATIONS['ortho_projection_cut']
+    # ),
+    # (
+    #     SELECTORS["next_angle_convex_non_ortho"],
+    #     MUTATIONS['ortho_projection_cut']
+    # ),
     (
         SELECTORS["previous_angle_salient_ortho"],
         MUTATION_FACTORIES['barycenter_cut'](0)
@@ -202,13 +254,31 @@ ortho_grid = Grid('ortho_grid', [
 
 finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                      (SELECTORS["edge_min_150"],
-                                      MUTATION_FACTORIES['barycenter_cut'](0.5)))
+                                      MUTATION_FACTORIES['barycenter_cut'](0.5)),
+                                     (SELECTORS["cutting_linear"],
+                                      MUTATIONS['remove_edge']))
+
+
+finer_ortho_grid_2 = ortho_grid.extend("finer_ortho_grid_2",
+                                       (SELECTORS["edge_min_150"],
+                                        MUTATION_FACTORIES['barycenter_cut'](0.5)),
+                                       (SELECTORS["cutting_linear"],
+                                        MUTATIONS['remove_edge']))
+
+
+finer_ortho_grid_finer = finer_ortho_grid.extend("finer_ortho_grid",
+                                     (SELECTORS["edge_min_120"],
+                                      MUTATION_FACTORIES['barycenter_cut'](0.5)),
+                                     (SELECTORS["cutting_linear"],
+                                      MUTATIONS['remove_edge']))
 
 GRIDS = {
     "ortho_grid": ortho_grid,
     "sequence_grid": sequence_grid,
     "simple_grid": simple_grid,
-    "finer_ortho_grid": finer_ortho_grid
+    "finer_ortho_grid": finer_ortho_grid,
+    "finer_ortho_grid_finer": finer_ortho_grid_finer,
+    "finer_ortho_grid_2": finer_ortho_grid_2
 }
 
 if __name__ == '__main__':
@@ -220,7 +290,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Massy_C303.json")
+        plan = reader.create_plan_from_file("Antony_A22.json")
         new_plan = finer_ortho_grid.apply_to(plan)
         new_plan.check()
 
