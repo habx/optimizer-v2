@@ -218,29 +218,26 @@ class Seeder:
                     space_created.add_face(face)
                     list_swapped_faces.remove(face)
 
-    def divide_along_walls(self, selector: 'Selector'):
-        """
-        divide the empty space along all seed space walls
-        :param selector:
-        :param show:
-        :return:
-        """
-
+    def divide_along_walls_in_space(self, selector: 'Selector'):
         for seed_space in self.plan.get_spaces("seed"):
-            for edge in selector.yield_from(seed_space):
-                aligned_edges_all = list(edge.oriented_aligned_siblings())
-                aligned_edges = []
-                for edge in aligned_edges_all:
-                    space_of_edge = self.plan.get_space_of_edge(edge)
-                    space_of_edge_pair = self.plan.get_space_of_edge(edge.pair)
-                    if space_of_edge is None or space_of_edge_pair is None:
-                        break
-                    if space_of_edge.category.name is not "empty" or space_of_edge_pair.category.name is not "empty":
-                        break
-                    aligned_edges.append(edge)
+            for edge_selected in selector.yield_from(seed_space):
+                # if space.next
 
-                # print("aligned_edges", aligned_edges)
-                # input("aligned_edges_all {0}".format(aligned_edges_all))
+                aligned_edges_all = []
+                space_cutted = None
+                if seed_space.next_aligned_category(edge_selected, 'empty'):
+                    aligned_edges_all = list(edge_selected.oriented_aligned_siblings())
+                    space_cutted = self.plan.get_space_of_edge(edge_selected.next_aligned)
+                if seed_space.previous_aligned_category(edge_selected, 'empty'):
+                    aligned_edges_all += list(edge_selected.pair.oriented_aligned_siblings())
+                    space_cutted = self.plan.get_space_of_edge(edge_selected.pair.next_aligned)
+
+                aligned_edges = []
+                if aligned_edges_all and space_cutted:
+                    for edge in aligned_edges_all:
+                        space_of_edge = self.plan.get_space_of_edge(edge)
+                        if space_of_edge is space_cutted:
+                            aligned_edges.append(edge)
 
                 list_space_to_divide = []
                 for edge in aligned_edges:
@@ -250,52 +247,137 @@ class Seeder:
                         aligned_edges_in_space = list(
                             edge for edge in aligned_edges if space.has_edge(edge))
                         self.divide_space(space, aligned_edges_in_space)
+        return self
 
-                # if aligned_edges:
-                #     space = self.plan.get_space_of_edge(aligned_edges[0])
-                #     face_ini = aligned_edges[0].face
-                #     add = True
-                #     list_swapped_faces = [face_ini]
-                #     while add:
-                #         add = False
-                #         for face in space.adjacent_faces(face_ini):
-                #             if not [
-                #                 edge for edge in aligned_edges if
-                #                 edge.pair in face.edges] and face not in list_swapped_faces:
-                #                 list_swapped_faces.append(face)
-                #                 add = True
-                #         if add:
-                #             face_ini = list_swapped_faces[-1]
-                #
-                #     list_swapped_faces = [face for face in
-                #                           self.face_on_side(aligned_edges)]
-                #
-                #     print("aligned_edges", aligned_edges)
-                #     print("nb swap faces", len(list_swapped_faces))
-                #
-                #     for face in list_swapped_faces:
-                #         self.plan.get_space_of_face(face).remove_face(face)
-                #
-                #     if list_swapped_faces:
-                #         space_created = Space(self.plan, space.floor,
-                #                               list_swapped_faces[0].edge,
-                #                               SPACE_CATEGORIES["empty"])
-                #         list_swapped_faces.remove(list_swapped_faces[0])
-                #
-                #     while list_swapped_faces:
-                #         for face in list_swapped_faces:
-                #             if space_created.face_is_adjacent(face):
-                #                 space_created.add_face(face)
-                #                 list_swapped_faces.remove(face)
+    def divide_along_walls(self, selector: 'Selector'):
+        """
+        divide the empty space along all seed space walls
+        :param selector:
+        :param show:
+        :return:
+        """
 
-                # break
-            # break
+        for seed_space in self.plan.get_spaces("seed"):
+            for edge_selected in selector.yield_from(seed_space):
+                # if space.next
 
-            # print("aligned_edges", aligned_edges)
-            # input("swaped face {0}".format(list_swapped_faces))
-            # space.divide_along_line(aligned_edges)
+                aligned_edges_all = []
+                if seed_space.next_aligned_category(edge_selected, 'empty'):
+                    aligned_edges_all = list(edge_selected.oriented_aligned_siblings())
+                if seed_space.previous_aligned_category(edge_selected, 'empty'):
+                    aligned_edges_all += list(edge_selected.pair.oriented_aligned_siblings())
 
-            # input("edge and aligned_edges {0} {1}".format(edge, aligned_edges))
+                aligned_edges = []
+                if aligned_edges_all:
+                    for edge in aligned_edges_all:
+                        space_of_edge = self.plan.get_space_of_edge(edge)
+                        if space_of_edge is None:  # or space_of_edge_pair is None:
+                            break
+                        if space_of_edge.category.name is not "empty":  # or space_of_edge_pair.category.name is not "empty":
+                            break
+                        aligned_edges.append(edge)
+
+                    # print("aligned_edges", aligned_edges)
+                    # input("aligned_edges_all {0}".format(aligned_edges_all))
+
+                list_space_to_divide = []
+                for edge in aligned_edges:
+                    space = self.plan.get_space_of_edge(edge)
+                    if space not in list_space_to_divide:
+                        list_space_to_divide.append(space)
+                        aligned_edges_in_space = list(
+                            edge for edge in aligned_edges if space.has_edge(edge))
+                        self.divide_space(space, aligned_edges_in_space)
+        return self
+
+    def turn_empty_spaces(self):
+        self.plan.remove_null_spaces()
+        for space in self.plan.spaces:
+            if space.category.name is 'empty':
+                # print("curr space before {0}".format(space))
+                space.category = SPACE_CATEGORIES["seed"]
+                # input("curr space after {0}".format(space))
+        return self
+
+    def get_area_rule(self, space: 'Space', area_rules: Dict = {}, min_area: bool = False):
+        area_key = 'max_area'
+        if min_area:
+            area_key = 'min_area'
+        area = 0
+        for comp in space.components_category_associated():
+            if comp in area_rules:
+                area = max(area, area_rules[comp][area_key])
+        if area == 0:
+            area = area_rules['default'][area_key]
+        return area
+
+    def fusion(self, area_fuse: float = 20000, area_rules: Dict = {}):
+
+        self.plan.remove_null_spaces()
+        self.plan.plot()
+
+        fuse = True
+        while fuse:
+            list_spaces = [sp for sp in self.plan.spaces if
+                           sp.area < area_fuse and sp.mutable and not sp.components_category_associated()]
+            list_fusionnable_spaces = sorted(list_spaces, key=lambda space: space.area)
+            # for space in list_fusionnable_spaces:
+            #     print("all areas", space.area)
+            # input("area check")
+            for space in list_fusionnable_spaces:
+                adj_spaces_selected = []
+                adj_length = 0
+
+                mutable_adjacent_spaces = [sp for sp in space.adjacent_spaces() if
+                                           sp.mutable and sp.area + space.area < self.get_area_rule(
+                                               sp,
+                                               area_rules)]
+                for adj in mutable_adjacent_spaces:
+                    adj_length_tmp = space.contact_length(adj)
+                    print("contact length", adj_length_tmp)
+                    if abs(adj_length_tmp - adj_length) < 1:
+                        adj_spaces_selected.append(adj)
+                    elif adj_length_tmp > adj_length:
+                        adj_length = adj_length_tmp
+                        adj_spaces_selected = [adj]
+
+                if len(adj_spaces_selected) == 1:
+                    space.merge(adj_spaces_selected[0])
+                    self.plan.plot()
+                    break
+                elif len(adj_spaces_selected) > 1:
+                    # keeps for fusion spaces that are poorly connected
+                    num_aligned_min = None
+                    final_selection = []
+                    for adj_space_selected in adj_spaces_selected:
+                        num_aligned = adj_space_selected.count_aligned_sides()
+                        if not num_aligned_min:
+                            num_aligned_min = num_aligned
+                        if num_aligned == num_aligned_min:
+                            final_selection.append(adj_space_selected)
+                        elif num_aligned < num_aligned_min:
+                            num_aligned_min = num_aligned
+                            final_selection = [adj_space_selected]
+
+                    # adj_space_selected = min(adj_spaces_selected,
+                    #                         key=lambda space: space.count_aligned_sides())
+
+                    # among equivalently aligned spaces, the smallest is chosen for fusion
+                    adj_space_selected = final_selection[0]
+                    for final_sp in final_selection:
+                        if final_sp.area < adj_space_selected.area:
+                            adj_space_selected = final_sp
+
+                    print("space", space.edge, "adj_spaces_selected", adj_spaces_selected[0].edge,
+                          adj_spaces_selected[1].edge)
+                    print("num_aligned_min", num_aligned_min)
+                    # input("analyse fusion")
+                    space.merge(adj_space_selected)
+                    self.plan.plot()
+                    break
+
+            else:
+                fuse = False
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
@@ -821,6 +903,21 @@ FILL_METHODS = {
     "default": None
 }
 
+area_rules = {
+    "default": {"min_area": 15000,
+                "max_area": 90000},
+    "frontDoor": {"min_area": 20000,
+                  "max_area": 50000},
+    "duct": {"min_area": 10000,
+             "max_area": 30000},
+    "window": {"min_area": 50000,
+               "max_area": 90000},
+    "doorWindow": {"min_area": 50000,
+                   "max_area": 90000},
+    "startingStep": {"min_area": 10000,
+                     "max_area": 30000},
+}
+
 if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
@@ -932,8 +1029,8 @@ if __name__ == '__main__':
         # input_file = "Bussy_A001.json"
         # input_file = "Bussy_Regis.json"
         # input_file = "Massy_C102.json"
-        # input_file = "Antony_A22.json"
         input_file = "Antony_A22.json"
+        # input_file = "Vernouillet_A002.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -944,24 +1041,32 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         .divide_along_walls(SELECTORS["corner_edges_ortho"]))
+         .divide_along_walls(SELECTORS["corner_edges_ortho"])
+         # .divide_along_walls(SELECTORS["corner_edges_ortho_with_window"])
+         # .divide_along_walls_in_space(SELECTORS["corner_edges_ortho_without_window"])
+         .turn_empty_spaces()
+         .fusion(area_fuse=20000, area_rules=area_rules))
+        # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
         # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
 
+        plan.remove_null_spaces()
         plan.plot(show=True)
         plt.show()
+        plan.check()
 
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
-            if sp.size and sp.category.name is not "empty" and sp.mutable:
-                logging.debug(
-                    "space area and category {0} {1} {2} {3}".format(sp_comp,
-                                                                     sp.category.name, sp.size,
-                                                                     sp.as_sp.centroid.coords.xy))
-            elif sp.category.name is not "empty" and sp.mutable:
-                logging.debug(
-                    "space area and category {0} {1} {2}".format(sp.area, sp_comp,
-                                                                 sp.category.name))
+        print("sp", sp, sp.edge)
+        if sp.size and sp.category.name is not "empty" and sp.mutable:
+            logging.debug(
+                "space area and category {0} {1} {2} {3}".format(sp_comp,
+                                                                 sp.category.name, sp.size,
+                                                                 sp.as_sp.centroid.coords.xy))
+        elif sp.category.name is not "empty" and sp.mutable:
+            logging.debug(
+                "space area and category {0} {1} {2}".format(sp.area, sp_comp,
+                                                             sp.category.name))
 
 
     grow_a_plan_2()

@@ -937,23 +937,40 @@ class Edge(MeshComponent):
                 break
             yield edge
 
+    @property
+    def next_aligned(self) -> bool:
+        """
+        Returns next aligned edge
+        :return:
+        """
+
+        if self.next_is_aligned:
+            return self.next
+        elif self.next.pair.next_is_ortho:
+            return self.next.pair.next
+        else:
+            return None
+
     def oriented_aligned_siblings(self) -> Generator['Edge', 'Edge', None]:
 
         list_parall = []
         current_edge = self
         parall = True
         while parall:
-            if current_edge.next_is_aligned:
-                list_parall.append(current_edge.next)
-                current_edge = current_edge.next
-            elif current_edge.next.pair.next_is_ortho:
-                list_parall.append(current_edge.next.pair.next)
-                current_edge=current_edge.next.pair.next
+            current_edge_next_aligned = current_edge.next_aligned
+            if current_edge_next_aligned:
+                list_parall.append(current_edge_next_aligned)
+                current_edge = current_edge_next_aligned
+            # if current_edge.next_is_aligned:
+            #     list_parall.append(current_edge.next)
+            #     current_edge = current_edge.next
+            # elif current_edge.next.pair.next_is_ortho:
+            #     list_parall.append(current_edge.next.pair.next)
+            #     current_edge=current_edge.next.pair.next
             else:
                 parall = False
         for edge in list_parall:
             yield edge
-
 
     # def oriented_aligned_siblings(self, backward: bool = False) -> Generator[
     #     'Edge', 'Edge', None]:

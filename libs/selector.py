@@ -211,6 +211,36 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
     else:
         return
 
+#
+# def boundary_unique_longest_alignment(space: 'Space', *_) -> Generator['Edge', bool, None]:
+#     """
+#     Returns the longest edge of the space that is not on the plan boundary
+#     In case of equality, returns the one that induce better alignment in case of fusion with the
+#      space_pair
+#     :param space:
+#     :return:
+#     """
+#     space_edges_adjacent_to_seed = [
+#         edge for edge in space.edges if
+#         not edge.is_mesh_boundary
+#         and space.plan.get_space_of_edge(edge.pair).category.name == "seed"
+#     ]
+#
+#     if space_edges_adjacent_to_seed:
+#         longest_edge = max(space_edges_adjacent_to_seed, key=lambda edge: edge.length)
+#     longest_edges=[edge for edge in space_edges_adjacent_to_seed if edge.length>longest_edge.length]
+#
+#     longest_selected=[]
+#
+#     for edge in longest_selected:
+#
+#
+#     if space_edges_adjacent_to_seed:
+#
+#         yield edge
+#     else:
+#         return
+
 
 def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
@@ -829,6 +859,21 @@ def has_space_pair() -> Predicate:
     return _predicate
 
 
+def has_window() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if a space has windows
+    :return:
+    """
+
+    def _predicate(_: 'Edge', space: 'Space') -> bool:
+        if space.count_windows() > 0:
+            return True
+        return False
+
+    return _predicate
+
+
 def next_aligned_category(cat: str) -> Predicate:
     """
     Predicate factory
@@ -838,7 +883,7 @@ def next_aligned_category(cat: str) -> Predicate:
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        plan=space.plan
+        plan = space.plan
         if edge.next_is_aligned and plan.get_space_of_edge(
                 edge.next) is not None and plan.get_space_of_edge(
             edge.next).category.name is cat:
@@ -849,7 +894,6 @@ def next_aligned_category(cat: str) -> Predicate:
             return True
         else:
             return False
-
 
     return _predicate
 
@@ -1060,10 +1104,19 @@ SELECTORS = {
     "fuse_small_cell_without_components": Selector(
         boundary_unique_longest,
         [
-            space_area(max_area=10000),
+            space_area(max_area=15000),
             cell_with_component(has_component=False)
         ]
     ),
+
+    # "fuse_small_cell_without_components_alignment": Selector(
+    #     boundary_unique_longest_alignment,
+    #     [
+    #         space_area(max_area=2000),
+    #         has_pair(),
+    #         cell_with_component(has_component=False)
+    #     ]
+    # ),
 
     "other_seed_space": Selector(
         other_seed_space_edge,
@@ -1111,7 +1164,25 @@ SELECTORS = {
         corner_edges_ortho,
         [
             has_space_pair(),
-            next_aligned_category('empty'),
+            # next_aligned_category('empty'),
+        ]
+    ),
+    "corner_edges_ortho_with_window": Selector(
+
+        corner_edges_ortho,
+        [
+            has_space_pair(),
+            has_window(),
+            # next_aligned_category('empty'),
+        ]
+    ),
+    "corner_edges_ortho_without_window": Selector(
+
+        corner_edges_ortho,
+        [
+            has_space_pair(),
+            is_not(has_window()),
+            # next_aligned_category('empty'),
         ]
     ),
 }
