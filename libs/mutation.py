@@ -246,7 +246,9 @@ def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     :param space:
     :return:
     """
-    removed = space.remove_internal_edge(edge)
+    removed = False
+    if space.is_internal(edge) and not edge.is_internal:
+        removed = space.remove_internal_edge(edge)
     return [space] if removed else []
 
 
@@ -287,7 +289,7 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
     removed = False
     for line_edge in line_edges:
-        if space.is_internal(line_edge):
+        if space.is_internal(line_edge) and not line_edge.is_internal:
             removed += space.remove_internal_edge(line_edge)
 
     return [space] if removed else []
@@ -398,7 +400,7 @@ def slice_cut(offset: float,
         face = edge.face
 
         # check depth of the face, if the face is not deep enough do not slice
-        deep_enough = (edge.clearance - padding) >= offset
+        deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:
             return []
         _vector = vector or edge.vector

@@ -24,6 +24,32 @@ def rectangular_mesh(width: float, depth: float) -> Mesh:
     return Mesh().from_boundary(perimeter)
 
 
+@pytest.fixture
+def weird_mesh() -> 'Mesh':
+    """
+    Creates a weirdly shaped mesh
+
+                 500, 1000       1200, 1200
+                     +---------------+
+                     |               |
+                   |                 |
+        0, 500   |                   |
+           +--+ 200, 500   1000, 400 |
+           |                   +-----+ 1200, 400
+           |      500, 200     |
+           |      ---*--       |
+           |   ---      ---    |
+           +---            ----+
+         0, 0              1000, 0
+
+    :return:
+    """
+    boundary = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
+                (500, 1000), (200, 500), (0, 500)]
+    mesh = Mesh().from_boundary(boundary)
+    return mesh
+
+
 def test_simple_mesh():
     """
     Test
@@ -858,4 +884,17 @@ def test_slice_on_edge_2():
 
 def test_clearance():
     mesh = rectangular_mesh(100, 200)
-    assert mesh.boundary_edge.pair.clearance == 200
+    assert mesh.boundary_edge.pair.depth == 200
+
+
+def test_max_distance():
+    mesh = rectangular_mesh(100, 200)
+    edge = mesh.boundary_edge.pair
+    assert edge.max_distance(edge.next.next) == 200
+
+
+def test_max_distance_weird_mesh(weird_mesh):
+    edge = weird_mesh.boundary_edge.pair
+    other = edge.previous.previous
+    weird_mesh.plot()
+    assert edge.max_distance(other) == 464.2383454426297

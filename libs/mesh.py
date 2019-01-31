@@ -894,10 +894,18 @@ class Edge(MeshComponent):
         return vertex.sp_half_line(self.normal)
 
     @property
-    def clearance(self) -> float:
+    def depth(self) -> float:
         """
         Returns the depth of the face along the normal of the edge from the middle of the face
         :return:
+        Example :
+            *<----+------*
+            |     ^      ^
+            |     |Depth |
+            |     |      |
+            v     |      |
+            *-----+----->*
+                Edge
         """
         if not self.face:
             return 0.0
@@ -906,12 +914,75 @@ class Edge(MeshComponent):
         line = vertex.sp_half_line(self.normal)
         vertex.remove_from_mesh()
 
+        if not self.face.as_sp_linear_ring.is_valid:
+            return 0
+
         intersection = line.intersection(self.face.as_sp_linear_ring)
-        if intersection.is_empty or intersection.geom_type != "MultiPoint":
+
+        if intersection.is_empty or intersection.geom_type not in ("Point", "MultiPoint"):
             raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+
+        if intersection.geom_type == "Point":
+            return 0
+
         output = distance(intersection[0].coords[0], intersection[1].coords[0])
 
         return output
+
+    def max_distance(self, other: 'Edge') -> Optional[float]:
+        """
+        Returns the max distance between to edges of the same face, according to the normal
+        vector of the edge. If the distance is infinite return None per convention.
+        :param other:
+        :return: the distance or None
+
+        Example:
+          ^
+          |             OTHER
+          |        <-------+-------*
+          |        |       ^       |
+          |        |       |       |
+         d1       d4      d2      d3
+          |        |       |       |
+          |        |       |       |
+          +--------v------->       |
+               SELF                |
+                                   v
+        """
+
+        if self.face is None or self.face is not other.face:
+            raise ValueError("Cannot compute the distance of two edges not in the same face")
+
+        # check if the edge has a projection to the edge
+        if ccw_angle(other.opposite_vector, self.vector) >= 90.0 - MIN_ANGLE:
+            return None
+
+        d1, d2, d3, d4 = None, None, None, None
+
+        start_line = self.start.sp_half_line(self.normal)
+        end_line = self.end.sp_half_line(self.normal)
+        p1 = start_line.intersection(other.as_sp)
+        p2 = end_line.intersection(other.as_sp)
+
+        other_start_line = other.start.sp_half_line(opposite_vector(self.normal))
+        other_end_line = other.end.sp_half_line(opposite_vector(self.normal))
+        p3 = other_start_line.intersection(self.as_sp)
+        p4 = other_end_line.intersection(self.as_sp)
+
+        if not p1.is_empty and p1.geom_type == 'Point':
+            d1 = p1.distance(self.start.as_sp)
+        if not p2.is_empty and p2.geom_type == 'Point':
+            d2 = p2.distance(self.end.as_sp)
+        if not p3.is_empty and p3.geom_type == 'Point':
+            d3 = p3.distance(other.start.as_sp)
+        if not p4.is_empty and p4.geom_type == 'Point':
+            d4 = p4.distance(other.end.as_sp)
+
+        if not d1 and not d2 and not d3 and not d4:
+            return None
+
+        dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
+        return dist_max_to_edge
 
     @property
     def as_sp(self) -> LineString:
@@ -2518,13 +2589,12 @@ class Face(MeshComponent):
                     if not end_aligned and start_aligned:
                         small_edge = edge.pair
 
+                logging.debug('Mesh: Collapsing edge while simplifying face: %s', small_edge)
                 small_edge.collapse()
                 modified_edges.append(small_edge)
                 modified_edges.append(small_edge.pair)
-                logging.debug('Mesh: Collapsing edge while simplifying face: %s', small_edge)
                 modified_edges += self.simplify()
                 break
-
         return modified_edges
 
     def recursive_simplify(self) -> Sequence[Edge]:

@@ -1777,6 +1777,15 @@ class Plan:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
                 linear.add_edge(edge_add[1])
 
+        # remove faces
+        for remove_face in removed_faces:
+            face = remove_face[1]
+            space = self.get_space_of_face(face)
+            if space:
+                logging.debug("Plan: Removing face from space from mesh update %s", face)
+                space.remove_face_id(face)
+                space.set_edges()
+
         # remove edges
         for remove_edge in removed_edges:
             edge = remove_edge[1]
@@ -1788,14 +1797,7 @@ class Plan:
                 logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
                 linear.remove_edge_id(edge)
 
-        # remove faces
-        for remove_face in removed_faces:
-            face = remove_face[1]
-            space = self.get_space_of_face(face)
-            if space:
-                logging.debug("Plan: Removing face from space from mesh update %s", face)
-                space.remove_face_id(face)
-                space.set_edges()
+
 
     def update_from_mesh(self):
         """

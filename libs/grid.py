@@ -221,34 +221,40 @@ finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                       MUTATION_FACTORIES['barycenter_cut'](0.5), False))
 
 rectangle_grid = Grid("rectangle", [
-    (SELECTORS["duct_edge_min_10"],
-     MUTATION_FACTORIES["rectangle_cut"](180), True),
-    (SELECTORS["duct_edge_min_10"],
-     MUTATION_FACTORIES["rectangle_cut"](180, 180, relative_offset=1.0), True)
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["rectangle_cut"](180), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["rectangle_cut"](180, 180,
+                                                                        relative_offset=1.0), True)
+])
+
+corner_grid = Grid("corner", [
+    (SELECTORS["previous_angle_salient"], MUTATIONS['ortho_projection_cut'], True),
+    (SELECTORS["next_angle_salient"], MUTATIONS['ortho_projection_cut'], True)
 ])
 
 duct_grid = Grid("duct", [
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](1, traverse="no"), True),
+    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), True)
+])
 
-    (SELECTORS["duct_edge_min_10"],
-     MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
-
-    (SELECTORS["duct_edge_min_10"],
-     MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True),
-
-    (SELECTORS["duct_edge_min_10"],
-     MUTATION_FACTORIES["barycenter_cut"](1, traverse="no"), True),
-
-    (SELECTORS["all_aligned_edges"],
-     MUTATION_FACTORIES['barycenter_cut'](1.0), False)
-
+load_bearing_wall_grid = Grid("load_bearing_wall", [
+    (SELECTORS["adjacent_to_load_bearing_wall"],
+     MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True)
 ])
 
 window_grid = Grid("window", [
-    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](300), True)
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](300), True),
+    (SELECTORS["between_windows"], MUTATION_FACTORIES['barycenter_cut'](0.5), True),
+    (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES['barycenter_cut'](0.5), True)
 ])
 
-remove_small_faces_grid = Grid("small_faces", [
-    (SELECTOR_FACTORIES["face_min_dimensions"]([19, 19]), MUTATIONS["remove_line"], False)
+cleanup_grid = Grid("small_faces", [
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTOR_FACTORIES["min_depth"]([40]), MUTATIONS["remove_line"], False),
+    (SELECTORS["close_to_external_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], True)
 ])
 
 GRIDS = {
@@ -258,7 +264,7 @@ GRIDS = {
     "finer_ortho_grid": finer_ortho_grid,
     "rectangle_grid": rectangle_grid,
     "duct": duct_grid,
-    "test_grid": window_grid + duct_grid + remove_small_faces_grid
+    "test_grid": corner_grid + load_bearing_wall_grid + window_grid + duct_grid + cleanup_grid
 }
 
 if __name__ == '__main__':
@@ -270,8 +276,12 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Bussy_A101.json")
-        new_plan = (window_grid + duct_grid + remove_small_faces_grid).apply_to(plan)
+        plan = reader.create_plan_from_file("Sartrouville_Rdc.json")
+        new_plan = (corner_grid +
+                    load_bearing_wall_grid +
+                    window_grid +
+                    duct_grid +
+                    cleanup_grid).apply_to(plan)
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()
