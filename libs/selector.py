@@ -339,8 +339,9 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
-        aligned = list(edge_along_plan.next_ortho().next_ortho().aligned_siblings)
-        yield from (edge.pair for edge in aligned if edge.length > 50)
+        yield edge_along_plan.next_ortho().next_ortho().pair
+        #aligned = list(edge_along_plan.next_ortho().next_ortho().aligned_siblings)
+        #yield from (edge.pair for edge in aligned if edge.length > 50)
         # yield edge_along_plan.next_ortho().next_ortho().pair
     else:
         for edge in space.edges:

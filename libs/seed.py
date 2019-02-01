@@ -321,8 +321,18 @@ class Seeder:
 
         fuse = True
         while fuse and number_of_cells > target_number_of_cells:
+            self.plan.remove_null_spaces()
+
+            no_fusion_item = ["duct", "window", "doorWindow"]
+
             list_spaces = [sp for sp in self.plan.spaces if
-                           sp.area < area_fuse and sp.mutable and not sp.components_category_associated() and sp.area > 0]
+                           sp.area < area_fuse
+                           and sp.mutable
+                           # and not any item in sp.components_category_associated() for item in no_fusion_item
+                           and sp.area > 0
+                           and set(no_fusion_item).isdisjoint(
+                               sp.components_category_associated())]
+
             list_fusionnable_spaces = sorted(list_spaces, key=lambda space: space.area)
             # for space in list_fusionnable_spaces:
             #     print("all areas", space.area)
@@ -1065,7 +1075,7 @@ if __name__ == '__main__':
         # input_file = "Massy_C102.json"
         # input_file = "Sartrouville_A104.json"
         # input_file = "Vernouillet_A002.json"
-        input_file = "Antony_A22.json"
+        input_file = "Antony_A33.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1092,16 +1102,16 @@ if __name__ == '__main__':
 
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
-        print("sp", sp, sp.edge)
-        if sp.size and sp.category.name is not "empty" and sp.mutable:
-            logging.debug(
-                "space area and category {0} {1} {2} {3}".format(sp_comp,
-                                                                 sp.category.name, sp.size,
-                                                                 sp.as_sp.centroid.coords.xy))
-        elif sp.category.name is not "empty" and sp.mutable:
-            logging.debug(
-                "space area and category {0} {1} {2}".format(sp.area, sp_comp,
-                                                             sp.category.name))
+
+            if sp.size and sp.category.name is not "empty" and sp.mutable:
+                logging.debug(
+                    "space area and category {0} {1} {2} {3}".format(sp_comp,
+                                                                     sp.category.name, sp.size,
+                                                                     sp.as_sp.centroid.coords.xy))
+            elif sp.category.name is not "empty" and sp.mutable:
+                logging.debug(
+                    "space area and category {0} {1} {2}".format(sp.area, sp_comp,
+                                                                 sp.category.name))
 
 
     grow_a_plan_2()
