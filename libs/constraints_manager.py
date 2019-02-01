@@ -12,10 +12,13 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
 import logging
+
+if TYPE_CHECKING:
+    from libs.space_planner import SpacePlanner
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
@@ -92,6 +95,7 @@ class ConstraintSolver:
         # Maximum number of solutions
         max_num_sol = 50000
         nbr_solutions = 0
+        # noinspection PyArgumentList
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
@@ -108,6 +112,7 @@ class ConstraintSolver:
             if nbr_solutions >= max_num_sol:
                 break
 
+        # noinspection PyArgumentList
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
@@ -338,7 +343,7 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
             else:
                 ct = manager.and_(ct, (adjacency_sum >= length))
     else:
-        ct = components_adjacency_constraint(manager, item, WINDOW_CATEGORY, True, "Or")
+        ct = components_adjacency_constraint(manager, item, WINDOW_CATEGORY, addition_rule="Or")
     return ct
 
 
@@ -470,7 +475,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 
 
 def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
-                                    category: List[str], adj: bool = True,
+                                    category: Sequence[str], adj: bool = True,
                                     addition_rule: str = '') -> ortools.Constraint:
     """
     Components adjacency constraint
@@ -511,8 +516,8 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
-def externals_connection_constraint(manager: 'ConstraintsManager', item: Item) \
-        -> ortools.Constraint:
+def externals_connection_constraint(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
     """
     externals connection constraint
     :param manager: 'ConstraintsManager'
@@ -659,11 +664,3 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }
-
-if __name__ == '__main__':
-    import logging
-    import libs.constraints_manager_test as cmt
-
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    cmt.test_basic_case()

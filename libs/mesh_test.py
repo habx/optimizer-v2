@@ -6,6 +6,50 @@ import pytest
 from libs.mesh import Mesh, Vertex, Face, Edge
 
 
+def rectangular_mesh(width: float, depth: float) -> Mesh:
+    """
+    a simple rectangular plan
+
+    0, depth   width, depth
+     +------------+
+     |            |
+     |            |
+     |            |
+     +------------+
+    0, 0     width, 0
+
+    :return:
+    """
+    perimeter = [(0, 0), (width, 0), (width, depth), (0, depth)]
+    return Mesh().from_boundary(perimeter)
+
+
+@pytest.fixture
+def weird_mesh() -> 'Mesh':
+    """
+    Creates a weirdly shaped mesh
+
+                 500, 1000       1200, 1200
+                     +---------------+
+                     |               |
+                   |                 |
+        0, 500   |                   |
+           +--+ 200, 500   1000, 400 |
+           |                   +-----+ 1200, 400
+           |      500, 200     |
+           |      ---*--       |
+           |   ---      ---    |
+           +---            ----+
+         0, 0              1000, 0
+
+    :return:
+    """
+    boundary = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
+                (500, 1000), (200, 500), (0, 500)]
+    mesh = Mesh().from_boundary(boundary)
+    return mesh
+
+
 def test_simple_mesh():
     """
     Test
@@ -183,7 +227,7 @@ def test_add_face():
     # print(mesh)
     face = mesh.faces[0]
 
-    """"# case one edge touching
+    # case one edge touching
     perimeter_2 = [(500, 250), (500, 450), (375, 375)]
     face = face.insert_face_from_boundary(perimeter_2)[0]
 
@@ -205,17 +249,19 @@ def test_add_face():
     # three following edges touching
     perimeter_6 = [(250, 250), (270, 250), (270, 475), (500, 475), (500, 500), (250, 500)]
     face_5 = mesh.new_face_from_boundary(perimeter_6)
-    face = face.insert_face(face_5)[0]"""
+    face = face.insert_face(face_5)[0]
 
     # enclosed face
     perimeter_7 = [(400, 25), (475, 25), (475, 100), (400, 100)]
     face_6 = mesh.new_face_from_boundary(perimeter_7)
     face.insert_face(face_6)
     mesh.plot()
-    """
+
     for edge in mesh.boundary_edges:
         if edge.length > 50:
-            edge.pair.recursive_barycenter_cut(0.5)"""
+            edge.pair.recursive_barycenter_cut(0.5)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -245,6 +291,8 @@ def test_add_and_cut_face():
     edges = list(face.edges)
     edges[2].recursive_barycenter_cut(0.8, 80.0)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -262,6 +310,8 @@ def test_cut_snap():
         edge.pair.recursive_barycenter_cut(0.5)
 
     edges[0].pair.recursive_barycenter_cut(0.5, 64)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -282,6 +332,8 @@ def test_cut_inside_edge():
 
     edges[4].pair.previous.barycenter_cut()
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -296,10 +348,12 @@ def insert_touching_face():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(duct)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
-def cut_to_inside_edge():
+def test_cut_to_inside_edge():
     """
     Test
     :return:
@@ -313,7 +367,9 @@ def cut_to_inside_edge():
 
     edges = list(mesh.boundary_edges)
 
-    edges[3].pair.barycenter_cut(0.1)
+    edges[0].pair.barycenter_cut(0.1)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -340,11 +396,9 @@ def test_remove_complex_edge():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
 
-    mesh.plot()
-
     mesh.faces[1].edge.remove()
 
-    # mesh.plot()
+    mesh.plot()
 
     assert mesh.check()
 
@@ -362,6 +416,7 @@ def test_insert_complex_face_1():
 
     hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
     mesh.faces[0].insert_face_from_boundary(hole_2)
+
     mesh.plot()
 
     assert mesh.check()
@@ -382,6 +437,8 @@ def test_insert_complex_face_2():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -399,6 +456,8 @@ def test_insert_complex_face_3():
     hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -418,6 +477,8 @@ def test_insert_complex_face_4():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -436,6 +497,8 @@ def test_insert_complex_face_5():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -453,6 +516,8 @@ def test_insert_complex_face_6():
     hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -473,6 +538,8 @@ def test_insert_two_faces_on_internal_edge():
     mesh.faces[0].insert_face_from_boundary(hole_2)
     mesh.faces[2].insert_face_from_boundary(hole_3)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -486,6 +553,8 @@ def test_insert_very_close_border_duct():
 
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -507,6 +576,8 @@ def test_insert_multiple_overlapping():
 
     mesh.faces[0].insert_face_from_boundary(hole_3)
 
+    mesh.plot()
+
     assert mesh.check()
 
 
@@ -527,6 +598,8 @@ def test_insert_multiple_overlapping_closing():
               (60, 280), (60, 500), (20, 500)]
 
     mesh.faces[0].insert_face_from_boundary(hole_3)
+
+    mesh.plot()
 
     assert mesh.check()
 
@@ -653,3 +726,175 @@ def test_insert_overlapping_face():
         mesh = Mesh().from_boundary(perimeter)
         face = mesh.new_face_from_boundary(face_perimeter)
         mesh.insert_external_face(face)
+
+
+def test_insert_crop_face():
+    """
+    Inserts and crops a face
+    +------------+
+    | FACE A     |
+    |      +-----+---+
+    |      | FACE B  |
+    |      +---------+
+    +------------+
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(50, 25), (150, 25), (150, 75), (50, 75)]
+    mesh = Mesh().from_boundary(a)
+    mesh.boundary_edge.pair.next.split_barycenter(0.6)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_insert_touching_face():
+    """
+
+    :return:
+    """
+    a = [(0, 0), (250, 0), (250, 250), (750, 250), (750, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    b = [(200, 250), (800, 250), (800, 750), (200, 750)]
+    c = [(750, 250), (750, 0), (1500, 0), (1500, 250)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    face.insert_crop_face_from_boundary(c)
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_double_insert_identical_face():
+    """
+
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = a
+    mesh = Mesh().from_boundary(a)
+
+    face = mesh.faces[0]
+    face.insert_face_from_boundary(b)
+
+    face = mesh.faces[0]
+    face.insert_face_from_boundary(b)
+
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_insert_crop_face_fail():
+    """
+    Tries to insert and crops a face.
+    Should raise outside face error.
+    +------------+
+    | FACE A     |
+    |            +--------+
+    |            | FACE B |
+    |            +--------+
+    +------------+
+    :return:
+    """
+    from libs.utils.custom_exceptions import OutsideFaceError
+
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(100, 25), (150, 25), (150, 75), (100, 75)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    with pytest.raises(OutsideFaceError):
+        face.insert_crop_face_from_boundary(b)
+
+
+def test_cardinality_2():
+    """
+    Tests the cardinality method of the edge class
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    mesh = Mesh().from_boundary(a)
+    edge = mesh.boundary_edge
+    assert edge.cardinality == 2
+
+
+def test_cardinality_3():
+    """
+    Tests the cardinality method of the edge class
+    :return:
+    """
+    a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+    b = [(50, 25), (150, 25), (150, 75), (50, 75)]
+    mesh = Mesh().from_boundary(a)
+    face = mesh.faces[0]
+    face.insert_crop_face_from_boundary(b)
+    edge = mesh.boundary_edge.pair.next.next
+    assert edge.cardinality == 3
+
+
+def test_slice():
+    """
+    Tests the slice operator
+    :return:
+    """
+    mesh = rectangular_mesh(100, 200)
+    mesh.boundary_edge.pair.slice(50, (0.5, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_double_slice():
+    """
+    Tests the slice operator
+    :return:
+    """
+    mesh = rectangular_mesh(100, 200)
+    hole = [(0, 50), (50, 50), (50, 100), (0, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(25, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_internal_edge():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(15, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_edge():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(25, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_slice_on_edge_2():
+    mesh = rectangular_mesh(100, 200)
+    hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.previous.slice(50, (0, 1))
+    mesh.plot()
+    assert mesh.check()
+
+
+def test_clearance():
+    mesh = rectangular_mesh(100, 200)
+    assert mesh.boundary_edge.pair.depth == 200
+
+
+def test_max_distance():
+    mesh = rectangular_mesh(100, 200)
+    edge = mesh.boundary_edge.pair
+    assert edge.max_distance(edge.next.next) == 200
+
+
+def test_max_distance_weird_mesh(weird_mesh):
+    edge = weird_mesh.boundary_edge.pair
+    other = edge.previous.previous
+    weird_mesh.plot()
+    assert edge.max_distance(other) == 464.2383454426297
