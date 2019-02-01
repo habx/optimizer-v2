@@ -311,15 +311,18 @@ class Seeder:
             area = area_rules['default'][area_key]
         return area
 
-    def fusion(self, area_fuse: float = 20000, area_rules: Dict = {}):
+    def fusion(self, area_fuse: float = 20000, area_rules: Dict = {},
+               target_number_of_cells: int = 10):
 
         self.plan.remove_null_spaces()
         self.plan.plot()
+        number_of_cells = len(
+            list(space for space in self.plan.spaces if space.mutable and space.area > 0))
 
         fuse = True
-        while fuse:
+        while fuse and number_of_cells > target_number_of_cells:
             list_spaces = [sp for sp in self.plan.spaces if
-                           sp.area < area_fuse and sp.mutable and not sp.components_category_associated()]
+                           sp.area < area_fuse and sp.mutable and not sp.components_category_associated() and sp.area > 0]
             list_fusionnable_spaces = sorted(list_spaces, key=lambda space: space.area)
             # for space in list_fusionnable_spaces:
             #     print("all areas", space.area)
@@ -328,11 +331,24 @@ class Seeder:
                 adj_spaces_selected = []
                 adj_length = 0
 
-                mutable_adjacent_spaces = [sp for sp in space.adjacent_spaces() if
-                                           sp.mutable and sp.area + space.area < self.get_area_rule(
-                                               sp,
-                                               area_rules)]
-                for adj in mutable_adjacent_spaces:
+                list_mutable_adjacent_spaces = list(sp for sp in space.adjacent_spaces()
+                                                    if sp.mutable)
+                if list_mutable_adjacent_spaces:
+                    max_adjacent_length_contact = max(map(lambda adj: adj.contact_length(space),
+                                                          list_mutable_adjacent_spaces))
+
+                    mutable_adjacent_spaces_fusionnable = [sp for sp in space.adjacent_spaces() if
+                                                           sp.mutable
+                                                           and sp.area + space.area < self.get_area_rule(
+                                                               sp,
+                                                               area_rules) and sp.contact_length(
+                                                               space) > 0.5 * max_adjacent_length_contact]
+
+
+                else:
+                    mutable_adjacent_spaces_fusionnable = []
+
+                for adj in mutable_adjacent_spaces_fusionnable:
                     adj_length_tmp = space.contact_length(adj)
                     print("contact length", adj_length_tmp)
                     if abs(adj_length_tmp - adj_length) < 1:
@@ -341,8 +357,15 @@ class Seeder:
                         adj_length = adj_length_tmp
                         adj_spaces_selected = [adj]
 
+                print("number_of_cells", number_of_cells)
+                # no fusion when the resulting aspect ratio is too bad
+                # if adj_length < 0.3 * max_adjacent_length_contact:
+                #     continue
+
                 if len(adj_spaces_selected) == 1:
                     space.merge(adj_spaces_selected[0])
+                    number_of_cells = len(list(
+                        sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
                     self.plan.plot()
                     break
                 elif len(adj_spaces_selected) > 1:
@@ -368,11 +391,14 @@ class Seeder:
                         if final_sp.area < adj_space_selected.area:
                             adj_space_selected = final_sp
 
-                    print("space", space.edge, "adj_spaces_selected", adj_spaces_selected[0].edge,
+                    print("space", space.edge, "adj_spaces_selected",
+                          adj_spaces_selected[0].edge,
                           adj_spaces_selected[1].edge)
                     print("num_aligned_min", num_aligned_min)
                     # input("analyse fusion")
                     space.merge(adj_space_selected)
+                    number_of_cells = len(list(
+                        sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
                     self.plan.plot()
                     break
 
@@ -526,7 +552,8 @@ class Seed:
                  plan_component: Optional[PlanComponent] = None):
         self.seeder = seeder
         self.edges = [edge]  # the reference edge of the seed
-        self.components = [plan_component] if PlanComponent else []  # the components of the seed
+        self.components = [
+            plan_component] if PlanComponent else []  # the components of the seed
         self.space: Optional[Space] = None  # the seed space
         # per convention we apply the growth method corresponding
         # to the first component category name
@@ -662,7 +689,8 @@ class Seed:
             raise ValueError('The seed should point towards an empty space')
 
         modified_spaces = empty_space.remove_face(face)
-        self.space = Space(self.seeder.plan, empty_space.floor, self.edge, SPACE_CATEGORIES["seed"])
+        self.space = Space(self.seeder.plan, empty_space.floor, self.edge,
+                           SPACE_CATEGORIES["seed"])
         self.update_max_size_constraint()
         return [self.space] + modified_spaces
 
@@ -792,7 +820,8 @@ fill_small_seed_category = GrowthMethod(
     (CONSTRAINTS["max_size_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+               True),
         Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
@@ -802,7 +831,8 @@ classic_seed_category = GrowthMethod(
     (CONSTRAINTS["max_size_default_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+               True),
         Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
@@ -905,7 +935,7 @@ FILL_METHODS = {
 
 area_rules = {
     "default": {"min_area": 15000,
-                "max_area": 90000},
+                "max_area": 70000},
     "frontDoor": {"min_area": 20000,
                   "max_area": 50000},
     "duct": {"min_area": 10000,
@@ -987,15 +1017,18 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS,
+               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_90000"], except_component=["window", "doorWindow"])
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
+         .empty(SELECTORS["corner_big_cell_area_90000"],
+                except_component=["window", "doorWindow"])
+         .fill(FILL_METHODS_HOMOGENEOUS,
+               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
@@ -1007,7 +1040,8 @@ if __name__ == '__main__':
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
             logging.debug(
-                "space area and category {0} {1} {2}".format(sp.area, sp_comp, sp.category.name))
+                "space area and category {0} {1} {2}".format(sp.area, sp_comp,
+                                                             sp.category.name))
 
 
     def grow_a_plan_2():
@@ -1029,8 +1063,9 @@ if __name__ == '__main__':
         # input_file = "Bussy_A001.json"
         # input_file = "Bussy_Regis.json"
         # input_file = "Massy_C102.json"
-        input_file = "Antony_A22.json"
+        # input_file = "Sartrouville_A104.json"
         # input_file = "Vernouillet_A002.json"
+        input_file = "Antony_A22.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1045,7 +1080,7 @@ if __name__ == '__main__':
          # .divide_along_walls(SELECTORS["corner_edges_ortho_with_window"])
          # .divide_along_walls_in_space(SELECTORS["corner_edges_ortho_without_window"])
          .turn_empty_spaces()
-         .fusion(area_fuse=20000, area_rules=area_rules))
+         .fusion(area_fuse=20000, area_rules=area_rules, target_number_of_cells=10))
         # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
         # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
