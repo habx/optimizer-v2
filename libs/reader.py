@@ -207,7 +207,7 @@ def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coord
     return output
 
 
-def get_json_from_file(file_path: str = 'Antony_A22.json',
+def get_json_from_file(file_name: str = 'Antony_A22.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -215,7 +215,7 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
     """
 
     module_path = os.path.dirname(__file__)
-    input_file_path = os.path.join(module_path, input_folder, file_path)
+    input_file_path = os.path.join(module_path, input_folder, file_name)
 
     # retrieve data from json file
     with open(os.path.abspath(input_file_path)) as floor_plan_file:
@@ -224,13 +224,13 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_name: str = 'Antony_A22',
+def get_plan_from_json(file_root: str = 'Antony_A22',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
-    file_path = file_name + ".json"
+    file_path = file_root + ".json"
     return get_json_from_file(file_path, input_folder)
 
 
@@ -244,16 +244,20 @@ def get_mesh_from_json(file_name: str,
     return get_json_from_file(file_path, input_folder)
 
 
-def create_plan_from_file(input_file: str) -> plan.Plan:
+def create_plan_from_file(input_file_name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
-    :param input_file: the path to a json file
+    :param input_file_name: the path to a json file
     :return: a plan object
     """
-    floor_plan_dict = get_json_from_file(input_file)
-    file_name = os.path.splitext(os.path.basename(input_file))[0]
+    floor_plan_dict = get_json_from_file(input_file_name)
+    file_name = os.path.splitext(os.path.basename(input_file_name))[0]
     my_plan = plan.Plan(file_name)
-    apartment = floor_plan_dict['apartment']
+
+    if "v2" in floor_plan_dict.keys():
+        apartment = floor_plan_dict["v2"]["apartment"]
+    else:
+        apartment = floor_plan_dict["apartment"]
 
     for blueprint_dict in apartment["blueprints"]:
         perimeter = _get_perimeter(blueprint_dict)
@@ -342,5 +346,5 @@ if __name__ == '__main__':
         print(my_plan)
 
 
-    specification_read()
+    # specification_read()
     plan_read()
