@@ -291,6 +291,7 @@ class Seeder:
         return self
 
     def turn_empty_spaces(self):
+        self.plan.plot()
         self.plan.remove_null_spaces()
         for space in self.plan.spaces:
             if space.category.name is 'empty':
@@ -311,7 +312,8 @@ class Seeder:
             area = area_rules['default'][area_key]
         return area
 
-    def fusion(self, area_fuse: float = 20000, area_rules: Dict = {},
+    def fusion(self, area_fuse: float = 100000, area_fuse_force: float = 5000,
+               area_rules: Dict = {},
                target_number_of_cells: int = 10):
 
         self.plan.remove_null_spaces()
@@ -330,8 +332,8 @@ class Seeder:
                            and sp.mutable
                            # and not any item in sp.components_category_associated() for item in no_fusion_item
                            and sp.area > 0
-                           and set(no_fusion_item).isdisjoint(
-                               sp.components_category_associated())]
+                           and (set(no_fusion_item).isdisjoint(
+                               sp.components_category_associated()) or sp.area < area_fuse_force)]
 
             list_fusionnable_spaces = sorted(list_spaces, key=lambda space: space.area)
             # for space in list_fusionnable_spaces:
@@ -372,7 +374,13 @@ class Seeder:
                 # if adj_length < 0.3 * max_adjacent_length_contact:
                 #     continue
 
+                if len(adj_spaces_selected) > 0:
+                    print("space", space.as_sp.centroid.coords.xy)
+                    # input("stop here")
+
                 if len(adj_spaces_selected) == 1:
+                    # input("adj_space_selected {0}".format(
+                    # adj_spaces_selected[0].as_sp.centroid.coords.xy))
                     space.merge(adj_spaces_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
@@ -405,7 +413,6 @@ class Seeder:
                           adj_spaces_selected[0].edge,
                           adj_spaces_selected[1].edge)
                     print("num_aligned_min", num_aligned_min)
-                    # input("analyse fusion")
                     space.merge(adj_space_selected)
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
@@ -1007,7 +1014,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Massy_C204.json"
+        input_file = "Bussy_A001.json"
         # input_file = "Paris18_A402.json"
         # input_file = "Antony_B22.json"
         # input_file = "Groslay_A-00-01_oldformat.json"
@@ -1075,7 +1082,9 @@ if __name__ == '__main__':
         # input_file = "Massy_C102.json"
         # input_file = "Sartrouville_A104.json"
         # input_file = "Vernouillet_A002.json"
-        input_file = "Antony_A33.json"
+        # input_file = "Antony_B22.json"
+        # input_file = "Levallois_Parisot.json"
+        input_file = "Noisy_A145.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1090,7 +1099,7 @@ if __name__ == '__main__':
          # .divide_along_walls(SELECTORS["corner_edges_ortho_with_window"])
          # .divide_along_walls_in_space(SELECTORS["corner_edges_ortho_without_window"])
          .turn_empty_spaces()
-         .fusion(area_fuse=20000, area_rules=area_rules, target_number_of_cells=10))
+         .fusion(area_fuse=100000, area_rules=area_rules, target_number_of_cells=10))
         # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
         # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
