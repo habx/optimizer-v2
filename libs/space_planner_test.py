@@ -41,7 +41,7 @@ def test_space_planner(input_file, input_setup):
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
-    space_planner.solution_research()
+    best_solutions = space_planner.solution_research()
 
 
 def test_duplex():
@@ -102,4 +102,6 @@ def test_duplex():
     spec.plan = plan
 
     space_planner = SpacePlanner("test", spec)
-    space_planner.solution_research()
+    best_solutions = space_planner.solution_research()
+
+

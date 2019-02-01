@@ -1358,7 +1358,7 @@ class Space(PlanComponent):
                     number_of_adjacenies += 1
                     previous_edge = True
                 else:
-                    adjacency_length[number_of_adjacenies-1] += edge.length
+                    adjacency_length[number_of_adjacenies - 1] += edge.length
             else:
                 previous_edge = False
 
@@ -1399,7 +1399,7 @@ class Space(PlanComponent):
         """
         openings_list = []
         for component in self.immutable_components():
-            if component.category in LINEAR_CATEGORIES and component.category.aperture:
+            if component.category in LINEAR_CATEGORIES.values() and component.category.aperture:
                 openings_list.append(component)
         return openings_list
 
@@ -1580,7 +1580,7 @@ class Linear(PlanComponent):
 
         return is_valid
 
-    def adjacent_spaces(self)->['Space']:
+    def adjacent_spaces(self) -> ['Space']:
         """
         Returns the adjacent spaces
         :return: ['Space']
@@ -1879,6 +1879,15 @@ class Plan:
         :return:
         """
         return min(floor.level for floor in self.floors.values())
+
+    @property
+    def list_level(self) -> Generator[int, None, None]:
+        """
+        Property
+        Returns the generator on levels of the plan
+        :return:
+        """
+        return (floor.level for floor in self.floors.values())
 
     def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
         """

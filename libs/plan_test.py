@@ -767,10 +767,7 @@ def test_adjacent_spaces():
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
     plan.insert_linear((500, 250), (500, 350), LINEAR_CATEGORIES["doorWindow"], floor)
 
-    print(plan.linears[0])
     adjacent_spaces = plan.linears[0].adjacent_spaces()
-    print(adjacent_spaces)
-    print(plan.spaces)
 
     assert adjacent_spaces == plan.spaces, "adjacent_spaces"
 
@@ -809,3 +806,28 @@ def test_min_rotated_rectangle(l_plan):
     """
     assert l_plan.empty_space.minimum_rotated_rectangle() == [(1200.0, 0.0), (1200.0, 1200.0),
                                                               (0.0, 1200.0), (0.0, 0.0)]
+
+
+def test_connected_spaces():
+    """
+    Add a doorWindow between the empty space and the balcony.
+    The balcony is connected to the empty space
+    +---------------+
+    |               |
+    |               +-------+
+    |    empty      |balcony|
+    |               |       |
+    |               +-------+
+    |               |
+    +---------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(500, 200), (700, 200), (700, 400), (500, 400)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.insert_linear((500, 250), (500, 350), LINEAR_CATEGORIES["doorWindow"], floor)
+
+    assert plan.spaces[1] in plan.spaces[0].connected_spaces(), "connected_spaces"

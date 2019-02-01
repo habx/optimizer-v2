@@ -21,6 +21,7 @@ class Specification:
         self.name = name
         self.plan = plan
         self.items = items or []
+        self.init_id()
 
     def __repr__(self):
         output = 'Specification: ' + self.name + '\n'
