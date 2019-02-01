@@ -15,6 +15,7 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
+import time
 import logging
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
@@ -48,6 +49,7 @@ class ConstraintSolver:
         self.spaces_nbr = spaces_nbr
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
+        self.t0 = time.clock()
         # Declare variables
         self.cells_item: List[ortools.IntVar] = []
         self.positions = {}  # List[List[ortools.IntVar]] = [[]]
@@ -88,8 +90,8 @@ class ConstraintSolver:
         :return: None
         """
         # Decision builder
-        db = self.solver.Phase(self.cells_item, self.solver.INT_VAR_DEFAULT,
-                               self.solver.ASSIGN_MAX_VALUE)
+        db = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
+                               self.solver.ASSIGN_MIN_VALUE)
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
@@ -98,9 +100,9 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
-                    self.cells_item[j_space].Value() == i_item for j_space in
-                    range(self.spaces_nbr)]))
+                # logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
+                #     self.cells_item[j_space].Value() == i_item for j_space in
+                #     range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
@@ -118,6 +120,7 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
         logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
+        logging.debug("ConstraintSolver: Process time : %f", time.clock() - self.t0)
 
 
 class ConstraintsManager:

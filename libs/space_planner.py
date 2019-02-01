@@ -14,6 +14,7 @@ from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
 from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS, FILL_METHODS_HOMOGENEOUS
 from libs.category import SPACE_CATEGORIES
+from memory_profiler import profile
 import networkx as nx
 
 
@@ -149,27 +150,28 @@ class SpacePlanner:
 
         self.manager.solver.solve()
 
-        if len(self.manager.solver.solutions) == 0:
-            logging.warning(
-                "SpacePlanner : solution_research : Plan without space planning solution")
-        else:
-            self._check_validity()
-            logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
-                len(self.manager.solver.solutions)))
-            logging.debug(self.spec.plan)
-            if len(self.manager.solver.solutions) > 0:
-                for i, sol in enumerate(self.manager.solver.solutions):
-                    plan_solution = self.spec.plan.clone()
-                    plan_solution = self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution)
-                    logging.debug(plan_solution)
-                    plan_solution.plot()
-
-                best_sol = self.solutions_collector.best()
-                for sol in best_sol:
-                    logging.debug(sol)
-                    #sol.plan.plot()
-                    return best_sol
+        # TODO : temp : tests
+        # if len(self.manager.solver.solutions) == 0:
+        #     logging.warning(
+        #         "SpacePlanner : solution_research : Plan without space planning solution")
+        # else:
+        #     self._check_validity()
+        #     logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
+        #         len(self.manager.solver.solutions)))
+        #     logging.debug(self.spec.plan)
+        #     if len(self.manager.solver.solutions) > 0:
+        #         for i, sol in enumerate(self.manager.solver.solutions):
+        #             plan_solution = self.spec.plan.clone()
+        #             plan_solution = self._rooms_building(plan_solution, sol)
+        #             self.solutions_collector.add_solution(plan_solution)
+        #             logging.debug(plan_solution)
+        #             plan_solution.plot()
+        #
+        #         best_sol = self.solutions_collector.best()
+        #         for sol in best_sol:
+        #             logging.debug(sol)
+        #             #sol.plan.plot()
+        #             return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
@@ -279,8 +281,38 @@ if __name__ == '__main__':
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
+        spaces = list(spec.plan.spaces)
+        category_name_list = ["entrance", "wc", "bathroom", "kitchen", "bedroom", "living",
+                              "dining", "office", "dressing", "laundry"]
+        category_name_list_test = ["entrance", "wc", "bathroom", "kitchen", "bedroom", "living"]
+        best_name_list = None
+        best_failures = 67681
+        best_branches = 135988
+        best_spaces_list = []
+        import itertools
+        perm_cat = list(itertools.permutations(category_name_list_test))
+        #perm_spaces = list(itertools.permutations(spaces))
+        # for spaces_list in perm_spaces:
+        #     spec.plan.spaces = spaces_list
+        for cat_list in perm_cat:
 
-        space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
+            spec.init_id(cat_list)
+            space_planner = SpacePlanner("test", spec)
+
+            best_solutions = space_planner.solution_research()
+
+            if space_planner.manager.solver.solver.Branches() < best_branches:
+                best_branches = space_planner.manager.solver.solver.Branches()
+                best_failures = space_planner.manager.solver.solver.Failures()
+                best_name_list = cat_list
+                #best_spaces_list = spaces_list
+
+            #input("memory size after {0}".format(sys.getsizeof(space_planner)))
+
+        print("BEST SOLUTION")
+        print("best_name_list", best_name_list)
+        print("best_failures", best_failures)
+        print("best_branches", best_branches)
+        print("spaces_list", best_spaces_list)
 
     space_planning()

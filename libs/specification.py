@@ -30,15 +30,26 @@ class Specification:
 
         return output
 
-    def init_id(self) -> None:
+    def init_id(self, category_name_list: Optional[List[str]] = None) -> None:
         """
         Returns the number of rooms from the specification
         :return:
         """
-        i = 0
-        for item in self.items:
-            item.id = i
-            i += 1
+        if category_name_list:
+            new_items_list = []
+            i = 0
+            for name in category_name_list:
+                for item in self.items:
+                    if item.category.name == name:
+                        item.id = i
+                        i += 1
+                        new_items_list.append(item)
+            self.items = new_items_list
+        else:
+            i = 0
+            for item in self.items:
+                item.id = i
+                i += 1
 
     @property
     def number_of_items(self):
