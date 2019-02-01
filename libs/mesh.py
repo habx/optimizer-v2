@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 import libs.transformation as transformation
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
-from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace, EdgeCb
+from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
     unit_vector,
@@ -370,7 +370,11 @@ class Vertex(MeshComponent):
             new_distance = projected_vertex.distance_to(self)
 
             # only keep the closest point
-            if not smallest_distance or new_distance < smallest_distance:
+            # Note: we need to check it the new_distance is superior to coord_epsilon
+            # to prevent projection unto itself (for example when a face contains internal edges)
+            # or when the face is really small
+            if new_distance > COORD_EPSILON and (
+                    not smallest_distance or new_distance < smallest_distance):
                 smallest_distance = new_distance
                 closest_edge = edge
                 # clean the vertex data structure
@@ -1217,8 +1221,7 @@ class Edge(MeshComponent):
 
     def intersect(self,
                   vector: Vector2d,
-                  max_length: Optional[float] = None,
-                  immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
+                  max_length: Optional[float] = None) -> Optional['Edge']:
         """
         Finds the opposite point of the edge end on the face boundary
         according to a vector direction.
@@ -1227,7 +1230,6 @@ class Edge(MeshComponent):
         before the intersection.
         :param vector:
         :param max_length: maximum authorized length of the cut
-        :param immutable
         :return: the laser_cut edge
         """
 
@@ -1241,12 +1243,6 @@ class Edge(MeshComponent):
 
         # check if we've exceeded the max authorized length
         if max_length is not None and max_length < distance_to_edge:
-            # clean unused vertex
-            intersection_vertex.remove_from_mesh()
-            return None
-
-        # check if we have the right to cut
-        if immutable and immutable(closest_edge):
             # clean unused vertex
             intersection_vertex.remove_from_mesh()
             return None
@@ -1318,8 +1314,7 @@ class Edge(MeshComponent):
                       traverse: str = 'absolute',
                       vector: Optional[Vector2d] = None,
                       max_length: Optional[float] = None,
-                      callback: Optional[SpaceCutCb] = None,
-                      immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+                      callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1331,7 +1326,6 @@ class Edge(MeshComponent):
         if present we ignore the angle parameter
         :param max_length: max length for the total laser_cut
         :param callback: Optional
-        :param immutable
         :return: self
         """
         # do not cut an edge on the boundary
@@ -1346,8 +1340,7 @@ class Edge(MeshComponent):
             vector = unit_vector(ccw_angle(self.vector) + angle)
 
         # try to cut the edge
-        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length,
-                                      immutable=immutable)
+        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length)
 
         # if the cut fail we stop
         if new_edges_and_face is None:
@@ -1389,8 +1382,7 @@ class Edge(MeshComponent):
                                                               traverse=traverse,
                                                               vector=vector,
                                                               max_length=max_length,
-                                                              callback=callback,
-                                                              immutable=immutable)
+                                                              callback=callback)
                               or new_edges_and_face)
         return new_edges_and_face
 
@@ -1411,8 +1403,7 @@ class Edge(MeshComponent):
             vertex: Vertex,
             angle: float = 90.0,
             vector: Optional[Vector2d] = None,
-            max_length: Optional[float] = None,
-            immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+            max_length: Optional[float] = None) -> TwoEdgesAndAFace:
         """
         Will cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1421,16 +1412,11 @@ class Edge(MeshComponent):
         :param vector: a vector indicating the absolute direction fo the laser_cut,
         if present we ignore the angle parameter
         :param max_length : the max_length authorized for the cut
-        :param immutable: a function that tells whether an edge can be cut
         :return: the new created edges
         """
 
         # do not cut an edge on the boundary
         if self.face is None:
-            return None
-
-        # do not cut an immutable edge
-        if immutable and immutable(self):
             return None
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
@@ -1462,7 +1448,7 @@ class Edge(MeshComponent):
 
         # create a line to the edge at the vertex position
         line_vector = vector or unit_vector(ccw_angle(self.vector) + angle)
-        closest_edge = first_edge.intersect(line_vector, max_length, immutable)
+        closest_edge = first_edge.intersect(line_vector, max_length)
 
         # if no intersection can be found return None
         if closest_edge is None:
@@ -1545,7 +1531,7 @@ class Edge(MeshComponent):
 
         return cut_data
 
-    def ortho_cut(self, immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+    def ortho_cut(self) -> TwoEdgesAndAFace:
         """
         Tries to cut the edge face at the edge start vertex in an orthogonal projection to any
         edge of the face
@@ -1605,9 +1591,9 @@ class Edge(MeshComponent):
                     # clean unused vertex
                     other_projected_vertex.remove_from_mesh()
 
-            split_edge = closest_edge.split(projected_vertex, immutable)
+            split_edge = closest_edge.split(projected_vertex)
 
-            # check if we tried to split an immutable edge
+            # check if we the split was successful
             if split_edge is None:
                 projected_vertex.remove_from_mesh()
                 continue
@@ -1618,7 +1604,8 @@ class Edge(MeshComponent):
             new_face = self_previous.link(split_edge_previous)
 
             if new_face is None:
-                projected_vertex.remove_from_mesh()
+                if projected_vertex.mesh:
+                    projected_vertex.remove_from_mesh()
                 continue
 
             return self, split_edge, new_face
@@ -1629,9 +1616,7 @@ class Edge(MeshComponent):
 
         return None
 
-    def split(self,
-              vertex: 'Vertex',
-              immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
+    def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
         Splits the edge at a specific vertex.
         We create two new half-edges:
@@ -1642,7 +1627,6 @@ class Edge(MeshComponent):
         new pair   old pair
 
         :param vertex: a vertex object where we should split
-        :param immutable: a function to check if the edge can be split
         :return: the newly created edge starting from the vertex
         """
         # check for vertices proximity and snap if needed
@@ -1653,11 +1637,6 @@ class Edge(MeshComponent):
             return self
         if vertex is self.end:
             return self.next
-
-        # check for immutable edge
-        # (we check after snapping because an immutable edge can be split at its extremities)
-        if immutable and immutable(self):
-            return None
 
         # define edges names for clarity sake
         edge = self
@@ -1680,7 +1659,6 @@ class Edge(MeshComponent):
         # store modification
         self.mesh.store_modification(MeshOps.INSERT, new_edge, self)
         self.mesh.store_modification(MeshOps.INSERT, new_edge_pair, self.pair)
-        # self.mesh.watch()
 
         return new_edge
 

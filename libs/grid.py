@@ -220,7 +220,7 @@ finer_ortho_grid = ortho_grid.extend("finer_ortho_grid",
                                      (SELECTORS["edge_min_150"],
                                       MUTATION_FACTORIES['barycenter_cut'](0.5), False))
 
-rectangle_grid = Grid("rectangle", [
+rectangle_grid = Grid("rectangle", [  # todo : cut long duct edge in half
     (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["rectangle_cut"](180), True),
     (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["rectangle_cut"](180, 180,
                                                                         relative_offset=1.0), True)
@@ -276,12 +276,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Sartrouville_Rdc.json")
-        new_plan = (corner_grid +
-                    load_bearing_wall_grid +
-                    window_grid +
-                    duct_grid +
-                    cleanup_grid).apply_to(plan)
+        plan = reader.create_plan_from_file("Antony_B14.json")
+        new_plan = GRIDS["ortho_grid"].apply_to(plan)
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()

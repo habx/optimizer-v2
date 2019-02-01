@@ -221,6 +221,14 @@ class Space(PlanComponent):
         """
         return (self.mesh.get_face(face_id) for face_id in self._faces_id)
 
+    @property
+    def number_of_faces(self) -> int:
+        """
+        Returns the number of face of the space
+        :return:
+        """
+        return len(self._faces_id)
+
     def add_face_id(self, face: 'Face'):
         """
         Adds a face_id if possible
@@ -413,7 +421,8 @@ class Space(PlanComponent):
             seen = []
             for reference_edge in self.reference_edges:
                 for edge in self.siblings(reference_edge):
-                    assert edge not in seen, "The space reference edges are wrong: {}".format(self)
+                    if edge in seen:
+                        raise ValueError("The space reference edges are wrong: {}".format(self))
                     seen.append(edge)
                     yield edge
 
@@ -1143,14 +1152,6 @@ class Space(PlanComponent):
         """
         assert not self.is_outside(edge), "The edge must belong to the space"
 
-        def immutable(_edge: Edge) -> bool:
-            """
-            Returns true if the edge is immutable
-            :param _edge:
-            :return:
-            """
-            return not self.plan.is_mutable(_edge)
-
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
             Callback to insure space consistency
@@ -1198,15 +1199,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-
-        def _immutable(_edge: Edge) -> bool:
-            return not self.plan.is_mutable(_edge)
-
-        if _immutable(edge):
-            logging.debug("Space: Cannot remove an immutable edge: %s in space: %s", edge, self)
-            return False
-
-        cut_data = edge.ortho_cut(_immutable)
+        cut_data = edge.ortho_cut()
 
         if not cut_data:
             return False
@@ -1796,8 +1789,6 @@ class Plan:
             if linear:
                 logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
                 linear.remove_edge_id(edge)
-
-
 
     def update_from_mesh(self):
         """

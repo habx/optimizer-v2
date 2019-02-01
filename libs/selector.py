@@ -216,28 +216,17 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
      face is added the size ratio defined as depth/width is closer to one
     """
 
-    ref_edge = space.edge
     biggest_shape_factor = None
     edge_homogeneous_growth = None
-
-    if ref_edge and ref_edge.pair and ref_edge.pair.face and space.plan.get_space_of_face(
-            ref_edge.pair.face).category.name == 'empty':
-        face_added = ref_edge.pair.face
-
-        space_contact = space.plan.get_space_of_face(face_added)
-        space.add_face(face_added)
-        size_ratio = space.size.depth / space.size.width
-        space.remove_face(face_added)
-        space_contact.add_face(face_added)
-
-        biggest_shape_factor = max(size_ratio, 1 / size_ratio)
-        edge_homogeneous_growth = ref_edge
 
     for edge in space.edges:
         if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
                 edge.pair).category.name == 'empty':
             face_added = edge.pair.face
             space_contact = space.plan.get_space_of_face(face_added)
+            if space_contact.corner_stone(face_added):
+                continue
+            space_contact.remove_face(face_added)
             space.add_face(face_added)
             size_ratio = space.size.depth / space.size.width
             space.remove_face(face_added)
@@ -903,7 +892,7 @@ SELECTORS = {
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0),
-            is_not(edge_angle(270, 270, previous=True)),
+            is_not(edge_angle(270, 270)),
             aligned_edges_length(min_length=150.0),
             next_has(aligned_edges_length(min_length=150.0))
         ]
