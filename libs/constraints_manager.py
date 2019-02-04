@@ -16,7 +16,6 @@ from typing import List, Callable, Optional
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
 import time
-import logging
 
 WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
 
@@ -52,8 +51,6 @@ class ConstraintSolver:
         # Declare variables
         self.cells_item: List[ortools.IntVar] = []
         self.positions = {}  # List[List[ortools.IntVar]] = [[]]
-        # For the decision builder
-        # self.positions_flat: List[ortools.IntVar] = []
         self.init_positions()
         self.solutions = []
 
@@ -69,10 +66,6 @@ class ConstraintSolver:
         for i_item in range(self.items_nbr):
             for j_space in range(self.spaces_nbr):
                 self.positions[i_item, j_space] = (self.cells_item[j_space] == i_item)
-
-        # self.positions_flat = [self.positions[i_item, j_space]
-        #                        for i_item in range(self.items_nbr)
-        #                        for j_space in range(self.spaces_nbr)]
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
         """
@@ -101,8 +94,7 @@ class ConstraintSolver:
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
                 logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
-                    self.positions[i_item, j].Value() for j in
-                    range(self.spaces_nbr)]))
+                    self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
@@ -188,7 +180,6 @@ class ConstraintsManager:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
