@@ -106,7 +106,7 @@ def _projection_action(source_vertex: 'Vertex',
     # create an extended shapely lineString from the edge
     sp_edge = edge.as_sp_extended
     # create a line to the edge at the vertex position
-    sp_line = source_vertex.sp_line(vector)
+    sp_line = source_vertex.sp_half_line(vector)
     temp_intersection_point = sp_edge.intersection(sp_line)
 
     # we are only interested in a clean intersection
@@ -125,60 +125,3 @@ get = {
     'translation': Transformation('translation', _translation_action),
     'projection': Transformation('projection', _projection_action)
 }
-
-
-if __name__ == '__main__':
-
-    from libs.mesh import Vertex, Edge, Mesh
-
-    mesh = Mesh()
-
-
-    def compute_a_barycenter():
-        """
-        Test
-        :return:
-        """
-        vertex_1 = Vertex(mesh)
-        vertex_2 = Vertex(mesh, 10, 10)
-        vertex_3 = (get['barycenter']
-                    .config(vertex=vertex_2, coeff=0.5)
-                    .apply_to(vertex_1))
-
-        print(vertex_3)
-
-    compute_a_barycenter()
-
-    def translate_a_vertex():
-        """
-        Test
-        :return:
-        """
-        vertex_1 = Vertex(mesh, 1.0, 1.0)
-        vector = (3.0, 2.0)
-        vertex_3 = (get['translation']
-                    .config(vector=vector)
-                    .apply_to(vertex_1))
-
-        print(vertex_3)
-
-    translate_a_vertex()
-
-    def project_a_vertex():
-        """
-        Test
-        :return:
-        """
-        vertex_2 = Vertex(mesh, 1.0, 1.0)
-        vertex_1 = Vertex(mesh, 3.0, 3.0)
-        vertex_3 = Vertex(mesh, 2.0, 0.0)
-        vector = (0.0, 1.0)
-        next_edge = Edge(mesh, vertex_2, None, None)
-        edge = Edge(mesh, vertex_1, next_edge, None)
-        vertex_4 = (get['projection']
-                    .config(vector=vector, edge=edge)
-                    .apply_to(vertex_3))
-
-        print(vertex_4)
-
-    project_a_vertex()

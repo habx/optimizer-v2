@@ -16,7 +16,7 @@ import numpy as np
 
 from libs.utils.custom_types import Vector2d, Coords2d
 from libs.utils.geometry import (
-    normalized_vector,
+    unit,
     move_point,
     magnitude,
     ccw_angle,
@@ -165,7 +165,7 @@ def make_arrow(point: Coords2d, vector: Vector2d, normal: Vector2d) -> LineStrin
     distance_to_point = 10
     arrow_angle = 20
     arrow_head_length = 10
-    vector_unit = normalized_vector(vector)
+    vector_unit = unit(vector)
 
     start_point = move_point(point, normal, distance_to_point)
     end_point = move_point(start_point, vector)
