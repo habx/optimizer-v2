@@ -220,36 +220,6 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
     else:
         return
 
-#
-# def boundary_unique_longest_alignment(space: 'Space', *_) -> Generator['Edge', bool, None]:
-#     """
-#     Returns the longest edge of the space that is not on the plan boundary
-#     In case of equality, returns the one that induce better alignment in case of fusion with the
-#      space_pair
-#     :param space:
-#     :return:
-#     """
-#     space_edges_adjacent_to_seed = [
-#         edge for edge in space.edges if
-#         not edge.is_mesh_boundary
-#         and space.plan.get_space_of_edge(edge.pair).category.name == "seed"
-#     ]
-#
-#     if space_edges_adjacent_to_seed:
-#         longest_edge = max(space_edges_adjacent_to_seed, key=lambda edge: edge.length)
-#     longest_edges=[edge for edge in space_edges_adjacent_to_seed if edge.length>longest_edge.length]
-#
-#     longest_selected=[]
-#
-#     for edge in longest_selected:
-#
-#
-#     if space_edges_adjacent_to_seed:
-#
-#         yield edge
-#     else:
-#         return
-
 
 def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
@@ -270,9 +240,9 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
             space_contact.remove_face(face_added)
             space.add_face(face_added)
             size_ratio = space.size.depth / space.size.width
+            current_shape_factor = max(size_ratio, 1 / size_ratio)
             space.remove_face(face_added)
             space_contact.add_face(face_added)
-            current_shape_factor = max(size_ratio, 1 / size_ratio)
             if biggest_shape_factor is None or current_shape_factor <= biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
@@ -281,33 +251,23 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge_homogeneous_growth
 
 
-def homogeneous_shape_factor(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-     face is added the shape factor is smaller
+     face is added the ratio area/perimeter is smallest
     """
 
-    ref_edge = space.edge
     biggest_shape_factor = None
     edge_homogeneous_growth = None
-
-    if ref_edge and ref_edge.pair and ref_edge.pair.face and space.plan.get_space_of_face(
-            ref_edge.pair.face).category.name == 'empty':
-        face_added = ref_edge.pair.face
-
-        space_contact = space.plan.get_space_of_face(face_added)
-        space.add_face(face_added)
-        biggest_shape_factor = space.perimeter / space.area
-        space.remove_face(face_added)
-        space_contact.add_face(face_added)
-
-        edge_homogeneous_growth = ref_edge
 
     for edge in space.edges:
         if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
                 edge.pair).category.name == 'empty':
             face_added = edge.pair.face
             space_contact = space.plan.get_space_of_face(face_added)
+            if space_contact.corner_stone(face_added):
+                continue
+            space_contact.remove_face(face_added)
             space.add_face(face_added)
             current_shape_factor = space.perimeter / space.area
             space.remove_face(face_added)
@@ -354,7 +314,7 @@ def adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge', bool, 
     space.bounding_box()
     for duct in plan.get_spaces("duct"):
         box = duct.bounding_box()
-        is_rectangular = math.fabs(box[0]*box[1] - duct.area) < EPSILON
+        is_rectangular = math.fabs(box[0] * box[1] - duct.area) < EPSILON
         if is_rectangular:
             yield from (edge.pair for edge in duct.edges if space.has_edge(edge.pair))
 
@@ -372,6 +332,7 @@ def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge
             if space.has_edge(edge.pair):
                 yield edge.pair
                 break
+
 
 # Query factories
 
@@ -472,6 +433,7 @@ def min_depth(depth: float) -> EdgeQuery:
                     yield current_edge
 
     return _selector
+
 
 # predicates
 
@@ -582,14 +544,20 @@ def check_corner_edge(edge: 'Edges', space: 'Space', previous: bool = False):
 
     return not space.next_is_aligned(space.previous_edge(edge))
 
+
 def next_is_ortho(edge: 'Edges', space: 'Space'):
+    """
+    Returns True if the next space edge is orthogonal
+    """
     return space.next_is_ortho(edge)
 
 
 def previous_is_ortho(edge: 'Edges', space: 'Space'):
+    """
+    Returns True if the previous space edge is orthogonal
+    """
     previous_edge = space.previous_edge(edge)
     return space.next_is_orho(previous_edge)
-
 
 
 def h_edge(edge: 'Edge', space: 'Space') -> bool:
@@ -605,10 +573,11 @@ def h_edge(edge: 'Edge', space: 'Space') -> bool:
     for _edge in (edge, edge.pair):
         if space.is_boundary(_edge.next):
             return False
-        if not(_edge.next.pair.next_is_aligned and _edge.next.pair.next.pair.next is _edge.pair):
+        if not (_edge.next.pair.next_is_aligned and _edge.next.pair.next.pair.next is _edge.pair):
             return False
 
     return True
+
 
 # predicate factories
 
@@ -869,6 +838,7 @@ def cuts_linear(*category_names: str) -> Predicate:
     :param category_names:
     :return:
     """
+
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         # per convention we return False for an edge that is on the border of a space
         if space.is_boundary(edge):
@@ -953,6 +923,8 @@ def longest_of_space() -> Predicate:
         cached_edge = cache.get(space.id, None)
         if cached_edge:
             return cached_edge == edge.id
+
+
 def has_pair() -> Predicate:
     """
     Predicate factory
@@ -1006,7 +978,6 @@ def next_aligned_category(cat: str) -> Predicate:
     space with specified category
     :return:
     """
-
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         plan = space.plan
@@ -1256,7 +1227,7 @@ SELECTORS = {
 
     "homogeneous": Selector(homogeneous, name='homogeneous'),
 
-    "homogeneous_shape_factor": Selector(homogeneous_shape_factor, name='homogeneous'),
+    "homogeneous_aspect_ratio": Selector(homogeneous_aspect_ratio, name='homogeneous_aspect_ratio'),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
@@ -1332,7 +1303,6 @@ SELECTORS = {
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=150)]),
 
-
     "add_aligned": Selector(
 
         boundary,
@@ -1369,9 +1339,8 @@ SELECTORS = {
     ),
 }
 
-
 SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
     "edges_length": SelectorFactory(lambda: boundary, [edge_length]),
-    "min_depth": SelectorFactory(min_depth)
+    "min_depth": SelectorFactory(min_depth),
 }

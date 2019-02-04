@@ -838,7 +838,7 @@ ELEMENT_SEED_CATEGORIES = {
         # )
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "frontDoor": GrowthMethod(
@@ -852,7 +852,7 @@ ELEMENT_SEED_CATEGORIES = {
         # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "window": GrowthMethod(
@@ -883,7 +883,7 @@ ELEMENT_SEED_CATEGORIES = {
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
             # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            # Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
             Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
@@ -898,7 +898,7 @@ ELEMENT_SEED_CATEGORIES = {
         # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_shape_factor'], MUTATIONS['swap_face']),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     )
 }
@@ -1062,7 +1062,7 @@ if __name__ == '__main__':
         # input_file = "Antony_B22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
-        # input_file = "Antony_A22.json"
+        input_file = "Antony_A22.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1074,13 +1074,8 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
-         # .divide_along_walls(SELECTORS["corner_edges_ortho_with_window"])
-         # .divide_along_walls_in_space(SELECTORS["corner_edges_ortho_without_window"])
          .from_space_empty_to_seed()
          .fusion(fusion_rules=fusion_rules, target_number_of_cells=10))
-        # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
-        # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
-        # .simplify(SELECTORS["fuse_small_cell_without_components"], show=True))
 
         plan.remove_null_spaces()
         plan.plot(show=True)
