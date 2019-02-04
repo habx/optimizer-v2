@@ -218,75 +218,44 @@ class Seeder:
                     space_created.add_face(face)
                     list_swapped_faces.remove(face)
 
-    def divide_along_walls_in_space(self, selector: 'Selector'):
-        for seed_space in self.plan.get_spaces("seed"):
-            for edge_selected in selector.yield_from(seed_space):
-                # if space.next
 
-                aligned_edges_all = []
-                space_cutted = None
-                if seed_space.next_aligned_category(edge_selected, 'empty'):
-                    aligned_edges_all = list(edge_selected.oriented_aligned_siblings())
-                    space_cutted = self.plan.get_space_of_edge(edge_selected.next_aligned)
-                if seed_space.previous_aligned_category(edge_selected, 'empty'):
-                    aligned_edges_all += list(edge_selected.pair.oriented_aligned_siblings())
-                    space_cutted = self.plan.get_space_of_edge(edge_selected.pair.next_aligned)
-
-                aligned_edges = []
-                if aligned_edges_all and space_cutted:
-                    for edge in aligned_edges_all:
-                        space_of_edge = self.plan.get_space_of_edge(edge)
-                        if space_of_edge is space_cutted:
-                            aligned_edges.append(edge)
-
-                list_space_to_divide = []
-                for edge in aligned_edges:
-                    space = self.plan.get_space_of_edge(edge)
-                    if space not in list_space_to_divide:
-                        list_space_to_divide.append(space)
-                        aligned_edges_in_space = list(
-                            edge for edge in aligned_edges if space.has_edge(edge))
-                        self.divide_space(space, aligned_edges_in_space)
-        return self
-
-    def divide_along_walls(self, selector: 'Selector'):
+    def divide_plan_along_directions(self, selector: 'Selector'):
         """
-        divide the empty space along all seed space walls
+        divide empty spaces along all directions defined by seed spaces corners
         :param selector:
         :param show:
         :return:
         """
-
         for seed_space in self.plan.get_spaces("seed"):
             for edge_selected in selector.yield_from(seed_space):
-                # if space.next
 
-                aligned_edges_all = []
-                if seed_space.next_aligned_category(edge_selected, 'empty'):
-                    aligned_edges_all = list(edge_selected.oriented_aligned_siblings())
-                if seed_space.previous_aligned_category(edge_selected, 'empty'):
-                    aligned_edges_all += list(edge_selected.pair.oriented_aligned_siblings())
-
+                #lists of edges along which space divisions will be performed
                 aligned_edges = []
-                if aligned_edges_all:
-                    for edge in aligned_edges_all:
+                # forward edge selection
+                if seed_space.next_aligned_category(edge_selected, 'empty'):
+                    aligned_edges = list(edge_selected.oriented_aligned_siblings())
+                # backward edge selection
+                if seed_space.previous_aligned_category(edge_selected, 'empty'):
+                    aligned_edges += list(edge_selected.pair.oriented_aligned_siblings())
+
+                # cuts until no empty space is met
+                aligned_edges_kept = []
+                if aligned_edges:
+                    for edge in aligned_edges:
                         space_of_edge = self.plan.get_space_of_edge(edge)
                         if space_of_edge is None:  # or space_of_edge_pair is None:
                             break
                         if space_of_edge.category.name is not "empty":  # or space_of_edge_pair.category.name is not "empty":
                             break
-                        aligned_edges.append(edge)
-
-                    # print("aligned_edges", aligned_edges)
-                    # input("aligned_edges_all {0}".format(aligned_edges_all))
+                        aligned_edges_kept.append(edge)
 
                 list_space_to_divide = []
-                for edge in aligned_edges:
+                for edge in aligned_edges_kept:
                     space = self.plan.get_space_of_edge(edge)
                     if space not in list_space_to_divide:
                         list_space_to_divide.append(space)
                         aligned_edges_in_space = list(
-                            edge for edge in aligned_edges if space.has_edge(edge))
+                            edge for edge in aligned_edges_kept if space.has_edge(edge))
                         self.divide_space(space, aligned_edges_in_space)
         return self
 
@@ -302,23 +271,26 @@ class Seeder:
                 space.category = SPACE_CATEGORIES["seed"]
         return self
 
-
-    def get_area_rule(self, space: 'Space', area_rules: Dict = {}, min_area: bool = False):
+    def get_area_rule(self, space: 'Space', fusion_rules: Dict = {},
+                      min_area: bool = False) -> float:
+        """
+        reads fusion_rules dict and returns max or min area a space can reach
+        :return: float
+        """
         area_key = 'max_area'
         if min_area:
             area_key = 'min_area'
         area = 0
         for comp in space.components_category_associated():
-            if comp in area_rules:
-                area = max(area, area_rules[comp][area_key])
+            if comp in fusion_rules:
+                area = max(area, fusion_rules[comp][area_key])
         if area == 0:
-            area = area_rules['default'][area_key]
+            area = fusion_rules['default'][area_key]
         return area
-
 
     def fusion(self, area_fuse_force: float = 5000,
                fusion_rules: Dict = {},
-               target_number_of_cells: int = 10):
+               target_number_of_cells: int = 10, min_aspect_ratio: float = 0.5):
 
         self.plan.plot()
         number_of_cells = len(
@@ -343,48 +315,49 @@ class Seeder:
             list_fusionnable_spaces = sorted(list_spaces, key=lambda space: space.area)
 
             for space in list_fusionnable_spaces:
-                adj_spaces_selected = []
                 adj_length = 0
 
                 mutable_adjacent_spaces = list(sp for sp in space.adjacent_spaces()
                                                if sp.mutable)
+
+                mutable_adjacent_spaces_fusionnable = []
                 if mutable_adjacent_spaces:
+                    # no fusion if the aspect ratio of the obtained fusion cell is bad
                     max_adjacent_length_contact = max(map(lambda adj: adj.contact_length(space),
                                                           mutable_adjacent_spaces))
 
                     mutable_adjacent_spaces_fusionnable = [sp for sp in space.adjacent_spaces() if
                                                            sp.mutable
-                                                           and sp.area + space.area < self.get_area_rule(
-                                                               sp,
-                                                               fusion_rules) and sp.contact_length(
-                                                               space) > 0.5 * max_adjacent_length_contact]
+                                                           and sp.area + space.area <
+                                                           self.get_area_rule(sp, fusion_rules)
+                                                           and sp.contact_length(
+                                                               space) >
+                                                           min_aspect_ratio *
+                                                           max_adjacent_length_contact]
 
-
-                else:
-                    mutable_adjacent_spaces_fusionnable = []
-
+                # select adjacent spaces with higher contact length
+                mutable_adjacent_spaces_fusionnable_selected = []
                 for adj in mutable_adjacent_spaces_fusionnable:
                     adj_length_tmp = space.contact_length(adj)
                     if abs(adj_length_tmp - adj_length) < 1:
-                        adj_spaces_selected.append(adj)
+                        mutable_adjacent_spaces_fusionnable_selected.append(adj)
                     elif adj_length_tmp > adj_length:
                         adj_length = adj_length_tmp
-                        adj_spaces_selected = [adj]
+                        mutable_adjacent_spaces_fusionnable_selected = [adj]
 
-
-
-                if len(adj_spaces_selected) == 1:
-                    space.merge(adj_spaces_selected[0])
+                if len(mutable_adjacent_spaces_fusionnable_selected) == 1:
+                    # only one possible adjacent space available for fusion
+                    space.merge(mutable_adjacent_spaces_fusionnable_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
                     self.plan.plot()
                     break
-                elif len(adj_spaces_selected) > 1:
+                elif len(mutable_adjacent_spaces_fusionnable_selected) > 1:
                     # among fusionnable adjacent spaces, privilege those that are poorly
                     # aligned with their environment
                     num_aligned_min = None
                     final_selection = []
-                    for adj_space_selected in adj_spaces_selected:
+                    for adj_space_selected in mutable_adjacent_spaces_fusionnable_selected:
                         num_aligned = adj_space_selected.count_aligned_sides()
                         if not num_aligned_min:
                             num_aligned_min = num_aligned
@@ -984,7 +957,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        from category import LINEAR_CATEGORIES
+        from libs.category import LINEAR_CATEGORIES
         boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
         # boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
 
@@ -1089,7 +1062,7 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         .divide_along_walls(SELECTORS["corner_edges_ortho"])
+         .divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
          # .divide_along_walls(SELECTORS["corner_edges_ortho_with_window"])
          # .divide_along_walls_in_space(SELECTORS["corner_edges_ortho_without_window"])
          .from_space_empty_to_seed()
