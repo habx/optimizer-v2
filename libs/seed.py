@@ -218,7 +218,6 @@ class Seeder:
                     space_created.add_face(face)
                     list_swapped_faces.remove(face)
 
-
     def divide_plan_along_directions(self, selector: 'Selector'):
         """
         divide empty spaces along all directions defined by seed spaces corners
@@ -229,7 +228,7 @@ class Seeder:
         for seed_space in self.plan.get_spaces("seed"):
             for edge_selected in selector.yield_from(seed_space):
 
-                #lists of edges along which space divisions will be performed
+                # lists of edges along which space divisions will be performed
                 aligned_edges = []
                 # forward edge selection
                 if seed_space.next_aligned_category(edge_selected, 'empty'):
@@ -256,7 +255,7 @@ class Seeder:
                         list_space_to_divide.append(space)
                         aligned_edges_in_space = list(
                             edge for edge in aligned_edges_kept if space.has_edge(edge))
-                        #self.divide_space(space, aligned_edges_in_space)
+                        # self.divide_space(space, aligned_edges_in_space)
                         space.divide_along_line(aligned_edges_in_space)
         return self
 
@@ -292,7 +291,18 @@ class Seeder:
     def fusion(self, area_fuse_force: float = 5000,
                fusion_rules: Dict = {},
                target_number_of_cells: int = 10, min_aspect_ratio: float = 0.5):
-
+        """
+        heuristic for cell fusion
+        Loop though every cells in ascending area order
+        1 - detect adjacent cells and selects those for which an addition is possible based
+        on fusion rules
+        2 - select for fusion the adjacent cells that have highest contact length with the current
+        cell
+        3 - if there are still several candidates, select the one that/those is less aligned with
+        its neighbors
+        4 - if there are still several candidates, select the smallest one
+        :return:
+        """
         self.plan.plot()
         number_of_cells = len(
             list(space for space in self.plan.spaces if space.mutable and space.area > 0))
@@ -351,7 +361,7 @@ class Seeder:
                     space.merge(mutable_adjacent_spaces_fusionnable_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    #self.plan.plot()
+                    # self.plan.plot()
                     break
                 elif len(mutable_adjacent_spaces_fusionnable_selected) > 1:
                     # among fusionnable adjacent spaces, privilege those that are poorly
@@ -377,7 +387,7 @@ class Seeder:
                     space.merge(adj_space_selected)
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    #self.plan.plot()
+                    # self.plan.plot()
                     break
 
             else:
@@ -1052,7 +1062,7 @@ if __name__ == '__main__':
         # input_file = "Antony_B22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
-        #input_file = "Antony_A22.json"
+        # input_file = "Antony_A22.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
