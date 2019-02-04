@@ -277,3 +277,13 @@ def rectangle(reference_point: Coords2d,
     output += [move_point(output[2], orientation_vector, coeff=-width)]
 
     return output
+
+
+def parallel(vector: Vector2d, other: Vector2d) -> bool:
+    """
+    Returns True if the vector are parallel
+    :param vector:
+    :param other:
+    :return:
+    """
+    return pseudo_equal(ccw_angle(vector, opposite_vector(other)), 180.0, ANGLE_EPSILON)
