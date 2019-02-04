@@ -292,10 +292,15 @@ def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
                           and space_data["category"] == "empty")
         perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
         my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+        floor = my_plan.floor_of_given_level(floor_data["level"])
 
-        # # linears
-        # for linear_data in v2_data["linears"]:
-        #
+        # linears
+        for linear_data in v2_data["linears"]:
+            if linear_data["id"] in floor_data["elements"]:
+                p1 = vertices_by_id[linear_data["geometry"][0]]
+                p2 = vertices_by_id[linear_data["geometry"][1]]
+                category = LINEAR_CATEGORIES[linear_data["category"]]
+                my_plan.insert_linear(p1, p2, category=category, floor=floor)
 
         # other spaces
         for space_data in v2_data["spaces"]:
@@ -303,10 +308,7 @@ def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
                 space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
                 space_points = _clean_perimeter(space_points)
                 category = SPACE_CATEGORIES[space_data["category"]]
-                floor = my_plan.floor_of_given_level(floor_data["level"])
-                my_plan.insert_space_from_boundary(space_points,
-                                                   category=category,
-                                                   floor=floor)
+                my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
 
 
 def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
