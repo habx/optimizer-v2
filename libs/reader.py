@@ -63,9 +63,10 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
             for stairs_obstacle in stairs_obstacles:
                 stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                                          stairs_obstacle]
-                if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
+                if stairs_obstacles_poly[0] == stairs_obstacles_poly[
+                    len(stairs_obstacles_poly) - 1]:
                     stairs_obstacles_poly.remove(
-                        stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
+                        stairs_obstacles_poly[len(stairs_obstacles_poly) - 1])
                 my_plan.insert_space_from_boundary(stairs_obstacles_poly,
                                                    category=SPACE_CATEGORIES["stairsObstacle"],
                                                    floor=my_plan.floor_of_given_level(
@@ -76,8 +77,8 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
             for hole in holes:
                 hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                              hole]
-                if hole_poly[0] == hole_poly[len(hole_poly)-1]:
-                    hole_poly.remove(hole_poly[len(hole_poly)-1])
+                if hole_poly[0] == hole_poly[len(hole_poly) - 1]:
+                    hole_poly.remove(hole_poly[len(hole_poly) - 1])
                 my_plan.insert_space_from_boundary(hole_poly,
                                                    category=SPACE_CATEGORIES["hole"],
                                                    floor=my_plan.floor_of_given_level(
@@ -255,10 +256,42 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     my_plan = plan.Plan(file_name)
 
     if "v2" in floor_plan_dict.keys():
-        apartment = floor_plan_dict["v2"]["apartment"]
+        create_plan_from_v2_data(my_plan, floor_plan_dict["v2"])
+    elif "v1" in floor_plan_dict.keys():
+        create_plan_from_v1_data(my_plan, floor_plan_dict["v1"])
     else:
-        apartment = floor_plan_dict["apartment"]
+        create_plan_from_v1_data(my_plan, floor_plan_dict)
 
+    return my_plan
+
+
+def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
+    # get linears data
+    linears_data_by_id = {}
+    for linear_data in v2_data["linears"]:
+        linears_data_by_id[linear_data["id"]] = linear_data
+    # get spaces data
+    spaces_data_by_id = {}
+    for space_data in v2_data["spaces"]:
+        spaces_data_by_id[space_data["id"]] = space_data
+    # get vertices
+    vertices_by_id: Dict[int, Coords2d] = {}
+    for vertex_data in v2_data["vertices"]:
+        vertices_by_id[vertex_data["id"]] = (vertex_data["x"], vertex_data["y"])
+
+    for floor in v2_data["floors"]:
+        # empty perimeter
+        empty_data = next(spaces_data_by_id[element_id]
+                          for element_id in floor["elements"]
+                          if element_id in spaces_data_by_id.keys()
+                          and spaces_data_by_id[element_id]["category"] == "empty")
+        perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
+        my_plan.add_floor_from_boundary(perimeter, floor_level=floor["level"])
+
+
+
+def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
+    apartment = v1_data["apartment"]
     for blueprint_dict in apartment["blueprints"]:
         perimeter = _get_perimeter(blueprint_dict)
         my_plan.add_floor_from_boundary(perimeter, floor_level=blueprint_dict["level"])
@@ -277,8 +310,6 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
             my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]],
                                                floor=my_plan.floor_of_given_level(
                                                    blueprint_dict["level"]))
-
-    return my_plan
 
 
 def create_specification_from_file(input_file: str):
@@ -329,6 +360,12 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
+    import matplotlib
+
+    matplotlib.use("TkAgg")
+    import matplotlib.pyplot as plt
+
+
     def specification_read():
         """
         Test
@@ -340,10 +377,30 @@ if __name__ == '__main__':
 
 
     def plan_read():
-        input_file = "begles-carrelets_C304.json"
+        input_file = "saint-maur-raspail_H07.json"
         my_plan = create_plan_from_file(input_file)
-        my_plan.plot()
-        print(my_plan)
+
+        n_rows = my_plan.floor_count
+        fig, ax = plt.subplots(n_rows)
+        fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
+
+        for i, floor in enumerate(my_plan.floors.values()):
+            _ax = ax[i] if n_rows > 1 else ax
+            _ax.set_aspect('equal')
+
+            for space in my_plan.spaces:
+                if space.floor is not floor:
+                    continue
+                space.plot(_ax, save=False, options=('face', 'edge', 'half-edge', 'border'))
+
+            for linear in my_plan.linears:
+                if linear.floor is not floor:
+                    continue
+                linear.plot(_ax, save=False)
+
+            _ax.set_title(my_plan.name + " - floor id:{}".format(floor.id))
+
+        plt.show()
 
 
     # specification_read()
