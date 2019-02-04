@@ -5,6 +5,7 @@ Reader module : Used to read file from json input and create a plan.
 from typing import Dict, Sequence, Tuple, List
 import os
 import json
+import numpy as np
 from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
@@ -19,6 +20,7 @@ from libs.utils.geometry import (
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
+from libs.mesh import COORD_EPSILON
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
@@ -206,6 +208,19 @@ def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coord
     return output
 
 
+def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
+    """
+    Remove points that are too close
+    """
+    new_perimeter = [perimeter[0]]
+    for coord in perimeter:
+        if np.linalg.norm(np.array(coord) - np.array(new_perimeter[-1])) > COORD_EPSILON:
+            new_perimeter.append(coord)
+    if np.linalg.norm(np.array(new_perimeter[0]) - np.array(new_perimeter[-1])) < COORD_EPSILON:
+        del new_perimeter[-1]
+    return new_perimeter
+
+
 def get_json_from_file(file_name: str = 'Antony_A22.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
@@ -264,27 +279,34 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
 
 
 def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
-    # get linears data
-    linears_data_by_id = {}
-    for linear_data in v2_data["linears"]:
-        linears_data_by_id[linear_data["id"]] = linear_data
-    # get spaces data
-    spaces_data_by_id = {}
-    for space_data in v2_data["spaces"]:
-        spaces_data_by_id[space_data["id"]] = space_data
     # get vertices
     vertices_by_id: Dict[int, Coords2d] = {}
     for vertex_data in v2_data["vertices"]:
         vertices_by_id[vertex_data["id"]] = (vertex_data["x"], vertex_data["y"])
 
-    for floor in v2_data["floors"]:
+    for floor_data in v2_data["floors"]:
         # empty perimeter
-        empty_data = next(spaces_data_by_id[element_id]
-                          for element_id in floor["elements"]
-                          if element_id in spaces_data_by_id.keys()
-                          and spaces_data_by_id[element_id]["category"] == "empty")
+        empty_data = next(space_data
+                          for space_data in v2_data["spaces"]
+                          if space_data["id"] in floor_data["elements"]
+                          and space_data["category"] == "empty")
         perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
-        my_plan.add_floor_from_boundary(perimeter, floor_level=floor["level"])
+        my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+
+        # # linears
+        # for linear_data in v2_data["linears"]:
+        #
+
+        # other spaces
+        for space_data in v2_data["spaces"]:
+            if space_data["id"] in floor_data["elements"] and space_data["category"] != "empty":
+                space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
+                space_points = _clean_perimeter(space_points)
+                category = SPACE_CATEGORIES[space_data["category"]]
+                floor = my_plan.floor_of_given_level(floor_data["level"])
+                my_plan.insert_space_from_boundary(space_points,
+                                                   category=category,
+                                                   floor=floor)
 
 
 def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
