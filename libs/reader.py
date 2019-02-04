@@ -64,7 +64,7 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
                 stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                                          stairs_obstacle]
                 if stairs_obstacles_poly[0] == stairs_obstacles_poly[
-                    len(stairs_obstacles_poly) - 1]:
+                                                len(stairs_obstacles_poly) - 1]:
                     stairs_obstacles_poly.remove(
                         stairs_obstacles_poly[len(stairs_obstacles_poly) - 1])
                 my_plan.insert_space_from_boundary(stairs_obstacles_poly,
@@ -133,9 +133,7 @@ def _get_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
     :return:
     """
     external_spaces = input_blueprint_dict['externalSpaces']
-    floor_vertices = input_blueprint_dict["vertices"]
 
-    output = []
     for external_space in external_spaces:
         if 'polygon' in external_space.keys():
             external_space_points = external_space["polygon"]
@@ -287,7 +285,6 @@ def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
                           and spaces_data_by_id[element_id]["category"] == "empty")
         perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
         my_plan.add_floor_from_boundary(perimeter, floor_level=floor["level"])
-
 
 
 def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
