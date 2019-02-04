@@ -361,7 +361,7 @@ class Seeder:
                     space.merge(mutable_adjacent_spaces_fusionnable_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    # self.plan.plot()
+                    self.plan.plot()
                     break
                 elif len(mutable_adjacent_spaces_fusionnable_selected) > 1:
                     # among fusionnable adjacent spaces, privilege those that are poorly
@@ -387,7 +387,7 @@ class Seeder:
                     space.merge(adj_space_selected)
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    # self.plan.plot()
+                    self.plan.plot()
                     break
 
             else:
@@ -1062,7 +1062,7 @@ if __name__ == '__main__':
         # input_file = "Antony_B22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
-        input_file = "Antony_A22.json"
+        input_file = "Levallois_Letourneur.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
