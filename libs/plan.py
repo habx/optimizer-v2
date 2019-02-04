@@ -246,6 +246,42 @@ class Space(PlanComponent):
         """
         self._faces_id.remove(face.id)
 
+    def next_aligned_category(self, edge: 'Edge', cat: str) -> bool:
+        """
+        Returns True  if an edge has as next aligned siblings an edge that in a
+        space with specified category
+        :return:
+        """
+        plan = self.plan
+        if edge.next_is_aligned and plan.get_space_of_edge(
+                edge.next) is not None and plan.get_space_of_edge(
+            edge.next).category.name is cat:
+            return True
+        elif edge.next.pair.next_is_ortho and plan.get_space_of_edge(
+                edge.next.pair.next) is not None and plan.get_space_of_edge(
+            edge.next.pair.next).category.name is cat:
+            return True
+        else:
+            return False
+
+    def previous_aligned_category(self, edge: 'Edge', cat: str) -> bool:
+        """
+        Returns True  if an edge has as previous aligned siblings an edge that in a
+        space with specified category
+        :return:
+        """
+        plan = self.plan
+        if edge.previous_is_aligned and plan.get_space_of_edge(
+                edge.previous) is not None and plan.get_space_of_edge(
+            edge.previous).category.name is cat:
+            return True
+        elif edge.previous.pair.previous_is_ortho and plan.get_space_of_edge(
+                edge.previous.pair.previous) is not None and plan.get_space_of_edge(
+            edge.previous.pair.previous).category.name is cat:
+            return True
+        else:
+            return False
+
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
         """
@@ -368,6 +404,26 @@ class Space(PlanComponent):
         """
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
+
+    def next_is_orho(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the next edge is approximately orthogonal with this one,
+        using a pseudo equality on the angle
+        :param edge:
+        :return: boolean
+        """
+        is_ortho = pseudo_equal(self.next_angle(edge), 90, ANGLE_EPSILON)
+        return is_ortho
+
+    def previous_is_orho(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the previous edge is approximately orthogonal with this one,
+        using a pseudo equality on the angle
+        :param edge:
+        :return: boolean
+        """
+        is_ortho = pseudo_equal(self.previous_angle(edge), 90, ANGLE_EPSILON)
+        return is_ortho
 
     def next_is_aligned(self, edge: 'Edge') -> bool:
         """
@@ -974,6 +1030,15 @@ class Space(PlanComponent):
                 yield edge.pair.face
                 seen.append(edge.pair.face)
 
+    def face_is_adjacent(self, face: Face) -> bool:
+        """
+        Returns True if the face is adjacent to the space
+        :return:
+        """
+        if [edge for edge in face.edges if edge.pair is not None and self.has_edge(edge.pair)]:
+            return True
+        return False
+
     def corner_stone(self, face: 'Face') -> bool:
         """
         Returns True if the removal of this face will split the space
@@ -1341,6 +1406,62 @@ class Space(PlanComponent):
                 return True
             else:
                 return False
+
+    def contact_length(self, space: 'Space') -> float:
+        """
+        Returns the border's length between two spaces
+        :return: float
+        """
+        border_length = 0
+        for edge in self.edges:
+            if space.has_edge(edge.pair):
+                border_length += edge.length
+        return border_length
+
+    def count_aligned_sides(self) -> int:
+        """
+        Returns the number of edges corder of the space that are aligned with an adjacent space
+        :return: float
+        """
+        nb_aligned = 0
+        for edge in self.edges:
+            edge_next_aligned = edge.next_aligned
+            if edge_next_aligned is None:
+                continue
+            elif not edge_next_aligned in self.edges and self.plan.get_space_of_edge(
+                edge_next_aligned) is not None and \
+                    edge_next_aligned in self.plan.get_space_of_edge(
+                edge_next_aligned).edges:
+                nb_aligned += 1
+            else:
+                if edge_next_aligned.pair is None:
+                    continue
+                if edge_next_aligned.pair.next_aligned is None:
+                    continue
+                if edge_next_aligned.pair.next_aligned.pair is None:
+                    continue
+                edge_next_aligned_pair_next_aligned = edge_next_aligned.pair.next_aligned.pair
+                if not edge_next_aligned_pair_next_aligned in self.edges and self.plan.get_space_of_edge(
+                    edge_next_aligned_pair_next_aligned) is not None and \
+                        edge_next_aligned_pair_next_aligned in self.plan.get_space_of_edge(
+                    edge_next_aligned_pair_next_aligned).edges:
+                    nb_aligned += 1
+
+        return nb_aligned
+
+    def adjacent_spaces(self, length: int = None) -> List['Space']:
+        """
+        Gets the list of spaces adjacent to a given one
+        :return: List['Space']
+        """
+        spaces_list = []
+        for edge in self.edges:
+            if edge.pair:
+                adjacent_space = self.plan.get_space_of_edge(edge.pair)
+                if adjacent_space and adjacent_space not in spaces_list and self.adjacent_to(
+                        adjacent_space, length):
+                    spaces_list.append(adjacent_space)
+        return spaces_list
 
     def maximum_adjacency_length(self, other: Union['Space', 'Face']) -> float:
         """

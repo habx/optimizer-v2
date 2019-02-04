@@ -75,7 +75,7 @@ class Shuffle:
                 modified_spaces = self.current_action.apply_to(space, slct_args, self.constraints)
                 if modified_spaces and show:
                     self._plot.update(modified_spaces)
-
+                    #input("shuffle")
                 all_modified_spaces += modified_spaces
 
             if not all_modified_spaces:
@@ -131,6 +131,7 @@ square_shape_shuffle_component_aligned = Shuffle('swap_aligned',
                                                  [CONSTRAINTS['square_shape'],
                                                   CONSTRAINTS['few_corners'],
                                                   CONSTRAINTS['component_surface_objective'],
+                                                  #CONSTRAINTS['aligned_spaces'],
                                                   CONSTRAINTS['number_of_components']])
 
 SHUFFLES = {

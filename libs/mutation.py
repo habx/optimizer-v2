@@ -238,6 +238,64 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space, other_space]
 
 
+def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    Adds all the faces of the aligned edges
+    • checks if the edge is just after a corner
+    • gather all the next aligned edges
+    • for each edge add the corresponding faces
+    :return:
+    """
+    assert space.has_face(edge.face), "Mutation: The edge must belong to the first space"
+
+    plan = space.plan
+    other_space = plan.get_space_of_edge(edge.pair)
+
+    if other_space.face:
+        assert (other_space.adjacent_to(edge.face),
+                "Mutation: The edge face must be adjacent to the second space")
+
+    # list of aligned edges
+    aligned_edges = []
+    for aligned in space.next_aligned_siblings(edge):
+        if not other_space.has_edge(aligned.pair):
+            break
+        aligned_edges.append(aligned)
+
+    list_face_aligned = []
+    for aligned in aligned_edges:
+        if aligned.face not in list_face_aligned:
+            list_face_aligned.append(aligned.pair.face)
+
+    count_exchanged_face = 0
+
+    face_removed = True
+    while face_removed:
+        face_removed = False
+        for aligned_face in list_face_aligned:
+            # no space removal
+            if len(other_space._faces_id) <= 1:
+                break
+
+            if other_space.corner_stone(aligned_face):
+                logging.debug("graph not connected CORNER STONE")
+                break
+
+            space.add_face(aligned_face)
+            list_face_aligned.remove(aligned_face)
+            face_removed = True
+
+            other_space.remove_face(aligned_face)
+
+            count_exchanged_face += 1
+
+        if count_exchanged_face == 0:
+            # no operation performed in the process
+            return []
+
+    return [space, other_space]
+
+
 def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Removes an edge from a space.
@@ -421,6 +479,7 @@ MUTATION_FACTORIES = {
 MUTATIONS = {
     "swap_face": Mutation(swap_face),
     "swap_aligned_face": Mutation(swap_aligned_face),
+    "add_aligned_face": Mutation(add_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
     "remove_edge": Mutation(remove_edge, reversible=False),
     "remove_line": Mutation(remove_line, reversible=False)
