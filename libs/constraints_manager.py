@@ -16,6 +16,7 @@ from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
 import time
+import logging
 
 if TYPE_CHECKING:
     from libs.space_planner import SpacePlanner
