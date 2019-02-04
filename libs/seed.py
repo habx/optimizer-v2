@@ -233,10 +233,10 @@ class Seeder:
                 aligned_edges = []
                 # forward edge selection
                 if seed_space.next_aligned_category(edge_selected, 'empty'):
-                    aligned_edges = list(edge_selected.oriented_aligned_siblings())
+                    aligned_edges = list(edge_selected.edges_along_line())
                 # backward edge selection
                 if seed_space.previous_aligned_category(edge_selected, 'empty'):
-                    aligned_edges += list(edge_selected.pair.oriented_aligned_siblings())
+                    aligned_edges += list(edge_selected.pair.edges_along_line())
 
                 # cuts until no empty space is met
                 aligned_edges_kept = []
@@ -256,7 +256,8 @@ class Seeder:
                         list_space_to_divide.append(space)
                         aligned_edges_in_space = list(
                             edge for edge in aligned_edges_kept if space.has_edge(edge))
-                        self.divide_space(space, aligned_edges_in_space)
+                        #self.divide_space(space, aligned_edges_in_space)
+                        space.divide_along_line(aligned_edges_in_space)
         return self
 
     def from_space_empty_to_seed(self):
@@ -350,7 +351,7 @@ class Seeder:
                     space.merge(mutable_adjacent_spaces_fusionnable_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    self.plan.plot()
+                    #self.plan.plot()
                     break
                 elif len(mutable_adjacent_spaces_fusionnable_selected) > 1:
                     # among fusionnable adjacent spaces, privilege those that are poorly
@@ -376,7 +377,7 @@ class Seeder:
                     space.merge(adj_space_selected)
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    self.plan.plot()
+                    #self.plan.plot()
                     break
 
             else:
@@ -1051,7 +1052,7 @@ if __name__ == '__main__':
         # input_file = "Antony_B22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
-        input_file = "Antony_A22.json"
+        #input_file = "Antony_A22.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()

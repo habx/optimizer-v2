@@ -282,6 +282,63 @@ class Space(PlanComponent):
         else:
             return False
 
+    def divide_along_line(self, line_edges: List['Edge']):
+        """
+        Divides the space into two sub-spaces, cut performed along the proviced line_edges
+        :return:
+        """
+
+        def face_on_side(line_edges: List['Edge']) -> Generator[
+            'Face', bool, None]:
+            """
+            Detects the faces of the space that are on one of the two sides
+            of the line defined by line_edges
+            :return: Generator
+            """
+            if line_edges:
+                face_ini = line_edges[0].face
+                list_side_faces = [face_ini]
+                add = [face_ini]
+                added = True
+                while added:
+                    added = False
+                    for face_ini in add:
+                        for face in self.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
+                            # adds faces adjacent to those already added
+                            # do not add faces on the other side of the line
+                            if not [
+                                edge for edge in line_edges if
+                                edge.pair in face.edges] and face not in list_side_faces:
+                                list_side_faces.append(face)
+                                add.append(face)
+                                added = True
+                for f in list_side_faces:
+                    yield f
+
+        if not line_edges:
+            return
+
+        list_side_faces = [face for face in face_on_side(line_edges)]
+
+        if not list_side_faces:
+            return
+
+        # removes the side faces from self
+        for face in list_side_faces:
+            self.plan.get_space_of_face(face).remove_face(face)
+        # create new empty space
+        space_created = Space(self.plan, self.floor,
+                              list_side_faces[0].edge,
+                              SPACE_CATEGORIES[self.category.name])
+        list_side_faces.remove(list_side_faces[0])
+
+        # adds side face to the new space in an order preserving connectivity
+        while list_side_faces:
+            for face in list_side_faces:
+                if space_created.face_is_adjacent(face):
+                    space_created.add_face(face)
+                    list_side_faces.remove(face)
+
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
         """
@@ -1429,7 +1486,7 @@ class Space(PlanComponent):
             if edge_next_aligned is None:
                 continue
             elif not edge_next_aligned in self.edges and self.plan.get_space_of_edge(
-                edge_next_aligned) is not None and \
+                    edge_next_aligned) is not None and \
                     edge_next_aligned in self.plan.get_space_of_edge(
                 edge_next_aligned).edges:
                 nb_aligned += 1
@@ -1442,7 +1499,7 @@ class Space(PlanComponent):
                     continue
                 edge_next_aligned_pair_next_aligned = edge_next_aligned.pair.next_aligned.pair
                 if not edge_next_aligned_pair_next_aligned in self.edges and self.plan.get_space_of_edge(
-                    edge_next_aligned_pair_next_aligned) is not None and \
+                        edge_next_aligned_pair_next_aligned) is not None and \
                         edge_next_aligned_pair_next_aligned in self.plan.get_space_of_edge(
                     edge_next_aligned_pair_next_aligned).edges:
                     nb_aligned += 1
