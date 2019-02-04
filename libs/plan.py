@@ -264,22 +264,13 @@ class Space(PlanComponent):
         return edge.id in self._edges_id
 
     @property
-    def edge_is_none(self) -> bool:
-        """
-        Property
-        Returns True if the reference edge of the space is not set
-        :return:
-        """
-        return len(self._edges_id) == 0
-
-    @property
     def edge(self) -> Optional['Edge']:
         """
         Returns the first reference edge.
         Per convention, the first reference edge is on the outside boundary of the space
         :return:
         """
-        if self.edge_is_none:
+        if len(self._edges_id) == 0:
             return None
 
         return self.mesh.get_edge(self._edges_id[0])
@@ -451,6 +442,14 @@ class Space(PlanComponent):
         :return:
         """
         return len(self._edges_id) > 1
+
+    @property
+    def axes(self):
+        """
+        Returns the axes of the space
+        :return:
+        """
+        raise NotImplementedError()
 
     @property
     def area(self) -> float:
@@ -2410,7 +2409,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Antony_B22.json"
+        input_file = "Massy_C303.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)

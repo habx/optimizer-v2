@@ -216,7 +216,7 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         face_removed = False
         for aligned_face in list_face_aligned:
             # no space removal
-            if len(space._faces_id) <= 1:
+            if space.number_of_faces <= 1:
                 break
 
             if space.corner_stone(aligned_face):
@@ -271,25 +271,14 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     # find all aligned edges
     # we check forward with the edge and backward with the edge pair
-    line_edges = [edge]
-    for current_edge in (edge, edge.pair):
-        keep_going = True
-        while keep_going:
-            keep_going = False
-            for _edge in current_edge.end.edges:
-                angle = geometry.ccw_angle(_edge.vector, current_edge.opposite_vector)
-                if geometry.pseudo_equal(angle, 180, geometry.ANGLE_EPSILON):
-                    # if we encounter a space edge we stop
-                    if space.is_boundary(edge):
-                        break
-                    line_edges.append(_edge)
-                    current_edge = _edge
-                    keep_going = True
-                    break
-
-    removed = False
-    for line_edge in line_edges:
-        if space.is_internal(line_edge) and not line_edge.is_internal:
+    line = edge.line
+    removed = 0
+    for line_edge in line:
+        # if we encounter a boundary edge : we stop
+        if not space.is_internal(line_edge):
+            break
+        # we must cannot remove an internal edge as it would break the mesh
+        if not line_edge.is_internal:
             removed += space.remove_internal_edge(line_edge)
 
     return [space] if removed else []
@@ -330,27 +319,38 @@ def barycenter_cut(coeff: float,
     return _action
 
 
-def translation_cut(dist: float,
+def translation_cut(offset: float,
+                    reference_point: str = "start",
                     angle: float = 90.0,
-                    traverse: str = 'relative') -> EdgeMutation:
+                    traverse: str = 'no') -> EdgeMutation:
     """
-    Action Factory
-    :param dist:
+    Mutation Factory
+    Cuts the edge after a specified offset from the start vertex
+    :param offset:
     :param angle:
+    :param reference_point: the end or the start of the edge
     :param traverse:
     :return: an action function
     """
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         # check the length of the edge. It cannot be inferior to the translation distance
-        if edge.length < dist:
+        if edge.length < offset:
             return []
-        # create a translated vertex
+
+        _vector = (geometry.opposite_vector(edge.unit_vector)
+                   if reference_point == "end" else edge.unit_vector)
+
+        _reference_vertex = edge.end if reference_point == "end" else edge.start
+
         vertex = (transformation.get['translation']
-                  .config(vector=edge.unit_vector, coeff=dist)
-                  .apply_to(edge.start))
+                  .config(vector=_vector, coeff=offset)
+                  .apply_to(_reference_vertex))
 
         cut_data = space.cut(edge, vertex, angle=angle, traverse=traverse)
+
+        if not vertex.edge:
+            vertex.remove_from_mesh()
 
         return [space] if _space_modified_by_cut(cut_data) else []
 
@@ -397,13 +397,15 @@ def slice_cut(offset: float,
     """
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
-        face = edge.face
 
         # check depth of the face, if the face is not deep enough do not slice
         deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:
             return []
-        _vector = vector or edge.vector
+        # note we need to select the opposite vector of the edge vector because
+        # of the order in which shapely will return the vertices of the
+        # slice intersection (see the edge slice method)
+        _vector = vector or geometry.opposite_vector(edge.vector)
         # slice the face
         created_faces = edge.slice(offset, _vector)
         return [space] if len(created_faces) > 1 else []

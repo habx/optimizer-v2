@@ -118,7 +118,9 @@ class MeshComponent:
         Removes the component from the mesh
         :return:
         """
-        assert self._mesh, 'Component has no mesh to remove it from: {0}'.format(self)
+        if not self._mesh:
+            logging.warning('Component has no mesh to remove it from: {0}'.format(self))
+            return
         self._mesh.remove(self)
         self._mesh = None
 
@@ -258,11 +260,8 @@ class Vertex(MeshComponent):
         yield self.edge
         edge = self.edge.previous.pair
         while edge is not self.edge:
-            new_edge = (yield edge)
-            if new_edge:
-                edge = new_edge
-            else:
-                edge = edge.previous.pair
+            yield edge
+            edge = edge.previous.pair
 
     def clean(self) -> List['Edge']:
         """
@@ -918,14 +917,22 @@ class Edge(MeshComponent):
         line = vertex.sp_half_line(self.normal)
         vertex.remove_from_mesh()
 
-        if not self.face.as_sp_linear_ring.is_valid:
-            return 0
+        # if not self.face.as_sp_linear_ring.is_valid:
+        #    return 0
 
         intersection = line.intersection(self.face.as_sp_linear_ring)
 
-        if intersection.is_empty or intersection.geom_type not in ("Point", "MultiPoint"):
+        if (intersection.is_empty
+                or intersection.geom_type not in ("Point", "MultiPoint", "GeometryCollection")):
             raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
 
+        if intersection.geom_type == "GeometryCollection":
+            if intersection[0].geom_type != "Point":
+                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+            if intersection[1].geom_type != "LineString":
+                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+
+        # a zero depth edge
         if intersection.geom_type == "Point":
             return 0
 
@@ -1084,6 +1091,50 @@ class Edge(MeshComponent):
                 break
             yield edge
 
+    @property
+    def line(self) -> ['Edge']:
+        """
+        Returns all the edges that form a straight line with the current edge
+        :return: a list of contiguous edges
+        """
+        output = []
+
+        # going forward
+        current = self
+        while current:
+            output.append(current)
+            current = current.aligned_edge
+
+        # going backward
+        current = self.pair.aligned_edge
+        while current:
+            output = [current.pair] + output
+            current = current.aligned_edge
+
+        return output
+
+    @property
+    def aligned_edge(self) -> Optional['Edge']:
+        """
+        Returns the edge aligned with the edge
+        :return: an aligned edge or None
+        Example:
+                   |
+           self    | aligned_edge
+        +--------->*---------->
+                   |
+                   |
+                   v
+        """
+        if self.next_is_aligned:
+            return self.next
+        for _edge in self.end.edges:
+            if pseudo_equal(ccw_angle(self.vector, opposite_vector(_edge.vector)), 180,
+                            epsilon=ANGLE_EPSILON):
+                return _edge
+
+        return None
+
     def is_linked_to_face(self, face: 'Face') -> bool:
         """
         Indicates if an edge is still linked to its face
@@ -1232,7 +1283,6 @@ class Edge(MeshComponent):
         :param max_length: maximum authorized length of the cut
         :return: the laser_cut edge
         """
-
         intersection_data = self.end.project_point(self.face, vector)
 
         # if not intersection was found we return None
@@ -1695,7 +1745,7 @@ class Edge(MeshComponent):
             raise ValueError("Edge Slice: The edge must fave a non null face")
 
         # per convention we slice parallel to the edge direction
-        vector = vector or self.vector
+        vector = vector or opposite_vector(self.vector)
 
         point = move_point(self.start.coords, self.normal, offset)
         vertex = Vertex(self.mesh, point[0], point[1])
@@ -1912,6 +1962,18 @@ class Face(MeshComponent):
         :return:
         """
         return (edge for edge in self.edges if edge.pair.face is self)
+
+    @property
+    def has_internal_edge(self) -> bool:
+        """
+        Returns True if the face has at least one internal edge.
+        :return:
+        """
+        try:
+            next(iter(self.internal_edges))
+            return True
+        except StopIteration:
+            return False
 
     @property
     def siblings(self) -> Generator['Face', 'Edge', None]:
