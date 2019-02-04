@@ -17,12 +17,10 @@ for edge in selector.catalog['boundary'].yield_from(space):
     do something with each edge (like a mutation for example)
 
 """
-from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING, List
+from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
 
 from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
-from libs.mesh import MIN_ANGLE
-from libs.mutation import MUTATIONS
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -1025,74 +1023,6 @@ def next_aligned_category(cat: str) -> Predicate:
 
     return _predicate
 
-def has_pair() -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge has a pair
-    :return:
-    """
-
-    def _predicate(edge: 'Edge', _: 'Space') -> bool:
-        return not edge.pair is None
-
-    return _predicate
-
-
-def has_space_pair() -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if a space has a pair through a given edge
-    :return:
-    """
-
-    def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        if not edge.pair:
-            return False
-        else:
-            if space.plan.get_space_of_edge(edge.pair) is None:
-                return False
-        return True
-
-    return _predicate
-
-
-def has_window() -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if a space has windows
-    :return:
-    """
-
-    def _predicate(_: 'Edge', space: 'Space') -> bool:
-        if space.count_windows() > 0:
-            return True
-        return False
-
-    return _predicate
-
-
-def next_aligned_category(cat: str) -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge has as next aligned siblings an edge that in a
-    space with specified category
-    :return:
-    """
-
-    def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        plan = space.plan
-        if edge.next_is_aligned and plan.get_space_of_edge(
-                edge.next) is not None and plan.get_space_of_edge(
-            edge.next).category.name is cat:
-            return True
-        elif edge.next.pair.next_is_ortho and plan.get_space_of_edge(
-                edge.next.pair.next) is not None and plan.get_space_of_edge(
-            edge.next.pair.next).category.name is cat:
-            return True
-        else:
-            return False
-
-    return _predicate
 
 # Catalog Selectors
 
@@ -1400,7 +1330,7 @@ SELECTORS = {
     "close_to_external_wall": Selector(boundary_faces, [edge_length(min_length=20),
                                                         close_to_mesh_boundary(119)]),
 
-    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=150)])
+    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=150)]),
 
 
     "add_aligned": Selector(
