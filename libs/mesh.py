@@ -42,7 +42,7 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
-ANGLE_EPSILON = 3.0  # value to check if an angle has a specific value
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
@@ -118,7 +118,9 @@ class MeshComponent:
         Removes the component from the mesh
         :return:
         """
-        assert self._mesh, 'Component has no mesh to remove it from: {0}'.format(self)
+        if not self._mesh:
+            logging.warning('Component has no mesh to remove it from: {0}'.format(self))
+            return
         self._mesh.remove(self)
         self._mesh = None
 
