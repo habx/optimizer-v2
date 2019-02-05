@@ -266,19 +266,18 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     """
     floor_plan_dict = get_json_from_file(input_file_name)
     file_name = os.path.splitext(os.path.basename(input_file_name))[0]
-    my_plan = plan.Plan(file_name)
 
     if "v2" in floor_plan_dict.keys():
-        create_plan_from_v2_data(my_plan, floor_plan_dict["v2"])
+        return create_plan_from_v2_data(file_name, floor_plan_dict["v2"])
     elif "v1" in floor_plan_dict.keys():
-        create_plan_from_v1_data(my_plan, floor_plan_dict["v1"])
+        return create_plan_from_v1_data(file_name, floor_plan_dict["v1"])
     else:
-        create_plan_from_v1_data(my_plan, floor_plan_dict)
-
-    return my_plan
+        return create_plan_from_v1_data(file_name, floor_plan_dict)
 
 
-def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
+def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
+    my_plan = plan.Plan(file_name)
+
     # get vertices
     vertices_by_id: Dict[int, Coords2d] = {}
     for vertex_data in v2_data["vertices"]:
@@ -296,8 +295,8 @@ def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
 
         # linears except steps
         for linear_data in v2_data["linears"]:
-            if linear_data["id"] in floor_data["elements"]\
-                    and linear_data["category"] != "startingStep":
+            if (linear_data["id"] in floor_data["elements"]
+                    and linear_data["category"] != "startingStep"):
                 p1 = vertices_by_id[linear_data["geometry"][0]]
                 p2 = vertices_by_id[linear_data["geometry"][1]]
                 category = LINEAR_CATEGORIES[linear_data["category"]]
@@ -313,16 +312,19 @@ def create_plan_from_v2_data(my_plan: plan.Plan, v2_data: Dict) -> None:
 
         # steps
         for linear_data in v2_data["linears"]:
-            if linear_data["category"] == "startingStep"\
-                    and linear_data["id"] in floor_data["elements"]:
+            if (linear_data["category"] == "startingStep"
+                    and linear_data["id"] in floor_data["elements"]):
                 p1 = vertices_by_id[linear_data["geometry"][0]]
                 p2 = vertices_by_id[linear_data["geometry"][1]]
                 category = LINEAR_CATEGORIES[linear_data["category"]]
                 my_plan.insert_linear(p1, p2, category=category, floor=floor)
 
+    return my_plan
 
 
-def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
+def create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
+    my_plan = plan.Plan(file_name)
+
     apartment = v1_data["apartment"]
     for blueprint_dict in apartment["blueprints"]:
         perimeter = _get_perimeter(blueprint_dict)
@@ -342,6 +344,8 @@ def create_plan_from_v1_data(my_plan: plan.Plan, v1_data: Dict) -> None:
             my_plan.insert_space_from_boundary(space[0], category=SPACE_CATEGORIES[space[1]],
                                                floor=my_plan.floor_of_given_level(
                                                    blueprint_dict["level"]))
+
+    return my_plan
 
 
 def create_specification_from_file(input_file: str):
