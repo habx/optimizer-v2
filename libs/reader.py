@@ -424,5 +424,5 @@ if __name__ == '__main__':
         plt.show()
 
 
-    # specification_read()
+    specification_read()
     plan_read()
