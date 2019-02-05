@@ -837,7 +837,7 @@ def test_external_axes(l_plan):
     """
     Test the external axes method
     """
-    assert l_plan.empty_space._external_axes == [0.0, 16.0, 59.0, 22.0, 68.0]
+    assert l_plan.empty_space._external_axes() == [0.0, 16.0, 59.0, 22.0, 68.0]
 
 
 def test_best_direction(l_plan):
