@@ -30,6 +30,7 @@ CATEGORIES_COLORS = {
     'terrace': 'silver',
     'garden': 'green',
     'loggia': 'silver',
+    'wintergarden': 'gainsboro',
     'startingStep': 'r',
     'hole': 'lightblue',
     'stairsObstacle': 'brown'
@@ -139,5 +140,6 @@ SPACE_CATEGORIES = {
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
     "terrace": SpaceCategory('terrace', mutable=False, external=True),
-    "loggia": SpaceCategory('loggia', mutable=False, external=True)
+    "loggia": SpaceCategory('loggia', mutable=False, external=True),
+    "wintergarden": SpaceCategory('wintergarden', mutable=False, external=True)
 }
