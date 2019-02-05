@@ -392,11 +392,6 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
-    import matplotlib
-
-    matplotlib.use("TkAgg")
-    import matplotlib.pyplot as plt
-
 
     def specification_read():
         """
@@ -411,28 +406,8 @@ if __name__ == '__main__':
     def plan_read():
         input_file = "paris-venelles_B001.json"
         my_plan = create_plan_from_file(input_file)
-
-        n_rows = my_plan.floor_count
-        fig, ax = plt.subplots(n_rows)
-        fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
-
-        for i, floor in enumerate(my_plan.floors.values()):
-            _ax = ax[i] if n_rows > 1 else ax
-            _ax.set_aspect('equal')
-
-            for space in my_plan.spaces:
-                if space.floor is not floor:
-                    continue
-                space.plot(_ax, save=False, options=('face', 'edge', 'half-edge', 'border'))
-
-            for linear in my_plan.linears:
-                if linear.floor is not floor:
-                    continue
-                linear.plot(_ax, save=False)
-
-            _ax.set_title(my_plan.name + " - floor id:{}".format(floor.id))
-
-        plt.show()
+        my_plan.plot()
+        print(my_plan)
 
 
     specification_read()
