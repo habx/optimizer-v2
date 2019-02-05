@@ -831,3 +831,18 @@ def test_connected_spaces():
     plan.insert_linear((500, 250), (500, 350), LINEAR_CATEGORIES["doorWindow"], floor)
 
     assert plan.spaces[1] in plan.spaces[0].connected_spaces(), "connected_spaces"
+
+
+def test_external_axes(l_plan):
+    """
+    Test the external axes method
+    """
+    assert l_plan.empty_space._external_axes == [0.0, 16.0, 59.0, 22.0, 68.0]
+
+
+def test_best_direction(l_plan):
+    """
+    Test the best direction
+    """
+    edge = l_plan.empty_space.edge
+    assert l_plan.empty_space.best_direction(edge.normal) == (0, 1)

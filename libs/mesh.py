@@ -1529,12 +1529,14 @@ class Edge(MeshComponent):
 
     def recursive_barycenter_cut(self, coeff: float,
                                  angle: float = 90.0,
+                                 vector: Optional[Vector2d] = None,
                                  traverse: str = 'relative') -> TwoEdgesAndAFace:
         """
         Laser cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
         :param coeff:
         :param angle:
+        :param vector:
         :param traverse: type of recursion
         :return:
         """
@@ -1547,7 +1549,7 @@ class Edge(MeshComponent):
                       .config(vertex=self.end, coeff=coeff)
                       .apply_to(self.start))
 
-        cut_data = self.recursive_cut(vertex, angle, traverse=traverse)
+        cut_data = self.recursive_cut(vertex, angle, vector=vector, traverse=traverse)
 
         # clean vertex if the cut fails
         if cut_data is None and vertex.edge is None:
@@ -1555,13 +1557,16 @@ class Edge(MeshComponent):
 
         return cut_data
 
-    def barycenter_cut(self, coeff: float = 0.5,
-                       angle: float = 90.0) -> TwoEdgesAndAFace:
+    def barycenter_cut(self,
+                       coeff: float = 0.5,
+                       angle: float = 90.0,
+                       vector: Optional[Vector2d] = None) -> TwoEdgesAndAFace:
         """
         Cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
         :param coeff:
         :param angle:
+        :param vector:
         :return:
         """
         if coeff == 0:
@@ -1573,7 +1578,7 @@ class Edge(MeshComponent):
                       .config(vertex=self.end, coeff=coeff)
                       .apply_to(self.start))
 
-        cut_data = self.cut(vertex, angle)
+        cut_data = self.cut(vertex, angle, vector=vector)
 
         # clean vertex if the cut fails
         if cut_data is None and vertex.edge is None:

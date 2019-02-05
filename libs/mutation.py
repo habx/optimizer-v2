@@ -8,8 +8,7 @@ TODO : we should distinguish mesh mutations from spaces mutations
 from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
 
-import libs.transformation as transformation
-from libs.plan import Plan
+from libs.plan import Plan, Space
 import libs.utils.geometry as geometry
 from libs.utils.custom_exceptions import OutsideFaceError
 from libs.utils.custom_types import Vector2d
@@ -301,35 +300,29 @@ def ortho_cut(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space] if space_modified else []
 
 
-def barycenter_cut(coeff: float,
-                   angle: float = 90.0,
-                   traverse: str = 'relative') -> EdgeMutation:
+def barycenter_cut(coeff: float, traverse: str = "absolute") -> EdgeMutation:
     """
     Action Factory
     :param coeff:
-    :param angle:
     :param traverse:
     :return: an action function
     """
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
-        cut_data = space.barycenter_cut(edge, coeff, angle, traverse)
+        vector = space.best_direction(edge.normal)
+        cut_data = space.barycenter_cut(edge, coeff, vector=vector, traverse=traverse)
         return [space] if _space_modified_by_cut(cut_data) else []
 
     return _action
 
 
 def translation_cut(offset: float,
-                    reference_point: str = "start",
-                    angle: float = 90.0,
-                    traverse: str = 'no') -> EdgeMutation:
+                    reference_point: str = "start") -> EdgeMutation:
     """
     Mutation Factory
     Cuts the edge after a specified offset from the start vertex
     :param offset:
-    :param angle:
     :param reference_point: the end or the start of the edge
-    :param traverse:
     :return: an action function
     """
 
@@ -338,21 +331,50 @@ def translation_cut(offset: float,
         if edge.length < offset:
             return []
 
-        _vector = (geometry.opposite_vector(edge.unit_vector)
-                   if reference_point == "end" else edge.unit_vector)
+        _coeff = offset / edge.length
+        _coeff = (1 - _coeff) if reference_point == "end" else _coeff
 
-        _reference_vertex = edge.end if reference_point == "end" else edge.start
+        return barycenter_cut(_coeff)(edge, space)
 
-        vertex = (transformation.get['translation']
-                  .config(vector=_vector, coeff=offset)
-                  .apply_to(_reference_vertex))
+    return _action
 
-        cut_data = space.cut(edge, vertex, angle=angle, traverse=traverse)
 
-        if not vertex.edge:
-            vertex.remove_from_mesh()
+def section_cut(coeff: float, traverse: str = "no", min_area: float = 40000) -> EdgeMutation:
+    """
+    Action Factory. Cuts the space and creates a new space if the face has a different main axis.
+    :param coeff:
+    :param traverse:
+    :param min_area:
+    :return:
+    """
 
-        return [space] if _space_modified_by_cut(cut_data) else []
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+        vector = space.best_direction(edge.normal)
+        initial_face = edge.face
+        cut_data = space.barycenter_cut(edge, coeff, vector=vector, traverse=traverse)
+        # check the new face direction
+        if not (cut_data and cut_data[2]):
+            return []
+
+        new_face = cut_data[2]
+        for _face in (new_face, initial_face):
+            if _face.area <= min_area:
+                continue
+            # check if the new face has a different direction
+            new_directions = space.face_directions(_face)
+            if not new_directions:
+                continue
+            angle_1 = geometry.ccw_angle((0, 1), new_directions[0])
+            angle_2 = geometry.ccw_angle((0, 1), space.directions[0])
+            delta = abs(angle_1 - angle_2) > geometry.MIN_ANGLE
+
+            if delta:
+                new_space = Space(space.plan, space.floor, category=space.category)
+                space.remove_face(_face)
+                new_space.add_face(_face)
+                return [space, new_space]
+
+        return [space]
 
     return _action
 
@@ -386,13 +408,11 @@ def insert_aligned_rectangle(height: float,
 
 
 def slice_cut(offset: float,
-              padding: float = 20,
-              vector: Optional[Vector2d] = None) -> EdgeMutation:
+              padding: float = 20) -> EdgeMutation:
     """
     Cuts the face with a slice
     :param offset:
     :param padding:
-    :param vector:
     :return:
     """
 
@@ -405,7 +425,7 @@ def slice_cut(offset: float,
         # note we need to select the opposite vector of the edge vector because
         # of the order in which shapely will return the vertices of the
         # slice intersection (see the edge slice method)
-        _vector = vector or geometry.opposite_vector(edge.vector)
+        _vector = space.best_direction(geometry.opposite_vector(edge.vector))
         # slice the face
         created_faces = edge.slice(offset, _vector)
         return [space] if len(created_faces) > 1 else []
@@ -417,7 +437,8 @@ MUTATION_FACTORIES = {
     "translation_cut": MutationFactory(translation_cut, reversible=False),
     "barycenter_cut": MutationFactory(barycenter_cut, reversible=False),
     "rectangle_cut": MutationFactory(insert_aligned_rectangle, reversible=False),
-    "slice_cut": MutationFactory(slice_cut, reversible=False)
+    "slice_cut": MutationFactory(slice_cut, reversible=False),
+    "section_cut": MutationFactory(section_cut, reversible=False)
 }
 
 MUTATIONS = {

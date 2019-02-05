@@ -41,7 +41,7 @@ PredicateFactory = Callable[..., Predicate]
 
 EPSILON = 1.0
 ANGLE_EPSILON = 5.0
-MIN_ANGLE = 10.0
+MIN_ANGLE = 5.0
 
 
 class Selector:
@@ -1106,7 +1106,7 @@ SELECTORS = {
         ]
     ),
 
-    "next_angle_convex_non_ortho": Selector(
+    "next_angle_convex": Selector(
         boundary,
         [
             edge_angle(90.0, 180.0),
@@ -1116,7 +1116,7 @@ SELECTORS = {
         ]
     ),
 
-    "previous_angle_convex_non_ortho": Selector(
+    "previous_angle_convex": Selector(
         boundary,
         [
             edge_angle(90.0, 180.0, previous=True),
@@ -1368,9 +1368,33 @@ SELECTORS = {
                                                             position="on")]),
 
     "close_to_external_wall": Selector(boundary_faces, [edge_length(min_length=40),
-                                                        close_to_mesh_boundary(80, 20)]),
+                                                        close_to_mesh_boundary(40, 20)]),
 
-    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)])
+    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
+
+    "previous_concave_non_ortho": Selector(boundary, [
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, previous=True),
+            aligned_edges_length(min_length=50.0),
+            previous_has(aligned_edges_length(min_length=50.0))
+    ]),
+
+    "next_concave_non_ortho": Selector(boundary, [
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE),
+            aligned_edges_length(min_length=50.0),
+            next_has(aligned_edges_length(min_length=50.0))
+    ]),
+
+    "previous_convex_non_ortho": Selector(boundary, [
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, previous=True),
+            aligned_edges_length(min_length=50.0),
+            previous_has(aligned_edges_length(min_length=50.0))
+    ]),
+
+    "next_convex_non_ortho": Selector(boundary, [
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE),
+            aligned_edges_length(min_length=50.0),
+            next_has(aligned_edges_length(min_length=50.0))
+    ])
 
 }
 
