@@ -176,6 +176,15 @@ class Space(PlanComponent):
         """
         return self.edge.face if self.edge else None
 
+    @property
+    def largest_face(self) -> Face:
+        """
+        property
+        The face of the reference edge of the space
+        :return:
+        """
+        return max(list(self.faces), key=lambda face: face.area)
+
     def has_face(self, face: 'Face') -> bool:
         """
         returns True if the face belongs to the space
@@ -212,6 +221,14 @@ class Space(PlanComponent):
         """
         return (self.mesh.get_face(face_id) for face_id in self._faces_id)
 
+    @property
+    def number_of_faces(self) -> int:
+        """
+        Returns the number of face of the space
+        :return:
+        """
+        return len(self._faces_id)
+
     def add_face_id(self, face: 'Face'):
         """
         Adds a face_id if possible
@@ -247,22 +264,13 @@ class Space(PlanComponent):
         return edge.id in self._edges_id
 
     @property
-    def edge_is_none(self) -> bool:
-        """
-        Property
-        Returns True if the reference edge of the space is not set
-        :return:
-        """
-        return len(self._edges_id) == 0
-
-    @property
     def edge(self) -> Optional['Edge']:
         """
         Returns the first reference edge.
         Per convention, the first reference edge is on the outside boundary of the space
         :return:
         """
-        if self.edge_is_none:
+        if len(self._edges_id) == 0:
             return None
 
         return self.mesh.get_edge(self._edges_id[0])
@@ -404,7 +412,8 @@ class Space(PlanComponent):
             seen = []
             for reference_edge in self.reference_edges:
                 for edge in self.siblings(reference_edge):
-                    assert edge not in seen, "The space reference edges are wrong: {}".format(self)
+                    if edge in seen:
+                        raise ValueError("The space reference edges are wrong: {}".format(self))
                     seen.append(edge)
                     yield edge
 
@@ -433,6 +442,14 @@ class Space(PlanComponent):
         :return:
         """
         return len(self._edges_id) > 1
+
+    @property
+    def axes(self):
+        """
+        Returns the axes of the space
+        :return:
+        """
+        raise NotImplementedError()
 
     @property
     def area(self) -> float:
@@ -504,6 +521,20 @@ class Space(PlanComponent):
             min_y = min(total_y, min_y)
 
         return max_x - min_x, max_y - min_y
+
+    def minimum_rotated_rectangle(self) -> Optional[Tuple[Coords2d, Coords2d, Coords2d, Coords2d]]:
+        """
+        Returns the smallest minimum rotated rectangle
+        We rely on shapely minimum_rotated_rectangle method
+        :return:
+        """
+        if not self.edge:
+            return None
+
+        output = self.as_sp.minimum_rotated_rectangle.exterior.coords[:]
+        output.pop()
+
+        return output
 
     @property
     def size(self, edge: Optional[Edge] = None) -> Size:
@@ -1120,14 +1151,6 @@ class Space(PlanComponent):
         """
         assert not self.is_outside(edge), "The edge must belong to the space"
 
-        def immutable(_edge: Edge) -> bool:
-            """
-            Returns true if the edge is immutable
-            :param _edge:
-            :return:
-            """
-            return not self.plan.is_mutable(_edge)
-
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
             Callback to insure space consistency
@@ -1143,7 +1166,7 @@ class Space(PlanComponent):
             return False
 
         return edge.recursive_cut(vertex, angle, traverse=traverse, callback=callback,
-                                  max_length=max_length, immutable=immutable)
+                                  max_length=max_length)
 
     def barycenter_cut(self, edge: Optional[Edge] = None, coeff: float = 0.5,
                        angle: float = 90.0, traverse: str = 'absolute',
@@ -1175,15 +1198,7 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-
-        def _immutable(_edge: Edge) -> bool:
-            return not self.plan.is_mutable(_edge)
-
-        if _immutable(edge):
-            logging.debug("Space: Cannot remove an immutable edge: %s in space: %s", edge, self)
-            return False
-
-        cut_data = edge.ortho_cut(_immutable)
+        cut_data = edge.ortho_cut()
 
         if not cut_data:
             return False
@@ -1754,6 +1769,15 @@ class Plan:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
                 linear.add_edge(edge_add[1])
 
+        # remove faces
+        for remove_face in removed_faces:
+            face = remove_face[1]
+            space = self.get_space_of_face(face)
+            if space:
+                logging.debug("Plan: Removing face from space from mesh update %s", face)
+                space.remove_face_id(face)
+                space.set_edges()
+
         # remove edges
         for remove_edge in removed_edges:
             edge = remove_edge[1]
@@ -1764,14 +1788,6 @@ class Plan:
             if linear:
                 logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
                 linear.remove_edge_id(edge)
-
-        # remove faces
-        for remove_face in removed_faces:
-            face = remove_face[1]
-            space = self.get_space_of_face(face)
-            if space:
-                logging.debug("Plan: Removing face from space from mesh update %s", face)
-                space.remove_face_id(face)
 
     def update_from_mesh(self):
         """
@@ -2393,12 +2409,13 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Levallois_Creuze.json"
+        input_file = "Massy_C303.json"
         plan = reader.create_plan_from_file(input_file)
 
-        plan.plot()
+        plan.plot(save=False)
+        plt.show()
 
-        assert plan.check()
+        plan.check()
 
 
     floor_plan()

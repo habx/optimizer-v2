@@ -158,7 +158,6 @@ class Seeder:
         """
         Makes selected space empty
         :param selector:
-        :param show:
         :return:
         """
 
@@ -666,12 +665,12 @@ if __name__ == '__main__':
     matplotlib.use('TkAgg')
 
 
-    def test_seed_multiple_floors():
+    def seed_multiple_floors():
         """
         Test
         :return:
         """
-        from category import LINEAR_CATEGORIES
+        from libs.category import LINEAR_CATEGORIES
         boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
         # boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
 
@@ -693,40 +692,25 @@ if __name__ == '__main__':
         :return:
         """
         logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_A22.json"
-        # input_file = "Paris18_A402.json"
+        input_file = "Antony_B14.json"
         plan = reader.create_plan_from_file(input_file)
-
-        # plan = test_seed_multiple_floors()
-
-        GRIDS['finer_ortho_grid'].apply_to(plan)
-
+        GRIDS["finer_ortho_grid"].apply_to(plan)
+        plan.plot(save=False)
+        plt.show()
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
         (seeder.plant()
          .grow(show=True)
-         # .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
+         .shuffle(SHUFFLES['seed_square_shape'], show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS,
+               (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_70000"])
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+         .simplify(SELECTORS["fuse_small_cell"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape'], show=True))
 
-        plan.plot(show=True)
+        plan.plot(save=False)
         plt.show()
 
-        for sp in plan.spaces:
-            sp_comp = sp.components_category_associated()
-            logging.debug(
-                "space area and category {0} {1} {2}".format(sp.area, sp_comp, sp.category.name))
-
+        assert plan.check()
 
     grow_a_plan()

@@ -8,10 +8,22 @@ TODO : we should structure this with a point class and a vector class
 from typing import Optional, Any, Sequence, Dict
 import numpy as np
 import shapely as sp
-from shapely.geometry import Point, LineString, LinearRing, Polygon
+from shapely.geometry import Point, LineString, LinearRing
 from random import randint
 
 from libs.utils.custom_types import Vector2d, Coords2d
+
+COORD_DECIMAL = 4  # number of decimal of the points coordinates
+ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
+
+
+def truncate(value: float)-> float:
+    """
+    Rounds a value to the specified precision
+    :param value:
+    :return:
+    """
+    return float(np.around(float(value), decimals=COORD_DECIMAL))
 
 
 def magnitude(vector: Vector2d) -> float:
@@ -30,7 +42,7 @@ def direction_vector(point_1: Coords2d, point_2: Coords2d) -> Vector2d:
     :return: tuple containing x, y values
     """
     output_vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
-    return normalized_vector(output_vector)
+    return unit(output_vector)
 
 
 def ccw_angle(vector_1: Vector2d, vector_2: Optional[Vector2d] = None) -> float:
@@ -114,10 +126,10 @@ def normal_vector(vector: Vector2d) -> Vector2d:
     :return: a tuple containing x, y values
     """
     vector = -vector[1], vector[0]
-    return normalized_vector(vector)
+    return unit(vector)
 
 
-def normalized_vector(vector: Vector2d) -> Vector2d:
+def unit(vector: Vector2d) -> Vector2d:
     """
     Returns a vector of same direction but of length 1.
     Note: to prevent division per zero, if the vector is equal to (0, 0) return (0,0)
@@ -232,3 +244,46 @@ def distance(point_1: Coords2d, point_2: Coords2d) -> float:
     """
     vector = point_2[0] - point_1[0], point_2[1] - point_1[1]
     return magnitude(vector)
+
+
+def rectangle(reference_point: Coords2d,
+              orientation_vector: Vector2d,
+              width: float,
+              height: float,
+              offset: float = 0) -> [Coords2d]:
+    """
+    Returns the perimeter points of a rectangle
+                    WIDTH
+                +--------------+
+                |              |
+                |              | HEIGHT
+                | VECTOR       |
+      <-offset->| *--->        |
+    [P]---------+--------------+
+  REF POINT
+
+    :param reference_point:
+    :param orientation_vector:
+    :param width:
+    :param height:
+    :param offset:
+    :return: a list of 4 coordinates points
+    """
+    orientation_vector = unit(orientation_vector)
+    point = move_point(reference_point, orientation_vector, coeff=offset)
+    output = [point]
+    output += [move_point(output[0], orientation_vector, coeff=width)]
+    output += [move_point(output[1], normal_vector(orientation_vector), coeff=height)]
+    output += [move_point(output[2], orientation_vector, coeff=-width)]
+
+    return output
+
+
+def parallel(vector: Vector2d, other: Vector2d) -> bool:
+    """
+    Returns True if the vector are parallel
+    :param vector:
+    :param other:
+    :return:
+    """
+    return pseudo_equal(ccw_angle(vector, opposite_vector(other)), 180.0, ANGLE_EPSILON)

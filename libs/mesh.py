@@ -20,18 +20,20 @@ import matplotlib.pyplot as plt
 
 import libs.transformation as transformation
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
-from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace, EdgeCb
+from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
 from libs.utils.geometry import magnitude, ccw_angle, nearest_point
 from libs.utils.geometry import (
     unit_vector,
-    normalized_vector,
+    unit,
     barycenter,
     move_point,
     same_half_plane,
     opposite_vector,
     pseudo_equal,
     dot_product,
-    normal_vector
+    normal_vector,
+    truncate,
+    distance
 )
 from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -116,7 +118,9 @@ class MeshComponent:
         Removes the component from the mesh
         :return:
         """
-        assert self._mesh, 'Component has no mesh to remove it from: {0}'.format(self)
+        if not self._mesh:
+            logging.warning('Component has no mesh to remove it from: {0}'.format(self))
+            return
         self._mesh.remove(self)
         self._mesh = None
 
@@ -148,8 +152,8 @@ class Vertex(MeshComponent):
         :param y: float, y-axis coordinates
         :param edge: one edge starting from the vertex
         """
-        self._x = float(np.around(float(x), decimals=COORD_DECIMAL))
-        self._y = float(np.around(float(y), decimals=COORD_DECIMAL))
+        self._x = truncate(x)
+        self._y = truncate(y)
         self._edge = edge
         self.mutable = mutable
         super().__init__(mesh, _id)
@@ -256,11 +260,8 @@ class Vertex(MeshComponent):
         yield self.edge
         edge = self.edge.previous.pair
         while edge is not self.edge:
-            new_edge = (yield edge)
-            if new_edge:
-                edge = new_edge
-            else:
-                edge = edge.previous.pair
+            yield edge
+            edge = edge.previous.pair
 
     def clean(self) -> List['Edge']:
         """
@@ -368,7 +369,11 @@ class Vertex(MeshComponent):
             new_distance = projected_vertex.distance_to(self)
 
             # only keep the closest point
-            if not smallest_distance or new_distance < smallest_distance:
+            # Note: we need to check it the new_distance is superior to coord_epsilon
+            # to prevent projection unto itself (for example when a face contains internal edges)
+            # or when the face is really small
+            if new_distance > COORD_EPSILON and (
+                    not smallest_distance or new_distance < smallest_distance):
                 smallest_distance = new_distance
                 closest_edge = edge
                 # clean the vertex data structure
@@ -412,6 +417,7 @@ class Vertex(MeshComponent):
                 if self.edge is not None:
                     for edge in list(self.edges):
                         edge.start = other
+                    self.edge = None
                 # remove the vertex from the mesh
                 if self.mesh:
                     self.remove_from_mesh()
@@ -439,9 +445,15 @@ class Vertex(MeshComponent):
                 if self.edge is None:
                     best_edge = new_edge
                     break
-                # check if we have a correct edge
-                # TODO we only need this if the face has an internal edge
-                # (we could check to improve the speed of the method)
+
+                internal_edge = (edge.is_internal or edge.pair.next
+                                 or edge.pair.next.pair.next.is_internal)
+
+                if not internal_edge:
+                    best_edge = new_edge
+                    break
+
+                # check if we have a correct edge in case of an internal edge
                 new_angle = ccw_angle(new_edge.vector, self.edge.vector)
                 if min_angle is None or min_angle > new_angle:
                     best_edge = new_edge
@@ -456,23 +468,50 @@ class Vertex(MeshComponent):
         """
         return other.x - self.x, other.y - self.y
 
-    def sp_line(self,
-                vector: Vector2d,
-                length: float = LINE_LENGTH) -> LineString:
+    def sp_half_line(self,
+                     vector: Vector2d,
+                     length: float = LINE_LENGTH) -> LineString:
         """
         Returns a shapely LineString starting
         from the vertex, slightly moved in the opposite vector and following the vector
         and of the given length
+
+        Example :
+        -Ɛ/2     Full line
+        <- * ------------->
+        vertex  length
+
         :param vector: direction of the lineString
         :param length: float length of the lineString
-        :return:
+        :return: a LineString object
         """
         length = length or LINE_LENGTH
-        vector = normalized_vector(vector)
+        vector = unit(vector)
         # to ensure proper intersection we shift slightly the start point
         start_point = move_point(self.coords, vector, -1 / 2 * COORD_EPSILON)
-        end_point = (start_point[0] + vector[0] * length,
-                     start_point[1] + vector[1] * length)
+        end_point = move_point(start_point, vector, length)
+        return LineString([start_point, end_point])
+
+    def sp_full_line(self,
+                     vector: Vector2d,
+                     length: float = LINE_LENGTH) -> LineString:
+        """
+        Returns a shapely LineString of length = 2 * specified length, centered on the
+        specified vertex and with the specified vector orientation
+
+        Example :
+                Full line
+        <----------- * ------------->
+           length  vertex  length
+
+        :param vector: direction of the lineString
+        :param length: float length of the lineString
+        :return: a Linestring object
+        """
+        length = length or LINE_LENGTH
+        vector = unit(vector)
+        start_point = move_point(self.coords, vector, -length)
+        end_point = move_point(self.coords, vector, length)
         return LineString([start_point, end_point])
 
 
@@ -507,10 +546,11 @@ class Edge(MeshComponent):
         self.check_size()
 
     def __repr__(self):
-        output = 'Edge:[({x1}, {y1}), ({x2}, {y2})]'.format(x1=self.start.x,
-                                                            y1=self.start.y,
-                                                            x2=self.end.x,
-                                                            y2=self.end.y)
+        output = 'Edge:[({x1}, {y1}), ({x2}, {y2})] - {i}'.format(x1=self.start.x,
+                                                                  y1=self.start.y,
+                                                                  x2=self.end.x,
+                                                                  y2=self.end.y,
+                                                                  i=id(self))
         return output
 
     @property
@@ -597,6 +637,22 @@ class Edge(MeshComponent):
         :return:
         """
         return self.pair.face is self.face
+
+    @property
+    def cardinality(self) -> int:
+        """
+        Counts the number of edges linked to the start or end of the edge
+        Example : this edge has a cardinality of 5
+             +               +
+             |     EDGE      |
+        +----*---------------*
+             |               |
+             +               +
+        :return:
+        """
+        number_edges_start = len(list(self.start.edges)) - 1
+        number_edges_end = len(list(self.end.edges)) - 1
+        return number_edges_end + number_edges_start
 
     @property
     def absolute_angle(self) -> float:
@@ -723,7 +779,7 @@ class Edge(MeshComponent):
         Returns a unit vector with the same direction as the edge
         :return: vector of length 1
         """
-        return normalized_vector(self.vector)
+        return unit(self.vector)
 
     @property
     def end(self) -> Optional[Vertex]:
@@ -838,7 +894,106 @@ class Edge(MeshComponent):
         :param vertex:
         :return: shapely LineString
         """
-        return vertex.sp_line(self.normal)
+        return vertex.sp_half_line(self.normal)
+
+    @property
+    def depth(self) -> float:
+        """
+        Returns the depth of the face along the normal of the edge from the middle of the face
+        :return:
+        Example :
+            *<----+------*
+            |     ^      ^
+            |     |Depth |
+            |     |      |
+            v     |      |
+            *-----+----->*
+                Edge
+        """
+        if not self.face:
+            return 0.0
+
+        vertex = self.barycenter(0.5)
+        line = vertex.sp_half_line(self.normal)
+        vertex.remove_from_mesh()
+
+        # if not self.face.as_sp_linear_ring.is_valid:
+        #    return 0
+
+        intersection = line.intersection(self.face.as_sp_linear_ring)
+
+        if (intersection.is_empty
+                or intersection.geom_type not in ("Point", "MultiPoint", "GeometryCollection")):
+            raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+
+        if intersection.geom_type == "GeometryCollection":
+            if intersection[0].geom_type != "Point":
+                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+            if intersection[1].geom_type != "LineString":
+                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
+
+        # a zero depth edge
+        if intersection.geom_type == "Point":
+            return 0
+
+        output = distance(intersection[0].coords[0], intersection[1].coords[0])
+
+        return output
+
+    def max_distance(self, other: 'Edge') -> Optional[float]:
+        """
+        Returns the max distance between to edges of the same face, according to the normal
+        vector of the edge. If the distance is infinite return None per convention.
+        :param other:
+        :return: the distance or None
+
+        Example:
+          ^
+          |             OTHER
+          |        <-------+-------*
+          |        |       ^       |
+          |        |       |       |
+         d1       d4      d2      d3
+          |        |       |       |
+          |        |       |       |
+          +--------v------->       |
+               SELF                |
+                                   v
+        """
+
+        if self.face is None or self.face is not other.face:
+            raise ValueError("Cannot compute the distance of two edges not in the same face")
+
+        # check if the edge has a projection to the edge
+        if ccw_angle(other.opposite_vector, self.vector) >= 90.0 - MIN_ANGLE:
+            return None
+
+        d1, d2, d3, d4 = None, None, None, None
+
+        start_line = self.start.sp_half_line(self.normal)
+        end_line = self.end.sp_half_line(self.normal)
+        p1 = start_line.intersection(other.as_sp)
+        p2 = end_line.intersection(other.as_sp)
+
+        other_start_line = other.start.sp_half_line(opposite_vector(self.normal))
+        other_end_line = other.end.sp_half_line(opposite_vector(self.normal))
+        p3 = other_start_line.intersection(self.as_sp)
+        p4 = other_end_line.intersection(self.as_sp)
+
+        if not p1.is_empty and p1.geom_type == 'Point':
+            d1 = p1.distance(self.start.as_sp)
+        if not p2.is_empty and p2.geom_type == 'Point':
+            d2 = p2.distance(self.end.as_sp)
+        if not p3.is_empty and p3.geom_type == 'Point':
+            d3 = p3.distance(other.start.as_sp)
+        if not p4.is_empty and p4.geom_type == 'Point':
+            d4 = p4.distance(other.end.as_sp)
+
+        if not d1 and not d2 and not d3 and not d4:
+            return None
+
+        dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
+        return dist_max_to_edge
 
     @property
     def as_sp(self) -> LineString:
@@ -935,6 +1090,50 @@ class Edge(MeshComponent):
             if not edge.next_is_aligned:
                 break
             yield edge
+
+    @property
+    def line(self) -> ['Edge']:
+        """
+        Returns all the edges that form a straight line with the current edge
+        :return: a list of contiguous edges
+        """
+        output = []
+
+        # going forward
+        current = self
+        while current:
+            output.append(current)
+            current = current.aligned_edge
+
+        # going backward
+        current = self.pair.aligned_edge
+        while current:
+            output = [current.pair] + output
+            current = current.aligned_edge
+
+        return output
+
+    @property
+    def aligned_edge(self) -> Optional['Edge']:
+        """
+        Returns the edge aligned with the edge
+        :return: an aligned edge or None
+        Example:
+                   |
+           self    | aligned_edge
+        +--------->*---------->
+                   |
+                   |
+                   v
+        """
+        if self.next_is_aligned:
+            return self.next
+        for _edge in self.end.edges:
+            if pseudo_equal(ccw_angle(self.vector, opposite_vector(_edge.vector)), 180,
+                            epsilon=ANGLE_EPSILON):
+                return _edge
+
+        return None
 
     def is_linked_to_face(self, face: 'Face') -> bool:
         """
@@ -1073,8 +1272,7 @@ class Edge(MeshComponent):
 
     def intersect(self,
                   vector: Vector2d,
-                  max_length: Optional[float] = None,
-                  immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
+                  max_length: Optional[float] = None) -> Optional['Edge']:
         """
         Finds the opposite point of the edge end on the face boundary
         according to a vector direction.
@@ -1083,10 +1281,8 @@ class Edge(MeshComponent):
         before the intersection.
         :param vector:
         :param max_length: maximum authorized length of the cut
-        :param immutable
         :return: the laser_cut edge
         """
-
         intersection_data = self.end.project_point(self.face, vector)
 
         # if not intersection was found we return None
@@ -1097,12 +1293,6 @@ class Edge(MeshComponent):
 
         # check if we've exceeded the max authorized length
         if max_length is not None and max_length < distance_to_edge:
-            # clean unused vertex
-            intersection_vertex.remove_from_mesh()
-            return None
-
-        # check if we have the right to cut
-        if immutable and immutable(closest_edge):
             # clean unused vertex
             intersection_vertex.remove_from_mesh()
             return None
@@ -1174,8 +1364,7 @@ class Edge(MeshComponent):
                       traverse: str = 'absolute',
                       vector: Optional[Vector2d] = None,
                       max_length: Optional[float] = None,
-                      callback: Optional[SpaceCutCb] = None,
-                      immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+                      callback: Optional[SpaceCutCb] = None) -> TwoEdgesAndAFace:
         """
         Will laser_cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1187,7 +1376,6 @@ class Edge(MeshComponent):
         if present we ignore the angle parameter
         :param max_length: max length for the total laser_cut
         :param callback: Optional
-        :param immutable
         :return: self
         """
         # do not cut an edge on the boundary
@@ -1202,8 +1390,7 @@ class Edge(MeshComponent):
             vector = unit_vector(ccw_angle(self.vector) + angle)
 
         # try to cut the edge
-        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length,
-                                      immutable=immutable)
+        new_edges_and_face = self.cut(vertex, angle, vector=vector, max_length=max_length)
 
         # if the cut fail we stop
         if new_edges_and_face is None:
@@ -1245,8 +1432,7 @@ class Edge(MeshComponent):
                                                               traverse=traverse,
                                                               vector=vector,
                                                               max_length=max_length,
-                                                              callback=callback,
-                                                              immutable=immutable)
+                                                              callback=callback)
                               or new_edges_and_face)
         return new_edges_and_face
 
@@ -1267,8 +1453,7 @@ class Edge(MeshComponent):
             vertex: Vertex,
             angle: float = 90.0,
             vector: Optional[Vector2d] = None,
-            max_length: Optional[float] = None,
-            immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+            max_length: Optional[float] = None) -> TwoEdgesAndAFace:
         """
         Will cut a face from the edge at the given vertex
         following the given angle or the given vector
@@ -1277,16 +1462,11 @@ class Edge(MeshComponent):
         :param vector: a vector indicating the absolute direction fo the laser_cut,
         if present we ignore the angle parameter
         :param max_length : the max_length authorized for the cut
-        :param immutable: a function that tells whether an edge can be cut
         :return: the new created edges
         """
 
         # do not cut an edge on the boundary
         if self.face is None:
-            return None
-
-        # do not cut an immutable edge
-        if immutable and immutable(self):
             return None
 
         # do not cut if the vertex is not inside the edge (Note this could be removed)
@@ -1318,7 +1498,7 @@ class Edge(MeshComponent):
 
         # create a line to the edge at the vertex position
         line_vector = vector or unit_vector(ccw_angle(self.vector) + angle)
-        closest_edge = first_edge.intersect(line_vector, max_length, immutable)
+        closest_edge = first_edge.intersect(line_vector, max_length)
 
         # if no intersection can be found return None
         if closest_edge is None:
@@ -1401,7 +1581,7 @@ class Edge(MeshComponent):
 
         return cut_data
 
-    def ortho_cut(self, immutable: Optional[EdgeCb] = None) -> TwoEdgesAndAFace:
+    def ortho_cut(self) -> TwoEdgesAndAFace:
         """
         Tries to cut the edge face at the edge start vertex in an orthogonal projection to any
         edge of the face
@@ -1461,9 +1641,9 @@ class Edge(MeshComponent):
                     # clean unused vertex
                     other_projected_vertex.remove_from_mesh()
 
-            split_edge = closest_edge.split(projected_vertex, immutable)
+            split_edge = closest_edge.split(projected_vertex)
 
-            # check if we tried to split an immutable edge
+            # check if we the split was successful
             if split_edge is None:
                 projected_vertex.remove_from_mesh()
                 continue
@@ -1474,7 +1654,8 @@ class Edge(MeshComponent):
             new_face = self_previous.link(split_edge_previous)
 
             if new_face is None:
-                projected_vertex.remove_from_mesh()
+                if projected_vertex.mesh:
+                    projected_vertex.remove_from_mesh()
                 continue
 
             return self, split_edge, new_face
@@ -1485,9 +1666,7 @@ class Edge(MeshComponent):
 
         return None
 
-    def split(self,
-              vertex: 'Vertex',
-              immutable: Optional[EdgeCb] = None) -> Optional['Edge']:
+    def split(self, vertex: 'Vertex') -> Optional['Edge']:
         """
         Splits the edge at a specific vertex.
         We create two new half-edges:
@@ -1498,7 +1677,6 @@ class Edge(MeshComponent):
         new pair   old pair
 
         :param vertex: a vertex object where we should split
-        :param immutable: a function to check if the edge can be split
         :return: the newly created edge starting from the vertex
         """
         # check for vertices proximity and snap if needed
@@ -1509,11 +1687,6 @@ class Edge(MeshComponent):
             return self
         if vertex is self.end:
             return self.next
-
-        # check for immutable edge
-        # (we check after snapping because an immutable edge can be split at its extremities)
-        if immutable and immutable(self):
-            return None
 
         # define edges names for clarity sake
         edge = self
@@ -1536,9 +1709,50 @@ class Edge(MeshComponent):
         # store modification
         self.mesh.store_modification(MeshOps.INSERT, new_edge, self)
         self.mesh.store_modification(MeshOps.INSERT, new_edge_pair, self.pair)
-        self.mesh.watch()
 
         return new_edge
+
+    def slice(self, offset: float, vector: Optional[Vector2d] = None) -> ['Face']:
+        """
+        Cuts the face of the edge according to the offset and the vector provided.
+        Note: Can result in the creation of multiple faces.
+
+        Example:
+            +-------------------------+
+            |                         |
+            |       New face          |
+            |                         |
+            |       Line cut          |
+        +---*-----------+-------------*---+
+            |           ^             |
+            |           | offset      |
+            |           |             |
+            |           |             |
+            +-----------+-------------+
+            +---------+EDGE+---------->
+
+        :param offset:
+        :param vector:
+        :return: a list of the created faces including the initial face
+        """
+        logging.debug("Edge: Slicing a face from edge %s with offset %s and vector %s",
+                      self, offset, vector)
+
+        if offset < 0:
+            raise ValueError("Edge: Slice: The offset must be a positive float")
+
+        if self.face is None:
+            raise ValueError("Edge Slice: The edge must fave a non null face")
+
+        # per convention we slice parallel to the edge direction
+        vector = vector or opposite_vector(self.vector)
+
+        point = move_point(self.start.coords, self.normal, offset)
+        vertex = Vertex(self.mesh, point[0], point[1])
+        created_faces = self.face.slice(vertex, vector)
+        vertex.remove_from_mesh()
+
+        return created_faces
 
     def split_barycenter(self, coeff: float) -> 'Edge':
         """
@@ -1612,7 +1826,7 @@ class Face(MeshComponent):
         output = 'Face: ['
         for edge in self.edges:
             output += '({0}, {1})'.format(*edge.start.coords)
-        return output + ']'
+        return output + '] - {}'.format(id(self))
 
     def swap(self, face: Optional['Face'] = None):
         """
@@ -1629,6 +1843,12 @@ class Face(MeshComponent):
         # swap edge references
         for edge in self.edges:
             edge.face = new_face
+
+        # preserve vertices references
+        for vertex in new_face.vertices:
+            for edge in self.edges:
+                if edge.start is vertex:
+                    vertex.edge = edge
 
         self.remove_from_mesh()
         return new_face
@@ -1744,6 +1964,18 @@ class Face(MeshComponent):
         return (edge for edge in self.edges if edge.pair.face is self)
 
     @property
+    def has_internal_edge(self) -> bool:
+        """
+        Returns True if the face has at least one internal edge.
+        :return:
+        """
+        try:
+            next(iter(self.internal_edges))
+            return True
+        except StopIteration:
+            return False
+
+    @property
     def siblings(self) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
@@ -1762,9 +1994,9 @@ class Face(MeshComponent):
         """
         Returns the bounding rectangular box of the face according to the direction vector
         :param vector:
-        :return:
+        :return: the width and depth of the box
         """
-        vector = vector or self.edge.unit_vector
+        vector = unit(vector) if vector is not None else self.edge.unit_vector
         total_x = 0
         max_x = 0
         min_x = 0
@@ -1843,17 +2075,18 @@ class Face(MeshComponent):
 
         return self
 
-    def _slice(self,
-               vertex: Vertex,
-               vector: Vector2d,
-               length: Optional[float] = None) -> List['Face']:
+    def slice(self,
+              vertex: Vertex,
+              vector: Vector2d,
+              length: Optional[float] = LINE_LENGTH) -> List['Face']:
         """
-        Cuts a face according to a linestring
+        Cuts a face according to a linestring crossing the vertex and along the vector
         :param vertex:
         :param vector:
+        :param length
         :return:
         """
-        line = vertex.sp_line(vector, length=length)
+        line = vertex.sp_full_line(vector, length=length)
         intersection_points = self.as_sp_linear_ring.intersection(line)
         new_faces = [self]
 
@@ -1879,8 +2112,12 @@ class Face(MeshComponent):
                 new_vertices.append(Vertex(self.mesh, *geom_object.coords[0]))
                 new_vertices.append(Vertex(self.mesh, *geom_object.coords[-1]))
 
+        if new_vertices:
+            logging.debug("Mesh: Slicing a face on multiple vertices: %s", new_vertices)
+
+        face_edges = list(self.edges)
         for vertex in new_vertices:
-            new_edge = vertex.snap_to_edge(*self.edges)
+            new_edge = vertex.snap_to_edge(*face_edges)
             if new_edge is None:
                 raise Exception('This is impossible ! We should have found an intersection !!')
             new_mesh_objects = new_edge.cut(vertex, vector=vector)
@@ -1997,6 +2234,7 @@ class Face(MeshComponent):
                 # preserve references for face and vertex
                 previous_edge.pair.preserve_references(previous_edge.pair.next.pair)
                 previous_edge.pair.next.preserve_references(previous_edge)
+                previous_touching_edge.preserve_references(previous_edge)
                 # remove the edge from the mesh
                 previous_edge.pair.remove_from_mesh()
                 # remove the duplicate edges
@@ -2016,6 +2254,7 @@ class Face(MeshComponent):
         # forward check : at the end of the loop check forward for isolation
         if edge.pair.next.next is edge.pair:
             # remove from the mesh
+            touching_edge.preserve_references(edge)
             edge.pair.remove_from_mesh()
             edge.pair = touching_edge.pair
             # swap the id to preserve references
@@ -2031,7 +2270,7 @@ class Face(MeshComponent):
 
         return sorted_faces
 
-    def _insert_identical_face(self, face) -> List['Face']:
+    def _insert_identical_face(self, face: 'Face') -> List['Face']:
         """
         insert a identical face
         :param face:
@@ -2067,11 +2306,11 @@ class Face(MeshComponent):
         # split the face edges if they touch a vertex of the container face
         # TODO : this is highly inefficient as we try to intersect every edge with every vertex
 
-        for vertex in self.vertices:
+        for _vertex in self.vertices:
             face_edges = list(face.edges)
-            new_edge = vertex.snap_to_edge(*face_edges)
+            new_edge = _vertex.snap_to_edge(*face_edges)
             if new_edge is not None:
-                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', vertex)
+                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', _vertex)
 
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
@@ -2123,9 +2362,10 @@ class Face(MeshComponent):
             sliced_faces_temp = sliced_faces[:]
             for sliced_face in sliced_faces_temp:
                 sliced_faces.remove(sliced_face)  # to prevent duplicates
-                sliced_faces += sliced_face._slice(internal_edge.start, internal_edge.vector,
-                                                   internal_edge.length)
+                sliced_faces += sliced_face.slice(internal_edge.start, internal_edge.vector)
+
         # if no face was created we proceed with a standard insert
+        # note this should not really happen
         if len(sliced_faces) == 1:
             face_copy.swap(face)
             return self._insert_face(face)
@@ -2192,16 +2432,27 @@ class Face(MeshComponent):
         # Check if the receiving face has an internal edge because this is a very special
         # case and has to be treated differently
         internal_edges = list(self.internal_edges)
+        intersects_an_internal_edge = False
+        for edge in internal_edges:
+            if edge.as_sp.intersects(face.as_sp):
+                intersects_an_internal_edge = True
+                break
 
-        if internal_edges:
+        if intersects_an_internal_edge:
             created_faces = self._insert_face_over_internal_edge(face, internal_edges)
         else:
             created_faces = self._insert_face(face)
 
         # store the specific mesh operation
+        receiving_face_was_deleted = True
         mesh.store_modification(MeshOps.INSERT, face, self)
         for created_face in created_faces:
+            if created_face is self:
+                receiving_face_was_deleted = False
+                continue
             mesh.store_modification(MeshOps.INSERT, created_face, self)
+        if receiving_face_was_deleted:
+            mesh.store_modification(MeshOps.REMOVE, self)
 
         return created_faces
 
@@ -2218,6 +2469,57 @@ class Face(MeshComponent):
         except OutsideFaceError:
             self.mesh.remove_face_and_children(face_to_insert)
             raise
+
+    def insert_crop_face_from_boundary(self, perimeter: [Coords2d]) -> ['Face']:
+        """
+        Inserts a face inside the receiving face and crops the face if necessary to include
+        in receiving face
+        NOTE : we do not insert face that will have a hole, or face that will be split into
+        several polygons.
+        :param perimeter:
+        :return:
+        """
+        assert len(perimeter) >= 3, "The specified perimeter must have at least 3 points"
+        face_polygon = Polygon(perimeter + [perimeter[0]])
+        self_polygon = self.as_sp.buffer(0)
+
+        if not face_polygon.is_valid or not self_polygon.is_valid:
+            raise ValueError("Mesh: Insert and Crop: Badly formed polygons")
+
+        intersection = face_polygon.intersection(self_polygon)
+
+        if intersection.is_empty or intersection.geom_type != "Polygon":
+            raise OutsideFaceError
+
+        # to prevent crossing polygons we need to do this with shapely
+        intersection.buffer(0)
+
+        if intersection.area < COORD_EPSILON:
+            logging.debug("Mesh: Insert and Crop: small intersection ignored")
+            return []
+
+        cropped_perimeter = intersection.exterior.coords[::-1]
+        # remove the last point because shapely returns a looped structure
+        cropped_perimeter.pop()
+        # we need to remove duplicates because shapely will sometimes return weird things...
+        # first we clean the perimeter by truncating the value to the project resolution
+        cropped_perimeter = list(map(lambda x: (truncate(x[0]), truncate(x[1])), cropped_perimeter))
+        # then we search for consecutive duplicates and remove them
+        number_of_points = len(cropped_perimeter)
+        duplicate_points = []
+        for i in range(number_of_points):
+            j = (i + 1) % number_of_points
+            if distance(cropped_perimeter[j], cropped_perimeter[i]) < COORD_EPSILON:
+                duplicate_points.append(cropped_perimeter[i])
+
+        for duplicate in duplicate_points:
+            cropped_perimeter.remove(duplicate)
+
+        if len(cropped_perimeter) < 3:
+            logging.debug("Mesh: Insert and Crop: The intersection has less than 3 points")
+            return []
+
+        return self.insert_face_from_boundary(cropped_perimeter)
 
     def insert_edge(self, vertex_1: Vertex, vertex_2: Vertex):
         """
@@ -2238,6 +2540,7 @@ class Face(MeshComponent):
 
                 raise OutsideVertexError('Could not insert edge because vertex' +
                                          ' is not on the face boundary')
+            self.mesh.watch()  # TODO this is ugly but necessary to correctly update the linear
             edges.append(edge)
 
         return edges[0]
@@ -2275,6 +2578,8 @@ class Face(MeshComponent):
 
         logging.debug("Face: Cleaning a two faced faces")
 
+        mesh = self.mesh
+
         edge_1 = self.edge
         edge_2 = self.edge.next
         # preserve the references
@@ -2287,6 +2592,8 @@ class Face(MeshComponent):
         edge_1.remove_from_mesh()
         edge_2.remove_from_mesh()
         self.remove_from_mesh()
+
+        mesh.watch()
 
         return None
 
@@ -2322,13 +2629,12 @@ class Face(MeshComponent):
                     if not end_aligned and start_aligned:
                         small_edge = edge.pair
 
+                logging.debug('Mesh: Collapsing edge while simplifying face: %s', small_edge)
                 small_edge.collapse()
                 modified_edges.append(small_edge)
                 modified_edges.append(small_edge.pair)
-                logging.debug('Mesh: Collapsing edge while simplifying face: %s', small_edge)
                 modified_edges += self.simplify()
                 break
-
         return modified_edges
 
     def recursive_simplify(self) -> Sequence[Edge]:
@@ -2985,6 +3291,12 @@ class Mesh:
         vertices_id = []
 
         for face in self.faces:
+            # check for correct form
+            face_polygon = face.as_sp.buffer(0)
+            if not face_polygon.is_simple or not face_polygon.is_valid:
+                logging.error("Mesh: face is not a simple polygon: %s", face)
+                is_valid = False
+
             for edge in face.edges:
                 if edge is None:
                     is_valid = False
@@ -3014,10 +3326,10 @@ class Mesh:
                 if edge.start.edge is None:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Vertex has no edge: {0}'.format(edge.start))
-                if edge.start.edge.start is not edge.start:
+                if edge.start.edge is None or edge.start.edge.start is not edge.start:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: Wrong edge attribution in: ' +
-                                  '{0}'.format(edge.start))
+                                  '{0} - {1}'.format(edge.start, edge))
                 if edge.next.next is edge:
                     is_valid = False
                     logging.error('Mesh: Checking Mesh: 2-edges face found:{0}'.format(edge))
@@ -3034,6 +3346,12 @@ class Mesh:
 
         is_valid = is_valid and self.check_duplicate_vertices()
 
+        for vertex in self.vertices:
+            if vertex.edge not in self.edges:
+                logging.error("Mesh: Vertex has a reference edge outside of the mesh:"
+                              "{} - {}".format(vertex, vertex.edge))
+                is_valid = False
+
         for edge_id in self._edges:
             if edge_id not in edges_id:
                 is_valid = False
@@ -3045,6 +3363,14 @@ class Mesh:
                 is_valid = False
                 logging.error('Mesh: an extraneous vertex was '
                               'found in the mesh structure: %s', self._vertices[vertex_id])
+
+        # check for overlapping pb
+        faces_area = sum(face.area for face in self.faces)
+        mesh_area = self.as_sp.area
+        if not pseudo_equal(faces_area, mesh_area, COORD_EPSILON**2):
+            logging.error("Mesh: Faces are overlapping, total face area %s, total mesh area %s",
+                          faces_area, mesh_area)
+            is_valid = False
 
         logging.info('Mesh: Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
         return is_valid
@@ -3190,4 +3516,25 @@ if __name__ == '__main__':
 
         assert mesh.check()
 
-    insert_complex_face_1()
+    # insert_complex_face_1()
+
+    def insert_identical_face():
+        """
+
+        :return:
+        """
+        a = [(0, 0), (100, 0), (100, 100), (0, 100)]
+        b = a
+        mesh = Mesh().from_boundary(a)
+
+        face = mesh.faces[0]
+        face.insert_face_from_boundary(b)
+
+        face = mesh.faces[0]
+        face.insert_face_from_boundary(b)
+
+        mesh.plot()
+        assert mesh.check()
+
+
+    insert_identical_face()

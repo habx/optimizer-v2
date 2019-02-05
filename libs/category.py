@@ -3,7 +3,7 @@
 Category module : describes the type of space or linear that can be used in a program or a plan.
 """
 
-from typing import List
+from typing import List, Optional
 
 CATEGORIES_COLORS = {
     'duct': 'k',
@@ -71,12 +71,12 @@ class SpaceCategory(Category):
                  seedable: bool = False,
                  external: bool = False,
                  circulation: bool = False,
-                 needed_linears: List['LinearCategory'] = [],
-                 needed_spaces: List['SpaceCategory'] = []):
+                 needed_linears: Optional[List['LinearCategory']] = None,
+                 needed_spaces: Optional[List['SpaceCategory']] = None):
         super().__init__(name, mutable, seedable, external)
         self.circulation = circulation
-        self.needed_linears = needed_linears
-        self.needed_spaces = needed_spaces
+        self.needed_linears = needed_linears or []
+        self.needed_spaces = needed_spaces or []
 
 
 class LinearCategory(Category):
@@ -135,7 +135,8 @@ SPACE_CATEGORIES = {
     "dressing": SpaceCategory('dressing'),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
-    "circulationSpace": SpaceCategory("circulationSpace", circulation=True, needed_linears=[startingStep_linear]),
+    "circulationSpace": SpaceCategory("circulationSpace", circulation=True,
+                                      needed_linears=[startingStep_linear]),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),

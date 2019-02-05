@@ -16,7 +16,7 @@ import numpy as np
 
 from libs.utils.custom_types import Vector2d, Coords2d
 from libs.utils.geometry import (
-    normalized_vector,
+    unit,
     move_point,
     magnitude,
     ccw_angle,
@@ -165,7 +165,7 @@ def make_arrow(point: Coords2d, vector: Vector2d, normal: Vector2d) -> LineStrin
     distance_to_point = 10
     arrow_angle = 20
     arrow_head_length = 10
-    vector_unit = normalized_vector(vector)
+    vector_unit = unit(vector)
 
     start_point = move_point(point, normal, distance_to_point)
     end_point = move_point(start_point, vector)
@@ -244,7 +244,7 @@ class Plot:
         xy = space.as_sp.exterior.coords
         new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
         self.ax.add_patch(new_patch)
-        self.space_figs[id(space)] = new_patch
+        self.space_figs[space.id] = new_patch
 
     def _draw_face(self, face):
         if face.edge is None:
@@ -252,7 +252,40 @@ class Plot:
         color = 'r'
         xy = face.as_sp.exterior.xy
         new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
-        self.face_figs[id(face)] = new_line
+        self.face_figs[face.id] = new_line
+
+    def update_faces(self, spaces):
+        """
+        Updates the faces of the spaces
+        :param spaces:
+        :return:
+        """
+        if len(spaces) == 0:
+            return
+
+        plan = spaces[0].plan
+
+        for space in spaces:
+            for face in space.faces:
+                _id = face.id
+                xy = face.as_sp.exterior.xy if face.edge is not None else None
+                if _id not in self.face_figs:
+                    if xy is None:
+                        continue
+                    self._draw_face(face)
+                else:
+                    if xy is None:
+                        self.face_figs[_id].set_visible(False)
+                    else:
+                        self.face_figs[_id].set_data(np.array(xy))
+                        self.face_figs[_id].set_visible(True)
+
+        for face_id in self.face_figs:
+            if face_id not in plan.mesh._faces:
+                self.face_figs[face_id].set_visible(False)
+
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
 
     def update(self, spaces):
         """
@@ -263,7 +296,7 @@ class Plot:
         for space in spaces:
             if space is None:
                 continue
-            _id = id(space)
+            _id = space.id
             xy = space.as_sp.exterior.coords if space.edge is not None else None
             if _id not in self.space_figs:
                 if xy is None:
