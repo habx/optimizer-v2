@@ -5,7 +5,6 @@ Reader module : Used to read file from json input and create a plan.
 from typing import Dict, Sequence, Tuple, List
 import os
 import json
-import numpy as np
 from libs import plan
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification import Specification, Item, Size
@@ -66,7 +65,7 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
                 stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                                          stairs_obstacle]
                 if stairs_obstacles_poly[0] == stairs_obstacles_poly[
-                                                len(stairs_obstacles_poly) - 1]:
+                    len(stairs_obstacles_poly) - 1]:
                     stairs_obstacles_poly.remove(
                         stairs_obstacles_poly[len(stairs_obstacles_poly) - 1])
                 my_plan.insert_space_from_boundary(stairs_obstacles_poly,
@@ -210,13 +209,15 @@ def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coord
 
 def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
     """
-    Remove points that are too close
+    Remove points that are too close for Optimizer Epsilon
     """
     new_perimeter = [perimeter[0]]
     for coord in perimeter:
-        if np.linalg.norm(np.array(coord) - np.array(new_perimeter[-1])) > COORD_EPSILON:
+        if (((coord[0] - new_perimeter[-1][0]) ** 2) + (
+                (coord[1] - new_perimeter[-1][1]) ** 2)) ** 0.5 > COORD_EPSILON:
             new_perimeter.append(coord)
-    if np.linalg.norm(np.array(new_perimeter[0]) - np.array(new_perimeter[-1])) < COORD_EPSILON:
+    if (((new_perimeter[0][0] - new_perimeter[-1][0]) ** 2) + (
+                (new_perimeter[0][1] - new_perimeter[-1][1]) ** 2)) ** 0.5 < COORD_EPSILON:
         del new_perimeter[-1]
     return new_perimeter
 
@@ -396,7 +397,6 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
-
     def specification_read():
         """
         Test
