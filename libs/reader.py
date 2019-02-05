@@ -304,7 +304,7 @@ def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
 
         # other spaces
         for space_data in v2_data["spaces"]:
-            if space_data["id"] in floor_data["elements"] and space_data["category"] != "empty":
+            if space_data["id"] in floor_data["elements"] and space_data["id"] != empty_data["id"]:
                 space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
                 space_points = _clean_perimeter(space_points)
                 category = SPACE_CATEGORIES[space_data["category"]]
