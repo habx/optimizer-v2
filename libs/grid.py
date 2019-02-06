@@ -57,7 +57,7 @@ class Grid:
             self._seen = []
             self._apply_operator(plan, operator, show)
             # we simplify the mesh between each application of an operator
-            plan.mesh.simplify()
+            plan.simplify()
             plan.update_from_mesh()
 
         if show:

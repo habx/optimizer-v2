@@ -1909,7 +1909,16 @@ class Plan:
         Updates the plan from the mesh, and also updates all linked plan.
         :return:
         """
-        self.mesh.watch()
+        for floor in self.floors.values():
+            floor.mesh.watch()
+
+    def simplify(self):
+        """
+        Simplifies the meshes of the plan
+        :return:
+        """
+        for floor in self.floors.values():
+            floor.mesh.simplify()
 
     def clone(self, name: str = "") -> 'Plan':
         """

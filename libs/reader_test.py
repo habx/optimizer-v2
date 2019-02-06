@@ -45,7 +45,16 @@ BLUEPRINT_INPUT_FILES = [
     "Sartrouville_A104.json",
     "Vernouillet_A002.json",
     "Vernouillet_A003.json",
-    "Vernouillet_A105.json"
+    "Vernouillet_A105.json",
+    "saint-maur-raspail_H01.json",
+    "saint-maur-raspail_H02.json",
+    "saint-maur-raspail_H03.json",
+    "saint-maur-raspail_H04.json",
+    "saint-maur-raspail_H05.json",
+    "saint-maur-raspail_H06.json",
+    "saint-maur-raspail_H07.json",
+    "saint-maur-raspail_H08.json",
+    "paris-venelles_B001.json"
 ]
 
 SPECIFICATION_INPUT_FILES = [
