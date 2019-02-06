@@ -447,7 +447,7 @@ def tight_lines(depth: float) -> EdgeQuery:
             # specific case of triangle faces, otherwise edges should always have >= 2 elems
             if len(edges) <= 1:
                 continue
-            _edges = list(filter(lambda e: not _line_cuts_angle(e.line, space), edges))
+            _edges = list(filter(_filter_lines(space), edges))
             if len(_edges) == 0:
                 continue
             elif len(_edges) == 1:
@@ -600,6 +600,48 @@ def _line_cuts_angle(line: ['Edge'], space: 'Space') -> bool:
 
     return False
 
+
+def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
+    """
+    Returns True if the line contains the only edge between two windows
+    :param line:
+    :param space:
+    :return:
+    """
+    plan = space.plan
+
+    end_edge = line[len(line) - 1]
+    start_edge = line[0]
+
+    for edge in (start_edge.pair, end_edge):
+        found_linear = False
+        # forward check
+        for _edge in edge.siblings:
+            linear = plan.get_linear(_edge)
+            if linear and linear.category.name in ("window", "doorWindow"):
+                found_linear = True
+                break
+        # backward check
+        for _edge in edge.pair.reverse_siblings:
+            linear = plan.get_linear(_edge)
+            if linear and linear.category.name in ("window", "doorWindow"):
+                if found_linear:
+                    return True
+
+    return False
+
+
+def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
+    """
+    Filter function
+    :param space:
+    :return:
+    """
+    def _filter(edge: 'Edge') -> bool:
+        line = edge.line
+        return not _line_is_between_windows(line, space) and not _line_cuts_angle(line, space)
+
+    return _filter
 
 # predicates
 
@@ -1235,7 +1277,7 @@ SELECTORS = {
         space_boundary,
         [
             touches_linear("frontDoor"),
-            edge_length(min_length=20)
+            edge_length(min_length=10)
         ]
     ),
 
@@ -1243,7 +1285,7 @@ SELECTORS = {
         space_boundary,
         [
             touches_linear("frontDoor", position="after"),
-            edge_length(min_length=20)
+            edge_length(min_length=10)
         ]
     ),
 
@@ -1251,7 +1293,7 @@ SELECTORS = {
         space_boundary,
         [
             touches_linear("window", "doorWindow"),
-            edge_length(min_length=20)
+            edge_length(min_length=50)
         ]
     ),
 
@@ -1259,7 +1301,7 @@ SELECTORS = {
         space_boundary,
         [
             touches_linear("window", "doorWindow", position="after"),
-            edge_length(min_length=20)
+            edge_length(min_length=50)
         ]
     ),
 
