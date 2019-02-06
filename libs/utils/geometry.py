@@ -15,15 +15,17 @@ from libs.utils.custom_types import Vector2d, Coords2d
 
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
+MIN_ANGLE = 5.0
 
 
-def truncate(value: float)-> float:
+def truncate(value: float, decimals: int = COORD_DECIMAL)-> float:
     """
     Rounds a value to the specified precision
     :param value:
+    :param decimals:
     :return:
     """
-    return float(np.around(float(value), decimals=COORD_DECIMAL))
+    return float(np.around(float(value), decimals=decimals))
 
 
 def magnitude(vector: Vector2d) -> float:
