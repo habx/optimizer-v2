@@ -57,7 +57,7 @@ class Grid:
             self._seen = []
             self._apply_operator(plan, operator, show)
             # we simplify the mesh between each application of an operator
-            plan.mesh.simplify()
+            plan.simplify()
             plan.update_from_mesh()
 
         if show:
@@ -338,7 +338,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Antony_B22.json")
+        plan = reader.create_plan_from_file("paris-venelles_B001.json")
         new_plan = GRIDS["test_grid"].apply_to(plan)
         new_plan.check()
         new_plan.plot(save=False)
