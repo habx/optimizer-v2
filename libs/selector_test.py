@@ -132,13 +132,25 @@ def test_next_angle_salient_non_ortho(l_plan):
     assert result == [[(0.0, 0.0), (500.0, 200.0)], [(500.0, 1000.0), (200.0, 500.0)]]
 
 
+def test_next_angle_convex(l_plan):
+    """
+    Test selector
+    :param l_plan:
+    :return:
+    """
+    selector = SELECTORS["next_angle_convex"]
+    edges = list(selector.yield_from(l_plan.empty_space))
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(1200.0, 1200.0), (500.0, 1000.0)]]
+
+
 def test_next_angle_convex_non_ortho(l_plan):
     """
     Test selector
     :param l_plan:
     :return:
     """
-    selector = SELECTORS["next_angle_convex_non_ortho"]
+    selector = SELECTORS["next_convex_non_ortho"]
     edges = list(selector.yield_from(l_plan.empty_space))
     result = [[edge.start.coords, edge.end.coords] for edge in edges]
     assert result == [[(1200.0, 1200.0), (500.0, 1000.0)]]
@@ -150,7 +162,19 @@ def test_previous_angle_convex_non_ortho(l_plan):
     :param l_plan:
     :return:
     """
-    selector = SELECTORS["previous_angle_convex_non_ortho"]
+    selector = SELECTORS["previous_convex_non_ortho"]
+    edges = list(selector.yield_from(l_plan.empty_space))
+    result = [[edge.start.coords, edge.end.coords] for edge in edges]
+    assert result == [[(500.0, 1000.0), (200.0, 500.0)]]
+
+
+def test_previous_angle_convex(l_plan):
+    """
+    Test selector
+    :param l_plan:
+    :return:
+    """
+    selector = SELECTORS["previous_angle_convex"]
     edges = list(selector.yield_from(l_plan.empty_space))
     result = [[edge.start.coords, edge.end.coords] for edge in edges]
     assert result == [[(500.0, 1000.0), (200.0, 500.0)]]

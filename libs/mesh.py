@@ -1136,13 +1136,13 @@ class Edge(MeshComponent):
         current = self
         while current:
             output.append(current)
-            current = current.aligned_edge
+            current = current.aligned_edge or current.continuous_edge
 
         # going backward
-        current = self.pair.aligned_edge
+        current = self.pair.aligned_edge or self.pair.continuous_edge
         while current:
             output = [current.pair] + output
-            current = current.aligned_edge
+            current = current.aligned_edge or current.continuous_edge
 
         return output
 
@@ -1162,11 +1162,46 @@ class Edge(MeshComponent):
         if self.next_is_aligned:
             return self.next
         for _edge in self.end.edges:
-            if pseudo_equal(ccw_angle(self.vector, opposite_vector(_edge.vector)), 180,
-                            epsilon=ANGLE_EPSILON):
+            if _edge.pair is self:
+                continue
+            if pseudo_equal(ccw_angle(self.vector, _edge.opposite_vector), 180, ANGLE_EPSILON):
                 return _edge
 
         return None
+
+    @property
+    def continuous_edge(self) -> Optional['Edge']:
+        """
+        Returns the edge in the continuity of the edge, when crossing another line.
+        Note : the end vertex of the edge must have exactly 4 outgoing edges, two of them must
+        be aligned.
+                   +
+                   |
+                   | EDGE
+                   |
+                   v
+        +--------->*--------->
+                   .|
+                   . |  CONTINUOUS EDGE
+                   .  |
+                   .   |
+                   .    v
+        :return:
+        """
+        edges = [self.pair]
+        current = self.next
+        while current is not self.pair:
+            edges.append(current)
+            current = current.pair.next
+
+        if len(edges) != 4:
+            return None
+
+        if not pseudo_equal(ccw_angle(edges[1].vector, edges[3].vector),
+                            180.0, ANGLE_EPSILON):
+            return None
+
+        return edges[2]
 
     def is_linked_to_face(self, face: 'Face') -> bool:
         """
@@ -1562,12 +1597,14 @@ class Edge(MeshComponent):
 
     def recursive_barycenter_cut(self, coeff: float,
                                  angle: float = 90.0,
+                                 vector: Optional[Vector2d] = None,
                                  traverse: str = 'relative') -> TwoEdgesAndAFace:
         """
         Laser cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
         :param coeff:
         :param angle:
+        :param vector:
         :param traverse: type of recursion
         :return:
         """
@@ -1580,7 +1617,7 @@ class Edge(MeshComponent):
                       .config(vertex=self.end, coeff=coeff)
                       .apply_to(self.start))
 
-        cut_data = self.recursive_cut(vertex, angle, traverse=traverse)
+        cut_data = self.recursive_cut(vertex, angle, vector=vector, traverse=traverse)
 
         # clean vertex if the cut fails
         if cut_data is None and vertex.edge is None:
@@ -1588,13 +1625,16 @@ class Edge(MeshComponent):
 
         return cut_data
 
-    def barycenter_cut(self, coeff: float = 0.5,
-                       angle: float = 90.0) -> TwoEdgesAndAFace:
+    def barycenter_cut(self,
+                       coeff: float = 0.5,
+                       angle: float = 90.0,
+                       vector: Optional[Vector2d] = None) -> TwoEdgesAndAFace:
         """
         Cuts an edge according to the provided angle (90° by default)
         and at the barycentric position
         :param coeff:
         :param angle:
+        :param vector:
         :return:
         """
         if coeff == 0:
@@ -1606,7 +1646,7 @@ class Edge(MeshComponent):
                       .config(vertex=self.end, coeff=coeff)
                       .apply_to(self.start))
 
-        cut_data = self.cut(vertex, angle)
+        cut_data = self.cut(vertex, angle, vector=vector)
 
         # clean vertex if the cut fails
         if cut_data is None and vertex.edge is None:
