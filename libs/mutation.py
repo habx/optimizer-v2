@@ -253,21 +253,32 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         assert (other_space.adjacent_to(edge.face),
                 "Mutation: The edge face must be adjacent to the second space")
 
-    # list of aligned edges
+
     aligned_edges = []
     for aligned in space.next_aligned_siblings(edge):
         if not other_space.has_edge(aligned.pair):
             break
         aligned_edges.append(aligned)
 
+
     list_face_aligned = []
     for aligned in aligned_edges:
         if aligned.face not in list_face_aligned:
             list_face_aligned.append(aligned.pair.face)
 
+
+    #print("added aligned {0}".format(aligned_edges))
+    #print("list_face_aligned {0}".format(list_face_aligned))
+    #input("check here")
+
     count_exchanged_face = 0
 
     face_removed = True
+
+    for aligned_face in list_face_aligned:
+        if other_space.corner_stone(aligned_face):
+            return []
+
     while face_removed:
         face_removed = False
         for aligned_face in list_face_aligned:
@@ -355,6 +366,7 @@ def merge_spaces(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     space.merge(other)
 
     return [space, other]
+
 
 # Cuts Mutation
 
@@ -498,7 +510,6 @@ def slice_cut(offset: float,
     """
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
-
         # check depth of the face, if the face is not deep enough do not slice
         deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:

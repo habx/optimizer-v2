@@ -1069,6 +1069,8 @@ if __name__ == '__main__':
         # input_file = "Noisy_A145.json"
         #input_file = "Antony_A33.json"
         input_file = "Antony_B14.json"
+        #input_file = "Antony_A22.json"
+        #input_file = "Bussy_A202.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
