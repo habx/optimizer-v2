@@ -269,7 +269,7 @@ rectangle_grid = Grid("rectangle", [
 ])
 
 corner_grid = Grid("corner", [
-    (SELECTORS["previous_angle_salient"],MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](1), True)
 ])
 
@@ -295,6 +295,7 @@ load_bearing_wall_grid = Grid("load_bearing_wall", [
 ])
 
 completion_grid = Grid("completion", [
+    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
     (SELECTORS["edge_min_150"], MUTATION_FACTORIES["barycenter_cut"](0.5), False),
     (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False)
 ])
@@ -309,17 +310,18 @@ window_grid = Grid("window", [
 ])
 
 cleanup_grid = Grid("cleanup", [
+    (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
     (SELECTORS["close_to_external_wall"], MUTATIONS["remove_edge"], False),
-    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
-    # (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], True),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
+    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
 
 section_grid = Grid("section", [
-    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
     (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
     (SELECTORS["previous_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
     (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
 ])
@@ -331,8 +333,8 @@ GRIDS = {
     "finer_ortho_grid": finer_ortho_grid,
     "rectangle_grid": rectangle_grid,
     "duct": duct_grid,
-    "test_grid": (section_grid + corner_grid + load_bearing_wall_grid + window_grid +
-                  duct_grid + entrance_grid + completion_grid + cleanup_grid),
+    "optimal_grid": (section_grid + corner_grid + load_bearing_wall_grid + window_grid +
+                     duct_grid + entrance_grid + completion_grid + cleanup_grid),
     "test_grid_temp": section_grid
 }
 
@@ -345,8 +347,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Edison_10.json")
-        new_plan = GRIDS["test_grid"].apply_to(plan, show=True)
+        plan = reader.create_plan_from_file("Paris18_A501.json")
+        new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()

@@ -11,7 +11,6 @@ import logging
 from libs.plan import Plan, Space
 import libs.utils.geometry as geometry
 from libs.utils.custom_exceptions import OutsideFaceError
-from libs.utils.custom_types import Vector2d
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -282,6 +281,23 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
     return [space] if removed else []
 
+
+def merge_spaces(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    Merge the two spaces separated by the edge
+    :param edge:
+    :param space:
+    :return:
+    """
+    other = space.plan.get_space_of_edge(edge.pair)
+
+    if not other or other is space:
+        return []
+
+    space.merge(other)
+
+    return [space, other]
+
 # Cuts Mutation
 
 
@@ -339,12 +355,19 @@ def translation_cut(offset: float,
     return _action
 
 
-def section_cut(coeff: float, traverse: str = "no", min_area: float = 40000) -> EdgeMutation:
+def section_cut(coeff: float,
+                traverse: str = "no",
+                min_area: float = 40000,
+                min_angle: float = 10) -> EdgeMutation:
     """
     Action Factory. Cuts the space and creates a new space if the face has a different main axis.
+    The difference is predicated according to the specified min_angle.
+    The face will not be separated into a new space if its area is inferior to the min_area
+    specified
     :param coeff:
     :param traverse:
     :param min_area:
+    :param min_angle:
     :return:
     """
 
@@ -366,7 +389,7 @@ def section_cut(coeff: float, traverse: str = "no", min_area: float = 40000) -> 
                 continue
             angle_1 = geometry.ccw_angle((0, 1), new_directions[0])
             angle_2 = geometry.ccw_angle((0, 1), space.directions[0])
-            delta = abs(angle_1 - angle_2) > geometry.MIN_ANGLE
+            delta = abs(angle_1 - angle_2) > min_angle
 
             if delta:
                 new_space = Space(space.plan, space.floor, category=space.category)
@@ -446,5 +469,6 @@ MUTATIONS = {
     "swap_aligned_face": Mutation(swap_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
     "remove_edge": Mutation(remove_edge, reversible=False),
-    "remove_line": Mutation(remove_line, reversible=False)
+    "remove_line": Mutation(remove_line, reversible=False),
+    "merge_spaces": Mutation(merge_spaces)
 }

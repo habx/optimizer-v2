@@ -367,12 +367,27 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
 
+    def previous_is_aligned(self, edge: 'Edge') -> bool:
+        """
+        Indicates if the previous edge is approximately aligned with this one,
+        using a pseudo equality on the angle
+        :return: boolean
+        """
+        if not self.is_boundary(edge):
+            raise ValueError("Space: The edge must belong to the boundary %s", edge)
+
+        is_aligned = pseudo_equal(self.previous_angle(edge), 180, ANGLE_EPSILON)
+        return is_aligned
+
     def next_is_aligned(self, edge: 'Edge') -> bool:
         """
         Indicates if the next edge is approximately aligned with this one,
         using a pseudo equality on the angle
         :return: boolean
         """
+        if not self.is_boundary(edge):
+            raise ValueError("Space: The edge must belong to the boundary %s", edge)
+
         is_aligned = pseudo_equal(self.next_angle(edge), 180, ANGLE_EPSILON)
         return is_aligned
 
@@ -382,6 +397,9 @@ class Space(PlanComponent):
         Starts with the edge itself, then all the next ones
         :return:
         """
+        if not self.is_boundary(edge):
+            raise ValueError("Space: The edge must belong to the boundary %s", edge)
+
         yield edge
         # forward check
 
@@ -392,6 +410,29 @@ class Space(PlanComponent):
                 edge = self.next_edge(edge)
             else:
                 aligned = False
+
+    def aligned_siblings(self, edge: 'Edge') -> Generator['Edge', 'Edge', None]:
+        """
+        Returns all the edge
+        :param edge:
+        :return:
+        """
+        if not self.is_boundary(edge):
+            raise ValueError("Space: The edge must belong to the boundary %s", edge)
+
+        yield edge
+
+        # forward check
+        current = edge
+        while self.next_is_aligned(current):
+            current = self.next_edge(current)
+            yield current
+
+        # backward check
+        current = edge
+        while self.previous_is_aligned(current):
+            current = self.previous_edge(current)
+            yield current
 
     def siblings(self, edge: 'Edge') -> Generator[Edge, None, None]:
         """
@@ -499,7 +540,8 @@ class Space(PlanComponent):
         """
         return self._directions()
 
-    def face_directions(self, face: 'Face') -> Optional[Tuple[Vector2d, Vector2d, Vector2d, Vector2d]]:
+    def face_directions(self, face: 'Face') -> Optional[Tuple[Vector2d, Vector2d,
+                                                              Vector2d, Vector2d]]:
         """
         Returns the main direction of a specific face of the space
         :param face:
@@ -1189,8 +1231,8 @@ class Space(PlanComponent):
         :return: a linear
         """
         # TODO : we should not create vertices directly but go trough a face interface
-        vertex_1 = Vertex(self.mesh, *point_1)
-        vertex_2 = Vertex(self.mesh, *point_2)
+        vertex_1 = Vertex(self.mesh, *point_1, mutable=False)
+        vertex_2 = Vertex(self.mesh, *point_2, mutable=False)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
         new_linear = Linear(self.plan, self.floor, new_edge, category)
 
@@ -2193,6 +2235,16 @@ class Plan:
                 return True
 
         return False
+
+    def is_external(self, edge: 'Edge') -> bool:
+        """
+        Returns True if the edge is on the exterior of the apartment (meaning its face is none or
+        its space is external)
+        :param edge:
+        :return: bool
+        """
+        space = self.get_space_of_edge(edge)
+        return space is None or space.category.external
 
     def is_mutable(self, edge: 'Edge') -> bool:
         """
