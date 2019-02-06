@@ -393,6 +393,7 @@ class Seeder:
             else:
                 fuse = False
 
+
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
         Merges the seed spaces according to the selector
