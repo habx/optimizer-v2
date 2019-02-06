@@ -20,7 +20,14 @@ for edge in selector.catalog['boundary'].yield_from(space):
 from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
 
-from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
+from libs.utils.geometry import (
+    ccw_angle,
+    opposite_vector,
+    pseudo_equal,
+    barycenter,
+    distance,
+    parallel
+)
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -34,6 +41,7 @@ PredicateFactory = Callable[..., Predicate]
 
 EPSILON = 1.0
 ANGLE_EPSILON = 5.0
+MIN_ANGLE = 10.0
 
 
 class Selector:
@@ -410,7 +418,8 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
 
 def min_depth(depth: float) -> EdgeQuery:
     """
-    Returns an edge from a space that has a width or a depth
+    Returns an edge from a space that has a depth inferior to the specified value.
+    Note : checks the adjacent face to return the edge between to thin faces
     :param depth: the minimum depth of the edge
     :return: an EdgeQuery
     """
@@ -421,21 +430,186 @@ def min_depth(depth: float) -> EdgeQuery:
             return
 
         for face in space.faces:
-            current_edge = None
             for edge in face.edges:
-                if edge.depth < depth:
-                    if edge.pair.depth < depth:
-                        yield edge
-                        break
-                    current_edge = edge
+                if space.is_boundary(edge):
+                    break
             else:
-                if current_edge:
-                    yield current_edge
+                for edge in face.edges:
+                    if edge.depth < depth:
+                        yield edge
 
     return _selector
 
 
+def tight_lines(depth: float) -> EdgeQuery:
+    """
+    Returns a query that returns the edge of a line close to another line.
+    The line is chosen to enable the best grid after its removal, according to the following rules:
+    • we cannot pick a line that ends on a T junction (meaning its removal will create a non
+    rectangular face)
+    • if three lines are close together we pick the middle one
+    • if there are only two lines we pick the shortest one
+    :param depth:
+    :return: an EdgeQuery
+    """
+    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+
+        if not space.edge:
+            return
+
+        output = None
+
+        for edge in min_depth(depth)(space):
+            edges = list(_parallel_edges(edge, depth))
+            if len(edges) == 0:
+                return
+            elif len(edges) == 1:
+                output = edge
+            elif len(edges) >= 2:
+                borders = [_border_length(edge, space) for edge in edges]
+                lengths = [_line_length(edge) for edge in edges]
+                for criteria in (borders, lengths):
+                    order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
+                    if order.count(0) == 1:
+                        i = order.index(0)
+                        output = edges[i]
+                        break
+                    if len(edges) > 1 and order.count(len(edges) - 1) == 1:
+                        i = order.index(len(edges) - 1)
+                        del edges[i]
+                        del borders[i]
+                        del lengths[i]
+                else:
+                    output = edges[1] if len(edges) == 3 else edges[0]
+
+            if output:
+                yield output
+
+    return _selector
+
+
+def _tight_length(edge: 'Edge', depth: float) -> float:
+    """
+    Returns the length of the line where each face has a depth < depth
+    :param edge:
+    :param depth
+    :return:
+    """
+    return sum(map(lambda e: e.length, filter(lambda e: e.depth < depth, edge.line)))
+
+
+def _line_length(edge: 'Edge') -> float:
+    """
+    Returns the length of a line of an edge
+    :param edge:
+    :return:
+    """
+    return sum(map(lambda e: e.length, edge.line))
+
+
+def _border_length(edge: 'Edge', space: 'Space') -> float:
+    """
+    Returns the length of the line where each face has a depth < depth
+    :param edge:
+    :param space:
+    :return:
+    """
+    return sum(map(lambda e: e.length,
+                   filter(lambda e: space.is_boundary(e) or space.is_boundary(e.pair), edge.line)))
+
+
+def _parallel_edges(edge: 'Edge', depth: float) -> ['Edge']:
+    """
+    Returns up to three parallel close edges
+          left
+    *-------------->
+    <--------------*
+
+         middle
+    *-------------->
+    <--------------*
+
+         right
+    *------------->
+    <-------------*
+    :param edge
+    :param depth
+    :return:
+    """
+    middle = None
+
+    # look to the left
+    left = _parallel(edge, depth)
+    if left:
+        middle = edge
+    else:
+        left = edge
+
+    # look to the right
+    right = _parallel(edge.pair, depth)
+    if not right:
+        if middle:
+            new_left = _parallel(left, depth)
+            if new_left:
+                return [new_left, left, middle]
+            return [left, middle]
+        else:
+            return [edge]
+    else:
+        if middle:
+            right = right.pair
+            return left, middle, right
+        else:
+            middle = right.pair
+            new_right = _parallel(middle.pair, depth)
+            if new_right:
+                return [left, right, new_right]
+            else:
+                return [edge, right]
+
+
+def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
+    """
+    Returns an edge parallel to the left at a distance smaller than the specified dist
+    :param edge:
+    :param dist:
+    :return: the parallel edge
+    """
+    for _edge in edge.siblings:
+        if _edge is not edge and _edge.depth < dist and parallel(_edge.pair.vector, edge.vector):
+            return _edge.pair
+    return None
+
+
+def _line_has_t_edge(line: ['Edge'], space: 'Space') -> bool:
+    """
+    return True if the line begins or end with a T_edge
+    :param line:
+    :param space
+    :return:
+    """
+    if len(line) == 0:
+        return False
+
+    return t_edge(line[0], space) or t_edge(line[len(line) - 1], space)
+
 # predicates
+
+
+def t_edge(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge removal will create a non rectangular face.
+    :param edge:
+    :param space:
+    :return:
+    """
+    if space.is_boundary(edge) or space.is_boundary(edge.next):
+        return False
+
+    output = (edge.next.pair.next.pair.next.pair is edge
+              and not edge.next.pair.next_is_aligned)
+
+    return output
 
 
 def not_space_boundary(edge: 'Edge', space: 'Space') -> bool:
@@ -499,7 +673,6 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
-    TODO : add this as a method to space
     """
     face = edge.pair.face
 
@@ -516,7 +689,8 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
 
 def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns a corner edge of the space
+    Returns the edges of the space that are before a corner of a space.
+    A corner is defined as two edges not aligned.
     """
     edge_corner = None
     for edge in space.edges:
@@ -579,6 +753,18 @@ def h_edge(edge: 'Edge', space: 'Space') -> bool:
     return True
 
 
+def corner_face(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge is before a corner of the space
+    :param edge:
+    :param space:
+    :return:
+    """
+    if space.is_boundary(edge) or space.is_boundary(edge.next):
+        return False
+    lone_vertex = edge.next.pair.next.pair is edge
+    return lone_vertex and (edge.next_angle > 180 + MIN_ANGLE or edge.next_angle < 180 - MIN_ANGLE)
+
 # predicate factories
 
 
@@ -599,6 +785,21 @@ def is_not(predicate: Predicate) -> Predicate:
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         return not predicate(edge, space)
+
+    return _predicate
+
+
+def _or(*predicates: Predicate) -> Predicate:
+    """
+    Returns a predicate that returns True if at least one of the specified predicates is True
+    :param predicates:
+    :return:
+    """
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        for predicate in predicates:
+            if predicate(edge, space):
+                return True
+        return False
 
     return _predicate
 
@@ -751,15 +952,24 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
                          ' {0}'.format(position))
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        # check if the edge belongs to a linear
+        linear = space.plan.get_linear(edge)
+        is_on_linear = linear and linear.category.name in category_names
+
         if position == 'on':
-            linear = space.plan.get_linear(edge)
-            return linear and linear.category.name in category_names
+            return is_on_linear
+
+        if is_on_linear:
+            return False
+
         if position == 'before':
             next_linear = space.plan.get_linear(edge.next)
             return next_linear and next_linear.category.name in category_names
+
         if position == 'after':
             previous_linear = space.plan.get_linear(edge.previous)
             return previous_linear and previous_linear.category.name in category_names
+
         if position == 'between':
             next_linear = space.plan.get_linear(edge.next)
             previous_linear = space.plan.get_linear(edge.previous)
@@ -801,7 +1011,7 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     return _predicate
 
 
-def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 19.0) -> Predicate:
+def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 30.0) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if the edge is closer than
@@ -812,10 +1022,8 @@ def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 19.0)
     """
 
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
-        external_edges = []
-        for sibling in edge.siblings:
-            if sibling.pair.face is None:
-                external_edges.append(sibling)
+
+        external_edges = [e for e in edge.siblings if e.pair.face is None]
 
         if not external_edges:
             return False
@@ -1127,6 +1335,45 @@ SELECTORS = {
         ]
     ),
 
+    "front_door": Selector(
+        boundary,
+        [
+            touches_linear("frontDoor", position="on")
+        ]
+    ),
+
+    "before_front_door": Selector(
+        boundary,
+        [
+            touches_linear("frontDoor"),
+            edge_length(min_length=20)
+        ]
+    ),
+
+    "after_front_door": Selector(
+        boundary,
+        [
+            touches_linear("frontDoor", position="after"),
+            edge_length(min_length=20)
+        ]
+    ),
+
+    "before_window": Selector(
+        boundary,
+        [
+            touches_linear("window", "doorWindow"),
+            edge_length(min_length=20)
+        ]
+    ),
+
+    "after_window": Selector(
+        boundary,
+        [
+            touches_linear("window", "doorWindow", position="after"),
+            edge_length(min_length=20)
+        ]
+    ),
+
     "aligned_edges": Selector(
         boundary,
         [
@@ -1293,18 +1540,26 @@ SELECTORS = {
         ]
     ),
 
+    "duct_edge_min_120": Selector(
+        adjacent_to_rectangular_duct,
+        [
+            edge_length(min_length=120)
+        ]
+    ),
+
+    "corner_face": Selector(boundary_faces, [corner_face]),
+
     "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct),
 
     "window_doorWindow": Selector(boundary, [touches_linear("window", "doorWindow",
                                                             position="on")]),
 
-    "close_to_external_wall": Selector(boundary_faces, [edge_length(min_length=20),
-                                                        close_to_mesh_boundary(119)]),
+    "close_to_external_wall": Selector(boundary_faces, [edge_length(min_length=40),
+                                                        close_to_mesh_boundary(80, 20)]),
 
-    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=150)]),
+    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
-    "add_aligned": Selector(
-
+     "add_aligned": Selector(
         boundary,
         [
             adjacent_to_empty_space,
@@ -1343,4 +1598,5 @@ SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
     "edges_length": SelectorFactory(lambda: boundary, [edge_length]),
     "min_depth": SelectorFactory(min_depth),
+    "tight_lines": SelectorFactory(tight_lines)
 }
