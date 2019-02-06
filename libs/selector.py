@@ -240,6 +240,7 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
         return
 
 
+
 def cuts_linear(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge cutting a linear
@@ -329,6 +330,7 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
+        yield edge_along_plan.next_ortho().next_ortho().pair
     else:
         for edge in space.edges:
             if edge.next_ortho() is edge.next:
@@ -365,6 +367,22 @@ def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge
                 yield edge.pair
                 break
 
+
+
+def vertical_edge(space: 'Space', *_) -> EdgeQuery:
+    """
+    """
+
+    if not space.edge:
+        return
+
+    vectors = ((space.edge.normal, opposite_vector(space.edge.normal)))
+
+    for vector in vectors:
+        edges_list = [edge for edge in space.edges
+                      if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, 35)]
+        for edge in edges_list:
+            yield edge
 
 # Query factories
 
@@ -476,6 +494,7 @@ def tight_lines(depth: float) -> EdgeQuery:
     :param depth:
     :return: an EdgeQuery
     """
+
     def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
         if not space.edge:
@@ -686,12 +705,12 @@ def adjacent_to_other_space(edge: 'Edge', space: 'Space') -> bool:
 
 def adjacent_to_empty_space(edge: 'Edge', space: 'Space') -> bool:
     """
-        Predicate
-        Returns True if the edge is adjacent to another space
-        :param edge:
-        :param space:
-        :return:
-        """
+    Predicate
+    Returns True if the edge is adjacent to another space
+    :param edge:
+    :param space:
+    :return:
+    """
     space_pair = space.plan.get_space_of_face(edge.pair.face)
     return space_pair is not space and space_pair is not None and space_pair.category.name is 'empty'
 
@@ -836,6 +855,7 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
 
     return False
 
+
 # predicate factories
 
 
@@ -866,6 +886,7 @@ def _or(*predicates: Predicate) -> Predicate:
     :param predicates:
     :return:
     """
+
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         for predicate in predicates:
             if predicate(edge, space):
@@ -1299,14 +1320,14 @@ SELECTORS = {
     ),
 
     "after_corner": Selector(
-        boundary,
+        space_boundary,
         [
             check_corner_edge,
         ]
     ),
 
     "after_ortho_corner": Selector(
-        boundary,
+        space_boundary,
         [
             # check_corner_edge(previous=True),
             previous_is_ortho
@@ -1314,7 +1335,7 @@ SELECTORS = {
     ),
 
     "before_ortho_corner": Selector(
-        boundary,
+        space_boundary,
         [
             # check_corner_edge,
             next_is_ortho
@@ -1457,7 +1478,7 @@ SELECTORS = {
     ),
 
     "edge_min_120": Selector(
-        boundary,
+        space_boundary,
         [
             edge_length(min_length=120.0)
         ]
@@ -1616,40 +1637,49 @@ SELECTORS = {
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
     "previous_concave_non_ortho": Selector(space_boundary, [
-            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
-            space_aligned_edges_length(min_length=50.0),
-            previous_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
+        space_aligned_edges_length(min_length=50.0),
+        previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_concave_non_ortho": Selector(space_boundary, [
-            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
-            space_aligned_edges_length(min_length=50.0),
-            next_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
+        space_aligned_edges_length(min_length=50.0),
+        next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "previous_convex_non_ortho": Selector(space_boundary, [
-            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
-            space_aligned_edges_length(min_length=50.0),
-            previous_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
+        space_aligned_edges_length(min_length=50.0),
+        previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_convex_non_ortho": Selector(space_boundary, [
-            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
-            space_aligned_edges_length(min_length=50.0),
-            next_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
+        space_aligned_edges_length(min_length=50.0),
+        next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),
 
     "wrong_direction": Selector(touching_space_boundary, [wrong_direction]),
 
-     "add_aligned": Selector(
-        boundary,
+    "add_aligned": Selector(
+        space_boundary,
         [
             adjacent_to_empty_space,
             previous_is_ortho,
         ]
     ),
+
+    "add_aligned_vertical": Selector(
+        vertical_edge,
+        [
+            adjacent_to_empty_space,
+            previous_is_ortho,
+        ]
+    ),
+
     "corner_edges_ortho": Selector(
 
         corner_edges_ortho,

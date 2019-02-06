@@ -120,7 +120,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    # input("fill")
+                    #input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -361,7 +361,7 @@ class Seeder:
                     space.merge(mutable_adjacent_spaces_fusionnable_selected[0])
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    self.plan.plot()
+                    #self.plan.plot()
                     break
                 elif len(mutable_adjacent_spaces_fusionnable_selected) > 1:
                     # among fusionnable adjacent spaces, privilege those that are poorly
@@ -387,7 +387,7 @@ class Seeder:
                     space.merge(adj_space_selected)
                     number_of_cells = len(list(
                         sp for sp in self.plan.spaces if sp.mutable and sp.area > 0))
-                    self.plan.plot()
+                    #self.plan.plot()
                     break
 
             else:
@@ -866,8 +866,11 @@ ELEMENT_SEED_CATEGORIES = {
         # )
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            # Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
+            #Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            #Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            #Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
+            #Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
             Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
@@ -882,8 +885,10 @@ ELEMENT_SEED_CATEGORIES = {
         # )
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            #Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
+            #Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            #Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
             Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
@@ -923,7 +928,7 @@ FILL_METHODS = {
 
 fusion_rules = {
     "default": {"min_area": 15000,
-                "max_area": 70000,
+                "max_area": 60000,
                 "fuse": True},
     "frontDoor": {"min_area": 20000,
                   "max_area": 50000,
@@ -932,11 +937,11 @@ fusion_rules = {
              "max_area": 30000,
              "fuse": False},
     "window": {"min_area": 50000,
-               "max_area": 90000,
+               "max_area": 100000,
                "fuse": False
                },
     "doorWindow": {"min_area": 50000,
-                   "max_area": 90000,
+                   "max_area": 100000,
                    "fuse": False},
     "startingStep": {"min_area": 10000,
                      "max_area": 30000,
@@ -1062,20 +1067,21 @@ if __name__ == '__main__':
         # input_file = "Antony_B22.json"
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
-        input_file = "Levallois_Letourneur.json"
+        #input_file = "Antony_A33.json"
+        input_file = "Antony_B14.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
 
-        GRIDS['test_grid'].apply_to(plan)
+        GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
-         .grow(show=True)
-         .divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
-         .from_space_empty_to_seed()
-         .fusion(fusion_rules=fusion_rules, target_number_of_cells=10))
+         .grow(show=True))
+         #.divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
+         #.from_space_empty_to_seed()
+         #.fusion(fusion_rules=fusion_rules, target_number_of_cells=10))
 
         plan.remove_null_spaces()
         plan.plot(show=True)
@@ -1085,12 +1091,12 @@ if __name__ == '__main__':
         for sp in plan.spaces:
             sp_comp = sp.components_category_associated()
 
-            if sp.size and sp.category.name is not "empty" and sp.mutable:
+            if sp.size and sp.category.name is not "empty" and sp.mutable and sp.area>0:
                 logging.debug(
                     "space area and category {0} {1} {2} {3}".format(sp_comp,
                                                                      sp.category.name, sp.size,
                                                                      sp.as_sp.centroid.coords.xy))
-            elif sp.category.name is not "empty" and sp.mutable:
+            elif sp.category.name is not "empty" and sp.mutable and sp.area>0:
                 logging.debug(
                     "space area and category {0} {1} {2}".format(sp.area, sp_comp,
                                                                  sp.category.name))
