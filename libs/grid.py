@@ -28,8 +28,8 @@ class Grid:
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation', bool]]):
         self.name = name
         self.operators = operators or []
+        self._plot: Optional['Plot'] = None
         self._seen: ['Edge'] = []  # use to modify an edge only once
-        self.plot: Optional['Plot'] = None
 
     def clone(self, name: str = "") -> 'Grid':
         """
@@ -96,7 +96,7 @@ class Grid:
             logging.debug("Grid: Applying cut %s to edge %s of space %s", _mutation, edge, space)
             mesh_has_changed = _mutation.apply_to(edge, space)
             if show:
-                self.plot.update_faces([space])
+                self._plot.update_faces([space])
             if apply_once:
                 self._seen.append(edge)
             if mesh_has_changed:
@@ -109,24 +109,24 @@ class Grid:
         :return:
         """
         # if the grid has already a plot : do nothing
-        if self.plot:
+        if self._plot:
             return
 
         if not plot:
-            self.plot = Plot()
+            self._plot = Plot()
             plt.ion()
-            self.plot.draw(plan)
+            self._plot.draw(plan)
             plt.show()
             plt.pause(0.0001)
         else:
-            self.plot = plot
+            self._plot = plot
 
     def _destroy_plot(self):
         """
         destroy plot on exit
         :return:
         """
-        if self.plot:
+        if self._plot:
             plt.ioff()
             plt.close()
 
@@ -173,11 +173,11 @@ sequence_grid = Grid('sequence_grid', [
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["previous_angle_convex_non_ortho"],
+        SELECTORS["previous_angle_convex"],
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["next_angle_convex_non_ortho"],
+        SELECTORS["next_angle_convex"],
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
@@ -221,11 +221,11 @@ ortho_grid = Grid('ortho_grid', [
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["previous_angle_convex_non_ortho"],
+        SELECTORS["previous_angle_convex"],
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["next_angle_convex_non_ortho"],
+        SELECTORS["next_angle_convex"],
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
@@ -269,16 +269,16 @@ rectangle_grid = Grid("rectangle", [
 ])
 
 corner_grid = Grid("corner", [
-    (SELECTORS["previous_angle_salient"], MUTATIONS['ortho_projection_cut'], True),
-    (SELECTORS["next_angle_salient"], MUTATIONS['ortho_projection_cut'], True)
+    (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](1), True)
 ])
 
 duct_grid = Grid("duct", [
     (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
     (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100, padding=60), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](1, traverse="no"), True),
-    (SELECTORS["duct_edge_min_120"], MUTATION_FACTORIES["barycenter_cut"](0.5, traverse="no"),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["duct_edge_min_120"], MUTATION_FACTORIES["barycenter_cut"](0.5),
      True),
 ])
 
@@ -291,10 +291,11 @@ entrance_grid = Grid("front_door", [
 
 load_bearing_wall_grid = Grid("load_bearing_wall", [
     (SELECTORS["adjacent_to_load_bearing_wall"],
-     MUTATION_FACTORIES["barycenter_cut"](0, traverse="no"), True)
+     MUTATION_FACTORIES["barycenter_cut"](0), True)
 ])
 
 completion_grid = Grid("completion", [
+    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
     (SELECTORS["edge_min_150"], MUTATION_FACTORIES["barycenter_cut"](0.5), False),
     (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False)
 ])
@@ -309,12 +310,20 @@ window_grid = Grid("window", [
 ])
 
 cleanup_grid = Grid("cleanup", [
+    (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
-    (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
     (SELECTORS["close_to_external_wall"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], True),
+    (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
+    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
+])
+
+section_grid = Grid("section", [
+    (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["previous_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
 ])
 
 GRIDS = {
@@ -324,9 +333,9 @@ GRIDS = {
     "finer_ortho_grid": finer_ortho_grid,
     "rectangle_grid": rectangle_grid,
     "duct": duct_grid,
-    "test_grid": (corner_grid + load_bearing_wall_grid + window_grid +
-                  duct_grid + entrance_grid + completion_grid + cleanup_grid),
-    "test_grid_temp": corner_grid + load_bearing_wall_grid
+    "optimal_grid": (section_grid + corner_grid + load_bearing_wall_grid + window_grid +
+                     duct_grid + entrance_grid + completion_grid + cleanup_grid),
+    "test_grid_temp": section_grid
 }
 
 if __name__ == '__main__':
@@ -338,8 +347,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Antony_B22.json")
-        new_plan = GRIDS["test_grid"].apply_to(plan)
+        plan = reader.create_plan_from_file("Paris18_A501.json")
+        new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()
