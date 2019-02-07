@@ -576,11 +576,15 @@ def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
 def _line_cuts_angle(line: ['Edge'], space: 'Space') -> bool:
     """
     return True if the line cuts an angle in half
-    Its removal will create free angles.
+    Its removal will create an angle > 180°.
+    We check the length of the edges of the angle. An angle whose edges have a length inferior
+    to min_length is acceptable.
+
     :param line:
     :param space
     :return:
     """
+    min_length = 10
     if len(line) == 0:
         return False
 
@@ -595,7 +599,8 @@ def _line_cuts_angle(line: ['Edge'], space: 'Space') -> bool:
             continue
         edges = list(filter(lambda e: e not in (line[i], line[i + 1],
                                                 line[i].pair, line[i + 1].pair), edges))
-        if not pseudo_equal(ccw_angle(edges[0].vector, edges[1].vector), 180, MIN_ANGLE):
+        if (edges[0].length > min_length and edges[1].length > min_length and
+                not pseudo_equal(ccw_angle(edges[0].vector, edges[1].vector), 180, MIN_ANGLE)):
             return True
 
     return False
