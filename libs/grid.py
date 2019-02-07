@@ -347,7 +347,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Massy_C204.json")
+        plan = reader.create_plan_from_file("Bussy_B002.json")
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
