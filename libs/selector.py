@@ -399,11 +399,12 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     return _selector
 
 
-def min_depth(depth: float) -> EdgeQuery:
+def min_depth(depth: float, min_length: float = 10) -> EdgeQuery:
     """
     Returns an edge from a space that has a depth inferior to the specified value.
     Note : checks the adjacent face to return the edge between to thin faces
     :param depth: the minimum depth of the edge
+    :param min_length: the minimum length of the edge
     :return: an EdgeQuery
     """
 
@@ -414,12 +415,10 @@ def min_depth(depth: float) -> EdgeQuery:
 
         for face in space.faces:
             for edge in face.edges:
-                if space.is_boundary(edge):
-                    break
-            else:
-                for edge in face.edges:
-                    if edge.depth < depth:
-                        yield edge
+                if space.is_boundary(edge) or edge.length < min_length:
+                    continue
+                if edge.depth < depth:
+                    yield edge
 
     return _selector
 
@@ -453,7 +452,8 @@ def tight_lines(depth: float) -> EdgeQuery:
             elif len(_edges) == 1:
                 output = _edges[0]
             elif len(_edges) >= 2:
-                borders = [_border_length(edge, space) > 10 for edge in _edges]
+                # we calculate the length of the line that touches a border per increment of 20
+                borders = [int(_border_length(edge, space)/20)*20 for edge in _edges]
                 lengths = [_line_length(edge) for edge in _edges]
                 for criteria in (borders, lengths):
                     order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
@@ -501,7 +501,7 @@ def _line_length(edge: 'Edge') -> float:
 
 def _border_length(edge: 'Edge', space: 'Space') -> float:
     """
-    Returns the length of the line where each face has a depth < depth
+    Returns the length of the line where the edge are on the boundary of the space
     :param edge:
     :param space:
     :return:
@@ -568,7 +568,8 @@ def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
     :return: the parallel edge
     """
     for _edge in edge.siblings:
-        if _edge is not edge and _edge.depth < dist and parallel(_edge.pair.vector, edge.vector):
+        if (_edge is not edge and edge.face is not None
+                and parallel(_edge.pair.vector, edge.vector) and _edge.max_distance(edge) < dist):
             return _edge.pair
     return None
 
@@ -776,7 +777,7 @@ def corner_face(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    min_corner_angle = 45
+    min_corner_angle = 50  # Arbitratry TODO: parametrize this
     if not space.is_internal(edge) and space.is_internal(edge.next):
         return False
 
@@ -1452,15 +1453,17 @@ SELECTORS = {
     ),
 
     "duct_edge_min_10": Selector(
-        adjacent_to_rectangular_duct,
+        space_boundary,
         [
+            adjacent_to_space("duct"),
             edge_length(min_length=10)
         ]
     ),
 
     "duct_edge_min_120": Selector(
-        adjacent_to_rectangular_duct,
+        space_boundary,
         [
+            adjacent_to_space("duct"),
             edge_length(min_length=120)
         ]
     ),

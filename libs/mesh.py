@@ -42,10 +42,11 @@ from libs.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_sa
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
 LINE_LENGTH = 500000
-ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
+ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
+INFINITY = 2^63 - 1
 
 
 class MeshOps(enum.Enum):
@@ -966,7 +967,7 @@ class Edge(MeshComponent):
 
         # check if the edge has a projection to the edge
         if ccw_angle(other.opposite_vector, self.vector) >= 90.0 - MIN_ANGLE:
-            return None
+            return INFINITY
 
         d1, d2, d3, d4 = None, None, None, None
 
@@ -990,7 +991,7 @@ class Edge(MeshComponent):
             d4 = p4.distance(other.end.as_sp)
 
         if not d1 and not d2 and not d3 and not d4:
-            return None
+            return INFINITY
 
         dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
         return dist_max_to_edge
