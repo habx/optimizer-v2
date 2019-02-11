@@ -274,6 +274,9 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     for line_edge in line:
         # if we encounter a boundary edge : we stop
         if not space.is_internal(line_edge):
+            # if the first edge of the line is on the boundary we do not need to break
+            if line_edge is line[0]:
+                continue
             break
         # we must cannot remove an internal edge as it would break the mesh
         if not line_edge.is_internal:

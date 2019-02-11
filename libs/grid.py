@@ -301,12 +301,12 @@ completion_grid = Grid("completion", [
 ])
 
 window_grid = Grid("window", [
+    (SELECTORS["between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
+    (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
     (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](300), True),
     (SELECTORS["before_window"],
      MUTATION_FACTORIES["translation_cut"](10, reference_point="end"), True),
-    (SELECTORS["after_window"], MUTATION_FACTORIES["translation_cut"](10), True),
-    (SELECTORS["between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
-    (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True)
+    (SELECTORS["after_window"], MUTATION_FACTORIES["translation_cut"](10), True)
 ])
 
 cleanup_grid = Grid("cleanup", [
@@ -347,7 +347,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Paris18_A501.json")
+        plan = reader.create_plan_from_file("saint-maur-raspail_H07.json")
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
