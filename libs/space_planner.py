@@ -255,10 +255,10 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A105.json"  #Levallois_Letourneur/Antony_A22/begles-carrelets_C304
+        input_file = "grenoble-cambridge_292.json"  #Levallois_Letourneur/Antony_A22/begles-carrelets_C304
         plan = reader.create_plan_from_file(input_file)
 
-        GRIDS["ortho_grid"].apply_to(plan)
+        GRIDS["finer_ortho_grid"].apply_to(plan)
 
         plan.plot()
 
@@ -278,31 +278,41 @@ if __name__ == '__main__':
         # input_file = "Antony_A22_setup.json"
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
-        category_name_list_test = ["entrance", "wc", "bathroom", "kitchen", "bedroom", "living"]
-        spaces_list = list(spec.plan.spaces)
-        best_name_list = None
-        best_failures = 10e15
-        best_branches = 10e15
-        best_spaces_list = []
-        import itertools
+        spec.plan = plan
         import time
-        perm_cat = list(itertools.permutations(category_name_list_test))
-        perm_spaces = list(itertools.permutations(spaces_list))
-        for cat_list in perm_cat:
-            for spaces in perm_spaces:
-                spec.plan.spaces = spaces
-                spec.init_id(cat_list)
-                t0 = time.clock()
-                space_planner = SpacePlanner("test", spec)
-                logging.debug("space_planner time : %f", time.clock() - t0)
-                t1 = time.clock()
-                best_solutions = space_planner.solution_research()
-                logging.debug("solution_research time: %f", time.clock() - t1)
-                if space_planner.manager.solver.solver.Branches() < best_branches:
-                    best_branches = space_planner.manager.solver.solver.Branches()
-                    best_failures = space_planner.manager.solver.solver.Failures()
-                    best_name_list = cat_list
-                    best_spaces_list = spaces_list
+        t0 = time.clock()
+        space_planner = SpacePlanner("test", spec)
+        logging.debug("space_planner time : %f", time.clock() - t0)
+        t1 = time.clock()
+        best_solutions = space_planner.solution_research()
+        logging.debug("solution_research time: %f", time.clock() - t1)
+
+
+        # category_name_list_test = ["entrance", "wc", "bathroom", "kitchen", "bedroom", "living"]
+        # spec.plan.remove_null_spaces()
+        # spaces_list = list(spec.plan.spaces)
+        # best_name_list = None
+        # best_failures = 10e15
+        # best_branches = 10e15
+        # best_spaces_list = []
+        # import itertools
+        # perm_cat = list(itertools.permutations(category_name_list_test))
+        # perm_spaces = list(itertools.permutations(spaces_list))
+        # for cat_list in perm_cat:
+        #     for spaces in perm_spaces:
+        #         spec.plan.spaces = spaces
+        #         spec.init_id(cat_list)
+        #         t0 = time.clock()
+        #         space_planner = SpacePlanner("test", spec)
+        #         logging.debug("space_planner time : %f", time.clock() - t0)
+        #         t1 = time.clock()
+        #         best_solutions = space_planner.solution_research()
+        #         logging.debug("solution_research time: %f", time.clock() - t1)
+        #         if space_planner.manager.solver.solver.Branches() < best_branches:
+        #             best_branches = space_planner.manager.solver.solver.Branches()
+        #             best_failures = space_planner.manager.solver.solver.Failures()
+        #             best_name_list = cat_list
+        #             best_spaces_list = spaces_list
 
         print("BEST SOLUTION")
         print("best_name_list", best_name_list)
