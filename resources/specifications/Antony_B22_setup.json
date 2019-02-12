@@ -14,7 +14,8 @@
         "min": 270000,
         "max": 330000
       },
-      "variant": "l"
+      "variant": "l",
+      "opensOn": ["kitchen"]
     },
     {
       "type": "kitchen",
@@ -22,7 +23,8 @@
         "min": 130000,
         "max": 170000
       },
-      "variant": "m"
+      "variant": "m",
+      "opensOn": ["living"]
     },
     {
       "type": "bedroom",
@@ -59,8 +61,8 @@
     {
       "type": "bathroom",
       "requiredArea": {
-        "min": 80000,
-        "max": 120000
+        "min": 60000,
+        "max": 80000
       },
       "variant": "m"
     },

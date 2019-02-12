@@ -18,3 +18,4 @@ if __name__ == '__main__':
         print("current plan ", files[index_plan])
         command_lauch_grid = "python ../libs/" + module + ".py -p " + str(index_plan)
         os.system(command_lauch_grid)
+
