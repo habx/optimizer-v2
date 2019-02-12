@@ -371,6 +371,7 @@ def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge
 
 def vertical_edge(space: 'Space', *_) -> EdgeQuery:
     """
+    returns edge in vertical direction from space reference edge
     """
 
     if not space.edge:
@@ -1617,15 +1618,6 @@ SELECTORS = {
         ]
     ),
 
-    # "fuse_small_cell_without_components_alignment": Selector(
-    #     boundary_unique_longest_alignment,
-    #     [
-    #         space_area(max_area=2000),
-    #         has_pair(),
-    #         cell_with_component(has_component=False)
-    #     ]
-    # ),
-
     "other_seed_space": Selector(
         other_seed_space_edge,
         [
@@ -1687,27 +1679,27 @@ SELECTORS = {
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
     "previous_concave_non_ortho": Selector(space_boundary, [
-        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
-        space_aligned_edges_length(min_length=50.0),
-        previous_has(space_aligned_edges_length(min_length=50.0))
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
+            space_aligned_edges_length(min_length=50.0),
+            previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_concave_non_ortho": Selector(space_boundary, [
-        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
-        space_aligned_edges_length(min_length=50.0),
-        next_has(space_aligned_edges_length(min_length=50.0))
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
+            space_aligned_edges_length(min_length=50.0),
+            next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "previous_convex_non_ortho": Selector(space_boundary, [
-        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
-        space_aligned_edges_length(min_length=50.0),
-        previous_has(space_aligned_edges_length(min_length=50.0))
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
+            space_aligned_edges_length(min_length=50.0),
+            previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_convex_non_ortho": Selector(space_boundary, [
-        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
-        space_aligned_edges_length(min_length=50.0),
-        next_has(space_aligned_edges_length(min_length=50.0))
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
+            space_aligned_edges_length(min_length=50.0),
+            next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),

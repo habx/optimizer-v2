@@ -238,7 +238,7 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
 def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
-    Adds to spae all the faces of the aligned edges
+    Adds to space all the faces of the aligned edges
     • checks if the edge is just after a corner
     • gather all the next aligned edges
     • for each edge add the corresponding faces

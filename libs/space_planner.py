@@ -163,12 +163,12 @@ class SpacePlanner:
                     plan_solution = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution)
                     logging.debug(plan_solution)
-                    #plan_solution.plot()
+                    plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
                     logging.debug(sol)
-                    sol.plan.plot()
+                    #sol.plan.plot()
                     return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
