@@ -46,7 +46,7 @@ ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
-INFINITY = 2^63 - 1
+INFINITY = 2**63 - 1
 
 
 class MeshOps(enum.Enum):
