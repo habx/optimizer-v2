@@ -47,9 +47,10 @@ class ConstraintSolver:
     Encapsulation of the OR-tools solver adapted to our problem
     """
 
-    def __init__(self, items_nbr: int, spaces_nbr: int):
+    def __init__(self, items_nbr: int, spaces_nbr: int, multilevel: bool = False):
         self.items_nbr = items_nbr
         self.spaces_nbr = spaces_nbr
+        self.multilevel = multilevel
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
@@ -63,9 +64,15 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
-                                              "cells_item[{0}]".format(j_space))
-                           for j_space in range(self.spaces_nbr)]
+        # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulationSpace
+        if not self.multilevel:
+            self.cells_item = [self.solver.IntVar(0, self.items_nbr-1,
+                                                  "cells_item[{0}]".format(j_space))
+                               for j_space in range(self.spaces_nbr)]
+        else:
+            self.cells_item = [self.solver.IntVar(0, self.items_nbr,
+                                                  "cells_item[{0}]".format(j_space))
+                               for j_space in range(self.spaces_nbr)]
 
         for i_item in range(self.items_nbr):
             for j_space in range(self.spaces_nbr):
@@ -92,7 +99,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 50000
+        max_num_sol = 50  # 50000
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
@@ -132,8 +139,12 @@ class ConstraintsManager:
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
         self.name = name
         self.sp = sp
-        self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                       self.sp.spec.plan.count_mutable_spaces())
+        if sp.spec.plan.floor_count < 2:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces())
+        else:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces(), True)
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self.init_windows_length()
