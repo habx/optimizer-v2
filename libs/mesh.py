@@ -1094,7 +1094,7 @@ class Edge(MeshComponent):
             yield edge
 
     @property
-    def next_aligned(self) -> bool:
+    def next_aligned(self) -> 'Edge':
         """
         Returns next aligned edge
         :return:

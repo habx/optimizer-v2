@@ -31,7 +31,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
-    from libs.plan import Space, Plan
+    from libs.plan import Space
     from libs.seed import Seeder
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
@@ -142,7 +142,7 @@ def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from face.edges
 
 
-def any(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def any_of_space(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges of the face
     :param space:
@@ -238,7 +238,6 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
         yield edge
     else:
         return
-
 
 
 def cuts_linear(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -368,8 +367,7 @@ def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge
                 break
 
 
-
-def vertical_edge(space: 'Space', *_) -> EdgeQuery:
+def vertical_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     returns edge in vertical direction from space reference edge
     """
@@ -377,13 +375,14 @@ def vertical_edge(space: 'Space', *_) -> EdgeQuery:
     if not space.edge:
         return
 
-    vectors = ((space.edge.normal, opposite_vector(space.edge.normal)))
+    vectors = (space.edge.normal, opposite_vector(space.edge.normal))
 
     for vector in vectors:
         edges_list = [edge for edge in space.edges
                       if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, 35)]
         for edge in edges_list:
             yield edge
+
 
 # Query factories
 
@@ -514,7 +513,7 @@ def tight_lines(depth: float) -> EdgeQuery:
                 output = _edges[0]
             elif len(_edges) >= 2:
                 # we calculate the length of the line that touches a border per increment of 20
-                borders = [int(_border_length(edge, space)/20)*20 for edge in _edges]
+                borders = [int(_border_length(edge, space) / 20) * 20 for edge in _edges]
                 lengths = [_line_length(edge) for edge in _edges]
                 for criteria in (borders, lengths):
                     order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
@@ -704,11 +703,13 @@ def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
     :param space:
     :return:
     """
+
     def _filter(edge: 'Edge') -> bool:
         line = edge.line
         return not _line_is_between_windows(line, space) and not _line_cuts_angle(line, space)
 
     return _filter
+
 
 # predicates
 
@@ -761,7 +762,8 @@ def adjacent_to_empty_space(edge: 'Edge', space: 'Space') -> bool:
     :return:
     """
     space_pair = space.plan.get_space_of_face(edge.pair.face)
-    return space_pair is not space and space_pair is not None and space_pair.category.name is 'empty'
+    val = space_pair is not space and space_pair is not None and space_pair.category.name is 'empty'
+    return val
 
 
 def not_adjacent_to_seed(edge: 'Edge', space: 'Space') -> bool:
@@ -826,7 +828,7 @@ def corner_edges_ortho(space: 'Space', *_) -> Generator['Edge', bool, None]:
             yield edge
 
 
-def check_corner_edge(edge: 'Edges', space: 'Space', previous: bool = False):
+def check_corner_edge(edge: 'Edge', space: 'Space', previous: bool = False):
     """
     Returns True if the edge is right after (or right before if previous) a corner
     """
@@ -836,14 +838,14 @@ def check_corner_edge(edge: 'Edges', space: 'Space', previous: bool = False):
     return not space.next_is_aligned(space.previous_edge(edge))
 
 
-def next_is_ortho(edge: 'Edges', space: 'Space'):
+def next_is_ortho(edge: 'Edge', space: 'Space'):
     """
-    Returns True if the next space edge is orthogonal
+    Returns True if the next space edge is orthogonalx
     """
-    return space.next_is_ortho(edge)
+    return space.next_is_orho(edge)
 
 
-def previous_is_ortho(edge: 'Edges', space: 'Space'):
+def previous_is_ortho(edge: 'Edge', space: 'Space'):
     """
     Returns True if the previous space edge is orthogonal
     """
@@ -1246,20 +1248,6 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
-def longest_of_space() -> Predicate:
-    """
-    Predicate
-    Returns True if the edge is the longest. With memoization included.
-    :return:
-    """
-    cache = {}
-
-    def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        cached_edge = cache.get(space.id, None)
-        if cached_edge:
-            return cached_edge == edge.id
-
-
 def has_pair() -> Predicate:
     """
     Predicate factory
@@ -1268,7 +1256,7 @@ def has_pair() -> Predicate:
     """
 
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
-        return not edge.pair is None
+        return edge.pair is not None
 
     return _predicate
 
@@ -1316,13 +1304,12 @@ def next_aligned_category(cat: str) -> Predicate:
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         plan = space.plan
-        if edge.next_is_aligned and plan.get_space_of_edge(
-                edge.next) is not None and plan.get_space_of_edge(
-            edge.next).category.name is cat:
+        if edge.next_is_aligned and plan.get_space_of_edge(edge.next) is not None \
+                and plan.get_space_of_edge(edge.next).category.name is cat:
             return True
-        elif edge.next.pair.next_is_ortho and plan.get_space_of_edge(
-                edge.next.pair.next) is not None and plan.get_space_of_edge(
-            edge.next.pair.next).category.name is cat:
+        elif edge.next.pair.next_is_ortho \
+                and plan.get_space_of_edge(edge.next.pair.next) is not None \
+                and plan.get_space_of_edge(edge.next.pair.next).category.name is cat:
             return True
         else:
             return False
@@ -1679,27 +1666,27 @@ SELECTORS = {
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
     "previous_concave_non_ortho": Selector(space_boundary, [
-            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
-            space_aligned_edges_length(min_length=50.0),
-            previous_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
+        space_aligned_edges_length(min_length=50.0),
+        previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_concave_non_ortho": Selector(space_boundary, [
-            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
-            space_aligned_edges_length(min_length=50.0),
-            next_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
+        space_aligned_edges_length(min_length=50.0),
+        next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "previous_convex_non_ortho": Selector(space_boundary, [
-            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
-            space_aligned_edges_length(min_length=50.0),
-            previous_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
+        space_aligned_edges_length(min_length=50.0),
+        previous_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "next_convex_non_ortho": Selector(space_boundary, [
-            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
-            space_aligned_edges_length(min_length=50.0),
-            next_has(space_aligned_edges_length(min_length=50.0))
+        edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
+        space_aligned_edges_length(min_length=50.0),
+        next_has(space_aligned_edges_length(min_length=50.0))
     ]),
 
     "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),

@@ -1599,10 +1599,9 @@ class Space(PlanComponent):
             edge_next_aligned = edge.next_aligned
             if edge_next_aligned is None:
                 continue
-            elif not edge_next_aligned in self.edges and self.plan.get_space_of_edge(
-                    edge_next_aligned) is not None and \
-                    edge_next_aligned in self.plan.get_space_of_edge(
-                edge_next_aligned).edges:
+            elif not (edge_next_aligned in self.edges) \
+                    and self.plan.get_space_of_edge(edge_next_aligned) is not None \
+                    and edge_next_aligned in self.plan.get_space_of_edge(edge_next_aligned).edges:
                 nb_aligned += 1
             else:
                 if edge_next_aligned.pair is None:
@@ -1612,9 +1611,10 @@ class Space(PlanComponent):
                 if edge_next_aligned.pair.next_aligned.pair is None:
                     continue
                 edge_next_aligned_pair_next_aligned = edge_next_aligned.pair.next_aligned.pair
-                if not edge_next_aligned_pair_next_aligned in self.edges and self.plan.get_space_of_edge(
-                        edge_next_aligned_pair_next_aligned) is not None and \
-                        edge_next_aligned_pair_next_aligned in self.plan.get_space_of_edge(
+                if not edge_next_aligned_pair_next_aligned in self.edges \
+                        and self.plan.get_space_of_edge(
+                    edge_next_aligned_pair_next_aligned) is not None \
+                        and edge_next_aligned_pair_next_aligned in self.plan.get_space_of_edge(
                     edge_next_aligned_pair_next_aligned).edges:
                     nb_aligned += 1
 

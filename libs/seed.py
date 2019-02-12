@@ -154,7 +154,7 @@ class Seeder:
 
         return self
 
-    def empty(self, selector: 'Selector', except_component: List['str'] = []):
+    def empty(self, selector: 'Selector'):
         """
         Makes selected space empty
         :param selector:
@@ -162,19 +162,15 @@ class Seeder:
         """
 
         for space in self.plan.get_spaces("seed"):
-            if list(selector.yield_from(space)) and not [comp for comp in
-                                                         space.components_category_associated() if
-                                                         comp in except_component]:
+            if list(selector.yield_from(space)) and not space.components_category_associated():
                 space.category = SPACE_CATEGORIES["empty"]
 
         return self
-
 
     def divide_plan_along_directions(self, selector: 'Selector'):
         """
         divide empty spaces along all directions defined by seed spaces corners
         :param selector:
-        :param show:
         :return:
         """
         for seed_space in self.plan.get_spaces("seed"):
@@ -196,7 +192,7 @@ class Seeder:
                         space_of_edge = self.plan.get_space_of_edge(edge)
                         if space_of_edge is None:  # or space_of_edge_pair is None:
                             break
-                        if space_of_edge.category.name is not "empty":  # or space_of_edge_pair.category.name is not "empty":
+                        if space_of_edge.category.name is not "empty":
                             break
                         aligned_edges_kept.append(edge)
 
@@ -223,12 +219,17 @@ class Seeder:
                 space.category = SPACE_CATEGORIES["seed"]
         return self
 
-    def get_area_rule(self, space: 'Space', fusion_rules: Dict = {},
+    @staticmethod
+    def get_area_rule(space: 'Space', fusion_rules: Dict = None,
                       min_area: bool = False) -> float:
         """
         reads fusion_rules dict and returns max or min area a space can reach
         :return: float
         """
+
+        if fusion_rules is None:
+            fusion_rules = {}
+
         area_key = 'max_area'
         if min_area:
             area_key = 'min_area'
@@ -240,12 +241,15 @@ class Seeder:
             area = fusion_rules['default'][area_key]
         return area
 
-    def get_area_rule_fusion(self, space1: 'Space', space2: 'Space', fusion_rules: Dict = {},
+    def get_area_rule_fusion(self, space1: 'Space', space2: 'Space', fusion_rules: Dict = None,
                              min_area: bool = False) -> float:
         """
         reads fusion_rules dict and returns max or min area a space union can reach can reach
         :return: float
         """
+
+        if fusion_rules is None:
+            fusion_rules = {}
 
         area_key = 'max_area'
         if min_area:
@@ -271,13 +275,13 @@ class Seeder:
 
         return area
 
-
     def fusion(self,
-                fusion_rules: Dict = {},
-                target_number_of_cells: int = 10, min_aspect_ratio: float = 0.5):
+               fusion_rules: Dict = None,
+               target_number_of_cells: int = 10, min_aspect_ratio: float = 0.5):
         """
         heuristic for cell fusion
-        Loop though every cells in beginning with windows, then entrance duct, then ascending area order
+        Loop though every cells in beginning with windows, then entrance duct,
+        then ascending area order
         1 - detect adjacent cells and selects those for which an addition is possible based
         on fusion rules
         2 - select for fusion the adjacent cells that have highest contact length with the current
@@ -287,6 +291,10 @@ class Seeder:
         4 - if there are still several candidates, select the smallest one
         :return:
         """
+
+        if fusion_rules is None:
+            fusion_rules = {}
+
         self.plan.plot()
         number_of_cells = len(
             list(space for space in self.plan.spaces if space.mutable and space.area > 0))
@@ -332,18 +340,19 @@ class Seeder:
                 mutable_adjacent_spaces_fusionnable = []
                 if mutable_adjacent_spaces:
                     # no fusion if the aspect ratio of the obtained fusion cell is bad
-                    max_adjacent_length_contact = max(map(lambda adj: adj.contact_length(space),
-                                                          mutable_adjacent_spaces))
+                    max_adjacent_length_contact = max(
+                        map(lambda adj_sp: adj_sp.contact_length(space),
+                            mutable_adjacent_spaces))
 
                     mutable_adjacent_spaces_fusionnable = [sp for sp in space.adjacent_spaces() if
                                                            sp.mutable
                                                            and
-                                                           #no surface over growth
+                                                           # no surface over growth
                                                            (sp.area + space.area <
                                                             self.get_area_rule_fusion(
                                                                 space, sp,
                                                                 fusion_rules))
-                                                           #no fusion if bad aspect ratio
+                                                           # no fusion if bad aspect ratio
                                                            and sp.contact_length(
                                                                space) >
                                                            min_aspect_ratio *
@@ -396,7 +405,6 @@ class Seeder:
 
             else:
                 fuse = False
-
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
@@ -931,7 +939,7 @@ FILL_METHODS = {
     "default": None
 }
 
-fusion_rules = {
+fusion_rules_test = {
     "default": {"min_area": 15000,
                 "max_area": 60000,
                 "fuse": True},
@@ -1017,8 +1025,7 @@ if __name__ == '__main__':
                show=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
          .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_90000"],
-                except_component=["window", "doorWindow"])
+         .empty(SELECTORS["corner_big_cell_area_90000"])
          .fill(FILL_METHODS_HOMOGENEOUS,
                (SELECTORS["farthest_couple_middle_space_area_min_50000"],
                 "empty"), show=True)
@@ -1037,7 +1044,7 @@ if __name__ == '__main__':
                                                              sp.category.name))
 
 
-    def grow_a_plan__fusion():
+    def grow_a_plan_fusion():
         """
         Test
         :return:
@@ -1062,8 +1069,9 @@ if __name__ == '__main__':
         # input_file = "Levallois_Parisot.json"
         # input_file = "Noisy_A145.json"
         # input_file = "Antony_A33.json"
-        input_file = "Antony_A33.json"
-        #input_file = "Levallois_Tisnes.json"
+        # input_file = "Antony_A33.json"
+        # input_file = "Massy_C204.json"
+        # input_file = "Levallois_Tisnes.json"
         # input_file = "Bussy_A202.json"
         # input_file = "Edison_20.json"
         plan = reader.create_plan_from_file(input_file)
@@ -1078,7 +1086,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
          .from_space_empty_to_seed()
-         .fusion(fusion_rules=fusion_rules, target_number_of_cells=10))
+         .fusion(fusion_rules=fusion_rules_test, target_number_of_cells=10))
 
         plan.remove_null_spaces()
         plan.plot(show=True)
@@ -1098,4 +1106,5 @@ if __name__ == '__main__':
                     "space area and category {0} {1} {2}".format(sp.area, sp_comp,
                                                                  sp.category.name))
 
-    grow_a_plan__fusion()
+
+    grow_a_plan_fusion()
