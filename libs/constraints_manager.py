@@ -15,6 +15,7 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
+import time
 import logging
 
 if TYPE_CHECKING:
@@ -46,15 +47,15 @@ class ConstraintSolver:
     Encapsulation of the OR-tools solver adapted to our problem
     """
 
-    def __init__(self, items_nbr: int, spaces_nbr: int):
+    def __init__(self, items_nbr: int, spaces_nbr: int, multilevel: bool = False):
         self.items_nbr = items_nbr
         self.spaces_nbr = spaces_nbr
+        self.multilevel = multilevel
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
+        self.cells_item: List[ortools.IntVar] = []
         self.positions = {}  # List[List[ortools.IntVar]] = [[]]
-        # For the decision builder
-        self.positions_flat: List[ortools.IntVar] = []
         self.init_positions()
         self.solutions = []
 
@@ -63,14 +64,19 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        self.positions = {(i_item, j_space): self.solver.IntVar(0, 1, "positions[{0},{1}]"
-                                                                .format(i_item, j_space))
-                          for i_item in range(self.items_nbr)
-                          for j_space in range(self.spaces_nbr)}
-
-        self.positions_flat = [self.positions[i_item, j_space]
-                               for i_item in range(self.items_nbr)
+        # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulationSpace
+        if not self.multilevel:
+            self.cells_item = [self.solver.IntVar(0, self.items_nbr-1,
+                                                  "cells_item[{0}]".format(j_space))
                                for j_space in range(self.spaces_nbr)]
+        else:
+            self.cells_item = [self.solver.IntVar(0, self.items_nbr,
+                                                  "cells_item[{0}]".format(j_space))
+                               for j_space in range(self.spaces_nbr)]
+
+        for i_item in range(self.items_nbr):
+            for j_space in range(self.spaces_nbr):
+                self.positions[i_item, j_space] = (self.cells_item[j_space] == i_item)
 
     def add_constraint(self, ct: ortools.Constraint) -> None:
         """
@@ -86,10 +92,10 @@ class ConstraintSolver:
         search and solution
         :return: None
         """
+        t0 = time.clock()
         # Decision builder
-        db = self.solver.Phase(self.positions_flat, self.solver.INT_VAR_DEFAULT,
-                               self.solver.ASSIGN_MAX_VALUE)
-
+        db = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
+                               self.solver.ASSIGN_MIN_VALUE)
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
@@ -100,11 +106,10 @@ class ConstraintSolver:
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
                 logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
-                    self.positions[i_item, j].Value() for j in
-                    range(self.spaces_nbr)]))
+                    self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
-                    sol_positions[i_item].append(self.positions[i_item, j_space].Value())
+                    sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
             self.solutions.append(sol_positions)
 
             # Number of solutions
@@ -119,7 +124,8 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: num_solutions: %i", nbr_solutions)
         logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
-        logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
+        # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
+        logging.debug("ConstraintSolver: Process time : %f", time.clock() - t0)
 
 
 class ConstraintsManager:
@@ -133,15 +139,16 @@ class ConstraintsManager:
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
         self.name = name
         self.sp = sp
-
-        self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                       self.sp.spec.plan.count_mutable_spaces())
+        if sp.spec.plan.floor_count < 2:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces())
+        else:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces(), True)
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self.init_windows_length()
-
         self.item_constraints = {}
-        self.init_item_constraints_list()
         self.add_spaces_constraints()
         self.add_item_constraints()
 
@@ -157,22 +164,8 @@ class ConstraintsManager:
                     if (component.category.name == "window"
                             or component.category.name == "doorWindow"):
                         length += (self.solver.positions[item.id, j]
-                                   * int(component.length/10))
+                                   * int(component.length / 10))
             self.windows_length[str(item.id)] = length
-
-    def init_item_constraints_list(self) -> None:
-        """
-        Constraints list initialization
-        :return: None
-        """
-        self.item_constraints = GENERAL_ITEMS_CONSTRAINTS
-        if self.sp.spec.typology >= 3:
-            for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
-                self.item_constraints["all"].append(constraint)
-            for item in self.sp.spec.items:
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
-                    self.item_constraints[item.category.name].append(constraint)
-        logging.debug("ConstraintsManager : CONSTRAINTS", self.item_constraints)
 
     def add_spaces_constraints(self) -> None:
         """
@@ -195,10 +188,15 @@ class ConstraintsManager:
         :return: None
         """
         for item in self.sp.spec.items:
-            for constraint in self.item_constraints["all"]:
+            for constraint in GENERAL_ITEMS_CONSTRAINTS["all"]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
-            for constraint in self.item_constraints[item.category.name]:
+            for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 3:
+                for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -366,8 +364,9 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
                               manager.solver.positions[item.id, k] == 0)
                     else:
                         ct = manager.and_(ct, (manager.solver.positions[
-                                  manager.symmetry_breaker_memo[item.category.name], j] *
-                              manager.solver.positions[item.id, k] == 0))
+                                                   manager.symmetry_breaker_memo[
+                                                       item.category.name], j] *
+                                               manager.solver.positions[item.id, k] == 0))
     manager.symmetry_breaker_memo[item.category.name] = item.id
     return ct
 
