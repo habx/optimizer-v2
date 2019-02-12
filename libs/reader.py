@@ -19,6 +19,7 @@ from libs.utils.geometry import (
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
+from libs.mesh import COORD_EPSILON
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../resources/blueprints"
@@ -63,9 +64,10 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
             for stairs_obstacle in stairs_obstacles:
                 stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                                          stairs_obstacle]
-                if stairs_obstacles_poly[0] == stairs_obstacles_poly[len(stairs_obstacles_poly)-1]:
+                if stairs_obstacles_poly[0] == stairs_obstacles_poly[
+                    len(stairs_obstacles_poly) - 1]:
                     stairs_obstacles_poly.remove(
-                        stairs_obstacles_poly[len(stairs_obstacles_poly)-1])
+                        stairs_obstacles_poly[len(stairs_obstacles_poly) - 1])
                 my_plan.insert_space_from_boundary(stairs_obstacles_poly,
                                                    category=SPACE_CATEGORIES["stairsObstacle"],
                                                    floor=my_plan.floor_of_given_level(
@@ -76,8 +78,8 @@ def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
             for hole in holes:
                 hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
                              hole]
-                if hole_poly[0] == hole_poly[len(hole_poly)-1]:
-                    hole_poly.remove(hole_poly[len(hole_poly)-1])
+                if hole_poly[0] == hole_poly[len(hole_poly) - 1]:
+                    hole_poly.remove(hole_poly[len(hole_poly) - 1])
                 my_plan.insert_space_from_boundary(hole_poly,
                                                    category=SPACE_CATEGORIES["hole"],
                                                    floor=my_plan.floor_of_given_level(
@@ -132,9 +134,7 @@ def _get_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
     :return:
     """
     external_spaces = input_blueprint_dict['externalSpaces']
-    floor_vertices = input_blueprint_dict["vertices"]
 
-    output = []
     for external_space in external_spaces:
         if 'polygon' in external_space.keys():
             external_space_points = external_space["polygon"]
@@ -207,7 +207,22 @@ def _get_load_bearings_walls(input_blueprint_dict: Dict) -> Sequence[Tuple[Coord
     return output
 
 
-def get_json_from_file(file_path: str = 'Antony_A22.json',
+def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
+    """
+    Remove points that are too close for Optimizer Epsilon
+    """
+    new_perimeter = [perimeter[0]]
+    for coord in perimeter:
+        if (((coord[0] - new_perimeter[-1][0]) ** 2) + (
+                (coord[1] - new_perimeter[-1][1]) ** 2)) ** 0.5 > COORD_EPSILON:
+            new_perimeter.append(coord)
+    if (((new_perimeter[0][0] - new_perimeter[-1][0]) ** 2) + (
+                (new_perimeter[0][1] - new_perimeter[-1][1]) ** 2)) ** 0.5 < COORD_EPSILON:
+        del new_perimeter[-1]
+    return new_perimeter
+
+
+def get_json_from_file(file_name: str = 'Antony_A22.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -215,7 +230,7 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
     """
 
     module_path = os.path.dirname(__file__)
-    input_file_path = os.path.join(module_path, input_folder, file_path)
+    input_file_path = os.path.join(module_path, input_folder, file_name)
 
     # retrieve data from json file
     with open(os.path.abspath(input_file_path)) as floor_plan_file:
@@ -224,13 +239,13 @@ def get_json_from_file(file_path: str = 'Antony_A22.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_name: str = 'Antony_A22',
+def get_plan_from_json(file_root: str = 'Antony_A22',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
-    file_path = file_name + ".json"
+    file_path = file_root + ".json"
     return get_json_from_file(file_path, input_folder)
 
 
@@ -244,17 +259,74 @@ def get_mesh_from_json(file_name: str,
     return get_json_from_file(file_path, input_folder)
 
 
-def create_plan_from_file(input_file: str) -> plan.Plan:
+def create_plan_from_file(input_file_name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
-    :param input_file: the path to a json file
+    :param input_file_name: the path to a json file
     :return: a plan object
     """
-    floor_plan_dict = get_json_from_file(input_file)
-    file_name = os.path.splitext(os.path.basename(input_file))[0]
-    my_plan = plan.Plan(file_name)
-    apartment = floor_plan_dict['apartment']
+    floor_plan_dict = get_json_from_file(input_file_name)
+    file_name = os.path.splitext(os.path.basename(input_file_name))[0]
 
+    if "v2" in floor_plan_dict.keys():
+        return create_plan_from_v2_data(file_name, floor_plan_dict["v2"])
+    elif "v1" in floor_plan_dict.keys():
+        return create_plan_from_v1_data(file_name, floor_plan_dict["v1"])
+    else:
+        return create_plan_from_v1_data(file_name, floor_plan_dict)
+
+
+def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
+    my_plan = plan.Plan(file_name)
+
+    # get vertices
+    vertices_by_id: Dict[int, Coords2d] = {}
+    for vertex_data in v2_data["vertices"]:
+        vertices_by_id[vertex_data["id"]] = (vertex_data["x"], vertex_data["y"])
+
+    for floor_data in v2_data["floors"]:
+        # empty perimeter
+        empty_data = next(space_data
+                          for space_data in v2_data["spaces"]
+                          if space_data["id"] in floor_data["elements"]
+                          and space_data["category"] == "empty")
+        perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
+        my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+        floor = my_plan.floor_of_given_level(floor_data["level"])
+
+        # linears except steps
+        for linear_data in v2_data["linears"]:
+            if (linear_data["id"] in floor_data["elements"]
+                    and linear_data["category"] != "startingStep"):
+                p1 = vertices_by_id[linear_data["geometry"][0]]
+                p2 = vertices_by_id[linear_data["geometry"][1]]
+                category = LINEAR_CATEGORIES[linear_data["category"]]
+                my_plan.insert_linear(p1, p2, category=category, floor=floor)
+
+        # other spaces
+        for space_data in v2_data["spaces"]:
+            if space_data["id"] in floor_data["elements"] and space_data["id"] != empty_data["id"]:
+                space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
+                space_points = _clean_perimeter(space_points)
+                category = SPACE_CATEGORIES[space_data["category"]]
+                my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
+
+        # steps
+        for linear_data in v2_data["linears"]:
+            if (linear_data["category"] == "startingStep"
+                    and linear_data["id"] in floor_data["elements"]):
+                p1 = vertices_by_id[linear_data["geometry"][0]]
+                p2 = vertices_by_id[linear_data["geometry"][1]]
+                category = LINEAR_CATEGORIES[linear_data["category"]]
+                my_plan.insert_linear(p1, p2, category=category, floor=floor)
+
+    return my_plan
+
+
+def create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
+    my_plan = plan.Plan(file_name)
+
+    apartment = v1_data["apartment"]
     for blueprint_dict in apartment["blueprints"]:
         perimeter = _get_perimeter(blueprint_dict)
         my_plan.add_floor_from_boundary(perimeter, floor_level=blueprint_dict["level"])
@@ -336,7 +408,7 @@ if __name__ == '__main__':
 
 
     def plan_read():
-        input_file = "begles-carrelets_C304.json"
+        input_file = "paris-venelles_B001.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)

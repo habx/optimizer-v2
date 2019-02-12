@@ -20,7 +20,14 @@ for edge in selector.catalog['boundary'].yield_from(space):
 from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
 
-from libs.utils.geometry import ccw_angle, opposite_vector, pseudo_equal, barycenter, distance
+from libs.utils.geometry import (
+    ccw_angle,
+    opposite_vector,
+    pseudo_equal,
+    barycenter,
+    distance,
+    parallel
+)
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
@@ -33,7 +40,8 @@ Predicate = Callable[['Edge', 'Space'], bool]
 PredicateFactory = Callable[..., Predicate]
 
 EPSILON = 1.0
-ANGLE_EPSILON = 5.0
+ANGLE_EPSILON = 1.0
+MIN_ANGLE = 5.0
 
 
 class Selector:
@@ -103,7 +111,7 @@ class SelectorFactory:
 
 
 # Queries
-def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges of the face
     :param space:
@@ -111,6 +119,17 @@ def boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     if space.edge:
         yield from space.edges
+
+
+def touching_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges touching an edge of the space
+    :param space:
+    :param _:
+    :return:
+    """
+    for edge in space.edges:
+        yield edge.next
 
 
 def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -208,6 +227,19 @@ def boundary_unique_longest(space: 'Space', *_) -> Generator['Edge', bool, None]
         yield edge
     else:
         return
+
+
+def cuts_linear(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edge cutting a linear
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.edges:
+        linear = plan.get_linear(edge)
+        if linear and linear.has_edge(space.next_edge(edge)):
+            yield edge.next
 
 
 def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -367,10 +399,12 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     return _selector
 
 
-def min_depth(depth: float) -> EdgeQuery:
+def min_depth(depth: float, min_length: float = 10) -> EdgeQuery:
     """
-    Returns an edge from a space that has a width or a depth
+    Returns an edge from a space that has a depth inferior to the specified value.
+    Note : checks the adjacent face to return the edge between to thin faces
     :param depth: the minimum depth of the edge
+    :param min_length: the minimum length of the edge
     :return: an EdgeQuery
     """
 
@@ -380,20 +414,258 @@ def min_depth(depth: float) -> EdgeQuery:
             return
 
         for face in space.faces:
-            current_edge = None
             for edge in face.edges:
+                if space.is_boundary(edge) or edge.length < min_length:
+                    continue
                 if edge.depth < depth:
-                    if edge.pair.depth < depth:
-                        yield edge
-                        break
-                    current_edge = edge
-            else:
-                if current_edge:
-                    yield current_edge
+                    yield edge
 
     return _selector
 
+
+def tight_lines(depth: float) -> EdgeQuery:
+    """
+    Returns a query that returns the edge of a line close to another line.
+    The line is chosen to enable the best grid after its removal, according to the following rules:
+    • we cannot pick a line that ends on a T junction (meaning its removal will create a non
+    rectangular face)
+    • if three lines are close together we pick the middle one
+    • if there are only two lines we pick the shortest one
+    :param depth:
+    :return: an EdgeQuery
+    """
+    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+
+        if not space.edge:
+            return
+
+        output = None
+
+        for edge in min_depth(depth)(space):
+            edges = list(_parallel_edges(edge, depth))
+            # specific case of triangle faces, otherwise edges should always have >= 2 elems
+            if len(edges) <= 1:
+                continue
+            _edges = list(filter(_filter_lines(space), edges))
+            if len(_edges) == 0:
+                continue
+            elif len(_edges) == 1:
+                output = _edges[0]
+            elif len(_edges) >= 2:
+                # we calculate the length of the line that touches a border per increment of 20
+                borders = [int(_border_length(edge, space)/20)*20 for edge in _edges]
+                lengths = [_line_length(edge) for edge in _edges]
+                for criteria in (borders, lengths):
+                    order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
+                    if order.count(0) == 1:
+                        i = order.index(0)
+                        output = _edges[i]
+                        break
+                    if len(_edges) > 1 and order.count(len(_edges) - 1) == 1:
+                        i = order.index(len(_edges) - 1)
+                        del _edges[i]
+                        del borders[i]
+                        del lengths[i]
+                else:
+                    if len(_edges) == 3:
+                        output = _edges[1]
+                    elif len(_edges) == 2:
+                        output = _edges[0] if edges.index(_edges[0]) == 1 else _edges[1]
+                    else:
+                        output = _edges[0]
+
+            if output:
+                yield output
+
+    return _selector
+
+
+def _tight_length(edge: 'Edge', depth: float) -> float:
+    """
+    Returns the length of the line where each face has a depth < depth
+    :param edge:
+    :param depth
+    :return:
+    """
+    return sum(map(lambda e: e.length, filter(lambda e: e.depth < depth, edge.line)))
+
+
+def _line_length(edge: 'Edge') -> float:
+    """
+    Returns the length of a line of an edge
+    :param edge:
+    :return:
+    """
+    return sum(map(lambda e: e.length, edge.line))
+
+
+def _border_length(edge: 'Edge', space: 'Space') -> float:
+    """
+    Returns the length of the line where the edge are on the boundary of the space
+    :param edge:
+    :param space:
+    :return:
+    """
+    return sum(map(lambda e: e.length,
+                   filter(lambda e: space.is_boundary(e) or space.is_boundary(e.pair), edge.line)))
+
+
+def _parallel_edges(edge: 'Edge', depth: float) -> ['Edge']:
+    """
+    Returns up to three parallel close edges
+          left
+    *-------------->
+    <--------------*
+
+         middle
+    *-------------->
+    <--------------*
+
+         right
+    *------------->
+    <-------------*
+    :param edge
+    :param depth
+    :return:
+    """
+    middle = None
+
+    # look to the left
+    left = _parallel(edge, depth)
+    if left:
+        middle = edge
+    else:
+        left = edge
+
+    # look to the right
+    right = _parallel(edge.pair, depth)
+    if not right:
+        if middle:
+            new_left = _parallel(left, depth)
+            if new_left:
+                return [new_left, left, middle]
+            return [left, middle]
+        else:
+            return [edge]
+    else:
+        if middle:
+            right = right.pair
+            return left, middle, right
+        else:
+            middle = right.pair
+            new_right = _parallel(middle.pair, depth)
+            if new_right:
+                return [left, right, new_right]
+            else:
+                return [edge, right]
+
+
+def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
+    """
+    Returns an edge parallel to the left at a distance smaller than the specified dist
+    :param edge:
+    :param dist:
+    :return: the parallel edge
+    """
+    for _edge in edge.siblings:
+        if (_edge is not edge and edge.face is not None
+                and parallel(_edge.pair.vector, edge.vector) and _edge.max_distance(edge) < dist):
+            return _edge.pair
+    return None
+
+
+def _line_cuts_angle(line: ['Edge'], space: 'Space') -> bool:
+    """
+    return True if the line cuts an angle in half
+    Its removal will create an angle > 180°.
+    We check the length of the edges of the angle. An angle whose edges have a length inferior
+    to min_length is acceptable.
+
+    :param line:
+    :param space
+    :return:
+    """
+    min_length = 10
+    if len(line) == 0:
+        return False
+
+    for i, edge in enumerate(line):
+        # we skip the last edge
+        if i == len(line) - 1:
+            continue
+        if not space.is_internal(edge):
+            continue
+        edges = list(edge.end.edges)
+        if len(edges) != 4:
+            continue
+        edges = list(filter(lambda e: e not in (line[i], line[i + 1],
+                                                line[i].pair, line[i + 1].pair), edges))
+        if (edges[0].length > min_length and edges[1].length > min_length and
+                not pseudo_equal(ccw_angle(edges[0].vector, edges[1].vector), 180, MIN_ANGLE)):
+            return True
+
+    return False
+
+
+def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
+    """
+    Returns True if the line contains the only edge between two windows
+    :param line:
+    :param space:
+    :return:
+    """
+    plan = space.plan
+
+    end_edge = line[len(line) - 1]
+    start_edge = line[0]
+
+    for edge in (start_edge.pair, end_edge):
+        found_linear = False
+        # forward check
+        for _edge in edge.siblings:
+            linear = plan.get_linear(_edge)
+            if linear and linear.category.name in ("window", "doorWindow"):
+                found_linear = True
+                break
+        # backward check
+        for _edge in edge.pair.reverse_siblings:
+            linear = plan.get_linear(_edge)
+            if linear and linear.category.name in ("window", "doorWindow"):
+                if found_linear:
+                    return True
+
+    return False
+
+
+def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
+    """
+    Filter function
+    :param space:
+    :return:
+    """
+    def _filter(edge: 'Edge') -> bool:
+        line = edge.line
+        return not _line_is_between_windows(line, space) and not _line_cuts_angle(line, space)
+
+    return _filter
+
 # predicates
+
+
+def t_edge(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge removal will create a non rectangular face.
+    :param edge:
+    :param space:
+    :return:
+    """
+    if space.is_boundary(edge) or space.is_boundary(edge.next):
+        return False
+
+    output = (edge.next.pair.next.pair.next.pair is edge
+              and not edge.next.pair.next_is_aligned)
+
+    return output
 
 
 def not_space_boundary(edge: 'Edge', space: 'Space') -> bool:
@@ -445,7 +717,6 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
-    TODO : add this as a method to space
     """
     face = edge.pair.face
 
@@ -462,8 +733,8 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
 
 def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
+    Returns the edges of the space that are before a corner of a space.
+    A corner is defined as two edges not aligned.
     """
     edge_corner = None
     for edge in space.edges:
@@ -475,8 +746,7 @@ def corner_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def check_corner_edge(edge: 'Edge', space: 'Space') -> bool:
     """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
+    Returns True if the edge is not aligned with its previous space edge
     """
     return not space.next_is_aligned(space.previous_edge(edge))
 
@@ -499,6 +769,41 @@ def h_edge(edge: 'Edge', space: 'Space') -> bool:
 
     return True
 
+
+def corner_face(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge is before a corner of the space
+    :param edge:
+    :param space:
+    :return:
+    """
+    min_corner_angle = 50  # Arbitratry TODO: parametrize this
+    if not space.is_internal(edge) and space.is_internal(edge.next):
+        return False
+
+    return edge.next_angle > 180 + min_corner_angle
+
+
+def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge is internal of the space and not along one of its direction
+    :param edge:
+    :param space:
+    :return:
+    """
+    if not space.directions:
+        return False
+
+    if not space.is_internal(edge):
+        return False
+
+    vector = edge.unit_vector
+    delta = map(lambda d: pseudo_equal(ccw_angle(vector, d), 180, ANGLE_EPSILON), space.directions)
+    if max(list(delta)) == 0:
+        return True
+
+    return False
+
 # predicate factories
 
 
@@ -519,6 +824,21 @@ def is_not(predicate: Predicate) -> Predicate:
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         return not predicate(edge, space)
+
+    return _predicate
+
+
+def _or(*predicates: Predicate) -> Predicate:
+    """
+    Returns a predicate that returns True if at least one of the specified predicates is True
+    :param predicates:
+    :return:
+    """
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        for predicate in predicates:
+            if predicate(edge, space):
+                return True
+        return False
 
     return _predicate
 
@@ -552,7 +872,7 @@ def next_has(predicate: Predicate) -> Predicate:
 def edge_angle(min_angle: Optional[float] = None,
                max_angle: Optional[float] = None,
                previous: bool = False,
-               space_boundary: bool = False) -> Predicate:
+               on_boundary: bool = False) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if an edge angle with its next edge
@@ -560,7 +880,7 @@ def edge_angle(min_angle: Optional[float] = None,
     :param min_angle:
     :param max_angle:
     :param previous : whether to check for the angle to the next edge or to the previous edge
-    :param space_boundary: whether to check for angle between to space siblings
+    :param on_boundary: whether to check for angle between to space siblings
     :return: boolean
     """
     if min_angle is None and max_angle is None:
@@ -569,7 +889,7 @@ def edge_angle(min_angle: Optional[float] = None,
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
 
         # compute the angle
-        if space_boundary:
+        if on_boundary:
             if not space.is_boundary(edge):
                 return False
             _angle = space.next_angle(edge) if not previous else space.previous_angle(edge)
@@ -582,11 +902,11 @@ def edge_angle(min_angle: Optional[float] = None,
                 return min_angle + ANGLE_EPSILON <= _angle <= max_angle - ANGLE_EPSILON
             else:
                 # we check for pseudo equality
-                return min_angle - ANGLE_EPSILON <= _angle <= max_angle + ANGLE_EPSILON
+                return min_angle <= _angle <= max_angle
         if min_angle is not None:
-            return _angle >= min_angle + ANGLE_EPSILON
+            return _angle >= min_angle
         if max_angle is not None:
-            return _angle <= max_angle - ANGLE_EPSILON
+            return _angle <= max_angle
         return True
 
     return _predicate
@@ -613,7 +933,7 @@ def edge_length(min_length: float = None, max_length: float = None) -> Predicate
     return _predicate
 
 
-def aligned_edges_length(min_length: float = None, max_length: float = None) -> Predicate:
+def space_aligned_edges_length(min_length: float = None, max_length: float = None) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if an edge an all following aligned edges have a total length
@@ -624,10 +944,14 @@ def aligned_edges_length(min_length: float = None, max_length: float = None) -> 
     :return:
     """
 
-    def _predicate(edge: 'Edge', _: 'Space') -> bool:
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+
+        # the edge has to be on the boundary of the space
+        if not space.is_boundary(edge):
+            return False
 
         length = 0
-        for aligned_edge in edge.aligned_siblings:
+        for aligned_edge in space.aligned_siblings(edge):
             length += aligned_edge.length
 
         if min_length is not None and max_length is not None:
@@ -671,15 +995,24 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
                          ' {0}'.format(position))
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        # check if the edge belongs to a linear
+        linear = space.plan.get_linear(edge)
+        is_on_linear = linear and linear.category.name in category_names
+
         if position == 'on':
-            linear = space.plan.get_linear(edge)
-            return linear and linear.category.name in category_names
+            return is_on_linear
+
+        if is_on_linear:
+            return False
+
         if position == 'before':
             next_linear = space.plan.get_linear(edge.next)
             return next_linear and next_linear.category.name in category_names
+
         if position == 'after':
             previous_linear = space.plan.get_linear(edge.previous)
             return previous_linear and previous_linear.category.name in category_names
+
         if position == 'between':
             next_linear = space.plan.get_linear(edge.next)
             previous_linear = space.plan.get_linear(edge.previous)
@@ -721,7 +1054,7 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
     return _predicate
 
 
-def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 19.0) -> Predicate:
+def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 20.0) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if the edge is closer than
@@ -731,11 +1064,17 @@ def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 19.0)
     :return: function
     """
 
-    def _predicate(edge: 'Edge', _: 'Space') -> bool:
-        external_edges = []
-        for sibling in edge.siblings:
-            if sibling.pair.face is None:
-                external_edges.append(sibling)
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        plan = space.plan
+
+        # per convention if an edge is on the apartment boundary it cannot be too close
+        if plan.is_external(edge.pair):
+            return False
+
+        # we must not take into account the external edge that is connected to the edge
+        # in the case of non orthogonal cuts
+        external_edges = [e for e in edge.siblings if plan.is_external(e.pair)
+                          and e is not edge.next and e.next is not edge]
 
         if not external_edges:
             return False
@@ -744,36 +1083,9 @@ def close_to_mesh_boundary(min_distance: float = 59.0, min_length: float = 19.0)
             if external_edge.length < min_length:
                 continue
             max_distance = external_edge.max_distance(edge)
-            if max_distance is not None and max_distance <= min_distance:
+            if max_distance is not None and max_distance < min_distance:
                 return True
 
-        return False
-
-    return _predicate
-
-
-def cuts_linear(*category_names: str) -> Predicate:
-    """
-    Returns True if the edge cuts a linear
-    :param category_names:
-    :return:
-    """
-    def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        # per convention we return False for an edge that is on the border of a space
-        if space.is_boundary(edge):
-            return False
-
-        plan = space.plan
-        linear_found = {}
-        for _edge in edge.end.edges:
-            # check for the edge and its pair.
-            for half_edge in (_edge, _edge.pair):
-                linear = plan.get_linear(half_edge)
-                if linear and linear.category.name in category_names:
-                    # if we find two edges with the same linear return true
-                    if linear.id in linear_found:
-                        return True
-                    linear_found[linear.id] = 1
         return False
 
     return _predicate
@@ -789,6 +1101,8 @@ def adjacent_to_space(*category_names: str) -> Predicate:
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if not space.is_boundary(edge):
+            return False
         space = space.plan.get_space_of_edge(edge.pair)
         return space is not None and space.category.name in category_names
 
@@ -852,83 +1166,83 @@ def longest_of_space() -> Predicate:
 
 # Catalog Selectors
 SELECTORS = {
-    "space_boundary": Selector(boundary),
+    "space_boundary": Selector(space_boundary),
 
     "seed_component_boundary": Selector(seed_component_boundary),
 
     "previous_angle_salient": Selector(
-        boundary,
+        space_boundary,
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0, previous=True),
-            aligned_edges_length(min_length=50.0),
-            previous_has(aligned_edges_length(min_length=50.0))
+            space_aligned_edges_length(min_length=50.0),
+            previous_has(space_aligned_edges_length(min_length=50.0))
         ]
     ),
 
     "next_angle_salient": Selector(
-        boundary,
+        space_boundary,
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0),
-            aligned_edges_length(min_length=50.0),
-            next_has(aligned_edges_length(min_length=50.0))
+            space_aligned_edges_length(min_length=50.0),
+            next_has(space_aligned_edges_length(min_length=50.0))
         ]
     ),
 
     "previous_angle_salient_non_ortho": Selector(
-        boundary,
+        space_boundary,
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0, previous=True),
             is_not(edge_angle(270, 270, previous=True)),
-            aligned_edges_length(min_length=150.0),
-            previous_has(aligned_edges_length(min_length=150.0))
+            space_aligned_edges_length(min_length=150.0),
+            previous_has(space_aligned_edges_length(min_length=150.0))
         ]
     ),
 
     "next_angle_salient_non_ortho": Selector(
-        boundary,
+        space_boundary,
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0),
             is_not(edge_angle(270, 270)),
-            aligned_edges_length(min_length=150.0),
-            next_has(aligned_edges_length(min_length=150.0))
+            space_aligned_edges_length(min_length=150.0),
+            next_has(space_aligned_edges_length(min_length=150.0))
         ]
     ),
 
-    "next_angle_convex_non_ortho": Selector(
-        boundary,
+    "next_angle_convex": Selector(
+        space_boundary,
         [
             edge_angle(90.0, 180.0),
             is_not(adjacent_to_space("duct")),
-            aligned_edges_length(min_length=150.0),
-            next_has(aligned_edges_length(min_length=150.0))
+            space_aligned_edges_length(min_length=150.0),
+            next_has(space_aligned_edges_length(min_length=150.0))
         ]
     ),
 
-    "previous_angle_convex_non_ortho": Selector(
-        boundary,
+    "previous_angle_convex": Selector(
+        space_boundary,
         [
             edge_angle(90.0, 180.0, previous=True),
-            aligned_edges_length(min_length=150.0),
-            previous_has(aligned_edges_length(min_length=150.0)),
+            space_aligned_edges_length(min_length=150.0),
+            previous_has(space_aligned_edges_length(min_length=150.0)),
             is_not(adjacent_to_space("duct"))
         ]
     ),
 
     "previous_angle_salient_ortho": Selector(
-        boundary,
+        space_boundary,
         [
-            edge_angle(270.0, 270.0, previous=True, space_boundary=True),
+            edge_angle(270.0, 270.0, previous=True, on_boundary=True),
             is_not(adjacent_to_space("duct"))
         ]
     ),
     "next_angle_salient_ortho": Selector(
-        boundary,
+        space_boundary,
         [
-            edge_angle(270.0, 270.0, space_boundary=True),
+            edge_angle(270.0, 270.0, on_boundary=True),
             is_not(adjacent_to_space("duct"))
         ]
     ),
@@ -936,30 +1250,69 @@ SELECTORS = {
     "close_to_window": Selector(
         boundary_faces,
         [
-            close_to_linear('window', 'doorWindow', min_distance=200.0),
+            close_to_linear('window', 'doorWindow', min_distance=40.0),
             not_space_boundary
         ]
     ),
 
-    "cuts_linear": Selector(boundary_faces, [cuts_linear("window", "doorWindow", "frontDoor")]),
+    "cuts_linear": Selector(cuts_linear, []),
 
     "between_windows": Selector(
-        boundary,
+        space_boundary,
         [
             touches_linear('window', 'doorWindow', position='between')
         ]
     ),
 
     "between_edges_between_windows": Selector(
-        boundary,
+        space_boundary,
         [
             previous_has(touches_linear('window', 'doorWindow', position='after')),
             next_has(touches_linear('window', 'doorWindow'))
         ]
     ),
 
+    "front_door": Selector(
+        space_boundary,
+        [
+            touches_linear("frontDoor", position="on")
+        ]
+    ),
+
+    "before_front_door": Selector(
+        space_boundary,
+        [
+            touches_linear("frontDoor"),
+            edge_length(min_length=10)
+        ]
+    ),
+
+    "after_front_door": Selector(
+        space_boundary,
+        [
+            touches_linear("frontDoor", position="after"),
+            edge_length(min_length=10)
+        ]
+    ),
+
+    "before_window": Selector(
+        space_boundary,
+        [
+            touches_linear("window", "doorWindow"),
+            edge_length(min_length=50)
+        ]
+    ),
+
+    "after_window": Selector(
+        space_boundary,
+        [
+            touches_linear("window", "doorWindow", position="after"),
+            edge_length(min_length=50)
+        ]
+    ),
+
     "aligned_edges": Selector(
-        boundary,
+        space_boundary,
         [
             edge_angle(180.0, 180.0),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
@@ -970,35 +1323,35 @@ SELECTORS = {
     "all_aligned_edges": Selector(
         boundary_faces,
         [
-            edge_angle(180.0, 180.0),
+            edge_angle(180 - 15, 180 + 15),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
             is_not(is_linear('window', 'doorWindow', 'frontDoor'))
         ]
     ),
 
     "adjacent_to_load_bearing_wall": Selector(
-        boundary,
+        space_boundary,
         [
             adjacent_to_space("loadBearingWall")
         ]
     ),
 
     "edge_min_150": Selector(
-        boundary,
+        space_boundary,
         [
             edge_length(min_length=150.0)
         ]
     ),
 
     "edge_min_300": Selector(
-        boundary,
+        space_boundary,
         [
             edge_length(min_length=300.0)
         ]
     ),
 
     "edge_min_500": Selector(
-        boundary,
+        space_boundary,
         [
             edge_length(min_length=500.0)
         ]
@@ -1075,7 +1428,7 @@ SELECTORS = {
     ),
 
     "corner_stone": Selector(
-        boundary,
+        space_boundary,
         [
             corner_stone
         ]
@@ -1100,27 +1453,66 @@ SELECTORS = {
     ),
 
     "duct_edge_min_10": Selector(
-        adjacent_to_rectangular_duct,
+        space_boundary,
         [
+            adjacent_to_space("duct"),
             edge_length(min_length=10)
         ]
     ),
 
+    "duct_edge_min_120": Selector(
+        space_boundary,
+        [
+            adjacent_to_space("duct"),
+            edge_length(min_length=120)
+        ]
+    ),
+
+    "corner_face": Selector(boundary_faces, [corner_face]),
+
     "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct),
 
-    "window_doorWindow": Selector(boundary, [touches_linear("window", "doorWindow",
-                                                            position="on")]),
+    "window_doorWindow": Selector(space_boundary, [touches_linear("window", "doorWindow",
+                                                                  position="on")]),
 
-    "close_to_external_wall": Selector(boundary_faces, [edge_length(min_length=20),
-                                                        close_to_mesh_boundary(119)]),
+    "close_to_external_wall": Selector(boundary_faces, [close_to_apartment_boundary(40, 20)]),
 
-    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=150)])
+    "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
+
+    "previous_concave_non_ortho": Selector(space_boundary, [
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True, previous=True),
+            space_aligned_edges_length(min_length=50.0),
+            previous_has(space_aligned_edges_length(min_length=50.0))
+    ]),
+
+    "next_concave_non_ortho": Selector(space_boundary, [
+            edge_angle(180.0 + MIN_ANGLE, 270.0 - MIN_ANGLE, on_boundary=True),
+            space_aligned_edges_length(min_length=50.0),
+            next_has(space_aligned_edges_length(min_length=50.0))
+    ]),
+
+    "previous_convex_non_ortho": Selector(space_boundary, [
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True, previous=True),
+            space_aligned_edges_length(min_length=50.0),
+            previous_has(space_aligned_edges_length(min_length=50.0))
+    ]),
+
+    "next_convex_non_ortho": Selector(space_boundary, [
+            edge_angle(90.0 + MIN_ANGLE, 180.0 - MIN_ANGLE, on_boundary=True),
+            space_aligned_edges_length(min_length=50.0),
+            next_has(space_aligned_edges_length(min_length=50.0))
+    ]),
+
+    "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),
+
+    "wrong_direction": Selector(touching_space_boundary, [wrong_direction])
 
 }
 
 
 SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
-    "edges_length": SelectorFactory(lambda: boundary, [edge_length]),
-    "min_depth": SelectorFactory(min_depth)
+    "edges_length": SelectorFactory(lambda: space_boundary, [edge_length]),
+    "min_depth": SelectorFactory(min_depth),
+    "tight_lines": SelectorFactory(tight_lines)
 }
