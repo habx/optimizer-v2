@@ -406,6 +406,38 @@ class Seeder:
             else:
                 fuse = False
 
+        return self
+
+    def fuse_small_space(self, area_force_fuse: float = 10000):
+        """
+        Enforce fusion of small cells, with area under area_force_fuse
+        :param float:
+        :return:
+        """
+
+        fuse = True
+        while fuse:
+            list_small_spaces = [sp for sp in self.plan.spaces if
+                                 sp.mutable
+                                 and sp.area > 0 and sp.area < area_force_fuse]
+            #input("small space {0}".format(list_small_spaces))
+            for sp in list_small_spaces:
+                adjacent_spaces = [adj for adj in sp.adjacent_spaces() if adj.mutable]
+                contact_length = 0
+                fuse_space = None
+                for adj in adjacent_spaces:
+                    if sp.contact_length(adj) > contact_length:
+                        contact_length = sp.contact_length(adj)
+                        fuse_space = adj
+                if fuse_space:
+                    fuse_space.merge(sp)
+                    self.plan.remove_null_spaces()
+                    break
+            else:
+                fuse = False
+
+        return self
+
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
         Merges the seed spaces according to the selector
@@ -1073,7 +1105,7 @@ if __name__ == '__main__':
         # input_file = "Massy_C204.json"
         # input_file = "Levallois_Tisnes.json"
         # input_file = "Bussy_A202.json"
-        # input_file = "Edison_20.json"
+        input_file = "Sartrouville_RDC.json"
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1086,7 +1118,8 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
          .from_space_empty_to_seed()
-         .fusion(fusion_rules=fusion_rules_test, target_number_of_cells=10))
+         .fusion(fusion_rules=fusion_rules_test, target_number_of_cells=10)
+         .fuse_small_space(area_force_fuse=10000))
 
         plan.remove_null_spaces()
         plan.plot(show=True)
