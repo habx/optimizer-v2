@@ -965,8 +965,8 @@ class Edge(MeshComponent):
         if self.face is None or self.face is not other.face:
             raise ValueError("Cannot compute the distance of two edges not in the same face")
 
-        # check if the edge has a projection to the edge
-        if ccw_angle(other.opposite_vector, self.vector) >= 90.0 - MIN_ANGLE:
+        # ATTENTION : if the edge is not quasi parallel to the edge return infinity
+        if not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
         d1, d2, d3, d4 = None, None, None, None

@@ -869,6 +869,32 @@ def next_has(predicate: Predicate) -> Predicate:
     return _predicate
 
 
+def space_previous_has(predicate: Predicate) -> Predicate:
+    """
+    Applies the predicate to the previous edge
+    :param predicate:
+    :return:
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        return predicate(space.previous_edge(edge), space)
+
+    return _predicate
+
+
+def space_next_has(predicate: Predicate) -> Predicate:
+    """
+    Applies the predicate to the next edge
+    :param predicate:
+    :return:
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        return predicate(space.next_edge(edge), space)
+
+    return _predicate
+
+
 def edge_angle(min_angle: Optional[float] = None,
                max_angle: Optional[float] = None,
                previous: bool = False,
@@ -1175,8 +1201,8 @@ SELECTORS = {
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0, previous=True),
-            space_aligned_edges_length(min_length=50.0),
-            previous_has(space_aligned_edges_length(min_length=50.0))
+            space_aligned_edges_length(min_length=20.0),
+            previous_has(space_aligned_edges_length(min_length=20.0))
         ]
     ),
 
@@ -1185,8 +1211,8 @@ SELECTORS = {
         [
             is_not(adjacent_to_space("duct")),
             edge_angle(180.0, 360.0),
-            space_aligned_edges_length(min_length=50.0),
-            next_has(space_aligned_edges_length(min_length=50.0))
+            space_aligned_edges_length(min_length=20.0),
+            next_has(space_aligned_edges_length(min_length=20.0))
         ]
     ),
 
@@ -1247,11 +1273,11 @@ SELECTORS = {
         ]
     ),
 
-    "close_to_window": Selector(
+    "close_to_linear": Selector(
         boundary_faces,
         [
-            close_to_linear('window', 'doorWindow', min_distance=40.0),
-            not_space_boundary
+            not_space_boundary,
+            close_to_linear('window', 'doorWindow', 'frontDoor', min_distance=150.0)
         ]
     ),
 
@@ -1325,7 +1351,9 @@ SELECTORS = {
         [
             edge_angle(180 - 15, 180 + 15),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
-            is_not(is_linear('window', 'doorWindow', 'frontDoor'))
+            is_not(is_linear('window', 'doorWindow', 'frontDoor')),
+            is_not(adjacent_to_space('duct')),
+            next_has(is_not(adjacent_to_space('duct')))
         ]
     ),
 
@@ -1460,13 +1488,20 @@ SELECTORS = {
         ]
     ),
 
-    "duct_edge_min_120": Selector(
-        space_boundary,
-        [
-            adjacent_to_space("duct"),
-            edge_length(min_length=120)
-        ]
-    ),
+    "duct_edge_min_120": Selector(space_boundary, [adjacent_to_space("duct"),
+                                                   edge_length(min_length=120)]),
+
+    "duct_edge_min_160": Selector(space_boundary, [adjacent_to_space("duct"),
+                                                   edge_length(min_length=160)]),
+
+    "duct_edge_min_80": Selector(space_boundary, [adjacent_to_space("duct"),
+                                                  edge_length(min_length=80)]),
+
+    "duct_edge_not_touching_wall": Selector(space_boundary,
+                                            [adjacent_to_space("duct"),
+                                             space_next_has(adjacent_to_space("duct")),
+                                             space_previous_has(adjacent_to_space("duct")),
+                                             edge_length(min_length=20)]),
 
     "corner_face": Selector(boundary_faces, [corner_face]),
 
@@ -1475,7 +1510,7 @@ SELECTORS = {
     "window_doorWindow": Selector(space_boundary, [touches_linear("window", "doorWindow",
                                                                   position="on")]),
 
-    "close_to_external_wall": Selector(boundary_faces, [close_to_apartment_boundary(40, 20)]),
+    "close_to_wall": Selector(boundary_faces, [close_to_apartment_boundary(90, 20)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
