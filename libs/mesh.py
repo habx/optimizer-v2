@@ -941,11 +941,12 @@ class Edge(MeshComponent):
 
         return output
 
-    def max_distance(self, other: 'Edge') -> Optional[float]:
+    def max_distance(self, other: 'Edge', parallel: bool = False) -> Optional[float]:
         """
         Returns the max distance between to edges of the same face, according to the normal
         vector of the edge. If the distance is infinite return None per convention.
         :param other:
+        :param parallel: flag to indicate whether we only consider pseudo parallel edges
         :return: the distance or None
 
         Example:
@@ -966,7 +967,7 @@ class Edge(MeshComponent):
             raise ValueError("Cannot compute the distance of two edges not in the same face")
 
         # ATTENTION : if the edge is not quasi parallel to the edge return infinity
-        if not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
+        if parallel and not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
         d1, d2, d3, d4 = None, None, None, None

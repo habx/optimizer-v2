@@ -569,7 +569,8 @@ def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
     """
     for _edge in edge.siblings:
         if (_edge is not edge and edge.face is not None
-                and parallel(_edge.pair.vector, edge.vector) and _edge.max_distance(edge) < dist):
+                and parallel(_edge.pair.vector, edge.vector)
+                and _edge.max_distance(edge, parallel=True) < dist):
             return _edge.pair
     return None
 
@@ -1071,7 +1072,7 @@ def close_to_linear(*category_names: str, min_distance: float = 50.0) -> Predica
             return False
 
         for linear_edge in linear_edges:
-            max_distance = linear_edge.max_distance(edge)
+            max_distance = linear_edge.max_distance(edge, parallel=True)
             if max_distance is not None and max_distance <= min_distance:
                 return True
 
@@ -1108,7 +1109,7 @@ def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 
         for external_edge in external_edges:
             if external_edge.length < min_length:
                 continue
-            max_distance = external_edge.max_distance(edge)
+            max_distance = external_edge.max_distance(edge, parallel=True)
             if max_distance is not None and max_distance < min_distance:
                 return True
 
