@@ -12,7 +12,7 @@ from libs.specification import Specification
 from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS, FILL_METHODS_HOMOGENEOUS
+from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
 from libs.category import SPACE_CATEGORIES
 import networkx as nx
 
@@ -255,17 +255,17 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A105.json"  # 5 Levallois_Letourneur /Antony_A22/begles-carrelets_C304
+        input_file = "grenoble-cambridge_143.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
 
-        GRIDS["ortho_grid"].apply_to(plan)
+        GRIDS["optimal_grid"].apply_to(plan)
 
         plan.plot()
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow()
-         #.shuffle(SHUFFLES["seed_square_shape"])
+         # .shuffle(SHUFFLES["seed_square_shape"])
          .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
          .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
          .simplify(SELECTORS["fuse_small_cell_without_components"])
@@ -279,8 +279,13 @@ if __name__ == '__main__':
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
-
+        print(plan)
+        import time
+        t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
+        logging.debug("space_planner time : %f", time.clock() - t0)
+        t1 = time.clock()
         best_solutions = space_planner.solution_research()
+        logging.debug("solution_research time: %f", time.clock() - t1)
 
     space_planning()

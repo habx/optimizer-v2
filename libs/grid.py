@@ -185,7 +185,7 @@ sequence_grid = Grid('sequence_grid', [
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["close_to_window"],
+        SELECTORS["close_to_linear"],
         MUTATIONS['remove_edge'], False
     ),
     (
@@ -205,7 +205,7 @@ sequence_grid = Grid('sequence_grid', [
         MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
-        SELECTORS["close_to_window"],
+        SELECTORS["close_to_linear"],
         MUTATIONS['remove_edge'], False
 
     )
@@ -268,36 +268,21 @@ rectangle_grid = Grid("rectangle", [
                                                                         relative_offset=1.0), True)
 ])
 
+section_grid = Grid("section", [
+    (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["previous_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+])
+
 corner_grid = Grid("corner", [
     (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](1), True)
 ])
 
-duct_grid = Grid("duct", [
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100, padding=60), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](0), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["barycenter_cut"](1), True),
-    (SELECTORS["duct_edge_min_120"], MUTATION_FACTORIES["barycenter_cut"](0.5),
-     True),
-])
-
-entrance_grid = Grid("front_door", [
-    (SELECTORS["front_door"], MUTATION_FACTORIES["slice_cut"](130, padding=20), True),
-    (SELECTORS["before_front_door"],
-     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
-    (SELECTORS["after_front_door"], MUTATION_FACTORIES["translation_cut"](5), True)
-])
-
 load_bearing_wall_grid = Grid("load_bearing_wall", [
     (SELECTORS["adjacent_to_load_bearing_wall"],
      MUTATION_FACTORIES["barycenter_cut"](0), True)
-])
-
-completion_grid = Grid("completion", [
-    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
-    (SELECTORS["edge_min_150"], MUTATION_FACTORIES["barycenter_cut"](0.5), False),
-    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False)
 ])
 
 window_grid = Grid("window", [
@@ -309,22 +294,38 @@ window_grid = Grid("window", [
     (SELECTORS["after_window"], MUTATION_FACTORIES["translation_cut"](10), True)
 ])
 
+duct_grid = Grid("duct", [
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100, padding=60), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
+     True),
+])
+
+entrance_grid = Grid("front_door", [
+    (SELECTORS["front_door"], MUTATION_FACTORIES["slice_cut"](130, padding=20), True),
+    (SELECTORS["before_front_door"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_front_door"], MUTATION_FACTORIES["translation_cut"](5), True)
+])
+
+completion_grid = Grid("completion", [
+    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
+    # (SELECTORS["edge_min_150"], MUTATION_FACTORIES["barycenter_cut"](0.5), False),
+    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False)
+])
+
 cleanup_grid = Grid("cleanup", [
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
-    (SELECTORS["close_to_external_wall"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_linear"], MUTATIONS["remove_edge"], False),
     (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
-    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
+    # (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
 
-section_grid = Grid("section", [
-    (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
-    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
-    (SELECTORS["previous_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
-    (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
-])
 
 GRIDS = {
     "ortho_grid": ortho_grid,
@@ -347,7 +348,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("saint-maur-raspail_H07.json")
+        plan = reader.create_plan_from_file("Edison_10.json")
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)

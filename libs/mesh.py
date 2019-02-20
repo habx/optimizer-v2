@@ -46,7 +46,7 @@ ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
-INFINITY = 2^63 - 1
+INFINITY = 2**63 - 1
 
 
 class MeshOps(enum.Enum):
@@ -942,11 +942,12 @@ class Edge(MeshComponent):
 
         return output
 
-    def max_distance(self, other: 'Edge') -> Optional[float]:
+    def max_distance(self, other: 'Edge', parallel: bool = False) -> Optional[float]:
         """
         Returns the max distance between to edges of the same face, according to the normal
         vector of the edge. If the distance is infinite return None per convention.
         :param other:
+        :param parallel: flag to indicate whether we only consider pseudo parallel edges
         :return: the distance or None
 
         Example:
@@ -966,8 +967,8 @@ class Edge(MeshComponent):
         if self.face is None or self.face is not other.face:
             raise ValueError("Cannot compute the distance of two edges not in the same face")
 
-        # check if the edge has a projection to the edge
-        if ccw_angle(other.opposite_vector, self.vector) >= 90.0 - MIN_ANGLE:
+        # ATTENTION : if the edge is not quasi parallel to the edge return infinity
+        if parallel and not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
         d1, d2, d3, d4 = None, None, None, None
