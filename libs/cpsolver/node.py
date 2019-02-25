@@ -92,25 +92,22 @@ class DecisionNode:
             if not cell.is_bound():
                 yield cell
 
-    def has_in_domain(self, value_ix: int) -> Generator['Cell', None, None]:
+    def cells_with_value_ix(self,
+                            value_ix: int,
+                            bound: Optional[bool] = None) -> Generator['Cell', None, None]:
         """
         Yields cells that can take the value
         :param value_ix:
+        :param bound: whether the cell is bound. True = bound, False = not bound, None = either
         :return:
         """
-        for cell in self.cells:
-            if cell.has_value_ix(value_ix):
-                yield cell
-
-    def has_value_ix(self, value: int) -> Generator['Cell', None, None]:
-        """
-        Yield the cells bounded to the value
-        :param value:
-        :return:
-        """
-        for cell in self.cells:
-            if cell.is_bound() and cell.value_ix() == value:
-                yield cell
+        if bound is None:
+            return (cell for cell in self.cells if cell.has_value_ix(value_ix))
+        if bound:
+            return (cell for cell in self.cells if cell.has_value_ix(value_ix) and cell.is_bound())
+        else:
+            return (cell for cell in self.cells
+                    if cell.has_value_ix(value_ix) and not cell.is_bound())
 
     def get_cell(self, ix: int) -> 'Cell':
         """

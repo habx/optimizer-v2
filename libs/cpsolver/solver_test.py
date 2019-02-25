@@ -3,9 +3,11 @@
 Testing module for the solver module
 """
 from libs.cpsolver.solver import Solver
+from typing import List
+import math
 
 
-def adjacency_matrix(size: int):
+def adjacency_matrix(size: int) -> List[List[int]]:
     """
     Returns a square (size x size) grid adjacency matrix
     :param size:
@@ -29,7 +31,26 @@ def adjacency_matrix(size: int):
     return output
 
 
-def test_simple_problem():
+def distance_matrix(size: int):
+    """
+    Returns a square (size x size) grid distance matrix
+    :param size:
+    :return:
+    """
+    output = [[0 for _ in range(size**2)] for _ in range(size**2)]
+    for i in range(size ** 2):
+        col_i = i % size
+        row_i = i // size
+        for j in range(i + 1, size ** 2):
+            col_j = j % size
+            row_j = j // size
+            output[i][j] = math.sqrt((abs(col_j - col_i) + 1)**2 + (abs(row_j - row_i) + 1)**2)
+            output[j][i] = output[i][j]
+
+    return output
+
+
+def simple_problem():
     """
     Testing of a simple solver
     :return:
@@ -92,28 +113,31 @@ def solve_complex():
     """
     num_col = 6
     spaces = [
-        {"area": 36, "components": {"window": 3}},  # living
-        {"area": 12, "components": {"window": 1, "duct": 1}},  # kitchen
-        {"area": 18, "components": {"window": 2}},  # bedroom 1
-        {"area": 12, "components": {"window": 1}},  # bedroom 2
-        {"area": 9, "components": {"window": 1}},  # bedroom 3
-        {"area": 6, "components": {"duct": 1}},  # bathroom 1
-        {"area": 6, "components": {"duct": 1}},  # bathroom 2
-        {"area": 3, "components": {"duct": 1, "window": -1}},  # wc
-        {"area": 6, "components": {"frontDoor": 1, "window": -1}},  # entrance
+        {"area": 24, "components": {"window": 2}},  # 0. living
+        {"area": 12, "components": {"window": 1, "duct": 1}},  # 1. kitchen
+        {"area": 18, "components": {"window": 1}},  # 2. bedroom 1
+        {"area": 18, "components": {"window": 1}},  # 3. bedroom 2
+        {"area": 12, "components": {"window": 1}},  # 4. bedroom 3
+        {"area": 9, "components": {"duct": 1}},  # 5. bathroom 1
+        {"area": 6, "components": {"duct": 1}},  # 6. bathroom 2
+        {"area": 3, "components": {"duct": 1, "window": -1}},  # 7. wc
+        {"area": 6, "components": {"frontDoor": 1, "window": -1}},  # 8. entrance
     ]
 
     num_spaces = len(spaces)
     num_cells = num_col ** 2
 
     matrix = adjacency_matrix(num_col)
+    distances = distance_matrix(num_col)
+    logging.debug(distances)
+
     params = {
         "num_solutions": 10,
-        "num_fails": 1500,
-        "num_restarts": 36
+        "num_fails": 300000,
+        "num_restarts": 0
     }
 
-    my_solver = Solver(matrix, params)
+    my_solver = Solver(matrix, distances, params=params)
     domain = set(range(num_spaces))
     my_solver.add_values(domain)
 
@@ -130,11 +154,15 @@ def solve_complex():
 
         my_solver.add_cell(domain, props, ix)
 
+    my_solver.add_symmetry_breaker_constraint(2, 3)
+
     # add  constraints
     for ix, space in enumerate(spaces):
+        # component constraint
         my_solver.add_component_constraint(ix, space["components"])
 
-    for ix, space in enumerate(spaces):
+        # max size constraint
+        my_solver.add_max_size_constraint(ix, math.sqrt(space["area"] / 3.0) * 1.65)
 
         # connectivity constraint
         my_solver.add_connectivity_constraint(ix, matrix)
@@ -145,3 +173,9 @@ def solve_complex():
         my_solver.add_area_constraint(ix, min_area, max_area)
 
     assert(len(my_solver.solve()) == 10)
+
+
+if __name__ == '__main__':
+    import logging
+    logging.getLogger().setLevel(logging.DEBUG)
+    solve_complex()
