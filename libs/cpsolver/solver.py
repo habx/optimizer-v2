@@ -21,7 +21,8 @@ from libs.cpsolver.constraint import (
     ComponentConstraint,
     ConnectivityConstraint,
     SymmetryBreakerConstraint,
-    MaxSizeConstraint
+    MaxSizeConstraint,
+    MaxPerimeterConstraint
 )
 from libs.cpsolver.variables import Cell, Value
 from libs.cpsolver.node import DecisionNode
@@ -190,6 +191,17 @@ class Solver:
         """
         value = self.get_value(value_ix)
         constraint = MaxSizeConstraint(max_size)
+        value.bind(constraint)
+
+    def add_max_perimeter_constraint(self, value_ix: int, max_perimeter: float):
+        """
+        Adds a connectivity constraint to the solver
+        :param value_ix
+        :param max_perimeter
+        :return: nothing
+        """
+        value = self.get_value(value_ix)
+        constraint = MaxPerimeterConstraint(max_perimeter)
         value.bind(constraint)
 
     def has_been_tried(self, cell_ix: int) -> bool:

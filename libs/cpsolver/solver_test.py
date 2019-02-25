@@ -6,10 +6,15 @@ from libs.cpsolver.solver import Solver
 from typing import List
 import math
 
+# the perimeter must be < sqrt(Area) * PERIMETER_RATIO
+PERIMETER_RATIO = 4.8
+# the max distance between to cells must be < sqrt(space.area) * MAX_SIZE_RATIO
+MAX_SIZE_RATIO = 1.6
+
 
 def adjacency_matrix(size: int) -> List[List[int]]:
     """
-    Returns a square (size x size) grid adjacency matrix
+    Returns a square (size ** 2 x size ** 2) grid adjacency matrix
     :param size:
     :return:
     """
@@ -132,7 +137,7 @@ def solve_complex():
     logging.debug(distances)
 
     params = {
-        "num_solutions": 10,
+        "num_solutions": 100,
         "num_fails": 300000,
         "num_restarts": 0
     }
@@ -144,13 +149,13 @@ def solve_complex():
     # create cells
     for ix in range(num_cells):
         if ix in (14, 20, 24, 29, 30):
-            props = {"area": 3, "components": ("duct",)}
+            props = {"area": 3, "perimeter": 4, "components": ("duct",)}
         elif ix in (0, 1, 2, 3, 4, 5, 33, 35):
-            props = {"area": 3, "components": ("window",)}
+            props = {"area": 3, "perimeter": 4, "components": ("window",)}
         elif ix == 31:
-            props = {"area": 3, "components": ("frontDoor",)}
+            props = {"area": 3, "perimeter": 4, "components": ("frontDoor",)}
         else:
-            props = {"area": 3, "components": {}}
+            props = {"area": 3, "perimeter": 4, "components": {}}
 
         my_solver.add_cell(domain, props, ix)
 
@@ -171,8 +176,9 @@ def solve_complex():
         min_area = space["area"] * 0.99
         max_area = space["area"] * 1.01
         my_solver.add_area_constraint(ix, min_area, max_area)
+        my_solver.add_max_perimeter_constraint(ix, math.sqrt(space["area"]/3)*4.8)
 
-    assert(len(my_solver.solve()) == 10)
+    assert(len(my_solver.solve()) == 2)
 
 
 if __name__ == '__main__':

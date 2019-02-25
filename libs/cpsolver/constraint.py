@@ -368,3 +368,52 @@ class MaxSizeConstraint(Constraint):
                     has_changed = True
 
         return has_changed
+
+
+class MaxPerimeterConstraint(Constraint):
+    """
+    A constraint on the perimeter of the space
+    """
+    def __init__(self, max_perimeter: float):
+        self.max = max_perimeter
+
+    @staticmethod
+    def perimeter(cells, solver: 'Solver') -> float:
+        """
+        Returns the perimeter of the space
+        :param value_ix:
+        :param cells
+        :param solver:
+        :return:
+        """
+        total_perimeter = sum(map(lambda c: solver.get_props(c.ix, "perimeter"), cells))
+        shared_perimeter = sum(solver.adjacency[i.ix][j.ix] for i in cells for j in cells)
+        return total_perimeter - shared_perimeter
+
+    def propagate(self, value: 'Value', node: 'DecisionNode', solver: 'Solver'):
+        """
+        propagate the constraint
+        :param value:
+        :param node:
+        :param solver:
+        :return:
+        """
+        has_changed = False
+        # we only check this constraint if only one cell is unbound in the domain
+        unbound_cells = list(node.cells_with_value_ix(value.ix, bound=False))
+        if len(unbound_cells) > 1:
+            return has_changed
+
+        logging.debug("propagating max perimeter constraint for value %i", value.ix)
+
+        cells = list(node.cells_with_value_ix(value.ix, bound=True)) + unbound_cells
+        perimeter = self.perimeter(cells, solver)
+
+        if perimeter > self.max:
+            if not unbound_cells:
+                logging.debug("Perimeter Constraint unsat, %i, %f", value.ix, self.max)
+                raise Conflict
+            unbound_cells[0].prune(value, node, solver)
+            has_changed = True
+
+        return has_changed
