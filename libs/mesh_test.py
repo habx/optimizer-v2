@@ -908,3 +908,17 @@ def test_continuous_line(weird_mesh):
 
     result = [e.start.coords for e in edge.next.next.pair.previous.line]
     assert result == [(1200.0, 658.3105), (189.3961, 250.0)]
+
+
+def test_distance_to_other_face():
+    import math
+    mesh = rectangular_mesh(100, 200)
+    edge = mesh.boundary_edge.pair
+    edge.barycenter_cut()
+    mesh.plot()
+    assert mesh.faces[0].distance_to(mesh.faces[1]) == math.sqrt(100**2 + 200**2)
+
+
+def test_face_perimeter():
+    mesh = rectangular_mesh(100, 200)
+    assert mesh.faces[0].perimeter == (100 + 200)*2
