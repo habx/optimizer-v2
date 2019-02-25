@@ -635,6 +635,20 @@ class Space(PlanComponent):
 
         return output
 
+    def distance_to(self, other: 'Space', kind: str = "max") -> float:
+        """
+        Returns the max or the min distance to the other space
+        :param other:
+        :param kind: whether to return the max or the min distance
+        :return:
+        """
+        choices = {
+            "min": min,
+            "max": max
+        }
+        return choices[kind]((e1.start.distance_to(e2.start)
+                              for e1 in self.exterior_edges for e2 in other.exterior_edges))
+
     @property
     def size(self, edge: Optional[Edge] = None) -> Size:
         """
