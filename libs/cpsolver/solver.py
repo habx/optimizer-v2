@@ -33,8 +33,8 @@ class Solver:
     The solver
     """
     def __init__(self,
-                 adjacency_matrix: List[List[int]]=None,
-                 distances_matrix: Optional[List[List[float]]]=None,
+                 adjacency_matrix: List[List[float]] = None,
+                 distances_matrix: Optional[List[List[float]]] = None,
                  params=None):
         self.cells: Dict[int, Cell] = {}
         self.values: Dict[int, Value] = {}

@@ -10,7 +10,7 @@ Contains the constraint available for the solver :
 
 """
 
-from typing import TYPE_CHECKING, Dict, Union, Tuple
+from typing import TYPE_CHECKING, Dict, Union, Tuple, List
 from itertools import chain
 
 import logging
@@ -181,7 +181,7 @@ class GraphConstraint(Constraint):
     """
     A specific class of constraint that need the adjacency graph of the cells
     """
-    def __init__(self, adjacency_matrix: [[int]]):
+    def __init__(self, adjacency_matrix: List[List[float]]):
         self.matrix = adjacency_matrix
         self.graph = self.create_graph(adjacency_matrix)
 
@@ -196,7 +196,7 @@ class GraphConstraint(Constraint):
         graph = nx.Graph()
         for i in range(len(matrix)):
             for j in range(i + 1, len(matrix[0])):
-                if matrix[i][j]:
+                if matrix[i][j] > 0:
                     graph.add_edge(i, j)
 
         return graph

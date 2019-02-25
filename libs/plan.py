@@ -649,6 +649,15 @@ class Space(PlanComponent):
         return choices[kind]((e1.start.distance_to(e2.start)
                               for e1 in self.exterior_edges for e2 in other.exterior_edges))
 
+    def adjacency_to(self, other: 'Space') -> float:
+        """
+        Returns the length of the boundary between two spaces
+        :param other:
+        :return:
+        """
+        shared_edges = (e for e in self.edges for other_e in other.edges if e.pair is other_e)
+        return sum(map(lambda e: e.length, shared_edges))
+
     @property
     def size(self, edge: Optional[Edge] = None) -> Size:
         """
@@ -2162,8 +2171,7 @@ class Plan:
 
     def get_spaces(self,
                    category_name: Optional[str] = None,
-                   floor: Optional['Floor'] = None,
-                   ) -> Generator['Space', None, None]:
+                   floor: Optional['Floor'] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
         :param category_name:

@@ -4,7 +4,7 @@ Variables module
 Contains Cell and Value classes
 """
 import logging
-from typing import TYPE_CHECKING, Set, Generator, Type
+from typing import TYPE_CHECKING, Set, Generator, Type, List
 
 from libs.cpsolver.exception import Conflict
 
@@ -125,14 +125,14 @@ class Cell:
         """
         return next(iter(self.domain))
 
-    def is_adjacent(self, other: 'Cell', matrix) -> bool:
+    def is_adjacent(self, other: 'Cell', matrix: List[List[float]]) -> bool:
         """
         Returns True if the two cells are adjacent according to the specified adjacency matrix
         :param other:
         :param matrix
         :return:
         """
-        return matrix[self.ix][other.ix]
+        return matrix[self.ix][other.ix] > 0
 
     def prune(self, value: Value, node: 'DecisionNode', solver: 'Solver'):
         """
