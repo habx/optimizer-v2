@@ -10,7 +10,7 @@ Contains the constraint available for the solver :
 
 """
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Union, Tuple
 from itertools import chain
 
 import logging
@@ -95,8 +95,8 @@ class ComponentConstraint(Constraint):
     Enforces the fact that a space must include a cell with a specific component
     Expect a components dict of the form :
         {
-            "window" : 2,
-            "duct": 1
+            ("window", "doorWindow") : 2,
+            "duct": 1,
             ...
         }
     """
@@ -114,7 +114,7 @@ class ComponentConstraint(Constraint):
         return {key: 0 for key in self.components}
 
     @staticmethod
-    def cell_has_component(ix: int, component: str, solver: 'Solver') -> bool:
+    def cell_has_component(ix: int, component: Union[str, Tuple[str]], solver: 'Solver') -> bool:
         """
         Returns True if the cell has a given component
         :param ix:
@@ -123,7 +123,15 @@ class ComponentConstraint(Constraint):
         :return:
         """
         components = solver.get_props(ix, "components")
-        return component in components
+        # a tuple as a component means that we can provide either of the specified components
+        # ex. : ("doorWindow", "window")
+        if isinstance(component, tuple):
+            for alternative_component in component:
+                if alternative_component in components:
+                    return True
+            return False
+        else:
+            return component in components
 
     def propagate(self, value: 'Value', node: 'DecisionNode', solver: 'Solver') -> bool:
         """
@@ -143,7 +151,7 @@ class ComponentConstraint(Constraint):
         possible_components_counter = self.create_components_counter()
         for cell in node.cells_with_value_ix(value_ix):
             for component_key in possible_components_counter:
-                if component_key in solver.get_props(cell.ix, "components"):
+                if self.cell_has_component(cell.ix, component_key, solver):
                     possible_components_counter[component_key] += 1
 
         # compare with the constraint
@@ -381,7 +389,6 @@ class MaxPerimeterConstraint(Constraint):
     def perimeter(cells, solver: 'Solver') -> float:
         """
         Returns the perimeter of the space
-        :param value_ix:
         :param cells
         :param solver:
         :return:

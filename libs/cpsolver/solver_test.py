@@ -118,7 +118,7 @@ def solve_complex():
     """
     num_col = 6
     spaces = [
-        {"area": 24, "components": {"window": 2}},  # 0. living
+        {"area": 24, "components": {("window", "doorWindow"): 2}},  # 0. living
         {"area": 12, "components": {"window": 1, "duct": 1}},  # 1. kitchen
         {"area": 18, "components": {"window": 1}},  # 2. bedroom 1
         {"area": 18, "components": {"window": 1}},  # 3. bedroom 2
@@ -150,8 +150,10 @@ def solve_complex():
     for ix in range(num_cells):
         if ix in (14, 20, 24, 29, 30):
             props = {"area": 3, "perimeter": 4, "components": ("duct",)}
-        elif ix in (0, 1, 2, 3, 4, 5, 33, 35):
+        elif ix in (0, 1, 2, 3, 4, 33, 35):
             props = {"area": 3, "perimeter": 4, "components": ("window",)}
+        elif ix == 5:
+            props = {"area": 3, "perimeter": 4, "components": ("doorWindow",)}
         elif ix == 31:
             props = {"area": 3, "perimeter": 4, "components": ("frontDoor",)}
         else:
