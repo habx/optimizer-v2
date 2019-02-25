@@ -563,23 +563,16 @@ class Space(PlanComponent):
         Returns the area of the Space.
         :return:
         """
-        _area = 0.0
-        for face in self.faces:
-            _area += face.area
-        return _area
+        return sum(map(lambda f: f.area, self.faces))
 
     @property
     def perimeter(self) -> float:
         """
         Returns the length of the Space perimeter
+        Note: this will count the perimeter of each holes of the space
         :return:
         """
-        _perimeter = 0.0
-
-        for edge in self.edges:
-            _perimeter += edge.length
-
-        return _perimeter
+        return sum(map(lambda e: e.length, self.edges))
 
     @property
     def as_sp(self) -> Optional[Polygon]:

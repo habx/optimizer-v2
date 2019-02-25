@@ -846,3 +846,19 @@ def test_best_direction(l_plan):
     """
     edge = l_plan.empty_space.edge
     assert l_plan.empty_space.best_direction(edge.normal) == (0, 1)
+
+
+def test_space_area(l_plan):
+    assert l_plan.empty_space.area == 915000.0
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    plan = Plan("test_perimeter")
+    plan.add_floor_from_boundary(perimeter)
+    assert plan.empty_space.area == 250000.0
+
+
+def test_space_perimeter(l_plan):
+    assert l_plan.empty_space.perimeter == 4488.139139839483
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    plan = Plan("test_perimeter")
+    plan.add_floor_from_boundary(perimeter)
+    assert plan.empty_space.perimeter == 2000.0
