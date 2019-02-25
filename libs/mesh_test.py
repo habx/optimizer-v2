@@ -917,6 +917,7 @@ def test_distance_to_other_face():
     edge.barycenter_cut()
     mesh.plot()
     assert mesh.faces[0].distance_to(mesh.faces[1]) == math.sqrt(100**2 + 200**2)
+    assert mesh.faces[0].distance_to(mesh.faces[1], "min") == 0
 
 
 def test_face_perimeter():
