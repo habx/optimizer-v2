@@ -120,9 +120,6 @@ def test_duplex():
            show=True)
      .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
      .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .empty(SELECTORS["corner_big_cell_area_70000"])
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                      "empty"), show=True)
      .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
      .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
