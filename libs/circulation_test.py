@@ -27,7 +27,7 @@ def test_circulation(input_file, input_setup):
 
     plan = reader.create_plan_from_file(input_file)
 
-    GRIDS["finer_ortho_grid"].apply_to(plan)
+    GRIDS["optimal_grid"].apply_to(plan)
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
     (seeder.plant()
      .grow(show=True)
