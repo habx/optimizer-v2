@@ -28,20 +28,11 @@ def test_circulation(input_file, input_setup):
     plan = reader.create_plan_from_file(input_file)
 
     GRIDS["optimal_grid"].apply_to(plan)
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
+    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow(show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                      "empty"), show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-           show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .empty(SELECTORS["corner_big_cell_area_70000"])
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                      "empty"), show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .from_space_empty_to_seed())
 
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
