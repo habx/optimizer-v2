@@ -1,6 +1,11 @@
 # coding=utf-8
 """
 Branching strategies
+This module contains :
+• Cell Picking functions : different methods to pick a new cell to try.
+  Each function returns the index of the chosen cell.
+• Value Picking functions : different methods to choose the best value
+  to assign to the picked cell
 """
 
 from typing import TYPE_CHECKING
@@ -132,7 +137,7 @@ def least_bound_value(node: 'DecisionNode', cell_ix: int) -> int:
         if bound_count < bound_min or value_ix == -1:
             bound_min = bound_count
             value_ix = ix
-            # if we find a totally unbound value not need to search further
+            # if we find a totally unbound value no need to search further
             if bound_count == 0:
                 break
 

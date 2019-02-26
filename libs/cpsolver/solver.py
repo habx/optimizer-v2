@@ -12,7 +12,7 @@ import copy
 import math
 import logging
 
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, Set, List
 
 from libs.cpsolver.exception import Success, Conflict, Finished, Restart
 import libs.cpsolver.pick as pick
@@ -20,7 +20,9 @@ from libs.cpsolver.constraint import (
     AreaConstraint,
     ComponentConstraint,
     ConnectivityConstraint,
-    SymmetryBreakerConstraint
+    SymmetryBreakerConstraint,
+    MaxSizeConstraint,
+    MaxPerimeterConstraint
 )
 from libs.cpsolver.variables import Cell, Value
 from libs.cpsolver.node import DecisionNode
@@ -30,10 +32,14 @@ class Solver:
     """
     The solver
     """
-    def __init__(self, adjacency_matrix=None, params=None):
+    def __init__(self,
+                 adjacency_matrix: List[List[float]] = None,
+                 distances_matrix: Optional[List[List[float]]] = None,
+                 params=None):
         self.cells: Dict[int, Cell] = {}
         self.values: Dict[int, Value] = {}
         self.adjacency = adjacency_matrix
+        self.distances = distances_matrix
         self.node: Optional[DecisionNode] = None  # root decision node
         # to store results
         self.params = params or {}
@@ -169,13 +175,33 @@ class Solver:
         constraint = SymmetryBreakerConstraint(other)
         value.bind(constraint)
 
-    def add_connectivity_constraint(self, value_ix: int, matrix: [[bool]]):
+    def add_connectivity_constraint(self, value_ix: int, matrix: List[List[int]]):
         """
         Adds a connectivity constraint to the solver
         :return: nothing
         """
         value = self.get_value(value_ix)
         constraint = ConnectivityConstraint(matrix)
+        value.bind(constraint)
+
+    def add_max_size_constraint(self, value_ix: int, max_size: float):
+        """
+        Adds a connectivity constraint to the solver
+        :return: nothing
+        """
+        value = self.get_value(value_ix)
+        constraint = MaxSizeConstraint(max_size)
+        value.bind(constraint)
+
+    def add_max_perimeter_constraint(self, value_ix: int, max_perimeter: float):
+        """
+        Adds a connectivity constraint to the solver
+        :param value_ix
+        :param max_perimeter
+        :return: nothing
+        """
+        value = self.get_value(value_ix)
+        constraint = MaxPerimeterConstraint(max_perimeter)
         value.bind(constraint)
 
     def has_been_tried(self, cell_ix: int) -> bool:
@@ -320,8 +346,8 @@ class Solver:
         :param node
         :return:
         """
-        # Initial strategy
-        if node.is_root():
+        # Initial strategy if restart
+        if node.is_root() and self.with_restart():
             initial_cell_ix = pick.random_untried_cell(node, self)
             self.add_as_tried(initial_cell_ix)
             return initial_cell_ix

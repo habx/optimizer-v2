@@ -563,23 +563,16 @@ class Space(PlanComponent):
         Returns the area of the Space.
         :return:
         """
-        _area = 0.0
-        for face in self.faces:
-            _area += face.area
-        return _area
+        return sum(map(lambda f: f.area, self.faces))
 
     @property
     def perimeter(self) -> float:
         """
         Returns the length of the Space perimeter
+        Note: this will count the perimeter of each holes of the space
         :return:
         """
-        _perimeter = 0.0
-
-        for edge in self.edges:
-            _perimeter += edge.length
-
-        return _perimeter
+        return sum(map(lambda e: e.length, self.edges))
 
     @property
     def as_sp(self) -> Optional[Polygon]:
@@ -641,6 +634,29 @@ class Space(PlanComponent):
         output.pop()
 
         return output
+
+    def distance_to(self, other: 'Space', kind: str = "max") -> float:
+        """
+        Returns the max or the min distance to the other space
+        :param other:
+        :param kind: whether to return the max or the min distance
+        :return:
+        """
+        choices = {
+            "min": min,
+            "max": max
+        }
+        return choices[kind]((e1.start.distance_to(e2.start)
+                              for e1 in self.exterior_edges for e2 in other.exterior_edges))
+
+    def adjacency_to(self, other: 'Space') -> float:
+        """
+        Returns the length of the boundary between two spaces
+        :param other:
+        :return:
+        """
+        shared_edges = (e for e in self.edges for other_e in other.edges if e.pair is other_e)
+        return sum(map(lambda e: e.length, shared_edges))
 
     @property
     def size(self, edge: Optional[Edge] = None) -> Size:
@@ -2155,8 +2171,7 @@ class Plan:
 
     def get_spaces(self,
                    category_name: Optional[str] = None,
-                   floor: Optional['Floor'] = None,
-                   ) -> Generator['Space', None, None]:
+                   floor: Optional['Floor'] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
         :param category_name:

@@ -1997,6 +1997,29 @@ class Face(MeshComponent):
         return self.as_sp.length
 
     @property
+    def perimeter(self) -> float:
+        """
+        Calculate the perimeter length of the face (not using shapely)
+        :return:
+        """
+        return sum(map(lambda e: e.length, self.edges))
+
+    def distance_to(self, other: 'Face', kind: str = "max") -> float:
+        """
+        Returns the max or the min distance to the other face
+        :param other:
+        :param kind: whether to return the max or the min distance
+        :return:
+        """
+        choices = {
+            "min": min,
+            "max": max
+        }
+
+        return choices[kind]((v1.distance_to(v2)
+                              for v1 in self.vertices for v2 in other.vertices))
+
+    @property
     def internal_edges(self) -> Generator[Edge, None, None]:
         """
         Returns the internal edges of the face.

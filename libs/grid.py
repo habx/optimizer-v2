@@ -353,6 +353,7 @@ if __name__ == '__main__':
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()
+        print(len(new_plan.mesh.faces))
 
 
     create_a_grid()
