@@ -1094,19 +1094,6 @@ class Edge(MeshComponent):
             yield edge
 
     @property
-    def next_aligned(self) -> 'Edge':
-        """
-        Returns next aligned edge
-        :return:
-        """
-        if self.next_is_aligned:
-            return self.next
-        elif self.next.pair.next_is_ortho:
-            return self.next.pair.next
-        else:
-            return None
-
-    @property
     def line(self) -> ['Edge']:
         """
         Returns all the edges that form a straight line with the current edge
