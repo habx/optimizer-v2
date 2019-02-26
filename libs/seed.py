@@ -990,7 +990,7 @@ if __name__ == '__main__':
         # input_file = "saint-maur-raspail_H01.json"
         #input_file = "Levallois_Meyronin.json"
         #input_file = "grenoble-cambridge_161.json"
-        input_file = "Edison_10.json"
+        #input_file = "Edison_10.json"
         # input_file = "Bussy_B104.json"
         plan = reader.create_plan_from_file(input_file)
 

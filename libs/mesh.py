@@ -711,7 +711,7 @@ class Edge(MeshComponent):
     @property
     def next_is_ortho(self) -> bool:
         """
-        Indicates if the next edge i
+        Indicates if the next edge is orthogonal
         :return:
         """
         return pseudo_equal(self.next_angle, 90, ANGLE_EPSILON)
@@ -1094,6 +1094,19 @@ class Edge(MeshComponent):
             yield edge
 
     @property
+    def next_aligned(self) -> 'Edge':
+        """
+        Returns next aligned edge
+        :return:
+        """
+        if self.next_is_aligned:
+            return self.next
+        elif self.next.pair.next_is_ortho:
+            return self.next.pair.next
+        else:
+            return None
+
+    @property
     def line(self) -> ['Edge']:
         """
         Returns all the edges that form a straight line with the current edge
@@ -1114,6 +1127,7 @@ class Edge(MeshComponent):
             current = current.aligned_edge or current.continuous_edge
 
         return output
+
 
     @property
     def aligned_edge(self) -> Optional['Edge']:
