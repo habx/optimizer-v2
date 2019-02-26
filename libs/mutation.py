@@ -179,7 +179,7 @@ def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
 
 def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
-    Adds all the faces of the aligned edges
+    Removes all the faces of the aligned edges
     • checks if the edge is just after a corner
     • gather all the next aligned edges
     • for each edge add the corresponding faces in an order avoiding space cutting
@@ -234,6 +234,59 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
             return []
 
     return [space, other_space]
+
+
+
+def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    Adds to space all the faces of the aligned edges
+    • checks if the edge is just after a corner
+    • gather all the next aligned edges
+    • for each edge add the corresponding faces
+    :return:
+    """
+    assert space.has_face(edge.face), "Mutation: The edge must belong to the first space"
+
+    plan = space.plan
+    other_space = plan.get_space_of_edge(edge.pair)
+
+    if other_space.face:
+        assert (other_space.adjacent_to(edge.face),
+                "Mutation: The edge face must be adjacent to the second space")
+
+
+    aligned_edges = []
+    for aligned in space.next_aligned_siblings(edge):
+        if not other_space.has_edge(aligned.pair):
+            break
+        aligned_edges.append(aligned)
+
+    list_face_aligned = []
+    for aligned in aligned_edges:
+        if aligned.face not in list_face_aligned:
+            list_face_aligned.append(aligned.pair.face)
+
+    #adds faces of list_face_aligned to space.
+    list_created_spaces=[other_space]
+    while list_face_aligned:
+        aligned_face=list_face_aligned[0]
+        sp_to_remove=None
+        for sp in space.plan.spaces:
+            if sp.has_face(aligned_face):
+                sp_to_remove=sp
+                break
+        if sp_to_remove:
+            space.add_face(aligned_face)
+            created_spaces=sp_to_remove.remove_face(aligned_face)
+            list_face_aligned.remove(aligned_face)
+            for sp in created_spaces:
+                if sp not in list_created_spaces:
+                    list_created_spaces.append(sp)
+        else:
+            break
+
+    return [space] + list_created_spaces
+
 
 
 def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
@@ -443,7 +496,6 @@ def slice_cut(offset: float,
     """
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
-
         # check depth of the face, if the face is not deep enough do not slice
         deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:
@@ -470,6 +522,7 @@ MUTATION_FACTORIES = {
 MUTATIONS = {
     "swap_face": Mutation(swap_face),
     "swap_aligned_face": Mutation(swap_aligned_face),
+    "add_aligned_face": Mutation(add_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
     "remove_edge": Mutation(remove_edge, reversible=False),
     "remove_line": Mutation(remove_line, reversible=False),
