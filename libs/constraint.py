@@ -355,7 +355,7 @@ max_depth=4000
 component_aspect_constraint = SpaceConstraint(component_aspect_constraint,
                                               {
                                                   "weight":10,
-                                                  "min_aspect_ratio":10,
+                                                  "min_aspect_ratio":0.3,
                                                   "default": {"min_width":min_width,
                                                               "min_depth":min_depth,
                                                               "max_width":max_width,

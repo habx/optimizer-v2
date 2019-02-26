@@ -1099,7 +1099,7 @@ class Space(PlanComponent):
     def face_is_adjacent(self, face: Face) -> bool:
         """
         Returns True if the face is adjacent to the space
-        :return:
+        :return: bool
         """
         if [edge for edge in face.edges if self.has_edge(edge.pair)]:
             return True

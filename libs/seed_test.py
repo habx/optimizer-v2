@@ -33,18 +33,15 @@ def test_seed_multiple_floors():
     plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((400, 0), (500, 0), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["finer_ortho_grid"].apply_to(plan)
+    GRIDS['optimal_grid'].apply_to(plan)
 
     plan.plot()
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-     .grow()
-     .shuffle(SHUFFLES['seed_square_shape'])
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES['seed_square_shape']))
+     .grow(show=True)
+     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .from_space_empty_to_seed())
 
     plan.plot()
 
@@ -58,15 +55,13 @@ def test_grow_a_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-    GRIDS['ortho_grid'].apply_to(plan)
+    GRIDS['optimal_grid'].apply_to(plan)
+
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-           .grow()
-           .shuffle(SHUFFLES['seed_square_shape'])
-           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
-           .simplify(SELECTORS["fuse_small_cell"])
-           .shuffle(SHUFFLES['seed_square_shape']))
+     .grow()
+     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .from_space_empty_to_seed())
 
     plan.plot()
 
@@ -118,7 +113,7 @@ def test_simple_seed_test():
     :return:
     """
     my_plan = plan_with_duct(300, 300)
-    GRIDS['ortho_grid'].apply_to(my_plan)
+    GRIDS['optimal_grid'].apply_to(my_plan)
     Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
     my_plan.plot()
     assert my_plan.check()

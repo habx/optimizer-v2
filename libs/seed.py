@@ -229,7 +229,7 @@ class Seeder:
     def line_from_edge(edge:'Edge', backward=False) -> Generator['Edge', 'Edge', None]:
         """
         Returns all the edges that form a straight line with the current edge
-        :return: generator of forward or (backward) contiiguous edges
+        :return: generator of forward or (backward) contiguous edges
         """
         current=edge
         if not backward:
