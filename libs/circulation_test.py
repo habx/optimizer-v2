@@ -31,7 +31,7 @@ def test_circulation(input_file, input_setup):
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow(show=True)
-     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
      .from_space_empty_to_seed())
 
     spec = reader.create_specification_from_file(input_setup)

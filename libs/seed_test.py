@@ -40,7 +40,7 @@ def test_seed_multiple_floors():
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow(show=True)
-     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
      .from_space_empty_to_seed())
 
     plan.plot()
@@ -60,7 +60,7 @@ def test_grow_a_plan(input_file):
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow()
-     .divide_from_seeds(SELECTORS["not_aligned_edges"])
+     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
      .from_space_empty_to_seed())
 
     plan.plot()

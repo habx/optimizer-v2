@@ -228,7 +228,7 @@ class Seeder:
     @staticmethod
     def line_from_edge(edge:'Edge', backward=False) -> Generator['Edge', 'Edge', None]:
         """
-        Returns all the edges that form a straight line with the current edge
+        Returns all the edges that form a contiguous foward (or backward) line with the current edge
         :return: generator of forward or (backward) contiguous edges
         """
         current=edge
@@ -246,7 +246,7 @@ class Seeder:
                     yield current
 
 
-    def divide_from_seeds(self, selector: 'Selector'):
+    def divide_along_seed_borders(self, selector: 'Selector'):
         """
         divide empty spaces along all lines drawn from selected edges
         :param selector:
@@ -1003,7 +1003,7 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          #.divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
-         .divide_from_seeds(SELECTORS["not_aligned_edges"])
+         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed())
          # .fusion(fusion_rules=fusion_rules_test, target_number_of_cells=10, min_aspect_ratio=0.5)
          # .fuse_small_space(area_force_fuse=10000)
