@@ -358,7 +358,7 @@ def one_edge_adjacent_to_rectangular_duct(space: 'Space', *_) -> Generator['Edge
 
 def vertical_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    returns edge in vertical direction from space reference edge
+    returns edges in vertical direction from space reference edge
     """
 
     if not space.edge:
@@ -801,7 +801,7 @@ def not_aligned_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     Returns edges not aligned with their previous or next space sibling
     """
     for edge in space.edges:
-        if is_not_aligned(edge,space) or is_not_aligned(edge,space,previous=True):
+        if is_not_aligned(edge, space) or is_not_aligned(edge, space, previous=True):
             yield edge
 
 
@@ -815,11 +815,13 @@ def is_not_aligned(edge: 'Edge', space: 'Space', previous: bool = False):
     return not space.next_is_aligned(space.previous_edge(edge))
 
 
-def is_after_corner(edge: 'Edge', space: 'Space', corner_angle_min:float=60, corner_angle_max:float=110):
+def is_after_corner(edge: 'Edge', space: 'Space', corner_angle_min: float = 60,
+                    corner_angle_max: float = 110):
     """
     Returns True if edge is after a corner of the space
     """
-    return corner_angle_max>=ccw_angle(space.previous_edge(edge).vector,edge.vector) >= corner_angle_min
+    return corner_angle_max >= ccw_angle(space.previous_edge(edge).vector,
+                                         edge.vector) >= corner_angle_min
 
 
 def h_edge(edge: 'Edge', space: 'Space') -> bool:
@@ -1639,7 +1641,6 @@ SELECTORS = {
             has_space_pair(),
         ]
     ),
-
 
 }
 

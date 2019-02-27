@@ -117,7 +117,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    #input("fill")
+                    # input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -167,23 +167,21 @@ class Seeder:
 
         return self
 
-
-    def divide_along_line(self, space:'Space', line_edges: List['Edge']):
+    def divide_along_line(self, space: 'Space', line_edges: List['Edge']):
         """
         Divides the space into two sub-spaces, cut performed along the line formed by input edges
         :return:
         """
 
-        def face_on_side(line_edges: List['Edge']) -> Generator[
-            'Face', bool, None]:
+        def face_on_side(line_edge: List['Edge']) -> Generator['Face', bool, None]:
             """
             Detects the faces of the space that are on one of the two sides
             of the line defined by line_edges
             :return: Generator
             """
-            if line_edges:
-                face_ini = line_edges[0].face
-                list_side_faces = [face_ini]
+            if line_edge:
+                face_ini = line_edge[0].face
+                list_side_face = [face_ini]
                 add = [face_ini]
                 added = True
                 while added:
@@ -192,13 +190,12 @@ class Seeder:
                         for face in space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
                             # adds faces adjacent to those already added
                             # do not add faces on the other side of the line
-                            if not [
-                                edge for edge in line_edges if
-                                edge.pair in face.edges] and face not in list_side_faces:
-                                list_side_faces.append(face)
+                            if (not [edge for edge in line_edge if edge.pair in face.edges]
+                                    and face not in list_side_face):
+                                list_side_face.append(face)
                                 add.append(face)
                                 added = True
-                for f in list_side_faces:
+                for f in list_side_face:
                     yield f
 
         if not line_edges:
@@ -226,12 +223,12 @@ class Seeder:
                     list_side_faces.remove(face)
 
     @staticmethod
-    def line_from_edge(edge:'Edge', backward=False) -> Generator['Edge', 'Edge', None]:
+    def line_from_edge(edge: 'Edge', backward=False) -> Generator['Edge', 'Edge', None]:
         """
         Returns all the edges that form a contiguous foward (or backward) line with the current edge
         :return: generator of forward or (backward) contiguous edges
         """
-        current=edge
+        current = edge
         if not backward:
             while current:
                 current = current.aligned_edge or current.continuous_edge
@@ -239,12 +236,11 @@ class Seeder:
                     yield current
 
         if current:
-            current=current.pair
+            current = current.pair
             while current:
                 current = current.aligned_edge or current.continuous_edge
                 if current:
                     yield current
-
 
     def divide_along_seed_borders(self, selector: 'Selector'):
         """
@@ -259,18 +255,20 @@ class Seeder:
 
                 aligned_edges = []
 
-                #forward contiguous edges
+                # forward contiguous edges
                 for edge in self.line_from_edge(edge_selected):
                     space_of_edge = self.plan.get_space_of_edge(edge)
-                    if space_of_edge and space_of_edge.category and space_of_edge.category.name == "empty":
+                    if (space_of_edge and space_of_edge.category
+                            and space_of_edge.category.name == "empty"):
                         aligned_edges.append(edge)
                     else:
                         break
 
                 # backward contiguous edges
-                for edge in self.line_from_edge(edge_selected,backward=True):
+                for edge in self.line_from_edge(edge_selected, backward=True):
                     space_of_edge = self.plan.get_space_of_edge(edge)
-                    if space_of_edge and space_of_edge.category and space_of_edge.category.name == "empty":
+                    if (space_of_edge and space_of_edge.category
+                            and space_of_edge.category.name == "empty"):
                         aligned_edges.append(edge)
                     else:
                         break
@@ -297,7 +295,6 @@ class Seeder:
             if space.category.name is 'empty':
                 space.category = SPACE_CATEGORIES["seed"]
         return self
-
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
         """
@@ -608,7 +605,6 @@ class Seed:
         if self.space is None:
             return self._create_seed_space()
 
-
         modified_spaces = self.growth_action.apply_to(self.space, [self.seeder],
                                                       [self.max_size_constraint])
 
@@ -833,48 +829,6 @@ FILL_METHODS = {
     "default": None
 }
 
-max_width = 4000
-max_depth = 4000
-min_aspect_ratio=0.3
-fusion_rules_test = {
-    "default": {"min_area": 30000,
-                "max_area": 60000,
-                "max_width": max_width,
-                "max_depth": max_depth,
-                "min_aspect_ratio":min_aspect_ratio,
-                "fuse": True},
-    "frontDoor": {"min_area": 20000,
-                  "max_area": 50000,
-                  "max_width": max_width,
-                  "max_depth": max_depth,
-"min_aspect_ratio":min_aspect_ratio,
-                  "fuse": True},
-    "duct": {"min_area": 10000,
-             "max_area": 30000,
-             "max_width": max_width,
-             "max_depth": max_depth,
-"min_aspect_ratio":min_aspect_ratio,
-             "fuse": True},
-    "window": {"min_area": 50000,
-               "max_area": 120000,
-               "max_width": max_width,
-               "max_depth": max_depth,
-"min_aspect_ratio":min_aspect_ratio,
-               "fuse": False
-               },
-    "doorWindow": {"min_area": 50000,
-                   "max_area": 120000,
-                   "max_width": max_width,
-                   "max_depth": max_depth,
-"min_aspect_ratio":min_aspect_ratio,
-                   "fuse": False},
-    "startingStep": {"min_area": 10000,
-                     "max_area": 30000,
-                     "max_width": max_width,
-                     "max_depth": max_depth,
-"min_aspect_ratio":min_aspect_ratio,
-                     "fuse": False},
-}
 
 if __name__ == '__main__':
     import libs.reader as reader
@@ -959,7 +913,7 @@ if __name__ == '__main__':
                                                              sp.category.name))
 
 
-    def grow_a_plan_fusion():
+    def grow_a_plan_trames():
         """
         Test
         :return:
@@ -967,31 +921,8 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Antony_A33.json"
-        # input_file = "Paris18_A402.json"
-        # input_file = "Antony_B22.json"
-        # input_file = "Groslay_A-00-01_oldformat.json"
-        # input_file = "Paris18_A301.json"
-        # input_file = "Sartrouville_RDC.json"
-        # input_file = "Massy_C204.json"
-        # input_file = "Bussy_A101.json"
-        # input_file = "Bussy_A001.json"
-        # input_file = "Bussy_Regis.json"
-        # input_file = "Massy_C102.json"
-        # input_file = "Sartrouville_A104.json"
-        # input_file = "Vernouillet_A002.json"
-        #input_file = "Antony_B22.json"
-        # input_file = "Levallois_Parisot.json"
-        # input_file = "Noisy_A145.json"
-        # input_file = "Antony_B22.json"
-        # input_file = "Antony_A33.json"seed
-        # input_file = "Massy_C204.json"
-        # input_file = "Levallois_Tisnes.json"
-        # input_file = "saint-maur-raspail_H01.json"
-        #input_file = "Levallois_Meyronin.json"
-        #input_file = "grenoble-cambridge_161.json"
-        #input_file = "Edison_10.json"
-        # input_file = "Bussy_B104.json"
+        input_file = "Antony_B22.json"
+
         plan = reader.create_plan_from_file(input_file)
 
         # plan = test_seed_multiple_floors()
@@ -1002,13 +933,9 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         #.divide_plan_along_directions(SELECTORS["corner_edges_ortho"])
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed())
-         # .fusion(fusion_rules=fusion_rules_test, target_number_of_cells=10, min_aspect_ratio=0.5)
-         # .fuse_small_space(area_force_fuse=10000)
-         # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
-
+        # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
 
         plan.remove_null_spaces()
         plan.plot(show=True)
@@ -1028,4 +955,5 @@ if __name__ == '__main__':
                     "space area and category {0} {1} {2}".format(sp.area, sp_comp,
                                                                  sp.category.name))
 
-    grow_a_plan_fusion()
+
+    grow_a_plan_trames()

@@ -151,9 +151,11 @@ def component_surface_objective(params: Dict) -> scoreFunction:
 
     return _score
 
+
 def component_aspect_constraint(params: Dict) -> scoreFunction:
     """
-    Scores the respect of shape size and aspect ratio for cells containing components defined in params
+    Scores the respect of shape size and aspect ratio for cells containing components defined
+    in params
     :return:
     """
 
@@ -171,17 +173,17 @@ def component_aspect_constraint(params: Dict) -> scoreFunction:
         if not list_components:
             list_components = ["default"]
         if list_components:
-
-            size_ratio=space.size.depth/space.size.width
-            aspect_ratio=min(size_ratio,1/size_ratio)
+            size_ratio = space.size.depth / space.size.width
+            aspect_ratio = min(size_ratio, 1 / size_ratio)
             score += shift_from_interval(params["min_aspect_ratio"],
-                                         1/params["min_aspect_ratio"], aspect_ratio)
+                                         1 / params["min_aspect_ratio"], aspect_ratio)
 
-            score=params["weight"]*score
+            score = params["weight"] * score
 
         return score
 
     return _score
+
 
 def number_of_components(params: Dict):
     """
@@ -190,7 +192,7 @@ def number_of_components(params: Dict):
     """
 
     def _score(space: 'Space') -> float:
-        if (space is None):
+        if space is None:
             return 0.0
         list_components = space.components_category_associated()
         number_components = sum(comp in params.keys() for comp in list_components)
@@ -232,7 +234,7 @@ def alignments(_: Dict):
     """
     Scores a space by counting the number of corners and t-edges
     A corner is defined as an angle between two boundary edges superior to 20.0
-    :param params:
+    :param:
     :return:
     """
 
@@ -241,11 +243,13 @@ def alignments(_: Dict):
     def _score(space: 'Space') -> float:
         number_of_corners = 0
         for edge in space.exterior_edges:
-            if not edge.is_mesh_boundary and ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
-                number_of_corners+=1
-        return space.count_t_edges()+number_of_corners
+            if not edge.is_mesh_boundary and ccw_angle(edge.vector, space.next_edge(
+                    edge).vector) >= corner_min_angle:
+                number_of_corners += 1
+        return space.count_t_edges() + number_of_corners
 
     return _score
+
 
 def max_size(params: Dict) -> scoreFunction:
     """
@@ -332,7 +336,7 @@ max_size_default_constraint_seed = SpaceConstraint(max_size,
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
                                               {
-                                                  "weight":10,
+                                                  "weight": 10,
                                                   "default": {"min_area": 10000,
                                                               "max_area": 70000},
                                                   "frontDoor": {"min_area": 20000,
@@ -348,38 +352,38 @@ component_surface_objective = SpaceConstraint(component_surface_objective,
                                               },
                                               "component_surface_objective", imperative=False)
 
-min_width=1000
-min_depth=1000
-max_width=4000
-max_depth=4000
+min_width = 1000
+min_depth = 1000
+max_width = 4000
+max_depth = 4000
 component_aspect_constraint = SpaceConstraint(component_aspect_constraint,
                                               {
-                                                  "weight":10,
-                                                  "min_aspect_ratio":0.3,
-                                                  "default": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
-                                                  "frontDoor": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
-                                                  "duct": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
-                                                  "window": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
-                                                  "doorWindow": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
-                                                  "startingStep": {"min_width":min_width,
-                                                              "min_depth":min_depth,
-                                                              "max_width":max_width,
-                                                              "max_depth":max_depth},
+                                                  "weight": 10,
+                                                  "min_aspect_ratio": 0.3,
+                                                  "default": {"min_width": min_width,
+                                                              "min_depth": min_depth,
+                                                              "max_width": max_width,
+                                                              "max_depth": max_depth},
+                                                  "frontDoor": {"min_width": min_width,
+                                                                "min_depth": min_depth,
+                                                                "max_width": max_width,
+                                                                "max_depth": max_depth},
+                                                  "duct": {"min_width": min_width,
+                                                           "min_depth": min_depth,
+                                                           "max_width": max_width,
+                                                           "max_depth": max_depth},
+                                                  "window": {"min_width": min_width,
+                                                             "min_depth": min_depth,
+                                                             "max_width": max_width,
+                                                             "max_depth": max_depth},
+                                                  "doorWindow": {"min_width": min_width,
+                                                                 "min_depth": min_depth,
+                                                                 "max_width": max_width,
+                                                                 "max_depth": max_depth},
+                                                  "startingStep": {"min_width": min_width,
+                                                                   "min_depth": min_depth,
+                                                                   "max_width": max_width,
+                                                                   "max_depth": max_depth},
                                               },
                                               "component_aspect_constraint", imperative=False)
 
@@ -403,7 +407,7 @@ few_corners_constraint = SpaceConstraint(few_corners,
 
 alignments_constraint = SpaceConstraint(alignments,
                                         {},
-                                         imperative=False)
+                                        imperative=False)
 
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,

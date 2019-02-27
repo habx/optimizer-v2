@@ -5,8 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
-from libs.shuffle import SHUFFLES
+from libs.seed import Seeder, GROWTH_METHODS
 
 from libs.grid import GRIDS
 from libs.reader_test import BLUEPRINT_INPUT_FILES
@@ -102,7 +101,8 @@ def plan_with_duct(width: float, depth: float) -> Plan:
   width * 1/4  width * 3/4
     """
     my_plan = rectangular_plan(width, depth)
-    duct = [(width/4, 0), (width*3/4, 0), (width*3/4, depth*3/4), (width/4, depth*3/4)]
+    duct = [(width / 4, 0), (width * 3 / 4, 0), (width * 3 / 4, depth * 3 / 4),
+            (width / 4, depth * 3 / 4)]
     my_plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     return my_plan
 
@@ -117,4 +117,3 @@ def test_simple_seed_test():
     Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
     my_plan.plot()
     assert my_plan.check()
-

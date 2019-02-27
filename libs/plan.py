@@ -253,7 +253,6 @@ class Space(PlanComponent):
         """
         self._faces_id.remove(face.id)
 
-
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
         """
@@ -1493,15 +1492,14 @@ class Space(PlanComponent):
                 border_length += edge.length
         return border_length
 
-
-    def count_t_edges(self)->int:
+    def count_t_edges(self) -> int:
         """
         Returns the number of T-edge of the space
         an edge is defined as a T-edge if the edge in continuity is not on the boundary of its space
         :return: float
         """
 
-        def check_t_edge(edge:'Edge')->bool:
+        def check_t_edge(edge: 'Edge') -> bool:
             continuous_edge = edge.continuous_edge
             if continuous_edge:
                 space_continuous = self.plan.get_space_of_edge(continuous_edge)
@@ -1512,16 +1510,16 @@ class Space(PlanComponent):
         corner_min_angle = 20
         number_of_t_edge = 0
 
-        list_corner_edges=[edge for edge in self.exterior_edges if not edge.is_mesh_boundary and ccw_angle(edge.vector, self.next_edge(
-                    edge).vector) >= corner_min_angle]
+        list_corner_edges = [edge for edge in self.exterior_edges if
+                             not edge.is_mesh_boundary and ccw_angle(edge.vector, self.next_edge(
+                                 edge).vector) >= corner_min_angle]
 
         for edge in list_corner_edges:
-            number_of_t_edge+=check_t_edge(edge)
-            number_of_t_edge+=check_t_edge(self.next_edge(
-                    edge).pair)
+            number_of_t_edge += check_t_edge(edge)
+            number_of_t_edge += check_t_edge(self.next_edge(
+                edge).pair)
 
         return number_of_t_edge
-
 
     def adjacent_spaces(self, length: int = None) -> List['Space']:
         """

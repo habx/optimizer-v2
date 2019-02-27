@@ -127,7 +127,6 @@ square_shape_shuffle_component = Shuffle('square_shape', [swap_seed_action], (),
                                           CONSTRAINTS['component_aspect_constraint'],
                                           CONSTRAINTS['alignments']])
 
-
 square_shape_shuffle_component_aligned = Shuffle('swap_aligned',
                                                  [swap_aligned_action],
                                                  (),

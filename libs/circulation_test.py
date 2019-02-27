@@ -6,11 +6,10 @@ Circulation Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
+from libs.seed import Seeder, GROWTH_METHODS
 
 from libs.grid import GRIDS
 from libs.selector import SELECTORS
-from libs.shuffle import SHUFFLES
 from libs.circulation import Circulator, COST_RULES
 
 from libs.space_planner import SpacePlanner
