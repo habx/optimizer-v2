@@ -1561,6 +1561,31 @@ class Space(PlanComponent):
         else:
             return 0
 
+    def adjacency_length(self, other: Union['Space', 'Face']) -> float:
+        """
+        Returns the maximum adjacency length with an other space or face
+        with constraint of adjacency length
+        :return: float : length
+        """
+        adjacency_length = []
+        previous_edge = False
+        number_of_adjacenies = 0
+        for edge in other.edges:
+            if self.has_edge(edge.pair):
+                if not previous_edge:
+                    adjacency_length.append(edge.length)
+                    number_of_adjacenies += 1
+                    previous_edge = True
+                else:
+                    adjacency_length[number_of_adjacenies - 1] += edge.length
+            else:
+                previous_edge = False
+
+        if adjacency_length:
+            return sum(adjacency_length)
+        else:
+            return 0
+
     def count_ducts(self) -> float:
         """
         counts the number of ducts the space is adjacent to
@@ -1608,6 +1633,40 @@ class Space(PlanComponent):
                 if space is not self and space not in connected_spaces:
                     connected_spaces.append(space)
         return connected_spaces
+
+    def centroid(self) -> Coords2d:
+        """
+        Returns the centroid coords of the space
+        :return: ['Space']
+        """
+
+        centroid_x = 0
+        centroid_y = 0
+        for edge in self.edges:
+            centroid_x += (edge.start.x + edge.next.start.x) * (
+                    edge.start.x * edge.next.start.y - edge.next.start.x * edge.start.y)
+            centroid_y += (edge.start.y + edge.next.start.y) * (
+                    edge.start.x * edge.next.start.y - edge.next.start.x * edge.start.y)
+
+        centroid_x = centroid_x * 1 / (6 * self.area)
+        centroid_y = centroid_y * 1 / (6 * self.area)
+
+        return [centroid_x, centroid_y]
+
+    def maximum_distance_to(self, other: Union['Space', 'Face']) -> float:
+        """
+        Returns the maximum distance with an other space or face
+        :return: float : length
+        """
+        max_distance = 0
+        for edge in self.edges:
+            vertex = edge.start
+            for other_edge in other.edges:
+                other_vertex = other_edge.start
+                if vertex.distance_to(other_vertex) > max_distance:
+                    max_distance = vertex.distance_to(other_vertex)
+
+        return max_distance
 
 
 class Linear(PlanComponent):
@@ -2418,6 +2477,33 @@ class Plan:
         for space in self.spaces:
             _area += space.area
         return _area
+
+    @property
+    def indoor_area(self) -> float:
+        """
+        Returns the indoor area of the plan.
+        :return:
+        """
+        _area = 0.0
+        for space in self.spaces:
+            if space.category.external is False:
+                _area += space.area
+        return _area
+
+    @property
+    def indoor_perimeter(self) -> float:
+        """
+        Returns the perimeter of the plan.
+        :return:
+        """
+        _perimeter = 0.0
+        for space in self.spaces:
+            for edge in space.edges:
+                if (edge.pair.face is None or
+                    edge.pair in list(space.edge
+                                      for space in self.spaces if space.category.external is True)):
+                    _perimeter += edge.length
+        return _perimeter
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],

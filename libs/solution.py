@@ -232,8 +232,10 @@ class Solution:
         :return: score : float
         """
         shape_score = 100
+        logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
+            logging.debug("room %s: P2/A : %i", item.category.name, int((space.perimeter*space.perimeter)/space.area))
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
             if convex_hull.is_valid and sp_space.is_valid:
@@ -249,6 +251,7 @@ class Solution:
 
             shape_score = min(item_shape_score, shape_score)
         logging.debug("Solution %i: Shape score : %f", self._id, shape_score)
+
         return shape_score
 
     def _good_size_bonus(self) -> float:
