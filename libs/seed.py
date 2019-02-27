@@ -117,7 +117,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    # input("fill")
+                    #input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -921,7 +921,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_B22.json"
+        input_file = "Bussy_Regis.json"
 
         plan = reader.create_plan_from_file(input_file)
 
