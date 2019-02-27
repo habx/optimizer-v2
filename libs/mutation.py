@@ -14,7 +14,6 @@ from libs.utils.custom_exceptions import OutsideFaceError
 
 if TYPE_CHECKING:
     from libs.mesh import Edge
-    from libs.plan import Space
     from libs.utils.custom_types import TwoEdgesAndAFace
 
 EdgeMutation = Callable[['Edge', 'Space'], Sequence['Space']]
@@ -236,7 +235,6 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space, other_space]
 
 
-
 def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Adds to space all the faces of the aligned edges
@@ -254,7 +252,6 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         assert (other_space.adjacent_to(edge.face),
                 "Mutation: The edge face must be adjacent to the second space")
 
-
     aligned_edges = []
     for aligned in space.next_aligned_siblings(edge):
         if not other_space.has_edge(aligned.pair):
@@ -266,18 +263,19 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         if aligned.face not in list_face_aligned:
             list_face_aligned.append(aligned.pair.face)
 
-    #adds faces of list_face_aligned to space.
-    list_created_spaces=[other_space]
+    # adds faces of list_face_aligned to space.
+    list_created_spaces = [other_space]
     while list_face_aligned:
-        aligned_face=list_face_aligned[0]
-        sp_to_remove=None
+        aligned_face = list_face_aligned[0]
+        sp_to_remove = None
         for sp in space.plan.spaces:
             if sp.has_face(aligned_face):
-                sp_to_remove=sp
+                sp_to_remove = sp
                 break
         if sp_to_remove:
+            created_spaces = sp_to_remove.remove_face(aligned_face)
             space.add_face(aligned_face)
-            created_spaces=sp_to_remove.remove_face(aligned_face)
+
             list_face_aligned.remove(aligned_face)
             for sp in created_spaces:
                 if sp not in list_created_spaces:
@@ -286,7 +284,6 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
             break
 
     return [space] + list_created_spaces
-
 
 
 def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
@@ -353,6 +350,7 @@ def merge_spaces(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     space.merge(other)
 
     return [space, other]
+
 
 # Cuts Mutation
 
