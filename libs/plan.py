@@ -2567,7 +2567,7 @@ class Plan:
         :return:
         """
         logging.debug("Plan: removing null spaces of plan %s", self)
-        space_to_remove = (space for space in self.spaces if space.edge is None)
+        space_to_remove = [space for space in self.spaces if space.edge is None]
         for space in space_to_remove:
             space.remove()
 
