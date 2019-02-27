@@ -961,7 +961,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Antony_A22.json"
+        # input_file = "Edison_20.json"
 
         plan = reader.create_plan_from_file(input_file)
 
