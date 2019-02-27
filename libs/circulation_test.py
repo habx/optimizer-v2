@@ -14,7 +14,7 @@ from libs.circulation import Circulator, COST_RULES
 
 from libs.space_planner import SpacePlanner
 
-test_files = [("Antony_A22.json", "Antony_A22_setup.json")]
+test_files = [("Bussy_A001.json", "Bussy_A001_setup.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -33,8 +33,11 @@ def test_circulation(input_file, input_setup):
      .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
      .from_space_empty_to_seed())
 
+    plan.remove_null_spaces()
+
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
+
 
     space_planner = SpacePlanner("test", spec)
     best_solutions = space_planner.solution_research()
@@ -43,3 +46,4 @@ def test_circulation(input_file, input_setup):
         for solution in best_solutions:
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
+

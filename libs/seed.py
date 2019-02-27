@@ -961,7 +961,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Edison_10.json"
+        # input_file = "Edison_20.json"
 
         plan = reader.create_plan_from_file(input_file)
 
@@ -975,7 +975,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells())
+         .merge_small_cells(min_cell_area=1000))
         # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
 
         plan.remove_null_spaces()
@@ -984,17 +984,15 @@ if __name__ == '__main__':
         plan.check()
 
         for sp in plan.spaces:
+            if sp.area==0:
+                input("space area should not be zero")
             sp_comp = sp.components_category_associated()
 
-            if sp.size and sp.category.name is not "empty" and sp.mutable and sp.area > 0:
+            if sp.size and sp.category.name is not "empty" and sp.mutable:
                 logging.debug(
                     "space area and category {0} {1} {2} {3}".format(sp_comp,
                                                                      sp.category.name, sp.size,
                                                                      sp.as_sp.centroid.coords.xy))
-            elif sp.category.name is not "empty" and sp.mutable and sp.area > 0:
-                logging.debug(
-                    "space area and category {0} {1} {2}".format(sp.area, sp_comp,
-                                                                 sp.category.name))
 
 
     grow_a_plan_trames()
