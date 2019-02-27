@@ -528,7 +528,7 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus() - self._circulation_penalty()
+        solution_score = solution_score + self._good_size_bonus() # - self._circulation_penalty()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 

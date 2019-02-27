@@ -169,7 +169,7 @@ class SpacePlanner:
                 for sol in best_sol:
                     logging.debug(sol)
                     sol.plan.plot(save=True)
-                    return best_sol
+                return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     from libs.shuffle import SHUFFLES
     import argparse
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -255,22 +255,20 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        #input_file = "Sartrouville_R1.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "paris-mon18_A603.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         print(input_file)
-
-        GRIDS["optimal_grid"].apply_to(plan)
-
         print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
 
+        GRIDS['optimal_grid'].apply_to(plan)
+
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
         (seeder.plant()
          .grow(show=True)
-         # .shuffle(SHUFFLES["seed_square_shape"])
-         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"])
-         .shuffle(SHUFFLES["seed_square_shape"]))
+         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .from_space_empty_to_seed()
+         .merge_small_cells())
 
         plan.plot()
 
@@ -279,6 +277,10 @@ if __name__ == '__main__':
         spec = reader.create_specification_from_file(input_file_setup)
         spec.plan = plan
         spec.plan.remove_null_spaces()
+
+        for space in spec.plan.spaces:
+            print(space)
+            print(space.area)
 
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))

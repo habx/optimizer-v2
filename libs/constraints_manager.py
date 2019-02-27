@@ -101,7 +101,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 50
+        max_num_sol = 500
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():

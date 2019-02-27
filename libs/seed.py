@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from libs.shuffle import Shuffle
 
 EPSILON_MAX_SIZE = 10.0
+SQM = 10000
 
 
 class Seeder:
@@ -329,7 +330,7 @@ class Seeder:
         return self
 
     def merge_small_cells(self, show: bool = False,
-                          min_cell_area: float = 1000) -> 'Seeder':
+                          min_cell_area: float = 2*SQM) -> 'Seeder':
         """
         Merges small spaces with neighbor space that has highest contact length
         :param show:
