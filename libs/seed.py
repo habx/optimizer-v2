@@ -207,7 +207,7 @@ class Seeder:
         if not list_side_faces:
             return
 
-        # removes the side faces from self
+        # removes the side faces from the space they belong to
         for face in list_side_faces:
             space.plan.get_space_of_face(face).remove_face(face)
         # create new empty space
@@ -920,7 +920,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        #input_file = "Edison_10.json"
+        # input_file = "Edison_10.json"
 
         plan = reader.create_plan_from_file(input_file)
 
