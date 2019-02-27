@@ -328,6 +328,47 @@ class Seeder:
 
         return self
 
+    def merge_small_cells(self, show: bool = False,
+                          min_cell_area: float = 1000) -> 'Seeder':
+        """
+        Merges small spaces with neighbor space that has highest contact length
+        :param show:
+        :param min_cell_area:
+        :return:
+        """
+        if show:
+            self._initialize_plot()
+
+        continue_merge = True
+        while continue_merge:
+            continue_merge = False
+            small_spaces = [space for space in self.plan.get_spaces("seed") if
+                            space.area < min_cell_area]
+            for small_space in small_spaces:
+                # adjacent mutable spaces of small_space
+                adjacent_spaces = [adj for adj in small_space.adjacent_spaces() if adj.mutable]
+                if not adjacent_spaces:
+                    continue
+                max_contact_length = max(map(lambda adj_sp: adj_sp.contact_length(small_space),
+                                             adjacent_spaces))
+                # select adjacent mutable spaces with highest contact length
+                candidates = [adj for adj in adjacent_spaces if
+                              adj.contact_length(small_space) > max_contact_length - 1]
+                if not candidates:
+                    continue
+                # in case there are several spaces with equal contact length,
+                # merge with the smallest one
+                min_area = min(map(lambda sp: sp.area, candidates))
+                selected = [cand for cand in candidates if
+                            cand.area <= min_area]
+                selected[0].merge(small_space)
+                continue_merge = True
+                break
+
+        self.plan.remove_null_spaces()
+
+        return self
+
     def shuffle(self, shuffle: 'Shuffle', show: bool = False) -> 'Seeder':
         """
         Runs a shuffle on the plan
@@ -933,7 +974,8 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed())
+         .from_space_empty_to_seed()
+         .merge_small_cells())
         # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
 
         plan.remove_null_spaces()
