@@ -14,7 +14,8 @@
       "requiredArea": {
         "min": 330000,
         "max": 370000
-      }
+      },
+      "opensOn": ["kitchen"]
     },
     {
       "type": "kitchen",
@@ -22,7 +23,8 @@
       "requiredArea": {
         "min": 170000,
         "max": 230000
-      }
+      },
+      "opensOn": ["living"]
     },
     {
       "type": "bedroom",
