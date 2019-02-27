@@ -125,6 +125,7 @@ def square_shape(_: Dict) -> scoreFunction:
 def component_surface_objective(params: Dict) -> scoreFunction:
     """
     Scores the respect of surface margins for cells containing components defined in params
+    :param params:
     :return:
     """
 
@@ -156,6 +157,7 @@ def component_aspect_constraint(params: Dict) -> scoreFunction:
     """
     Scores the respect of shape size and aspect ratio for cells containing components defined
     in params
+    :param params:
     :return:
     """
 

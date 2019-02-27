@@ -1098,6 +1098,7 @@ class Space(PlanComponent):
     def face_is_adjacent(self, face: Face) -> bool:
         """
         Returns True if the face is adjacent to the space
+        :param face:
         :return: bool
         """
         if [edge for edge in face.edges if self.has_edge(edge.pair)]:
@@ -1499,7 +1500,7 @@ class Space(PlanComponent):
         :return: float
         """
 
-        def check_t_edge(edge: 'Edge') -> bool:
+        def is_t_edge(edge: 'Edge') -> bool:
             continuous_edge = edge.continuous_edge
             if continuous_edge:
                 space_continuous = self.plan.get_space_of_edge(continuous_edge)
@@ -1515,8 +1516,8 @@ class Space(PlanComponent):
                                  edge).vector) >= corner_min_angle]
 
         for edge in list_corner_edges:
-            number_of_t_edge += check_t_edge(edge)
-            number_of_t_edge += check_t_edge(self.next_edge(
+            number_of_t_edge += is_t_edge(edge)
+            number_of_t_edge += is_t_edge(self.next_edge(
                 edge).pair)
 
         return number_of_t_edge

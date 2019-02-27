@@ -117,7 +117,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-                    #input("fill")
+                    # input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -169,18 +169,20 @@ class Seeder:
 
     def divide_along_line(self, space: 'Space', line_edges: List['Edge']):
         """
-        Divides the space into two sub-spaces, cut performed along the line formed by input edges
+        Divides the space into two sub-spaces, cut performed along the line formed by line_edges
+        :param space:
+        :param line_edges:
         :return:
         """
 
-        def face_on_side(line_edge: List['Edge']) -> Generator['Face', bool, None]:
+        def face_on_side() -> Generator['Face', bool, None]:
             """
-            Detects the faces of the space that are on one of the two sides
-            of the line defined by line_edges
+            Generator over the faces of the space that are on one of both sides
+            defined by line_edges
             :return: Generator
             """
-            if line_edge:
-                face_ini = line_edge[0].face
+            if line_edges:
+                face_ini = line_edges[0].face
                 list_side_face = [face_ini]
                 add = [face_ini]
                 added = True
@@ -190,7 +192,7 @@ class Seeder:
                         for face in space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
                             # adds faces adjacent to those already added
                             # do not add faces on the other side of the line
-                            if (not [edge for edge in line_edge if edge.pair in face.edges]
+                            if (not [edge for edge in line_edges if edge.pair in face.edges]
                                     and face not in list_side_face):
                                 list_side_face.append(face)
                                 add.append(face)
@@ -201,8 +203,7 @@ class Seeder:
         if not line_edges:
             return
 
-        list_side_faces = [face for face in face_on_side(line_edges)]
-
+        list_side_faces = [face for face in face_on_side()]
         if not list_side_faces:
             return
 
@@ -215,72 +216,71 @@ class Seeder:
                               SPACE_CATEGORIES[space.category.name])
         list_side_faces.remove(list_side_faces[0])
 
-        # adds side face to the new space in an order preserving connectivity
+        # adds side faces to the new space in an order preserving connectivity
         while list_side_faces:
             for face in list_side_faces:
                 if space_created.face_is_adjacent(face):
                     space_created.add_face(face)
                     list_side_faces.remove(face)
 
-    @staticmethod
-    def line_from_edge(edge: 'Edge', backward=False) -> Generator['Edge', 'Edge', None]:
+    def line_from_edge(self, edge_origin: 'Edge') -> List['Edge']:
         """
-        Returns all the edges that form a contiguous foward (or backward) line with the current edge
-        :return: generator of forward or (backward) contiguous edges
+        Returns list of edges forming contiguous lines from edge_origin
+        and belonging to empty spaces
+        :return: list
         """
-        current = edge
-        if not backward:
-            while current:
-                current = current.aligned_edge or current.continuous_edge
-                if current:
-                    yield current
+        contiguous_edges = []
 
-        if current:
-            current = current.pair
-            while current:
-                current = current.aligned_edge or current.continuous_edge
-                if current:
-                    yield current
+        current = edge_origin
+        # forward selection
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+        # backward selection
+        current = edge_origin.pair
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+
+        return contiguous_edges
 
     def divide_along_seed_borders(self, selector: 'Selector'):
         """
         divide empty spaces along all lines drawn from selected edges
+        Iterates though seed spaces, at each iteration :
+        1 - a corner edge of a seed_space is selected
+        2 - the list of its contiguous edges is built
+        3 - each empty space cut by a set of those contiguous edges is cut into two parts
         :param selector:
         :return:
         """
         for seed_space in self.plan.get_spaces("seed"):
             for edge_selected in selector.yield_from(seed_space):
 
-                # lists of edges along which space divisions will be performed
+                # lists of edges along which empty spaces division will be performed
+                contiguous_edges = self.line_from_edge(edge_selected)
 
-                aligned_edges = []
-
-                # forward contiguous edges
-                for edge in self.line_from_edge(edge_selected):
-                    space_of_edge = self.plan.get_space_of_edge(edge)
-                    if (space_of_edge and space_of_edge.category
-                            and space_of_edge.category.name == "empty"):
-                        aligned_edges.append(edge)
-                    else:
-                        break
-
-                # backward contiguous edges
-                for edge in self.line_from_edge(edge_selected, backward=True):
-                    space_of_edge = self.plan.get_space_of_edge(edge)
-                    if (space_of_edge and space_of_edge.category
-                            and space_of_edge.category.name == "empty"):
-                        aligned_edges.append(edge)
-                    else:
-                        break
-
-                list_space_to_divide = []
-                for edge in aligned_edges:
+                divided_spaces = []
+                for edge in contiguous_edges:
                     space = self.plan.get_space_of_edge(edge)
-                    if space not in list_space_to_divide:
-                        list_space_to_divide.append(space)
-                        aligned_edges_in_space = list(
-                            edge for edge in aligned_edges if space.has_edge(edge))
-                        self.divide_along_line(space, aligned_edges_in_space)
+                    # once a space has been divided, it is not considered any more
+                    if space not in divided_spaces:
+                        divided_spaces.append(space)
+                        edges_in_space = list(
+                            edge for edge in contiguous_edges if space.has_edge(edge))
+                        self.divide_along_line(space, edges_in_space)
 
         self.plan.plot()
         return self
@@ -829,7 +829,6 @@ FILL_METHODS = {
     "default": None
 }
 
-
 if __name__ == '__main__':
     import libs.reader as reader
     from libs.grid import GRIDS
@@ -921,7 +920,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Bussy_Regis.json"
+        #input_file = "Edison_10.json"
 
         plan = reader.create_plan_from_file(input_file)
 
