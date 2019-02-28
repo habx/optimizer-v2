@@ -129,15 +129,18 @@ class SpacePlanner:
             item_space = dict_items_spaces[item]
             if len(item_space) > 1:
                 space_ini = item_space[0]
+                item_space.remove(item_space[0])
                 i = 0
-                while (len(item_space) > 1) and i < len(item_space) * len(item_space):
-                    for space in item_space[1:]:
+                iter_max = len(item_space) ** 2
+                while (len(item_space) > 0) and i < iter_max:
+                    i += 1
+                    for space in item_space:
                         if space.adjacent_to(space_ini):
+                            item_space.remove(space)
                             space_ini.merge(space)
                             plan.remove_null_spaces()
-                            item_space.remove(space)
                             break
-                    i += 1
+
         assert plan.check()
         return plan
 
@@ -237,7 +240,7 @@ if __name__ == '__main__':
     from libs.shuffle import SHUFFLES
     import argparse
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -255,7 +258,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "paris-mon18_A603.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "Levallois_Letourneur.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         print(input_file)
         print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
@@ -291,10 +294,10 @@ if __name__ == '__main__':
         import time
 
         # surfaces control
-        print("PLAN AREA : ", spec.plan.indoor_area)
-        print("Setup AREA : ", sum(item.required_area for item in spec.items))
-        print("Setup max AREA : ", sum(item.max_size.area for item in spec.items))
-        print("Setup min AREA : ", sum(item.min_size.area for item in spec.items))
+        print("PLAN AREA : ", int(spec.plan.indoor_area))
+        print("Setup AREA : ", int(sum(item.required_area for item in spec.items)))
+        print("Setup max AREA : ", int(sum(item.max_size.area for item in spec.items)))
+        print("Setup min AREA : ", int(sum(item.min_size.area for item in spec.items)))
 
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)

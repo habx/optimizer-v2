@@ -130,11 +130,11 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: Process time : %f", time.clock() - t0)
 
         print("ConstraintSolver: Statistics")
-        print("ConstraintSolver: num_solutions: %i", nbr_solutions)
-        print("ConstraintSolver: failures: %i", self.solver.Failures())
-        print("ConstraintSolver: branches:  %i", self.solver.Branches())
+        print("ConstraintSolver: num_solutions:", nbr_solutions)
+        print("ConstraintSolver: failures: ", self.solver.Failures())
+        print("ConstraintSolver: branches: ", self.solver.Branches())
         # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
-        print("ConstraintSolver: Process time : %f", time.clock() - t0)
+        print("ConstraintSolver: Process time :", time.clock() - t0)
 
 
 class ConstraintsManager:
@@ -454,11 +454,11 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2 / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining"]:
-        param = int(plan_ratio + 10)
+        param = max(30, int(plan_ratio + 10))
     elif item.category.name in ["kitchen", "bedroom", "entrance"]:
         param = max(25, int(plan_ratio))
     else:
-        param = 23
+        param = 24
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in

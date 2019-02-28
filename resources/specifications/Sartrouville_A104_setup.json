@@ -13,7 +13,7 @@
       "variant": "m",
       "requiredArea": {
         "min": 100000,
-        "max": 150000
+        "max": 200000
       }
     },
         {
@@ -29,15 +29,15 @@
       "variant": "s",
       "requiredArea": {
         "min": 90000,
-        "max": 100000
+        "max": 130000
       }
     },
     {
       "type": "bathroom",
       "variant": "m",
       "requiredArea": {
-        "min": 60000,
-        "max": 80000
+        "min": 30000,
+        "max": 60000
       }
     }
   ]

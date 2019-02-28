@@ -35,10 +35,11 @@
     {
       "type": "living",
       "requiredArea": {
-        "min": 250000,
-        "max": 350000
+        "min": 350000,
+        "max": 450000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": ["kitchen"]
     },
     {
       "type": "kitchen",
@@ -46,7 +47,8 @@
         "min": 90000,
         "max": 140000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": ["living"]
     },
     {
       "type": "entrance",
