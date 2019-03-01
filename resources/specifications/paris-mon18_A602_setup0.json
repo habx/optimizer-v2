@@ -16,11 +16,11 @@
         "kitchen"
       ],
       "requiredArea": {
-        "max": 400000,
-        "min": 300000
+        "max": 165000.0,
+        "min": 120000
       },
       "type": "living",
-      "variant": "xl"
+      "variant": "xs"
     },
     {
       "linkedTo": [],
@@ -28,21 +28,11 @@
         "living"
       ],
       "requiredArea": {
-        "max": 120000,
-        "min": 80000
+        "max": 60000,
+        "min": 40000
       },
       "type": "kitchen",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 150000,
-        "min": 120000
-      },
-      "type": "bedroom",
-      "variant": "m"
+      "variant": "xs"
     },
     {
       "linkedTo": [],

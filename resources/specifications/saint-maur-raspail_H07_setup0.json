@@ -4,28 +4,32 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 6,
-        "min": 2.5
+        "max": 60000,
+        "min": 25000.0
       },
       "type": "entrance",
       "variant": "m"
     },
     {
       "linkedTo": [],
-      "opensOn": "kitchen",
+      "opensOn": [
+        "kitchen"
+      ],
       "requiredArea": {
-        "max": 22.5,
-        "min": 20
+        "max": 400000,
+        "min": 300000
       },
       "type": "living",
-      "variant": "m"
+      "variant": "xl"
     },
     {
       "linkedTo": [],
-      "opensOn": "living",
+      "opensOn": [
+        "living"
+      ],
       "requiredArea": {
-        "max": 12,
-        "min": 8
+        "max": 120000,
+        "min": 80000
       },
       "type": "kitchen",
       "variant": "m"
@@ -34,28 +38,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 15,
-        "min": 12
-      },
-      "type": "office",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 15,
-        "min": 12
-      },
-      "type": "office",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 15,
-        "min": 12
+        "max": 150000,
+        "min": 120000
       },
       "type": "bedroom",
       "variant": "m"
@@ -64,21 +48,45 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 4,
-        "min": 2
+        "max": 150000,
+        "min": 120000
       },
-      "type": "bathroom",
-      "variant": "xs"
+      "type": "bedroom",
+      "variant": "m"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 2,
-        "min": 1
+        "max": 150000,
+        "min": 120000
+      },
+      "type": "bedroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "bathroom"
+      ],
+      "requiredArea": {
+        "max": 80000,
+        "min": 40000
       },
       "type": "wc",
-      "variant": "s"
+      "variant": "xl"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "wc"
+      ],
+      "requiredArea": {
+        "max": 85000.0,
+        "min": 60000
+      },
+      "type": "bathroom",
+      "variant": "m"
     }
   ]
 }
