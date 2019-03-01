@@ -142,6 +142,7 @@ class SpacePlanner:
                             break
 
         assert plan.check()
+        print(plan)
         return plan
 
     def solution_research(self) -> Optional[List['Solution']]:
@@ -258,7 +259,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Antony_B22.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "Levallois_Creuze.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         print(input_file)
         print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
@@ -278,6 +279,7 @@ if __name__ == '__main__':
         # input_file = "Antony_A22_setup.json"
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
+        print(spec)
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
@@ -288,8 +290,8 @@ if __name__ == '__main__':
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
-        category_name_list = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
-                                   "bedroom", "dressing"]
+        category_name_list = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living", "dining",
+                                   "bedroom", "office", "dressing", "misc"]
         spec.init_id(category_name_list)
         import time
 

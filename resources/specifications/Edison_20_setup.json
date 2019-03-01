@@ -5,13 +5,13 @@
       "variant": "s",
       "requiredArea": {
         "min": 25000,
-        "max": 30000
+        "max": 50000
       }
     },
     {
       "type": "living",
       "requiredArea": {
-        "min": 200000,
+        "min": 225000,
         "max": 300000
       },
       "variant": "s"
@@ -36,8 +36,8 @@
       "type": "bathroom",
       "variant": "s",
       "requiredArea": {
-        "min": 50000,
-        "max": 90000
+        "min": 60000,
+        "max": 85000
       }
     }
   ]

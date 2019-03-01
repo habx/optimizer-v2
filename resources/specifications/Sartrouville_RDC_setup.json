@@ -12,10 +12,9 @@
       "type": "living",
       "variant": "m",
       "requiredArea": {
-        "min": 300000,
-        "max": 400000
-      },
-      "opensOn": ["kitchen"]
+        "min": 220000,
+        "max": 300000
+      }
     },
         {
       "type": "kitchen",
@@ -23,8 +22,7 @@
       "requiredArea": {
         "min": 150000,
         "max": 190000
-      },
-      "opensOn": ["living"]
+      }
     },
     {
       "type": "bedroom",

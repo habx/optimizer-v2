@@ -11,56 +11,64 @@
     {
       "type": "bathroom",
       "requiredArea": {
-        "max": 100000,
-        "min": 80000
+        "max": 120000,
+        "min": 85000
       },
       "variant": "s"
     },
     {
       "type": "bathroom",
       "requiredArea": {
-        "max": 100000,
-        "min": 80000
+        "max": 120000,
+        "min": 85000
       },
       "variant": "s"
     },
     {
       "type": "wc",
       "requiredArea": {
-        "max": 50000,
-        "min": 30000
+        "max": 40000,
+        "min": 20000
       },
       "variant": "l"
     },
     {
       "type": "bedroom",
       "requiredArea": {
-        "max": 180000,
-        "min": 150000
+        "max": 150000,
+        "min": 120000
       },
       "variant": "l"
     },
     {
       "type": "bedroom",
       "requiredArea": {
-        "max": 180000,
-        "min": 150000
+        "max": 150000,
+        "min": 120000
       },
       "variant": "l"
     },
     {
       "type": "bedroom",
       "requiredArea": {
-        "max": 180000,
-        "min": 150000
+        "max": 150000,
+        "min": 120000
       },
       "variant": "l"
     },
     {
       "type": "living",
       "requiredArea": {
-        "min": 400000,
-        "max": 550000
+        "min": 225000,
+        "max": 300000
+      },
+      "variant": "s"
+    },
+        {
+      "type": "dining",
+      "requiredArea": {
+        "min": 250000,
+        "max": 350000
       },
       "variant": "s"
     },
@@ -68,7 +76,7 @@
       "type": "kitchen",
       "requiredArea": {
         "min": 150000,
-        "max": 250000
+        "max": 190000
       },
       "variant": "l"
     }

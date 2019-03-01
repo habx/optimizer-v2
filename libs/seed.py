@@ -330,7 +330,7 @@ class Seeder:
         return self
 
     def merge_small_cells(self, show: bool = False,
-                          min_cell_area: float = 1*SQM) -> 'Seeder':
+                          min_cell_area: float = 2*SQM) -> 'Seeder':
         """
         Merges small spaces with neighbor space that has highest contact length
         :param show:

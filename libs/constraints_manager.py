@@ -149,6 +149,7 @@ class ConstraintsManager:
         self.name = name
         self.sp = sp
         if sp.spec.plan.floor_count < 2:
+            print("ConstraintsManager ITEMS",self.sp.spec.items)
             self.solver = ConstraintSolver(len(self.sp.spec.items),
                                            self.sp.spec.plan.count_mutable_spaces())
         else:
