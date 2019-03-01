@@ -1,0 +1,72 @@
+{
+  "setup": [
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 60000,
+        "min": 25000.0
+      },
+      "type": "entrance",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "kitchen"
+      ],
+      "requiredArea": {
+        "max": 225000.0,
+        "min": 200000
+      },
+      "type": "living",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "living"
+      ],
+      "requiredArea": {
+        "max": 120000,
+        "min": 80000
+      },
+      "type": "kitchen",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 150000,
+        "min": 120000
+      },
+      "type": "office",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "bathroom"
+      ],
+      "requiredArea": {
+        "max": 20000,
+        "min": 10000
+      },
+      "type": "wc",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "wc"
+      ],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "type": "bathroom",
+      "variant": "xs"
+    }
+  ]
+}
