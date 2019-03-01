@@ -1,8 +1,6 @@
 {
   "setup": [
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 60000,
         "min": 25000.0
@@ -11,8 +9,6 @@
       "variant": "m"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 225000.0,
         "min": 200000
@@ -21,18 +17,14 @@
       "variant": "m"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 80000
+        "max": 60000,
+        "min": 40000
       },
       "type": "kitchen",
-      "variant": "m"
+      "variant": "xs"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 100000,
         "min": 80000
@@ -41,8 +33,6 @@
       "variant": "xs"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 20000,
         "min": 10000
@@ -51,14 +41,28 @@
       "variant": "s"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 85000.0,
         "min": 60000
       },
       "type": "bathroom",
       "variant": "m"
+    },
+    {
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "type": "laundry",
+      "variant": "s"
+    },
+    {
+      "requiredArea": {
+        "max": 30000,
+        "min": 10000
+      },
+      "type": "dressing",
+      "variant": "xs"
     }
   ]
 }
