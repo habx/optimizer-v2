@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Levallois_Letourneur.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "Antony_B22.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         print(input_file)
         print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
