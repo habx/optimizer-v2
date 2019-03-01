@@ -1,8 +1,6 @@
 {
   "setup": [
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 60000,
         "min": 25000.0
@@ -11,68 +9,60 @@
       "variant": "m"
     },
     {
-      "linkedTo": [],
-      "opensOn": [
-        "kitchen"
-      ],
-      "requiredArea": {
-        "max": 225000.0,
-        "min": 200000
-      },
-      "type": "living",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [
-        "living"
-      ],
-      "requiredArea": {
-        "max": 120000,
-        "min": 80000
-      },
-      "type": "kitchen",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 150000,
         "min": 120000
       },
-      "type": "office",
+      "type": "bedroom",
       "variant": "m"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
-        "max": 150000,
-        "min": 120000
+        "max": 60000,
+        "min": 40000
       },
       "type": "office",
-      "variant": "m"
+      "variant": "xs"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
-        "max": 20000,
-        "min": 10000
+        "max": 80000,
+        "min": 40000
       },
       "type": "wc",
+      "variant": "xl"
+    },
+    {
+      "requiredArea": {
+        "max": 175000.0,
+        "min": 125000.0
+      },
+      "type": "bathroom",
+      "variant": "xl"
+    },
+    {
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "type": "laundry",
       "variant": "s"
     },
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
-        "max": 85000.0,
-        "min": 60000
+        "max": 70000,
+        "min": 50000
       },
-      "type": "bathroom",
+      "type": "dressing",
       "variant": "m"
+    },
+    {
+      "requiredArea": {
+        "max": 285000.0,
+        "min": 200000
+      },
+      "type": "livingKitchen",
+      "variant": "s"
     }
   ]
 }
