@@ -1,0 +1,287 @@
+{
+    "apartment": {
+        "area": 1450458,
+        "blueprints": [
+            {
+                "externalSpaces": [
+
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 355,
+                        "coef2": 762,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 16,
+                        "vertex2": 17,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 553,
+                        "coef2": 881,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 14,
+                        "vertex2": 15,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 95,
+                        "coef2": 342,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 14,
+                        "vertex2": 15,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 74,
+                        "coef2": 596,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 17,
+                        "vertex2": 0,
+                        "width": 94
+                    },
+                    {
+                        "coef1": 71,
+                        "coef2": 208,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 94
+                    },
+                    {
+                        "coef1": 294,
+                        "coef2": 373,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 895,
+                        "coef2": 954,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 499,
+                        "coef2": 558,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 665,
+                        "coef2": 724,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 170,
+                        "coef2": 530,
+                        "sillHeight": 0.0,
+                        "type": "doorWindow",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 323,
+                        "coef2": 625,
+                        "type": "frontDoor",
+                        "vertex1": 6,
+                        "vertex2": 7,
+                        "width": 96
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 20,
+                        "vertex2": 21,
+                        "width": 48
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 22,
+                        "vertex2": 23,
+                        "width": 85
+                    },
+                    {
+                        "coef1": 913,
+                        "coef2": 979,
+                        "type": "duct",
+                        "vertex1": 15,
+                        "vertex2": 16,
+                        "width": 67
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 24,
+                        "vertex2": 25,
+                        "width": 57
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 5,
+                "loadBearingWalls": [
+                    [
+                        18,
+                        19
+                    ]
+                ],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": -3652,
+                        "y": 1569
+                    },
+                    {
+                        "x": -3723,
+                        "y": -494
+                    },
+                    {
+                        "x": -2882,
+                        "y": -524
+                    },
+                    {
+                        "x": -2870,
+                        "y": -186
+                    },
+                    {
+                        "x": -3161,
+                        "y": -176
+                    },
+                    {
+                        "x": -3144,
+                        "y": 283
+                    },
+                    {
+                        "x": -3294,
+                        "y": 288
+                    },
+                    {
+                        "x": -3282,
+                        "y": 606
+                    },
+                    {
+                        "x": -3317,
+                        "y": 607
+                    },
+                    {
+                        "x": -3304,
+                        "y": 977
+                    },
+                    {
+                        "x": -3094,
+                        "y": 970
+                    },
+                    {
+                        "x": -3095,
+                        "y": 952
+                    },
+                    {
+                        "x": -2785,
+                        "y": 940
+                    },
+                    {
+                        "x": -2792,
+                        "y": 744
+                    },
+                    {
+                        "x": -2323,
+                        "y": 727
+                    },
+                    {
+                        "x": -2306,
+                        "y": 1222
+                    },
+                    {
+                        "x": -3122,
+                        "y": 1250
+                    },
+                    {
+                        "x": -3111,
+                        "y": 1550
+                    },
+                    {
+                        "x": -3114,
+                        "y": 971
+                    },
+                    {
+                        "x": -3106,
+                        "y": 1250
+                    },
+                    {
+                        "x": -3429,
+                        "y": 179
+                    },
+                    {
+                        "x": -3426,
+                        "y": 283
+                    },
+                    {
+                        "x": -3369,
+                        "y": -327
+                    },
+                    {
+                        "x": -3367,
+                        "y": -278
+                    },
+                    {
+                        "x": -3418,
+                        "y": 806
+                    },
+                    {
+                        "x": -3416,
+                        "y": 873
+                    }
+                ]
+            }
+        ],
+        "id": "Levallois_Meyronin",
+        "levels": [
+            5
+        ],
+        "north": [
+            -0.8626178516402866,
+            0.5058561475671681
+        ]
+    }
+}

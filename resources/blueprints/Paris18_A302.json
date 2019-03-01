@@ -1,0 +1,181 @@
+{
+    "apartment": {
+        "area": 538783,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 51000,
+                        "type": "balcony",
+                        "windows": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                        ]
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 8,
+                        "coef2": 454,
+                        "type": "doorWindow",
+                        "vertex1": 12,
+                        "vertex2": 13,
+                        "width": 80
+                    },
+                    {
+                        "coef1": 539,
+                        "coef2": 986,
+                        "type": "doorWindow",
+                        "vertex1": 12,
+                        "vertex2": 13,
+                        "width": 80
+                    },
+                    {
+                        "coef1": 24,
+                        "coef2": 309,
+                        "type": "doorWindow",
+                        "vertex1": 14,
+                        "vertex2": 15,
+                        "width": 84
+                    },
+                    {
+                        "coef1": 354,
+                        "coef2": 635,
+                        "type": "doorWindow",
+                        "vertex1": 14,
+                        "vertex2": 15,
+                        "width": 83
+                    },
+                    {
+                        "coef1": 699,
+                        "coef2": 988,
+                        "type": "window",
+                        "vertex1": 14,
+                        "vertex2": 15,
+                        "width": 19
+                    },
+                    {
+                        "coef1": 693,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 15,
+                        "vertex2": 16,
+                        "width": 34
+                    },
+                    {
+                        "coef1": 78,
+                        "coef2": 799,
+                        "type": "frontDoor",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 93
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 93,
+                        "y": 0
+                    },
+                    {
+                        "x": 93,
+                        "y": -200
+                    },
+                    {
+                        "x": 288,
+                        "y": -200
+                    },
+                    {
+                        "x": 288,
+                        "y": -241
+                    },
+                    {
+                        "x": 417,
+                        "y": -241
+                    },
+                    {
+                        "x": 417,
+                        "y": -201
+                    },
+                    {
+                        "x": 438,
+                        "y": -201
+                    },
+                    {
+                        "x": 438,
+                        "y": -242
+                    },
+                    {
+                        "x": 592,
+                        "y": -242
+                    },
+                    {
+                        "x": 592,
+                        "y": -411
+                    },
+                    {
+                        "x": 924,
+                        "y": -411
+                    },
+                    {
+                        "x": 1124,
+                        "y": -306
+                    },
+                    {
+                        "x": 1002,
+                        "y": -79
+                    },
+                    {
+                        "x": 998,
+                        "y": -69
+                    },
+                    {
+                        "x": 938,
+                        "y": 253
+                    },
+                    {
+                        "x": 0,
+                        "y": 253
+                    }
+                ]
+            }
+        ],
+        "id": "Paris18_A302",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

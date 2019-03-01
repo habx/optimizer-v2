@@ -1,0 +1,192 @@
+{
+    "apartment": {
+        "area": 910172,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 70200,
+                        "type": "balcony",
+                        "windows": [
+                            4,
+                            5
+                        ]
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 174,
+                        "coef2": 294,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 74
+                    },
+                    {
+                        "coef1": 787,
+                        "coef2": 906,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 80
+                    },
+                    {
+                        "coef1": 245,
+                        "coef2": 432,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 769,
+                        "coef2": 940,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 80
+                    },
+                    {
+                        "coef1": 497,
+                        "coef2": 1000,
+                        "type": "doorWindow",
+                        "vertex1": 11,
+                        "vertex2": 12,
+                        "width": 30
+                    },
+                    {
+                        "coef1": 7,
+                        "coef2": 496,
+                        "type": "doorWindow",
+                        "vertex1": 12,
+                        "vertex2": 13,
+                        "width": 30
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 99,
+                        "type": "duct",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 62
+                    },
+                    {
+                        "coef1": 524,
+                        "coef2": 663,
+                        "type": "duct",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 33
+                    },
+                    {
+                        "coef1": 261,
+                        "coef2": 932,
+                        "type": "frontDoor",
+                        "vertex1": 6,
+                        "vertex2": 7,
+                        "width": 90
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [
+                    [
+                        14,
+                        15
+                    ]
+                ],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 778,
+                        "y": 0
+                    },
+                    {
+                        "x": 778,
+                        "y": 284
+                    },
+                    {
+                        "x": 849,
+                        "y": 284
+                    },
+                    {
+                        "x": 849,
+                        "y": 794
+                    },
+                    {
+                        "x": 144,
+                        "y": 794
+                    },
+                    {
+                        "x": 144,
+                        "y": 906
+                    },
+                    {
+                        "x": 6,
+                        "y": 906
+                    },
+                    {
+                        "x": 6,
+                        "y": 460
+                    },
+                    {
+                        "x": -422,
+                        "y": 460
+                    },
+                    {
+                        "x": -422,
+                        "y": 293
+                    },
+                    {
+                        "x": -484,
+                        "y": 293
+                    },
+                    {
+                        "x": -484,
+                        "y": -63
+                    },
+                    {
+                        "x": 0,
+                        "y": -63
+                    },
+                    {
+                        "x": 15,
+                        "y": 359
+                    },
+                    {
+                        "x": 15,
+                        "y": 252
+                    }
+                ]
+            }
+        ],
+        "id": "Noisy_A145",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

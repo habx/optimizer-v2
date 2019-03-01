@@ -1,0 +1,228 @@
+{
+    "apartment": {
+        "area": 1499256,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 100000,
+                        "type": "terrace",
+                        "windows": [
+                            2,
+                            3
+                        ]
+                    },
+                    {
+                        "area": 80000,
+                        "type": "terrace",
+                        "windows": [
+                            8
+                        ]
+                    },
+                    {
+                        "area": 1220000,
+                        "type": "jardin",
+                        "windows": [
+                            0,
+                            2,
+                            3,
+                            6,
+                            7,
+                            8,
+                            13
+                        ]
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 554,
+                        "coef2": 872,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 45
+                    },
+                    {
+                        "coef1": 328,
+                        "coef2": 579,
+                        "type": "window",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 90
+                    },
+                    {
+                        "coef1": 706,
+                        "coef2": 956,
+                        "type": "doorWindow",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 42
+                    },
+                    {
+                        "coef1": 150,
+                        "coef2": 404,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 32
+                    },
+                    {
+                        "coef1": 574,
+                        "coef2": 825,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 27
+                    },
+                    {
+                        "coef1": 131,
+                        "coef2": 449,
+                        "type": "window",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 40
+                    },
+                    {
+                        "coef1": 51,
+                        "coef2": 199,
+                        "type": "window",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 45
+                    },
+                    {
+                        "coef1": 245,
+                        "coef2": 317,
+                        "type": "window",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 73
+                    },
+                    {
+                        "coef1": 646,
+                        "coef2": 792,
+                        "type": "doorWindow",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 85
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 6,
+                        "vertex2": 7,
+                        "width": 80
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 8,
+                        "vertex2": 9,
+                        "width": 75
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 10,
+                        "vertex2": 11,
+                        "width": 47
+                    },
+                    {
+                        "coef1": 120,
+                        "coef2": 283,
+                        "type": "frontDoor",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 92
+                    },
+                    {
+                        "coef1": 67,
+                        "coef2": 191,
+                        "type": "window",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 92
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [
+                    [
+                        1,
+                        4
+                    ]
+                ],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 552,
+                        "y": 0
+                    },
+                    {
+                        "x": 1262,
+                        "y": 0
+                    },
+                    {
+                        "x": 1262,
+                        "y": 1188
+                    },
+                    {
+                        "x": 552,
+                        "y": 1188
+                    },
+                    {
+                        "x": 0,
+                        "y": 1188
+                    },
+                    {
+                        "x": 353,
+                        "y": 595
+                    },
+                    {
+                        "x": 353,
+                        "y": 519
+                    },
+                    {
+                        "x": 756,
+                        "y": 581
+                    },
+                    {
+                        "x": 835,
+                        "y": 581
+                    },
+                    {
+                        "x": 1088,
+                        "y": 692
+                    },
+                    {
+                        "x": 1150,
+                        "y": 692
+                    }
+                ]
+            }
+        ],
+        "id": "Bussy_Regis",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

@@ -1,0 +1,255 @@
+{
+    "apartment": {
+        "area": 984364,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 78000,
+                        "type": "balcony",
+                        "windows": [
+                            6
+                        ]
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 32,
+                        "coef2": 172,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 61
+                    },
+                    {
+                        "coef1": 296,
+                        "coef2": 394,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 56
+                    },
+                    {
+                        "coef1": 618,
+                        "coef2": 718,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 53
+                    },
+                    {
+                        "coef1": 813,
+                        "coef2": 950,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 55
+                    },
+                    {
+                        "coef1": 121,
+                        "coef2": 216,
+                        "type": "window",
+                        "vertex1": 9,
+                        "vertex2": 0,
+                        "width": 56
+                    },
+                    {
+                        "coef1": 279,
+                        "coef2": 409,
+                        "type": "window",
+                        "vertex1": 9,
+                        "vertex2": 0,
+                        "width": 62
+                    },
+                    {
+                        "coef1": 605,
+                        "coef2": 858,
+                        "type": "doorWindow",
+                        "vertex1": 9,
+                        "vertex2": 0,
+                        "width": 67
+                    },
+                    {
+                        "coef1": 620,
+                        "coef2": 989,
+                        "type": "duct",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 51
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 18,
+                        "vertex2": 19,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 202,
+                        "coef2": 320,
+                        "type": "duct",
+                        "vertex1": 8,
+                        "vertex2": 9,
+                        "width": 71
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 20,
+                        "vertex2": 21,
+                        "width": 67
+                    },
+                    {
+                        "coef1": 315,
+                        "coef2": 947,
+                        "type": "frontDoor",
+                        "vertex1": 5,
+                        "vertex2": 6,
+                        "width": 89
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [
+                    [
+                        10,
+                        11
+                    ],
+                    [
+                        12,
+                        13
+                    ],
+                    [
+                        14,
+                        15
+                    ],
+                    [
+                        16,
+                        17
+                    ],
+                    [
+                        18,
+                        19
+                    ],
+                    [
+                        20,
+                        21
+                    ]
+                ],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 1069,
+                        "y": 0
+                    },
+                    {
+                        "x": 1069,
+                        "y": 670
+                    },
+                    {
+                        "x": 864,
+                        "y": 670
+                    },
+                    {
+                        "x": 864,
+                        "y": 730
+                    },
+                    {
+                        "x": 644,
+                        "y": 730
+                    },
+                    {
+                        "x": 644,
+                        "y": 877
+                    },
+                    {
+                        "x": 466,
+                        "y": 877
+                    },
+                    {
+                        "x": 466,
+                        "y": 1138
+                    },
+                    {
+                        "x": 0,
+                        "y": 1138
+                    },
+                    {
+                        "x": 343,
+                        "y": 411
+                    },
+                    {
+                        "x": 459,
+                        "y": 411
+                    },
+                    {
+                        "x": 623,
+                        "y": 411
+                    },
+                    {
+                        "x": 681,
+                        "y": 411
+                    },
+                    {
+                        "x": 935,
+                        "y": 411
+                    },
+                    {
+                        "x": 954,
+                        "y": 411
+                    },
+                    {
+                        "x": 343,
+                        "y": 872
+                    },
+                    {
+                        "x": 343,
+                        "y": 889
+                    },
+                    {
+                        "x": 510,
+                        "y": 722
+                    },
+                    {
+                        "x": 510,
+                        "y": 683
+                    },
+                    {
+                        "x": 529,
+                        "y": 411
+                    },
+                    {
+                        "x": 459,
+                        "y": 411
+                    }
+                ]
+            }
+        ],
+        "id": "Massy_C303",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

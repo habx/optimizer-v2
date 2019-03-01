@@ -1,0 +1,240 @@
+{
+    "apartment": {
+        "area": 1141992,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 0,
+                        "type": "none",
+                        "windows": []
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 25,
+                        "coef2": 109,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 152,
+                        "coef2": 236,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 281,
+                        "coef2": 364,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 408,
+                        "coef2": 490,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 536,
+                        "coef2": 617,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 663,
+                        "coef2": 745,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 789,
+                        "coef2": 875,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 917,
+                        "coef2": 997,
+                        "type": "window",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 23,
+                        "coef2": 123,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 182,
+                        "coef2": 274,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 330,
+                        "coef2": 426,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 484,
+                        "coef2": 580,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 639,
+                        "coef2": 729,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 787,
+                        "coef2": 884,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 50
+                    },
+                    {
+                        "coef1": 940,
+                        "coef2": 999,
+                        "type": "window",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 20
+                    },
+                    {
+                        "coef1": 300,
+                        "coef2": 379,
+                        "type": "duct",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 37
+                    },
+                    {
+                        "coef1": 475,
+                        "coef2": 521,
+                        "type": "duct",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 48
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 10,
+                        "vertex2": 11,
+                        "width": 40
+                    },
+                    {
+                        "coef1": 858,
+                        "coef2": 963,
+                        "type": "frontDoor",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 95
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 941,
+                        "y": 0
+                    },
+                    {
+                        "x": 941,
+                        "y": 980
+                    },
+                    {
+                        "x": 656,
+                        "y": 1427
+                    },
+                    {
+                        "x": -6,
+                        "y": 1005
+                    },
+                    {
+                        "x": 0,
+                        "y": 994
+                    },
+                    {
+                        "x": 359,
+                        "y": 586
+                    },
+                    {
+                        "x": 360,
+                        "y": 554
+                    },
+                    {
+                        "x": 352,
+                        "y": 821
+                    },
+                    {
+                        "x": 370,
+                        "y": 794
+                    },
+                    {
+                        "x": 882,
+                        "y": 615
+                    },
+                    {
+                        "x": 882,
+                        "y": 762
+                    }
+                ]
+            }
+        ],
+        "id": "Edison_10",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

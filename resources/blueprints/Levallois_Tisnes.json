@@ -1,0 +1,164 @@
+{
+    "apartment": {
+        "area": 1167219,
+        "blueprints": [
+            {
+                "externalSpaces": [
+
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 99,
+                        "coef2": 204,
+                        "type": "doorWindow",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 305,
+                        "coef2": 444,
+                        "type": "doorWindow",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 645,
+                        "coef2": 750,
+                        "type": "doorWindow",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 878,
+                        "coef2": 982,
+                        "type": "doorWindow",
+                        "vertex1": 4,
+                        "vertex2": 5,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 93,
+                        "coef2": 244,
+                        "type": "window",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 713,
+                        "coef2": 865,
+                        "type": "window",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 347,
+                        "coef2": 548,
+                        "type": "window",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 81
+                    },
+                    {
+                        "coef1": 33,
+                        "coef2": 167,
+                        "type": "frontDoor",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 95
+                    },
+                    {
+                        "coef1": 643,
+                        "coef2": 814,
+                        "type": "duct",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 88
+                    },
+                    {
+                        "coef1": 207,
+                        "coef2": 297,
+                        "type": "duct",
+                        "vertex1": 1,
+                        "vertex2": 2,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 6,
+                        "vertex2": 7,
+                        "width": 66
+                    },
+                    {
+                        "coef1": 569,
+                        "coef2": 642,
+                        "type": "duct",
+                        "vertex1": 3,
+                        "vertex2": 4,
+                        "width": 37
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": -3634,
+                        "y": -1724
+                    },
+                    {
+                        "x": -3622,
+                        "y": -1365
+                    },
+                    {
+                        "x": -2912,
+                        "y": -1390
+                    },
+                    {
+                        "x": -2884,
+                        "y": -586
+                    },
+                    {
+                        "x": -4105,
+                        "y": -542
+                    },
+                    {
+                        "x": -4145,
+                        "y": -1707
+                    },
+                    {
+                        "x": -3597,
+                        "y": -1189
+                    },
+                    {
+                        "x": -3595,
+                        "y": -1143
+                    }
+                ]
+            }
+        ],
+        "id": "Levallois_Tisnes",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

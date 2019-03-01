@@ -1,0 +1,96 @@
+{
+    "apartment": {
+        "area": 269985,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 0,
+                        "type": "none",
+                        "windows": []
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 65,
+                        "coef2": 284,
+                        "type": "window",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 70
+                    },
+                    {
+                        "coef1": 563,
+                        "coef2": 762,
+                        "type": "window",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 70
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 319,
+                        "type": "duct",
+                        "vertex1": 5,
+                        "vertex2": 0,
+                        "width": 90
+                    },
+                    {
+                        "coef1": 779,
+                        "coef2": 976,
+                        "type": "frontDoor",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 93
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 445,
+                        "y": 0
+                    },
+                    {
+                        "x": 445,
+                        "y": 621
+                    },
+                    {
+                        "x": 15,
+                        "y": 621
+                    },
+                    {
+                        "x": 15,
+                        "y": 197
+                    },
+                    {
+                        "x": 0,
+                        "y": 197
+                    }
+                ]
+            }
+        ],
+        "id": "Noisy_A318",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}

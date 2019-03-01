@@ -1,0 +1,190 @@
+{
+    "apartment": {
+        "area": 654549,
+        "blueprints": [
+            {
+                "externalSpaces": [
+                    {
+                        "area": 163200,
+                        "type": "loggia",
+                        "windows": [
+                            5,
+                            6
+                        ]
+                    }
+                ],
+                "externalWalls": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12
+                ],
+                "fixedItems": [
+                    {
+                        "coef1": 112,
+                        "coef2": 300,
+                        "type": "window",
+                        "vertex1": 8,
+                        "vertex2": 9,
+                        "width": 90
+                    },
+                    {
+                        "coef1": 613,
+                        "coef2": 753,
+                        "type": "window",
+                        "vertex1": 8,
+                        "vertex2": 9,
+                        "width": 90
+                    },
+                    {
+                        "coef1": 185,
+                        "coef2": 372,
+                        "type": "window",
+                        "vertex1": 9,
+                        "vertex2": 10,
+                        "width": 89
+                    },
+                    {
+                        "coef1": 727,
+                        "coef2": 916,
+                        "type": "window",
+                        "vertex1": 9,
+                        "vertex2": 10,
+                        "width": 89
+                    },
+                    {
+                        "coef1": 90,
+                        "coef2": 213,
+                        "type": "window",
+                        "vertex1": 10,
+                        "vertex2": 11,
+                        "width": 88
+                    },
+                    {
+                        "coef1": 373,
+                        "coef2": 624,
+                        "type": "doorWindow",
+                        "vertex1": 10,
+                        "vertex2": 11,
+                        "width": 89
+                    },
+                    {
+                        "coef1": 745,
+                        "coef2": 871,
+                        "type": "doorWindow",
+                        "vertex1": 10,
+                        "vertex2": 11,
+                        "width": 88
+                    },
+                    {
+                        "coef1": 793,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 2,
+                        "vertex2": 3,
+                        "width": 60
+                    },
+                    {
+                        "coef1": 733,
+                        "coef2": 1000,
+                        "type": "duct",
+                        "vertex1": 6,
+                        "vertex2": 7,
+                        "width": 43
+                    },
+                    {
+                        "coef1": 0,
+                        "coef2": 779,
+                        "type": "duct",
+                        "vertex1": 12,
+                        "vertex2": 0,
+                        "width": 37
+                    },
+                    {
+                        "coef1": 254,
+                        "coef2": 965,
+                        "type": "frontDoor",
+                        "vertex1": 0,
+                        "vertex2": 1,
+                        "width": 94
+                    }
+                ],
+                "forbiddenZones": [],
+                "level": 0,
+                "loadBearingWalls": [],
+                "unsplittableZones": [],
+                "vertices": [
+                    {
+                        "x": 0,
+                        "y": 0
+                    },
+                    {
+                        "x": 143,
+                        "y": 0
+                    },
+                    {
+                        "x": 143,
+                        "y": 225
+                    },
+                    {
+                        "x": 442,
+                        "y": 225
+                    },
+                    {
+                        "x": 442,
+                        "y": 349
+                    },
+                    {
+                        "x": 657,
+                        "y": 349
+                    },
+                    {
+                        "x": 657,
+                        "y": -82
+                    },
+                    {
+                        "x": 960,
+                        "y": -82
+                    },
+                    {
+                        "x": 960,
+                        "y": 540
+                    },
+                    {
+                        "x": 320,
+                        "y": 540
+                    },
+                    {
+                        "x": -97,
+                        "y": 773
+                    },
+                    {
+                        "x": -451,
+                        "y": 139
+                    },
+                    {
+                        "x": -49,
+                        "y": -85
+                    }
+                ]
+            }
+        ],
+        "id": "Sartrouville_R2",
+        "levels": [
+            0
+        ],
+        "north": [
+            1,
+            0
+        ]
+    }
+}
