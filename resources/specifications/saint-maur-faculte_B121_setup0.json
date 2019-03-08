@@ -48,16 +48,6 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 100000,
-        "min": 80000
-      },
-      "type": "bedroom",
-      "variant": "xs"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
         "max": 150000,
         "min": 120000
       },

@@ -34,16 +34,6 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
-      },
-      "type": "office",
-      "variant": "xs"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
         "max": 150000,
         "min": 120000
       },
