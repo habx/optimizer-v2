@@ -23,21 +23,21 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
+WINDOW_ROOMS = ["living", "kitchen", "office", "dining", "bedroom"]
 
-DRESSING_NEIGHBOUR_ROOMS = ("entrance", "bedroom", "wc", "bathroom")
+DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "wc", "bathroom"]
 
-CIRCULATION_ROOMS = ("living", "dining", "entrance")
+CIRCULATION_ROOMS = ["living", "dining", "entrance", "circulationSpace"]
 
-DAY_ROOMS = ("living", "dining", "kitchen", "cellar")
+DAY_ROOMS = ["living", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ("bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace")
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
-BIG_VARIANTS = ("m", "l", "xl")
+BIG_VARIANTS = ["m", "l", "xl"]
 
-SMALL_VARIANTS = ("xs", "s")
+SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
 BIG_EXTERNAL_SPACE = 7000
@@ -101,7 +101,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 100
+        max_num_sol = 20
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
@@ -167,7 +167,6 @@ class ConstraintsManager:
         self.item_constraints = {}
         self.add_spaces_constraints()
         self.add_item_constraints()
-        self.sp.spec.plan.area
 
     def _init_windows_length(self) -> None:
         """
@@ -602,7 +601,7 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
                         .Max(a >= manager.solver.positions[item.id, k],
                              nbr_spaces_in_i_item == 1)))
 
-    ct = (manager.solver.solver.Min(ct1, ct2) == 1)
+    ct = (manager.and_(ct1, ct2) == 1)
 
     return ct
 
@@ -776,9 +775,10 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "dining": [
         [item_attribution_constraint, {}],
+        [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": "kitchen"}]
+        [item_adjacency_constraint, {"item_categories": ["kitchen"]}]
     ],
     "kitchen": [
         [item_attribution_constraint, {}],
@@ -831,11 +831,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "wc": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
     ],
     "bathroom": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+        [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
+        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
         [externals_connection_constraint, {}]
@@ -847,7 +848,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
 
     ],
     "bedroom": [
-
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
 
