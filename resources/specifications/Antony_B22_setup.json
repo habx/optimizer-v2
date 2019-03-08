@@ -59,14 +59,6 @@
       "variant": "xs"
     },
     {
-      "type": "bathroom",
-      "requiredArea": {
-        "min": 85000,
-        "max": 125000
-      },
-      "variant": "m"
-    },
-    {
       "type": "wc",
       "requiredArea": {
         "min": 10000,
