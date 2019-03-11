@@ -7,6 +7,7 @@
         "max": 60000,
         "min": 25000.0
       },
+      "tags": [],
       "type": "entrance",
       "variant": "m"
     },
@@ -16,11 +17,12 @@
         "kitchen"
       ],
       "requiredArea": {
-        "max": 165000.0,
-        "min": 120000
+        "max": 225000.0,
+        "min": 200000
       },
+      "tags": [],
       "type": "living",
-      "variant": "xs"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -31,6 +33,7 @@
         "max": 120000,
         "min": 80000
       },
+      "tags": [],
       "type": "kitchen",
       "variant": "m"
     },
@@ -41,6 +44,7 @@
         "max": 150000,
         "min": 120000
       },
+      "tags": [],
       "type": "bedroom",
       "variant": "m"
     },
@@ -48,31 +52,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
+        "max": 150000,
+        "min": 120000
       },
+      "tags": [],
       "type": "office",
-      "variant": "xs"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 80000,
-        "min": 40000
-      },
-      "type": "wc",
-      "variant": "xl"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 175000.0,
-        "min": 125000.0
-      },
-      "type": "bathroom",
-      "variant": "xl"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -81,18 +66,11 @@
         "max": 40000,
         "min": 20000
       },
-      "type": "laundry",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 70000,
-        "min": 50000
-      },
-      "type": "dressing",
-      "variant": "m"
+      "tags": [
+        "wc"
+      ],
+      "type": "bathroom",
+      "variant": "xs"
     }
   ]
 }
