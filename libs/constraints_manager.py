@@ -31,7 +31,7 @@ CIRCULATION_ROOMS = ["living", "dining", "entrance", "circulationSpace"]
 
 DAY_ROOMS = ["living", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace"]
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "wc"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
@@ -632,7 +632,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         else:
             for num, num_item in enumerate(manager.sp.spec.items):
-                if num_item.category.name == cat:
+                if num_item.category.name == cat and num_item != item:
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
                             int(j_space.adjacent_to(k_space)) *
@@ -831,7 +831,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "wc": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+            {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
     ],
     "bathroom": [
@@ -849,7 +849,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
 

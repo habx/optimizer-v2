@@ -56,6 +56,18 @@ class SolutionsCollector:
         logging.debug("SolutionsCollector : Distance_matrix : {0}".format(distance_matrix))
         return distance_matrix
 
+    def distance_from_all_solutions(self, sol: 'Solution') -> [float]:
+        """
+        Distance between all solutions of the given solution
+        """
+        # Distance array
+        distance = []
+        for i, sol1 in enumerate(self.solutions):
+            dist = sol1.distance(sol)
+            distance.append(dist)
+
+        return distance
+
     def best(self) -> Optional[List['Solution']]:
         """
         Find best solutions of the list
@@ -90,9 +102,8 @@ class SolutionsCollector:
         if self.spec.number_of_items <= 4:
             return best_sol_list
 
-        distance_matrix = self.solutions_distance_matrix
-
-        dist_from_best_sol = distance_matrix[index_best_sol]
+        best_sol = self.solutions[index_best_sol]
+        dist_from_best_sol = self.distance_from_all_solutions(best_sol)
 
         second_score = None
         index_second_sol = None
@@ -109,7 +120,8 @@ class SolutionsCollector:
 
             index_third_sol = None
             third_score = None
-            dist_from_second_sol = distance_matrix[index_second_sol]
+            second_sol = self.solutions[index_second_sol]
+            dist_from_second_sol = self.distance_from_all_solutions(second_sol)
             for i in range(len(self.solutions)):
                 if (dist_from_best_sol[i] > 20 and dist_from_second_sol[i] > 20 and
                         (third_score is None or list_scores[i] > third_score)):
@@ -127,7 +139,7 @@ class SolutionsCollector:
                         if i < j:
                             logging.debug(
                                 "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
-                                distance_matrix[i][j])
+                                (self.solutions[i]).distance(self.solutions[j]))
 
         return best_sol_list
 
