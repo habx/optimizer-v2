@@ -50,40 +50,35 @@ def _get_perimeter(input_blueprint_dict: Dict) -> Sequence[Coords2d]:
     return [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in perimeter_walls]
 
 
-def _get_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
+def _add_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
     """
     Insert stairsObstacles and holes on a plan
     :param input_blueprint_dict: Dict
     :param my_plan: 'Plan'
     :return:
     """
+    floor_level = input_blueprint_dict["level"]
     floor_vertices = input_blueprint_dict["vertices"]
+
     if "stairsObstacles" in input_blueprint_dict.keys():
-        stairs_obstacles = input_blueprint_dict["stairsObstacles"]
-        if stairs_obstacles:
-            for stairs_obstacle in stairs_obstacles:
-                stairs_obstacles_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
-                                         stairs_obstacle]
-                if stairs_obstacles_poly[0] == stairs_obstacles_poly[
-                    len(stairs_obstacles_poly) - 1]:
-                    stairs_obstacles_poly.remove(
-                        stairs_obstacles_poly[len(stairs_obstacles_poly) - 1])
-                my_plan.insert_space_from_boundary(stairs_obstacles_poly,
-                                                   category=SPACE_CATEGORIES["stairsObstacle"],
-                                                   floor=my_plan.floor_of_given_level(
-                                                       input_blueprint_dict["level"]))
+        stairs_obstacles = input_blueprint_dict["stairsObstacles"] or []
+        for stairs_obstacle in stairs_obstacles:
+            stairs_obstacle_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y'])
+                                    for i in stairs_obstacle]
+            if stairs_obstacle_poly[0] == stairs_obstacle_poly[len(stairs_obstacle_poly) - 1]:
+                stairs_obstacle_poly.remove(stairs_obstacle_poly[len(stairs_obstacle_poly) - 1])
+            my_plan.insert_space_from_boundary(stairs_obstacle_poly,
+                                               category=SPACE_CATEGORIES["stairsObstacle"],
+                                               floor=my_plan.floor_of_given_level(floor_level))
     if "holes" in input_blueprint_dict.keys():
-        holes = input_blueprint_dict["holes"]
-        if holes:
-            for hole in holes:
-                hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in
-                             hole]
-                if hole_poly[0] == hole_poly[len(hole_poly) - 1]:
-                    hole_poly.remove(hole_poly[len(hole_poly) - 1])
-                my_plan.insert_space_from_boundary(hole_poly,
-                                                   category=SPACE_CATEGORIES["hole"],
-                                                   floor=my_plan.floor_of_given_level(
-                                                       input_blueprint_dict["level"]))
+        holes = input_blueprint_dict["holes"] or []
+        for hole in holes:
+            hole_poly = [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in hole]
+            if hole_poly[0] == hole_poly[len(hole_poly) - 1]:
+                hole_poly.remove(hole_poly[len(hole_poly) - 1])
+            my_plan.insert_space_from_boundary(hole_poly,
+                                               category=SPACE_CATEGORIES["hole"],
+                                               floor=my_plan.floor_of_given_level(floor_level))
 
 
 def _get_fixed_item_perimeter(fixed_item: Dict,
@@ -127,7 +122,7 @@ def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) ->
     return point_1, point_2, point_3, point_4
 
 
-def _get_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
+def _add_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
     """
     Returns a list with the perimeter of external space.
     :param input_blueprint_dict:
@@ -269,32 +264,42 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     file_name = os.path.splitext(os.path.basename(input_file_name))[0]
 
     if "v2" in floor_plan_dict.keys():
-        return create_plan_from_v2_data(file_name, floor_plan_dict["v2"])
+        return _create_plan_from_v2_data(file_name, floor_plan_dict["v2"])
     elif "v1" in floor_plan_dict.keys():
-        return create_plan_from_v1_data(file_name, floor_plan_dict["v1"])
+        return _create_plan_from_v1_data(file_name, floor_plan_dict["v1"])
     else:
-        return create_plan_from_v1_data(file_name, floor_plan_dict)
+        return _create_plan_from_v1_data(file_name, floor_plan_dict)
 
 
-def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
+def _create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
+    """
+    Creates a plan object from the data retrieved from the specified dictionary
+    The function uses the version 2 of the blueprint data format.
+    :param file_name:
+    :param v2_data:
+    :return:
+    """
     my_plan = plan.Plan(file_name)
 
-    # get vertices
+    # get vertices data
     vertices_by_id: Dict[int, Coords2d] = {}
     for vertex_data in v2_data["vertices"]:
         vertices_by_id[vertex_data["id"]] = (vertex_data["x"], vertex_data["y"])
 
+    # get data for each floor of the apartment
     for floor_data in v2_data["floors"]:
-        # empty perimeter
-        empty_data = next(space_data
-                          for space_data in v2_data["spaces"]
-                          if space_data["id"] in floor_data["elements"]
-                          and space_data["category"] == "empty")
-        perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_data["geometry"]]
+        # empty perimeter (per convention we create the floor with the first empty space)
+        empty_space_data = next(space_data for space_data in v2_data["spaces"]
+                                if space_data["id"] in floor_data["elements"]
+                                and space_data["category"] == "empty")
+        perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_space_data["geometry"]]
         my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
         floor = my_plan.floor_of_given_level(floor_data["level"])
 
-        # linears except steps
+        # add linears except steps
+        # note : we need to add linears before spaces because the insertion of spaces
+        # can sometimes split the edges on the perimeter that should have received a linear
+        # (for example when we add an internal duct or load bearing wall)
         for linear_data in v2_data["linears"]:
             if (linear_data["id"] in floor_data["elements"]
                     and linear_data["category"] != "startingStep"):
@@ -303,15 +308,16 @@ def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
                 category = LINEAR_CATEGORIES[linear_data["category"]]
                 my_plan.insert_linear(p1, p2, category=category, floor=floor)
 
-        # other spaces
+        # add other spaces
         for space_data in v2_data["spaces"]:
-            if space_data["id"] in floor_data["elements"] and space_data["id"] != empty_data["id"]:
+            if (space_data["id"] in floor_data["elements"]
+                    and space_data["id"] != empty_space_data["id"]):
                 space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
                 space_points = _clean_perimeter(space_points)
                 category = SPACE_CATEGORIES[space_data["category"]]
                 my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
 
-        # steps
+        # add steps linear "StartingStep". This linear must be inserted after the steps space.
         for linear_data in v2_data["linears"]:
             if (linear_data["category"] == "startingStep"
                     and linear_data["id"] in floor_data["elements"]):
@@ -323,15 +329,28 @@ def create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
     return my_plan
 
 
-def create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
+def _create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
+    """
+    Creates a plan object from the data retrieved from the specified dictionary
+    The function uses the version 1 of the blueprint data format.
+    Note: only 1 floor per apartment
+    :param file_name:
+    :param v1_data:
+    :return:
+    """
     my_plan = plan.Plan(file_name)
 
     apartment = v1_data["apartment"]
+
     for blueprint_dict in apartment["blueprints"]:
+
+        # create floor
         perimeter = _get_perimeter(blueprint_dict)
         my_plan.add_floor_from_boundary(perimeter, floor_level=blueprint_dict["level"])
-        _get_external_spaces(blueprint_dict, my_plan)
-        _get_not_floor_space(blueprint_dict, my_plan)
+        _add_external_spaces(blueprint_dict, my_plan)
+        _add_not_floor_space(blueprint_dict, my_plan)
+
+        # add fixed items
         fixed_items = _get_load_bearings_walls(blueprint_dict)
         fixed_items += _get_fixed_items_perimeters(blueprint_dict)
         linears = (fixed_item for fixed_item in fixed_items if fixed_item[1] in LINEAR_CATEGORIES)
@@ -397,6 +416,7 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
+
     def specification_read():
         """
         Test
@@ -406,13 +426,15 @@ if __name__ == '__main__':
         spec = create_specification_from_file(input_file)
         print(spec)
 
-
     def plan_read():
+        """
+        Test
+        :return:
+        """
         input_file = "paris-venelles_B001.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
-
 
     specification_read()
     plan_read()
