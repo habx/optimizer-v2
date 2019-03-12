@@ -100,7 +100,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 20
+        max_num_sol = 50000
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
@@ -339,7 +339,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
 
 def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
-    Maximum distance constraint between spaces (centroid) constraint
+    Maximum distance constraint between spaces constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -375,7 +375,10 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
 
 def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
-    graph constraint
+    Graph constraint:
+    - existing path between two seed space
+    - shortest path number of seed spaces < nbr of seed spaces
+    - shortest path area < max area (+ margin)
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -435,7 +438,7 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
 def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
-    Shaape constraint
+    Shape constraint : perimeter**2/area
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
