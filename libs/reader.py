@@ -431,7 +431,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "paris-venelles_B001.json"
+        input_file = "Antony_A22.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
