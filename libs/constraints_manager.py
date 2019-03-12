@@ -844,7 +844,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
-        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
+        #[item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
         [externals_connection_constraint, {}]
@@ -859,8 +859,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
 
     ],
     "bedroom": [
-        [item_adjacency_constraint,
-          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+        # [item_adjacency_constraint,
+        #   {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
 
