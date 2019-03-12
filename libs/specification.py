@@ -71,7 +71,7 @@ class Specification:
                 apartment_type += 1
         return apartment_type
 
-    def category_items(self, category_name: str) -> Optional['Item']:
+    def category_items(self, category_name: str) -> ['Item']:
         """
         Returns the items of the category given
         :return:

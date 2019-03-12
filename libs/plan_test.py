@@ -745,6 +745,7 @@ def test_maximum_adjacency_length():
 
     assert length == 200, "test_maximum_adjacency_length"
 
+
 def test_adjacency_length():
     """
     Add a face outside the mesh. The face must be adjacent.

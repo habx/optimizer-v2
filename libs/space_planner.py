@@ -13,7 +13,7 @@ from libs.size import Size
 from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.seed import Seeder, GROWTH_METHODS
 from libs.category import SPACE_CATEGORIES
 import networkx as nx
 
@@ -27,8 +27,7 @@ class SpacePlanner:
 
     def __init__(self, name: str, spec: 'Specification'):
         self.name = name
-        self.spec = self._init_spec(spec)
-        print(self.spec)
+        self._init_spec(spec)
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
@@ -42,7 +41,7 @@ class SpacePlanner:
         output = "SpacePlanner" + self.name
         return output
 
-    def _init_spec(self, spec: 'Specification') -> 'Specification':
+    def _init_spec(self, spec: 'Specification') -> None:
         """
         change reader specification :
         living + kitchen : opensOn --> livingKitchen
@@ -55,22 +54,22 @@ class SpacePlanner:
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
-                kitchen = spec.category_items("kitchen")
-                for kitchen_item in kitchen:
+                kitchens = spec.category_items("kitchen")
+                for kitchen_item in kitchens:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
                         opens_on = item.opens_on.remove("kitchen")
-                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min, size_max,
-                                        opens_on, item.linked_to)
+                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
+                                        size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
         category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing",  "kitchen",
-                              "living", "livingKitchen" "dining", "bedroom", "office", "misc",
+                              "living", "livingKitchen", "dining", "bedroom", "office", "misc",
                               "circulationSpace"]
-        #space_planner_spec.init_id(category_name_list)
+        space_planner_spec.init_id(category_name_list)
 
-        return space_planner_spec
+        self.spec = space_planner_spec
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -272,7 +271,6 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
-    from libs.shuffle import SHUFFLES
     import argparse
 
     logging.getLogger().setLevel(logging.DEBUG)
@@ -291,12 +289,11 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
+        # input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+        #     plan_index]  # 9 Antony B22, 13 Bussy 002
         input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
-        print(input_file)
-        print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
+        logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
 
@@ -312,34 +309,31 @@ if __name__ == '__main__':
 
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
-        print(spec)
+        logging.debug(spec)
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
-        for space in spec.plan.spaces:
-            print(space)
-            print(space.area)
-
-        print("number of mutables spaces, %i",
+        logging.debug("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
         import time
 
         # surfaces control
-        print("PLAN AREA : ", int(spec.plan.indoor_area))
-        print("Setup AREA : ", int(sum(item.required_area for item in spec.items)))
-        print("Setup max AREA : ", int(sum(item.max_size.area for item in spec.items)))
-        print("Setup min AREA : ", int(sum(item.min_size.area for item in spec.items)))
+        logging.debug("PLAN AREA : %i", int(spec.plan.indoor_area))
+        logging.debug("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area for item in spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area for item in spec.items)))
 
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
-        print("space_planner time : %f", time.clock() - t0)
+        logging.debug("space_planner time : %f", time.clock() - t0)
         t1 = time.clock()
         best_solutions = space_planner.solution_research()
-        print("solution_research time: %f", time.clock() - t1)
-
+        logging.debug("solution_research time: %f", time.clock() - t1)
+        logging.debug(best_solutions)
 
         # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living", "bedroom", "dressing"] #,
+        # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
+        # "bedroom", "dressing"] #,
         # #"laundry", "dressing"]
         # #spaces_list = list(spec.plan.spaces)
         # best_name_list = None
@@ -379,4 +373,3 @@ if __name__ == '__main__':
         # print("worst_branches", worst_branches)
 
     space_planning()
-

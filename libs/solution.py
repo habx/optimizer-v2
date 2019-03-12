@@ -247,7 +247,8 @@ class Solution:
         logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
-            logging.debug("room %s: P2/A : %i", item.category.name, int((space.perimeter*space.perimeter)/space.area))
+            logging.debug("room %s: P2/A : %i", item.category.name,
+                          int((space.perimeter*space.perimeter)/space.area))
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
             if convex_hull.is_valid and sp_space.is_valid:
@@ -540,7 +541,7 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus() # - self._circulation_penalty()
+        solution_score = solution_score + self._good_size_bonus()  # - self._circulation_penalty()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 

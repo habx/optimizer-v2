@@ -15,7 +15,6 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
-from libs.utils.geometry import distance
 import networkx as nx
 import time
 import logging
@@ -129,13 +128,6 @@ class ConstraintSolver:
         # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
         logging.debug("ConstraintSolver: Process time : %f", time.clock() - t0)
 
-        print("ConstraintSolver: Statistics")
-        print("ConstraintSolver: num_solutions:", nbr_solutions)
-        print("ConstraintSolver: failures: ", self.solver.Failures())
-        print("ConstraintSolver: branches: ", self.solver.Branches())
-        # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
-        print("ConstraintSolver: Process time :", time.clock() - t0)
-
 
 class ConstraintsManager:
     """
@@ -149,7 +141,6 @@ class ConstraintsManager:
         self.name = name
         self.sp = sp
         if sp.spec.plan.floor_count < 2:
-            print("ConstraintsManager ITEMS",self.sp.spec.items)
             self.solver = ConstraintSolver(len(self.sp.spec.items),
                                            self.sp.spec.plan.count_mutable_spaces())
         else:
@@ -412,7 +403,8 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                             for l, l_space in enumerate(
                                                             manager.sp.spec.plan.mutable_spaces())))
                         ct2 = (manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k] * area_path <= int(item.max_size.area*4/3))
+                               manager.solver.positions[item.id, k] * area_path
+                               <= int(item.max_size.area*4/3))
                         ct = manager.and_(ct1, ct2)
                         ct = ct
 
@@ -433,7 +425,8 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                             for l, l_space in enumerate(
                                                             manager.sp.spec.plan.mutable_spaces())))
                         ct2 = (manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k] * area_path <= int(item.max_size.area*4/3))
+                               manager.solver.positions[item.id, k] * area_path
+                               <= int(item.max_size.area*4/3))
                         new_ct = manager.and_(ct1, ct2)
                     ct = manager.and_(ct, new_ct)
 
@@ -445,13 +438,13 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     Shaape constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
-    :param min_max: str
     :return: ct: ortools.Constraint
     # TODO : find best param
     # TODO : unit tests
     """
 
-    plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2 / manager.sp.spec.plan.indoor_area)
+    plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
+                       / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = max(30, int(plan_ratio + 10))
@@ -844,7 +837,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
-        #[item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
+        # [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
         [externals_connection_constraint, {}]
