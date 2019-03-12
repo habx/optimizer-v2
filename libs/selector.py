@@ -1197,7 +1197,7 @@ def adjacent_to_space(*category_names: str) -> Predicate:
     Predicate factory
     Returns a predicate that returns True if the edge.pair belongs to a space of the
     specified category name
-    :param category_names:
+    :param category_names: "exterior" means the edge is adjacent to the outside of the apartment
     :return: a predicate
     """
 
@@ -1205,7 +1205,8 @@ def adjacent_to_space(*category_names: str) -> Predicate:
         if not space.is_boundary(edge):
             return False
         space = space.plan.get_space_of_edge(edge.pair)
-        return space is not None and space.category.name in category_names
+        return (space is not None and space.category.name in category_names or
+                "exterior" in category_names and space is None)
 
     return _predicate
 
@@ -1347,11 +1348,19 @@ SELECTORS = {
         ]
     ),
 
-    "close_to_linear": Selector(
+    "close_to_window": Selector(
         boundary_faces,
         [
             not_space_boundary,
-            close_to_linear('window', 'doorWindow', 'frontDoor', min_distance=150.0)
+            close_to_linear('window', 'doorWindow', min_distance=150.0)
+        ]
+    ),
+
+    "close_to_front_door": Selector(
+        boundary_faces,
+        [
+            not_space_boundary,
+            close_to_linear('frontDoor', min_distance=100.0)
         ]
     ),
 
@@ -1372,28 +1381,22 @@ SELECTORS = {
         ]
     ),
 
-    "front_door": Selector(
-        space_boundary,
-        [
-            touches_linear("frontDoor", position="on")
-        ]
-    ),
+    "front_door": Selector(space_boundary, [touches_linear("frontDoor", position="on")]),
 
-    "before_front_door": Selector(
-        space_boundary,
-        [
-            touches_linear("frontDoor"),
-            edge_length(min_length=10)
-        ]
-    ),
+    "before_front_door": Selector(space_boundary, [touches_linear("frontDoor"),
+                                                   edge_length(min_length=10)]),
 
-    "after_front_door": Selector(
-        space_boundary,
-        [
-            touches_linear("frontDoor", position="after"),
-            edge_length(min_length=10)
-        ]
-    ),
+    "after_front_door": Selector(space_boundary, [touches_linear("frontDoor", position="after"),
+                                                  edge_length(min_length=10)]),
+
+    "starting_step": Selector(space_boundary, [touches_linear("startingStep", position="on")]),
+
+    "before_starting_step": Selector(space_boundary, [touches_linear("startingStep"),
+                                                      edge_length(min_length=10)]),
+
+    "after_starting_step": Selector(space_boundary, [touches_linear("startingStep",
+                                                                    position="after"),
+                                                     edge_length(min_length=10)]),
 
     "before_window": Selector(
         space_boundary,
@@ -1579,6 +1582,20 @@ SELECTORS = {
                                              space_previous_has(adjacent_to_space("duct")),
                                              edge_length(min_length=20)]),
 
+    "corner_duct_first_edge": Selector(space_boundary,
+                                 [adjacent_to_space("duct"),
+                                  space_next_has(adjacent_to_space("duct")),
+                                  space_next_has(space_next_has(adjacent_to_space("exterior"))),
+                                  space_previous_has(adjacent_to_space("exterior")),
+                                  space_aligned_edges_length(min_length=80)]),
+
+    "corner_duct_second_edge": Selector(space_boundary,
+                                 [adjacent_to_space("duct"),
+                                  space_next_has(adjacent_to_space("exterior")),
+                                  space_previous_has(adjacent_to_space("duct")),
+                                  space_previous_has(space_previous_has(adjacent_to_space("exterior"))),
+                                  space_aligned_edges_length(min_length=80)]),
+
     "corner_face": Selector(boundary_faces, [corner_face]),
 
     "one_edge_per_rectangular_duct": Selector(one_edge_adjacent_to_rectangular_duct),
@@ -1586,7 +1603,7 @@ SELECTORS = {
     "window_doorWindow": Selector(space_boundary, [touches_linear("window", "doorWindow",
                                                                   position="on")]),
 
-    "close_to_wall": Selector(boundary_faces, [close_to_apartment_boundary(90, 20)]),
+    "close_to_wall": Selector(boundary_faces, [close_to_apartment_boundary(90, 80)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 

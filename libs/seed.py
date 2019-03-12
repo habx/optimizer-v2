@@ -330,15 +330,23 @@ class Seeder:
         return self
 
     def merge_small_cells(self, show: bool = False,
-                          min_cell_area: float = 2*SQM) -> 'Seeder':
+                          min_cell_area: float = 1000,
+                          excluded_components: List[str] = None) -> 'Seeder':
         """
         Merges small spaces with neighbor space that has highest contact length
+        If several neighbor spaces have same contact length, the smallest one is chosen
+        Do not merge two spaces containing non mutable components, except for those in the list
+        excluded_components
         :param show:
-        :param min_cell_area:
+        :param min_cell_area: cells with area lower than min_cell_area are considered for merge
+        :param excluded_components:
         :return:
         """
         if show:
             self._initialize_plot()
+
+        if not excluded_components:
+            excluded_components = []
 
         continue_merge = True
         while continue_merge:
@@ -362,6 +370,19 @@ class Seeder:
                 min_area = min(map(lambda sp: sp.area, candidates))
                 selected = [cand for cand in candidates if
                             cand.area <= min_area]
+
+                # do not merge if both cells contain components other than those in
+                # excluded_components
+                list_components_selected = [comp for comp in
+                                            selected[0].components_category_associated() if
+                                            comp not in excluded_components]
+                list_components_small_space = [comp for comp in
+                                               small_space.components_category_associated() if
+                                               comp not in excluded_components]
+
+                if list_components_selected and list_components_small_space:
+                    continue
+
                 selected[0].merge(small_space)
                 continue_merge = True
                 break
@@ -962,7 +983,7 @@ if __name__ == '__main__':
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Edison_20.json"
+        # input_file = "Vernouillet_A003.json"
 
         plan = reader.create_plan_from_file(input_file)
 
@@ -976,7 +997,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1000))
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
         # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
 
         plan.remove_null_spaces()
@@ -985,7 +1006,7 @@ if __name__ == '__main__':
         plan.check()
 
         for sp in plan.spaces:
-            if sp.area==0:
+            if sp.area == 0:
                 input("space area should not be zero")
             sp_comp = sp.components_category_associated()
 

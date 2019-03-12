@@ -7,6 +7,7 @@
         "max": 60000,
         "min": 25000.0
       },
+      "tags": [],
       "type": "entrance",
       "variant": "m"
     },
@@ -16,11 +17,12 @@
         "kitchen"
       ],
       "requiredArea": {
-        "max": 400000,
-        "min": 300000
+        "max": 225000.0,
+        "min": 200000
       },
+      "tags": [],
       "type": "living",
-      "variant": "xl"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -28,11 +30,12 @@
         "living"
       ],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
+        "max": 120000,
+        "min": 80000
       },
+      "tags": [],
       "type": "kitchen",
-      "variant": "xs"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -41,6 +44,7 @@
         "max": 100000,
         "min": 80000
       },
+      "tags": [],
       "type": "bedroom",
       "variant": "xs"
     },
@@ -48,11 +52,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
+        "max": 220000,
+        "min": 180000
       },
-      "type": "office",
-      "variant": "xs"
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xl"
     },
     {
       "linkedTo": [],
@@ -61,6 +66,7 @@
         "max": 150000,
         "min": 120000
       },
+      "tags": [],
       "type": "bedroom",
       "variant": "m"
     },
@@ -68,40 +74,13 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 80000,
-        "min": 40000
+        "max": 85000.0,
+        "min": 60000
       },
-      "type": "wc",
-      "variant": "xl"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 40000,
-        "min": 20000
-      },
+      "tags": [
+        "wc"
+      ],
       "type": "bathroom",
-      "variant": "xs"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 80000
-      },
-      "type": "laundry",
-      "variant": "xl"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 70000,
-        "min": 50000
-      },
-      "type": "dressing",
       "variant": "m"
     }
   ]
