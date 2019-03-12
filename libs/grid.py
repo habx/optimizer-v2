@@ -348,7 +348,9 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Edison_10.json")
+        plan = reader.create_plan_from_file("meurice_LT06.json")
+        plan.mesh.check()
+        plan.plot(save=False)
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
