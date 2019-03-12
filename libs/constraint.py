@@ -124,7 +124,8 @@ def square_shape(_: Dict) -> scoreFunction:
 
 def component_surface_objective(params: Dict) -> scoreFunction:
     """
-    Scores checks surface margins for cells containing components defined in params
+    Scores the respect of surface margins for cells containing components defined in params
+    :param params:
     :return:
     """
 
@@ -134,6 +135,10 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     def _score(space: 'Space') -> float:
         list_components = list(
             p for p in params.keys() if p in space.components_category_associated())
+
+        if space.category.name is "empty":
+            return 0
+
         score = 0
         if not list_components:
             list_components = ["default"]
@@ -142,6 +147,41 @@ def component_surface_objective(params: Dict) -> scoreFunction:
             max_area = max(params[component]["max_area"] for component in list_components)
             score = shift_from_interval(min_area,
                                         max_area, space.area)
+        score = params["weight"] * score
+        return score
+
+    return _score
+
+
+def component_aspect_constraint(params: Dict) -> scoreFunction:
+    """
+    Scores the respect of shape size and aspect ratio for cells containing components defined
+    in params
+    :param params:
+    :return:
+    """
+
+    def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
+
+    def _score(space: 'Space') -> float:
+        list_components = list(
+            p for p in params.keys() if p in space.components_category_associated())
+
+        if space.category.name is "empty":
+            return 0
+
+        score = 0
+        if not list_components:
+            list_components = ["default"]
+        if list_components:
+            size_ratio = space.size.depth / space.size.width
+            aspect_ratio = min(size_ratio, 1 / size_ratio)
+            score += shift_from_interval(params["min_aspect_ratio"],
+                                         1 / params["min_aspect_ratio"], aspect_ratio)
+
+            score = params["weight"] * score
+
         return score
 
     return _score
@@ -154,11 +194,14 @@ def number_of_components(params: Dict):
     """
 
     def _score(space: 'Space') -> float:
-        if (space is None):
+        if space is None:
             return 0.0
         list_components = space.components_category_associated()
         number_components = sum(comp in params.keys() for comp in list_components)
-        return (number_components) ** 2
+        for adjacent_space in space.adjacent_spaces():
+            list_components = adjacent_space.components_category_associated()
+            number_components += sum(comp in params.keys() for comp in list_components)
+        return number_components ** 2
 
     return _score
 
@@ -185,6 +228,27 @@ def few_corners(params: Dict) -> scoreFunction:
             return 0
 
         return math.fabs((number_of_corners - min_corners) / number_of_corners)
+
+    return _score
+
+
+def alignments(_: Dict):
+    """
+    Scores a space by counting the number of corners and t-edges
+    A corner is defined as an angle between two boundary edges superior to 20.0
+    :param:
+    :return:
+    """
+
+    corner_min_angle = 20.0
+
+    def _score(space: 'Space') -> float:
+        number_of_corners = 0
+        for edge in space.exterior_edges:
+            if not edge.is_mesh_boundary and ccw_angle(edge.vector, space.next_edge(
+                    edge).vector) >= corner_min_angle:
+                number_of_corners += 1
+        return space.count_t_edges() + number_of_corners
 
     return _score
 
@@ -249,44 +313,87 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
 
 ELEMENT_CONSTRAINT_SEED = {
     'duct': SpaceConstraint(max_size,
-                            {"max_size": Size(40000, 200, 200),
+                            {"max_size": Size(35000, 200, 200),
                              "category_name": "seed"},
-                            "max_size_xs"),
+                            "max_size_duct"),
     'frontDoor': SpaceConstraint(max_size,
                                  {"max_size": Size(50000, 200, 200),
                                   "category_name": "seed"},
-                                 "max_size_xs")
+                                 "max_size_frontDoor"),
+    'window': SpaceConstraint(max_size,
+                              {"max_size": Size(120000, 400, 400),
+                               "category_name": "seed"},
+                              "max_size_window"),
+    'doorWindow': SpaceConstraint(max_size,
+                                  {"max_size": Size(120000, 400, 400),
+                                   "category_name": "seed"},
+                                  "max_size_doorWindow")
 }
 
 max_size_default_constraint_seed = SpaceConstraint(max_size,
-                                                   {"max_size": Size(70000, 300, 300),
+                                                   {"max_size": Size(60000, 300, 300),
                                                     "category_name": "seed"},
                                                    "max_size_xs")
 
 # objective constraints
 component_surface_objective = SpaceConstraint(component_surface_objective,
                                               {
-                                                  "default": {"min_area": 40000,
-                                                              "max_area": 60000},
-                                                  "frontDoor": {"min_area": 30000,
+                                                  "weight": 10,
+                                                  "default": {"min_area": 10000,
+                                                              "max_area": 70000},
+                                                  "frontDoor": {"min_area": 20000,
                                                                 "max_area": 50000},
-                                                  "duct": {"min_area": 30000,
-                                                           "max_area": 50000},
-                                                  "window": {"min_area": 40000,
-                                                             "max_area": 70000},
-                                                  "doorWindow": {"min_area": 60000,
-                                                                 "max_area": 90000},
-                                                  "startingStep": {"min_area": 20000,
-                                                                   "max_area": 40000},
+                                                  "duct": {"min_area": 15000,
+                                                           "max_area": 30000},
+                                                  "window": {"min_area": 50000,
+                                                             "max_area": 120000},
+                                                  "doorWindow": {"min_area": 50000,
+                                                                 "max_area": 120000},
+                                                  "startingStep": {"min_area": 10000,
+                                                                   "max_area": 30000},
                                               },
                                               "component_surface_objective", imperative=False)
+
+min_width = 1000
+min_depth = 1000
+max_width = 4000
+max_depth = 4000
+component_aspect_constraint = SpaceConstraint(component_aspect_constraint,
+                                              {
+                                                  "weight": 10,
+                                                  "min_aspect_ratio": 0.3,
+                                                  "default": {"min_width": min_width,
+                                                              "min_depth": min_depth,
+                                                              "max_width": max_width,
+                                                              "max_depth": max_depth},
+                                                  "frontDoor": {"min_width": min_width,
+                                                                "min_depth": min_depth,
+                                                                "max_width": max_width,
+                                                                "max_depth": max_depth},
+                                                  "duct": {"min_width": min_width,
+                                                           "min_depth": min_depth,
+                                                           "max_width": max_width,
+                                                           "max_depth": max_depth},
+                                                  "window": {"min_width": min_width,
+                                                             "min_depth": min_depth,
+                                                             "max_width": max_width,
+                                                             "max_depth": max_depth},
+                                                  "doorWindow": {"min_width": min_width,
+                                                                 "min_depth": min_depth,
+                                                                 "max_width": max_width,
+                                                                 "max_depth": max_depth},
+                                                  "startingStep": {"min_width": min_width,
+                                                                   "min_depth": min_depth,
+                                                                   "max_width": max_width,
+                                                                   "max_depth": max_depth},
+                                              },
+                                              "component_aspect_constraint", imperative=False)
 
 number_of_components = SpaceConstraint(number_of_components,
                                        {
                                            "duct": [],
                                            "window": [],
                                            "doorWindow": [],
-                                           "startingStep": [],
                                            "frontDoor": []
                                        },
                                        "number_of_components", imperative=False)
@@ -300,6 +407,10 @@ few_corners_constraint = SpaceConstraint(few_corners,
                                          "few_corners",
                                          imperative=False)
 
+alignments_constraint = SpaceConstraint(alignments,
+                                        {},
+                                        imperative=False)
+
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
     "min_size": min_size_constraint,
@@ -309,8 +420,12 @@ CONSTRAINTS = {
     "max_size_xs_seed": max_size_xs_constraint_seed,
     "max_size_duct_constraint_seed": ELEMENT_CONSTRAINT_SEED['duct'],
     "max_size_frontdoor_constraint_seed": ELEMENT_CONSTRAINT_SEED['frontDoor'],
+    "max_size_window_constraint_seed": ELEMENT_CONSTRAINT_SEED['window'],
+    "max_size_doorWindow_constraint_seed": ELEMENT_CONSTRAINT_SEED['doorWindow'],
     "max_size_default_constraint_seed": max_size_default_constraint_seed,
     "square_shape": square_shape,
     "component_surface_objective": component_surface_objective,
+    "component_aspect_constraint": component_aspect_constraint,
     "number_of_components": number_of_components,
+    "alignments": alignments_constraint
 }

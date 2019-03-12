@@ -117,7 +117,7 @@ class Seeder:
 
                 if spaces_modified and show:
                     self.plot.update(spaces_modified)
-
+                    # input("fill")
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
                 break
@@ -141,7 +141,7 @@ class Seeder:
         """
         if show:
             self._initialize_plot()
-        max_recursion = 40  # to prevent infinite loops
+        max_recursion = 100  # to prevent infinite loops
         while True:
             (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
              .plant()
@@ -165,6 +165,135 @@ class Seeder:
             if list(selector.yield_from(space)) and not space.components_category_associated():
                 space.category = SPACE_CATEGORIES["empty"]
 
+        return self
+
+    def divide_along_line(self, space: 'Space', line_edges: List['Edge']):
+        """
+        Divides the space into two sub-spaces, cut performed along the line formed by line_edges
+        :param space:
+        :param line_edges:
+        :return:
+        """
+
+        def face_on_side() -> Generator['Face', bool, None]:
+            """
+            Generator over the faces of the space that are on one of both sides
+            defined by line_edges
+            :return: Generator
+            """
+            if line_edges:
+                face_ini = line_edges[0].face
+                list_side_face = [face_ini]
+                add = [face_ini]
+                added = True
+                while added:
+                    added = False
+                    for face_ini in add:
+                        for face in space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
+                            # adds faces adjacent to those already added
+                            # do not add faces on the other side of the line
+                            if (not [edge for edge in line_edges if edge.pair in face.edges]
+                                    and face not in list_side_face):
+                                list_side_face.append(face)
+                                add.append(face)
+                                added = True
+                for f in list_side_face:
+                    yield f
+
+        if not line_edges:
+            return
+
+        list_side_faces = [face for face in face_on_side()]
+        if not list_side_faces:
+            return
+
+        # removes the side faces from the space they belong to
+        for face in list_side_faces:
+            space.plan.get_space_of_face(face).remove_face(face)
+        # create new empty space
+        space_created = Space(self.plan, space.floor,
+                              list_side_faces[0].edge,
+                              SPACE_CATEGORIES[space.category.name])
+        list_side_faces.remove(list_side_faces[0])
+
+        # adds side faces to the new space in an order preserving connectivity
+        while list_side_faces:
+            for face in list_side_faces:
+                if space_created.face_is_adjacent(face):
+                    space_created.add_face(face)
+                    list_side_faces.remove(face)
+
+    def line_from_edge(self, edge_origin: 'Edge') -> List['Edge']:
+        """
+        Returns list of edges forming contiguous lines from edge_origin
+        and belonging to empty spaces
+        :return: list
+        """
+        contiguous_edges = []
+
+        current = edge_origin
+        # forward selection
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+        # backward selection
+        current = edge_origin.pair
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+
+        return contiguous_edges
+
+    def divide_along_seed_borders(self, selector: 'Selector'):
+        """
+        divide empty spaces along all lines drawn from selected edges
+        Iterates though seed spaces, at each iteration :
+        1 - a corner edge of a seed_space is selected
+        2 - the list of its contiguous edges is built
+        3 - each empty space cut by a set of those contiguous edges is cut into two parts
+        :param selector:
+        :return:
+        """
+        for seed_space in self.plan.get_spaces("seed"):
+            for edge_selected in selector.yield_from(seed_space):
+
+                # lists of edges along which empty spaces division will be performed
+                contiguous_edges = self.line_from_edge(edge_selected)
+
+                divided_spaces = []
+                for edge in contiguous_edges:
+                    space = self.plan.get_space_of_edge(edge)
+                    # once a space has been divided, it is not considered any more
+                    if space not in divided_spaces:
+                        divided_spaces.append(space)
+                        edges_in_space = list(
+                            edge for edge in contiguous_edges if space.has_edge(edge))
+                        self.divide_along_line(space, edges_in_space)
+
+        self.plan.plot()
+        return self
+
+    def from_space_empty_to_seed(self):
+        """
+        converts empty spaces into seed spaces
+        :return:
+        """
+        self.plan.remove_null_spaces()
+        for space in self.plan.spaces:
+            if space.category.name is 'empty':
+                space.category = SPACE_CATEGORIES["seed"]
         return self
 
     def simplify(self, selector: 'Selector', show: bool = False) -> 'Seeder':
@@ -194,6 +323,68 @@ class Seeder:
                 if merged_done:
                     logging.debug("Seed: Space has been merged: %s", space)
                     break
+
+        self.plan.remove_null_spaces()
+
+        return self
+
+    def merge_small_cells(self, show: bool = False,
+                          min_cell_area: float = 1000,
+                          excluded_components: List[str] = None) -> 'Seeder':
+        """
+        Merges small spaces with neighbor space that has highest contact length
+        If several neighbor spaces have same contact length, the smallest one is chosen
+        Do not merge two spaces containing non mutable components, except for those in the list
+        excluded_components
+        :param show:
+        :param min_cell_area: cells with area lower than min_cell_area are considered for merge
+        :param excluded_components:
+        :return:
+        """
+        if show:
+            self._initialize_plot()
+
+        if not excluded_components:
+            excluded_components = []
+
+        continue_merge = True
+        while continue_merge:
+            continue_merge = False
+            small_spaces = [space for space in self.plan.get_spaces("seed") if
+                            space.area < min_cell_area]
+            for small_space in small_spaces:
+                # adjacent mutable spaces of small_space
+                adjacent_spaces = [adj for adj in small_space.adjacent_spaces() if adj.mutable]
+                if not adjacent_spaces:
+                    continue
+                max_contact_length = max(map(lambda adj_sp: adj_sp.contact_length(small_space),
+                                             adjacent_spaces))
+                # select adjacent mutable spaces with highest contact length
+                candidates = [adj for adj in adjacent_spaces if
+                              adj.contact_length(small_space) > max_contact_length - 1]
+                if not candidates:
+                    continue
+                # in case there are several spaces with equal contact length,
+                # merge with the smallest one
+                min_area = min(map(lambda sp: sp.area, candidates))
+                selected = [cand for cand in candidates if
+                            cand.area <= min_area]
+
+                # do not merge if both cells contain components other than those in
+                # excluded_components
+                list_components_selected = [comp for comp in
+                                            selected[0].components_category_associated() if
+                                            comp not in excluded_components]
+                list_components_small_space = [comp for comp in
+                                               small_space.components_category_associated() if
+                                               comp not in excluded_components]
+
+                if list_components_selected and list_components_small_space:
+                    continue
+
+                selected[0].merge(small_space)
+                continue_merge = True
+                break
 
         self.plan.remove_null_spaces()
 
@@ -314,7 +505,8 @@ class Seed:
                  plan_component: Optional[PlanComponent] = None):
         self.seeder = seeder
         self.edges = [edge]  # the reference edge of the seed
-        self.components = [plan_component] if PlanComponent else []  # the components of the seed
+        self.components = [
+            plan_component] if PlanComponent else []  # the components of the seed
         self.space: Optional[Space] = None  # the seed space
         # per convention we apply the growth method corresponding
         # to the first component category name
@@ -450,7 +642,8 @@ class Seed:
             raise ValueError('The seed should point towards an empty space')
 
         modified_spaces = empty_space.remove_face(face)
-        self.space = Space(self.seeder.plan, empty_space.floor, self.edge, SPACE_CATEGORIES["seed"])
+        self.space = Space(self.seeder.plan, empty_space.floor, self.edge,
+                           SPACE_CATEGORIES["seed"])
         self.update_max_size_constraint()
         return [self.space] + modified_spaces
 
@@ -580,7 +773,8 @@ fill_small_seed_category = GrowthMethod(
     (CONSTRAINTS["max_size_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+               True),
         Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
@@ -590,7 +784,8 @@ classic_seed_category = GrowthMethod(
     (CONSTRAINTS["max_size_default_constraint_seed"],),
     (
         Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
+        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+               True),
         Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
     )
 )
@@ -598,33 +793,82 @@ classic_seed_category = GrowthMethod(
 ELEMENT_SEED_CATEGORIES = {
     "duct": GrowthMethod(
         'duct',
+        # (CONSTRAINTS["max_size_duct_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "frontDoor": GrowthMethod(
         'frontDoor',
+        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+        )
+    ),
+    "window": GrowthMethod(
+        'window',
+        # (CONSTRAINTS["max_size_window_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
+        (CONSTRAINTS["max_size_window_constraint_seed"],),
+        (
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
+            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+        )
+    ),
+    "doorWindow": GrowthMethod(
+        'doorWindow',
+        # (CONSTRAINTS["max_size_window_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
+        (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
+        (
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
+            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
     "startingStep": GrowthMethod(
         'startingStep',
+        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
+        # (
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+        #            True),
+        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     )
 }
@@ -633,6 +877,8 @@ GROWTH_METHODS = {
     "default": classic_seed_category,
     "duct": ELEMENT_SEED_CATEGORIES['duct'],
     "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
+    "window": ELEMENT_SEED_CATEGORIES['window'],
+    "doorWindow": ELEMENT_SEED_CATEGORIES['doorWindow'],
 }
 
 FILL_METHODS_HOMOGENEOUS = {
@@ -692,25 +938,82 @@ if __name__ == '__main__':
         :return:
         """
         logging.debug("Start test")
-        input_file = "Antony_B14.json"
+        input_file = reader.get_list_from_folder()[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
-        GRIDS["finer_ortho_grid"].apply_to(plan)
-        plan.plot(save=False)
-        plt.show()
+
+        GRIDS['finer_ortho_grid'].apply_to(plan)
+
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow(show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
          .fill(FILL_METHODS_HOMOGENEOUS,
-               (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"), show=True)
+               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                "empty"), show=True)
          .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
                show=True)
-         .simplify(SELECTORS["fuse_small_cell"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape'], show=True))
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
+         .empty(SELECTORS["corner_big_cell_area_90000"])
+         .fill(FILL_METHODS_HOMOGENEOUS,
+               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
+                "empty"), show=True)
+         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
+               show=True)
+         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
+         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
 
-        plan.plot(save=False)
+        plan.plot(show=True)
         plt.show()
 
-        assert plan.check()
+        for sp in plan.spaces:
+            sp_comp = sp.components_category_associated()
+            logging.debug(
+                "space area and category {0} {1} {2}".format(sp.area, sp_comp,
+                                                             sp.category.name))
 
-    grow_a_plan()
+
+    def grow_a_plan_trames():
+        """
+        Test
+        :return:
+        """
+        logging.debug("Start test")
+        input_file = reader.get_list_from_folder()[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+        # input_file = "Vernouillet_A003.json"
+
+        plan = reader.create_plan_from_file(input_file)
+
+        # plan = test_seed_multiple_floors()
+
+        GRIDS['optimal_grid'].apply_to(plan)
+
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
+        (seeder.plant()
+         .grow(show=True)
+         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .from_space_empty_to_seed()
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+        # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
+
+        plan.remove_null_spaces()
+        plan.plot(show=True)
+        plt.show()
+        plan.check()
+
+        for sp in plan.spaces:
+            if sp.area == 0:
+                input("space area should not be zero")
+            sp_comp = sp.components_category_associated()
+
+            if sp.size and sp.category.name is not "empty" and sp.mutable:
+                logging.debug(
+                    "space area and category {0} {1} {2} {3}".format(sp_comp,
+                                                                     sp.category.name, sp.size,
+                                                                     sp.as_sp.centroid.coords.xy))
+
+
+    grow_a_plan_trames()

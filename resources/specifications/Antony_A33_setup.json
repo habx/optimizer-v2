@@ -6,7 +6,8 @@
         "min": 200000,
         "max": 300000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": ["kitchen"]
     },
     {
       "type": "kitchen",
@@ -14,7 +15,8 @@
         "min": 40000,
         "max": 60000
       },
-      "variant": "s"
+      "variant": "s",
+      "opensOn": ["living"]
     },
     {
       "type": "entrance",

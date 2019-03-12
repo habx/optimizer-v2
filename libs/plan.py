@@ -1095,6 +1095,16 @@ class Space(PlanComponent):
                 yield edge.pair.face
                 seen.append(edge.pair.face)
 
+    def face_is_adjacent(self, face: Face) -> bool:
+        """
+        Returns True if the face is adjacent to the space
+        :param face:
+        :return: bool
+        """
+        if [edge for edge in face.edges if self.has_edge(edge.pair)]:
+            return True
+        return False
+
     def corner_stone(self, face: 'Face') -> bool:
         """
         Returns True if the removal of this face will split the space
@@ -1471,6 +1481,60 @@ class Space(PlanComponent):
                 return True
             else:
                 return False
+
+    def contact_length(self, space: 'Space') -> float:
+        """
+        Returns the border's length between two spaces
+        :return: float
+        """
+        border_length = 0
+        for edge in self.edges:
+            if space.has_edge(edge.pair):
+                border_length += edge.length
+        return border_length
+
+    def count_t_edges(self) -> int:
+        """
+        Returns the number of T-edge of the space
+        an edge is defined as a T-edge if the edge in continuity is not on the boundary of its space
+        :return: float
+        """
+
+        def is_t_edge(edge: 'Edge') -> bool:
+            continuous_edge = edge.continuous_edge
+            if continuous_edge:
+                space_continuous = self.plan.get_space_of_edge(continuous_edge)
+                if space_continuous and continuous_edge not in space_continuous.edges:
+                    return True
+            return False
+
+        corner_min_angle = 20
+        number_of_t_edge = 0
+
+        list_corner_edges = [edge for edge in self.exterior_edges if
+                             not edge.is_mesh_boundary and ccw_angle(edge.vector, self.next_edge(
+                                 edge).vector) >= corner_min_angle]
+
+        for edge in list_corner_edges:
+            number_of_t_edge += is_t_edge(edge)
+            number_of_t_edge += is_t_edge(self.next_edge(
+                edge).pair)
+
+        return number_of_t_edge
+
+    def adjacent_spaces(self, length: int = None) -> List['Space']:
+        """
+        Gets the list of spaces adjacent to a given one
+        :return: List['Space']
+        """
+        spaces_list = []
+        for edge in self.edges:
+            if edge.pair:
+                adjacent_space = self.plan.get_space_of_edge(edge.pair)
+                if adjacent_space and adjacent_space not in spaces_list and self.adjacent_to(
+                        adjacent_space, length):
+                    spaces_list.append(adjacent_space)
+        return spaces_list
 
     def maximum_adjacency_length(self, other: Union['Space', 'Face']) -> float:
         """
@@ -2503,7 +2567,7 @@ class Plan:
         :return:
         """
         logging.debug("Plan: removing null spaces of plan %s", self)
-        space_to_remove = (space for space in self.spaces if space.edge is None)
+        space_to_remove = [space for space in self.spaces if space.edge is None]
         for space in space_to_remove:
             space.remove()
 

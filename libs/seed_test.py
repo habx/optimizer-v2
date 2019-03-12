@@ -5,8 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs import reader
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
-from libs.shuffle import SHUFFLES
+from libs.seed import Seeder, GROWTH_METHODS
 
 from libs.grid import GRIDS
 from libs.reader_test import BLUEPRINT_INPUT_FILES
@@ -33,18 +32,15 @@ def test_seed_multiple_floors():
     plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((400, 0), (500, 0), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["finer_ortho_grid"].apply_to(plan)
+    GRIDS['optimal_grid'].apply_to(plan)
 
     plan.plot()
 
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-     .grow()
-     .shuffle(SHUFFLES['seed_square_shape'])
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES['seed_square_shape']))
+     .grow(show=True)
+     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+     .from_space_empty_to_seed())
 
     plan.plot()
 
@@ -58,15 +54,13 @@ def test_grow_a_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-    GRIDS['ortho_grid'].apply_to(plan)
+    GRIDS['optimal_grid'].apply_to(plan)
+
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-           .grow()
-           .shuffle(SHUFFLES['seed_square_shape'])
-           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-           .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True)
-           .simplify(SELECTORS["fuse_small_cell"])
-           .shuffle(SHUFFLES['seed_square_shape']))
+     .grow()
+     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+     .from_space_empty_to_seed())
 
     plan.plot()
 
@@ -107,7 +101,8 @@ def plan_with_duct(width: float, depth: float) -> Plan:
   width * 1/4  width * 3/4
     """
     my_plan = rectangular_plan(width, depth)
-    duct = [(width/4, 0), (width*3/4, 0), (width*3/4, depth*3/4), (width/4, depth*3/4)]
+    duct = [(width / 4, 0), (width * 3 / 4, 0), (width * 3 / 4, depth * 3 / 4),
+            (width / 4, depth * 3 / 4)]
     my_plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     return my_plan
 
@@ -118,8 +113,7 @@ def test_simple_seed_test():
     :return:
     """
     my_plan = plan_with_duct(300, 300)
-    GRIDS['ortho_grid'].apply_to(my_plan)
+    GRIDS['optimal_grid'].apply_to(my_plan)
     Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
     my_plan.plot()
     assert my_plan.check()
-
