@@ -67,11 +67,20 @@ class Specification:
         """
         apartment_type = 1
         for item in self.items:
-
             if item.category.name in ['bedroom', 'office']:
-
                 apartment_type += 1
         return apartment_type
+
+    def category_items(self, category_name: str) -> Optional['Item']:
+        """
+        Returns the items of the category given
+        :return:
+        """
+        items_list = []
+        for item in self.items:
+            if item.category.name == category_name:
+                items_list.append(item)
+        return items_list
 
     def add_item(self, value: 'Item'):
         """

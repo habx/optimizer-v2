@@ -23,13 +23,13 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ["living", "kitchen", "office", "dining", "bedroom"]
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
 
 DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "wc", "bathroom"]
 
-CIRCULATION_ROOMS = ["living", "dining", "entrance", "circulationSpace"]
+CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 
-DAY_ROOMS = ["living", "dining", "kitchen", "cellar"]
+DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
 PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "wc"]
 
@@ -453,7 +453,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2 / manager.sp.spec.plan.indoor_area)
 
-    if item.category.name in ["living", "dining"]:
+    if item.category.name in ["living", "dining", "livingKitchen"]:
         param = max(30, int(plan_ratio + 10))
     elif item.category.name in ["kitchen", "bedroom", "entrance"]:
         param = max(25, int(plan_ratio))
@@ -773,6 +773,14 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
+    "livingKitchen": [
+        [item_attribution_constraint, {}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [item_adjacency_constraint,
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+    ],
     "dining": [
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -839,6 +847,9 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
+        [externals_connection_constraint, {}]
+    ],
+    "livingKitchen": [
         [externals_connection_constraint, {}]
     ],
     "dining": [

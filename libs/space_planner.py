@@ -8,7 +8,8 @@ and a customer input setup
 """
 import logging
 from typing import List, Optional
-from libs.specification import Specification
+from libs.specification import Specification, Item
+from libs.size import Size
 from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
@@ -18,6 +19,7 @@ import networkx as nx
 
 SQM = 10000
 
+
 class SpacePlanner:
     """
     Space planner Class
@@ -25,19 +27,51 @@ class SpacePlanner:
 
     def __init__(self, name: str, spec: 'Specification'):
         self.name = name
-        self.spec = spec
-        logging.debug(spec)
+        self.spec = self._init_spec(spec)
+        print(self.spec)
+        logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
 
         self.spaces_adjacency_matrix = []
         self._init_spaces_adjacency()
 
-        self.solutions_collector = SolutionsCollector(spec)
+        self.solutions_collector = SolutionsCollector(self.spec)
 
     def __repr__(self):
         output = "SpacePlanner" + self.name
         return output
+
+    def _init_spec(self, spec: 'Specification') -> 'Specification':
+        """
+        change reader specification :
+        living + kitchen : opensOn --> livingKitchen
+        :return: None
+        """
+        space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
+
+        for item in spec.items:
+            if ((item.category.name != "living" or len(item.opens_on) == 0) and
+                    (item.category.name != "kitchen" or len(item.opens_on) == 0)):
+                space_planner_spec.add_item(item)
+                print(space_planner_spec)
+            elif item.category.name == "living" and "kitchen" in item.opens_on:
+                kitchen = spec.category_items("kitchen")
+                for kitchen_item in kitchen:
+                    if "living" in kitchen_item.opens_on:
+                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
+                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
+                        opens_on = item.opens_on.remove("kitchen")
+                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min, size_max,
+                                        opens_on, item.linked_to)
+                        space_planner_spec.add_item(new_item)
+
+        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing",  "kitchen",
+                              "living", "livingKitchen" "dining", "bedroom", "office", "misc",
+                              "circulationSpace"]
+        #space_planner_spec.init_id(category_name_list)
+
+        return space_planner_spec
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -242,7 +276,7 @@ if __name__ == '__main__':
     from libs.shuffle import SHUFFLES
     import argparse
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -260,7 +294,7 @@ if __name__ == '__main__':
 
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "grenoble-cambridge_143.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "Antony_A33.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         print(input_file)
         print("P2/S ratio : ", round(plan.indoor_perimeter ** 2 / plan.indoor_area))
@@ -273,7 +307,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=2*SQM))
+         .merge_small_cells(min_cell_area=1*SQM))
 
         plan.plot()
 
@@ -290,10 +324,6 @@ if __name__ == '__main__':
 
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
-
-        category_name_list = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living", "dining",
-                                   "bedroom", "office", "dressing", "misc", "circulationSpace"]
-        spec.init_id(category_name_list)
         import time
 
         # surfaces control
