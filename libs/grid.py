@@ -185,7 +185,7 @@ sequence_grid = Grid('sequence_grid', [
         MUTATIONS['ortho_projection_cut'], False
     ),
     (
-        SELECTORS["close_to_linear"],
+        SELECTORS["close_to_window"],
         MUTATIONS['remove_edge'], False
     ),
     (
@@ -205,7 +205,7 @@ sequence_grid = Grid('sequence_grid', [
         MUTATION_FACTORIES['barycenter_cut'](0.5), False
     ),
     (
-        SELECTORS["close_to_linear"],
+        SELECTORS["close_to_window"],
         MUTATIONS['remove_edge'], False
 
     )
@@ -299,6 +299,8 @@ duct_grid = Grid("duct", [
     (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100, padding=60), True),
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
      True),
 ])
@@ -308,6 +310,13 @@ entrance_grid = Grid("front_door", [
     (SELECTORS["before_front_door"],
      MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
     (SELECTORS["after_front_door"], MUTATION_FACTORIES["translation_cut"](5), True)
+])
+
+stair_grid = Grid("starting_step", [
+    (SELECTORS["starting_step"], MUTATION_FACTORIES["slice_cut"](130, padding=20), True),
+    (SELECTORS["before_starting_step"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_starting_step"], MUTATION_FACTORIES["translation_cut"](5), True)
 ])
 
 completion_grid = Grid("completion", [
@@ -320,8 +329,9 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
     (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["close_to_linear"], MUTATIONS["remove_edge"], False),
-    (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([60]), MUTATIONS["remove_line"], False),
     # (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
@@ -335,7 +345,7 @@ GRIDS = {
     "rectangle_grid": rectangle_grid,
     "duct": duct_grid,
     "optimal_grid": (section_grid + corner_grid + load_bearing_wall_grid + window_grid +
-                     duct_grid + entrance_grid + completion_grid + cleanup_grid),
+                     duct_grid + entrance_grid + stair_grid + completion_grid + cleanup_grid),
     "test_grid_temp": section_grid
 }
 
@@ -348,7 +358,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Edison_10.json")
+        plan = reader.create_plan_from_file("begles-carrelets_C304.json")
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
