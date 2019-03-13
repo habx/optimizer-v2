@@ -183,6 +183,8 @@ class ConstraintsManager:
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             self.spaces_distance.append([])
             self.spaces_distance[i] = [0]*len(list(self.sp.spec.plan.mutable_spaces()))
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
                     if i_space.floor != j_space.floor:
