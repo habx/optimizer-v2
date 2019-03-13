@@ -1544,45 +1544,20 @@ class Space(PlanComponent):
         """
         adjacency_length = []
         previous_edge = False
-        number_of_adjacenies = 0
+        number_of_adjacencies = 0
         for edge in other.edges:
             if self.has_edge(edge.pair):
                 if not previous_edge:
                     adjacency_length.append(edge.length)
-                    number_of_adjacenies += 1
+                    number_of_adjacencies += 1
                     previous_edge = True
                 else:
-                    adjacency_length[number_of_adjacenies - 1] += edge.length
+                    adjacency_length[number_of_adjacencies - 1] += edge.length
             else:
                 previous_edge = False
 
         if adjacency_length:
             return max(adjacency_length)
-        else:
-            return 0
-
-    def adjacency_length(self, other: Union['Space', 'Face']) -> float:
-        """
-        Returns the maximum adjacency length with an other space or face
-        with constraint of adjacency length
-        :return: float : length
-        """
-        adjacency_length = []
-        previous_edge = False
-        number_of_adjacenies = 0
-        for edge in other.edges:
-            if self.has_edge(edge.pair):
-                if not previous_edge:
-                    adjacency_length.append(edge.length)
-                    number_of_adjacenies += 1
-                    previous_edge = True
-                else:
-                    adjacency_length[number_of_adjacenies - 1] += edge.length
-            else:
-                previous_edge = False
-
-        if adjacency_length:
-            return sum(adjacency_length)
         else:
             return 0
 

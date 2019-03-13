@@ -179,32 +179,35 @@ class ConstraintsManager:
         Initialize the spaces distance matrix
         :return:
         """
+
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             self.spaces_distance.append([])
+            self.spaces_distance[i] = [0]*len(list(self.sp.spec.plan.mutable_spaces()))
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                self.spaces_distance[i].append(0)
-                if i == j:
-                    self.spaces_distance[i][i] = 0
-                elif i_space.floor != j_space.floor:
-                    self.spaces_distance[i][j] = 1e20
-                else:
-                    self.spaces_distance[i][j] = int(i_space.maximum_distance_to(j_space))
+                if i < j:
+                    if i_space.floor != j_space.floor:
+                        self.spaces_distance[i][j] = 1e20
+                        self.spaces_distance[j][i] = 1e20
+                    else:
+                        self.spaces_distance[i][j] = int(i_space.maximum_distance_to(j_space))
+                        self.spaces_distance[j][i] = int(i_space.maximum_distance_to(j_space))
 
     def _init_spaces_graph(self) -> None:
         """
-        Initialize the spaces graph
+        Initialize the graph of adjacent seed spaces
         :return:
         """
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if i != j:
+                if i < j:
                     if i_space.adjacent_to(j_space):
                         self.space_graph.add_edge(i, j, weight=1)
+                        self.space_graph.add_edge(j, i, weight=1)
 
     def _init_area_spaces_graph(self) -> None:
         """
-        Initialize the area spaces graph
+        Initialize the graph of adjacent seed spaces with weight = space area
         :return:
         """
 
@@ -466,7 +469,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 enumerate(manager.sp.spec.plan.mutable_spaces()))
     cells_adjacency = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
                                                 manager.solver.positions[item.id, k] *
-                                                int(j_space.adjacency_length(k_space))
+                                                int(j_space.contact_length(k_space))
                                                 for j, j_space in
                                                 enumerate(manager.sp.spec.plan.mutable_spaces())
                                                 for k, k_space in

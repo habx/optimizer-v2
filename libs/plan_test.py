@@ -746,7 +746,7 @@ def test_maximum_adjacency_length():
     assert length == 200, "test_maximum_adjacency_length"
 
 
-def test_adjacency_length():
+def test_contact_length():
     """
     Add a face outside the mesh. The face must be adjacent.
     +------------+
@@ -770,9 +770,9 @@ def test_adjacency_length():
     plan = Plan("apartment with balcony")
     floor = plan.add_floor_from_boundary(perimeter)
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
-    length = plan.spaces[0].adjacency_length(plan.spaces[2])
+    length = plan.spaces[0].contact_length(plan.spaces[2])
 
-    assert length == 350, "test_adjacency_length"
+    assert length == 350, "test_contact_length"
 
 
 def test_adjacent_spaces():
