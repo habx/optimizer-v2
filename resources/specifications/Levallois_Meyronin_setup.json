@@ -64,6 +64,14 @@
       "type": "bedroom",
       "variant": "m"
     },
+        {
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "type": "kitchen",
+      "variant": "m"
+    },
     {
       "requiredArea": {
         "max": 50000,

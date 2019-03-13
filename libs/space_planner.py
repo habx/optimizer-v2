@@ -8,13 +8,16 @@ and a customer input setup
 """
 import logging
 from typing import List, Optional
-from libs.specification import Specification
+from libs.specification import Specification, Item
+from libs.size import Size
 from libs.solution import SolutionsCollector, Solution
 from libs.plan import Plan
 from libs.constraints_manager import ConstraintsManager
-from libs.seed import Seeder, GROWTH_METHODS, FILL_METHODS
+from libs.seed import Seeder, GROWTH_METHODS
 from libs.category import SPACE_CATEGORIES
 import networkx as nx
+
+SQM = 10000
 
 
 class SpacePlanner:
@@ -24,19 +27,49 @@ class SpacePlanner:
 
     def __init__(self, name: str, spec: 'Specification'):
         self.name = name
-        self.spec = spec
-        logging.debug(spec)
+        self._init_spec(spec)
+        logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
 
         self.spaces_adjacency_matrix = []
         self._init_spaces_adjacency()
 
-        self.solutions_collector = SolutionsCollector(spec)
+        self.solutions_collector = SolutionsCollector(self.spec)
 
     def __repr__(self):
         output = "SpacePlanner" + self.name
         return output
+
+    def _init_spec(self, spec: 'Specification') -> None:
+        """
+        change reader specification :
+        living + kitchen : opensOn --> livingKitchen
+        :return: None
+        """
+        space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
+
+        for item in spec.items:
+            if ((item.category.name != "living" or len(item.opens_on) == 0) and
+                    (item.category.name != "kitchen" or len(item.opens_on) == 0)):
+                space_planner_spec.add_item(item)
+            elif item.category.name == "living" and "kitchen" in item.opens_on:
+                kitchens = spec.category_items("kitchen")
+                for kitchen_item in kitchens:
+                    if "living" in kitchen_item.opens_on:
+                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
+                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
+                        opens_on = item.opens_on.remove("kitchen")
+                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
+                                        size_max, opens_on, item.linked_to)
+                        space_planner_spec.add_item(new_item)
+
+        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing",  "kitchen",
+                              "living", "livingKitchen", "dining", "bedroom", "office", "misc",
+                              "circulationSpace"]
+        space_planner_spec.init_id(category_name_list)
+
+        self.spec = space_planner_spec
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -129,16 +162,20 @@ class SpacePlanner:
             item_space = dict_items_spaces[item]
             if len(item_space) > 1:
                 space_ini = item_space[0]
+                item_space.remove(item_space[0])
                 i = 0
-                while (len(item_space) > 1) and i < len(item_space) * len(item_space):
-                    for space in item_space[1:]:
+                iter_max = len(item_space) ** 2
+                while (len(item_space) > 0) and i < iter_max:
+                    i += 1
+                    for space in item_space:
                         if space.adjacent_to(space_ini):
+                            item_space.remove(space)
                             space_ini.merge(space)
                             plan.remove_null_spaces()
-                            item_space.remove(space)
                             break
-                    i += 1
+
         assert plan.check()
+
         return plan
 
     def solution_research(self) -> Optional[List['Solution']]:
@@ -163,13 +200,13 @@ class SpacePlanner:
                     plan_solution = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution)
                     logging.debug(plan_solution)
-                    #plan_solution.plot()
+                    plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
                     logging.debug(sol)
-                    sol.plan.plot()
-                    return best_sol
+                    sol.plan.plot(save=True)
+                return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
         """
@@ -234,7 +271,6 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
-    from libs.shuffle import SHUFFLES
     import argparse
 
     logging.getLogger().setLevel(logging.DEBUG)
@@ -253,39 +289,87 @@ if __name__ == '__main__':
         :return:
         """
 
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "grenoble-cambridge_143.json"  # Levallois_Letourneur / Antony_A22
+        # input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+        #     plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
+        logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
-        GRIDS["optimal_grid"].apply_to(plan)
-
-        plan.plot()
+        GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
         (seeder.plant()
-         .grow()
-         # .shuffle(SHUFFLES["seed_square_shape"])
-         .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-         .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"])
-         .shuffle(SHUFFLES["seed_square_shape"]))
+         .grow(show=True)
+         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .from_space_empty_to_seed()
+         .merge_small_cells(min_cell_area=1*SQM))
 
         plan.plot()
-        logging.debug("number of mutables spaces, %i",
-                      len([space for space in plan.spaces if space.mutable]))
 
-        # input_file = "Antony_A22_setup.json"
         input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
+        logging.debug(spec)
         spec.plan = plan
-        print(plan)
+        spec.plan.remove_null_spaces()
+
+        logging.debug("number of mutables spaces, %i",
+                      len([space for space in spec.plan.spaces if space.mutable]))
         import time
+
+        # surfaces control
+        logging.debug("PLAN AREA : %i", int(spec.plan.indoor_area))
+        logging.debug("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area for item in spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area for item in spec.items)))
+
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
         logging.debug("space_planner time : %f", time.clock() - t0)
         t1 = time.clock()
         best_solutions = space_planner.solution_research()
         logging.debug("solution_research time: %f", time.clock() - t1)
+        logging.debug(best_solutions)
+
+        # Tests ordre des variables de prog par contraintes
+        # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
+        # "bedroom", "dressing"] #,
+        # #"laundry", "dressing"]
+        # #spaces_list = list(spec.plan.spaces)
+        # best_name_list = None
+        # best_failures = 10e15
+        # best_branches = 10e15
+        # worst_name_list = None
+        # worst_failures = 0
+        # worst_branches = 0
+        # best_spaces_list = []
+        # import itertools
+        # perm_cat = list(itertools.permutations(category_name_list_test))
+        # #perm_spaces = list(itertools.permutations(spaces_list))
+        # print("nombre perm : ", len(perm_cat))
+        # for cat_list in perm_cat:
+        #     #spec.plan.spaces = spaces
+        #     spec.init_id(cat_list)
+        #     t0 = time.clock()
+        #     space_planner = SpacePlanner("test", spec)
+        #     print("space_planner time :", time.clock() - t0)
+        #     t1 = time.clock()
+        #     best_solutions = space_planner.solution_research()
+        #     print("solution_research time:", time.clock() - t1)
+        #     if space_planner.manager.solver.solver.Branches() < best_branches:
+        #         best_branches = space_planner.manager.solver.solver.Branches()
+        #         best_failures = space_planner.manager.solver.solver.Failures()
+        #         best_name_list = cat_list
+        #     if space_planner.manager.solver.solver.Branches() > worst_branches:
+        #         worst_branches = space_planner.manager.solver.solver.Branches()
+        #         worst_failures = space_planner.manager.solver.solver.Failures()
+        #         worst_name_list = cat_list
+        # print("BEST SOLUTION")
+        # print("best_name_list", best_name_list)
+        # print("best_failures", best_failures)
+        # print("best_branches", best_branches)
+        # print("worst_name_list", worst_name_list)
+        # print("worst_failures", worst_failures)
+        # print("worst_branches", worst_branches)
 
     space_planning()

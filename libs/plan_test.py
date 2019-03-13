@@ -746,6 +746,35 @@ def test_maximum_adjacency_length():
     assert length == 200, "test_maximum_adjacency_length"
 
 
+def test_contact_length():
+    """
+    Add a face outside the mesh. The face must be adjacent.
+    +------------+
+    |            |
+    |            +--------+
+    |   MESH     |   FACE |
+    |            +---+    |
+    |            |   |    |
+    +-------+----+   |    |
+            |  +-----+    |
+            |             |
+            +-------------+
+
+    Adjacencies : 150 and 200
+    Plan apartment with balcony:Spaces: empty / hole / balcony
+    :return:
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(250, 0), (250, -200), (700, -200), (700, 400), (500, 400), (500, 200),
+                      (600, 200), (600, -100), (400, -100), (400, 0)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    length = plan.spaces[0].contact_length(plan.spaces[2])
+
+    assert length == 350, "test_contact_length"
+
+
 def test_adjacent_spaces():
     """
     Add a face outside the mesh. The face must be adjacent.
@@ -846,6 +875,87 @@ def test_best_direction(l_plan):
     """
     edge = l_plan.empty_space.edge
     assert l_plan.empty_space.best_direction(edge.normal) == (0, 1)
+
+
+def test_centroid():
+    """
+    Exemple
+    +------------+
+    |            |
+    |            +--------+
+    |  KITCHEN   |        |
+    |            +---+    |
+    |            |   |    |
+    +-------+----+   |    |
+            |  +-----+    |
+            |  BALCONY    |
+            +-------------+
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(250, 0), (250, -200), (700, -200), (700, 400), (500, 400), (500, 200),
+                      (600, 200), (600, -100), (400, -100), (400, 0)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.insert_space_from_boundary(perimeter, SPACE_CATEGORIES["kitchen"], floor)
+    plan.remove_null_spaces()
+    for space in plan.spaces:
+        centroid_2d = space.centroid()
+        centroid_shapely = space.as_sp.centroid
+        assert centroid_2d[0] == centroid_shapely.xy[0][0]
+        assert centroid_2d[1] == centroid_shapely.xy[1][0]
+
+
+def test_maximum_distance_to():
+    """
+    Exemple
+    +------------+
+    |            |
+    |            |
+    |  KITCHEN   |
+    |            |
+    |            |
+    +------------+------------+
+                 |            |
+                 |            |
+                 |  BALCONY   |
+                 |            |
+                 |            |
+                 +------------+
+
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(500, 0), (500, -500), (1000, -500), (1000, 0)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.insert_space_from_boundary(perimeter, SPACE_CATEGORIES["kitchen"], floor)
+    plan.remove_null_spaces()
+    assert plan.spaces[0].maximum_distance_to(plan.spaces[1]) == 1000*2**0.5
+
+    """
+    Exemple
+    +------------+
+    |            |
+    |            +--------+
+    |  KITCHEN   |        |
+    |            +---+    |
+    |            |   |    |
+    +-------+----+   |    |
+            |  +-----+    |
+            |  BALCONY    |
+            +-------------+
+    """
+    perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    face_perimeter = [(250, 0), (250, -200), (700, -200), (700, 400), (500, 400), (500, 200),
+                      (600, 200), (600, -100), (400, -100), (400, 0)]
+    plan = Plan("apartment with balcony")
+    floor = plan.add_floor_from_boundary(perimeter)
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
+    plan.insert_space_from_boundary(perimeter, SPACE_CATEGORIES["kitchen"], floor)
+    plan.remove_null_spaces()
+    # space 0 : hole
+    assert plan.spaces[1].maximum_distance_to(plan.spaces[2]) == 700*2**0.5
 
 
 def test_space_area(l_plan):

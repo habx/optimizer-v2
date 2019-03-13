@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from libs.shuffle import Shuffle
 
 EPSILON_MAX_SIZE = 10.0
+SQM = 10000
 
 
 class Seeder:

@@ -15,6 +15,7 @@ CATEGORIES_COLORS = {
     'space': 'b',
     'seed': '#6a006a',
     'living': 'aquamarine',
+    'livingKitchen': 'aquamarine',
     'dining': 'turquoise',
     'kitchen': 'paleturquoise',
     'bedroom': 'mistyrose',
@@ -30,7 +31,7 @@ CATEGORIES_COLORS = {
     'terrace': 'silver',
     'garden': 'green',
     'loggia': 'silver',
-    'wintergarden': 'gainsboro',
+    'winterGarden': 'gainsboro',
     'startingStep': 'r',
     'hole': 'lightblue',
     'stairsObstacle': 'brown'
@@ -125,6 +126,8 @@ SPACE_CATEGORIES = {
     "stairsObstacle": SpaceCategory('stairsObstacle', mutable=False),
     "bedroom": SpaceCategory('bedroom', needed_linears=window_linears),
     "living": SpaceCategory('living', circulation=True, needed_linears=window_linears),
+    "livingKitchen": SpaceCategory('livingKitchen', circulation=True, needed_linears=window_linears,
+                                   needed_spaces=[duct_space]),
     "entrance": SpaceCategory('entrance', circulation=True, needed_linears=[frontDoor_linear]),
     "kitchen": SpaceCategory('kitchen', needed_spaces=[duct_space],
                              needed_linears=window_linears),
@@ -135,12 +138,11 @@ SPACE_CATEGORIES = {
     "dressing": SpaceCategory('dressing'),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
-    "circulationSpace": SpaceCategory("circulationSpace", circulation=True,
-                                      needed_linears=[startingStep_linear]),
+    "circulationSpace": SpaceCategory("circulationSpace", circulation=True),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
     "terrace": SpaceCategory('terrace', mutable=False, external=True),
     "loggia": SpaceCategory('loggia', mutable=False, external=True),
-    "wintergarden": SpaceCategory('wintergarden', mutable=False, external=True)
+    "winterGarden": SpaceCategory('winterGarden', mutable=False, external=True)
 }

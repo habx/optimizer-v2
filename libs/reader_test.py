@@ -53,8 +53,7 @@ BLUEPRINT_INPUT_FILES = [
     "saint-maur-raspail_H05.json",
     "saint-maur-raspail_H06.json",
     "saint-maur-raspail_H07.json",
-    "saint-maur-raspail_H08.json",
-    "paris-venelles_B001.json"
+    "saint-maur-raspail_H08.json"
 ]
 
 SPECIFICATION_INPUT_FILES = [

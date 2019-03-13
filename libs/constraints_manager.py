@@ -15,27 +15,28 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification import Item
+import networkx as nx
 import time
 import logging
 
 if TYPE_CHECKING:
     from libs.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ("living", "kitchen", "office", "dining", "bedroom")
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
 
-DRESSING_NEIGHBOUR_ROOMS = ("entrance", "bedroom", "wc", "bathroom")
+DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "wc", "bathroom"]
 
-CIRCULATION_ROOMS = ("living", "dining", "entrance")
+CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 
-DAY_ROOMS = ("living", "dining", "kitchen", "cellar")
+DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ("bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace")
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "wc"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
-BIG_VARIANTS = ("m", "l", "xl")
+BIG_VARIANTS = ["m", "l", "xl"]
 
-SMALL_VARIANTS = ("xs", "s")
+SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
 BIG_EXTERNAL_SPACE = 7000
@@ -56,10 +57,10 @@ class ConstraintSolver:
         # Declare variables
         self.cells_item: List[ortools.IntVar] = []
         self.positions = {}  # List[List[ortools.IntVar]] = [[]]
-        self.init_positions()
+        self._init_positions()
         self.solutions = []
 
-    def init_positions(self) -> None:
+    def _init_positions(self) -> None:
         """
         variables initialization
         :return: None
@@ -147,12 +148,18 @@ class ConstraintsManager:
                                            self.sp.spec.plan.count_mutable_spaces(), True)
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
-        self.init_windows_length()
+        self._init_windows_length()
+        self.spaces_distance = []
+        self._init_spaces_distance()
+        self.space_graph = nx.Graph()
+        self._init_spaces_graph()
+        self.area_space_graph = nx.Graph()
+        self._init_area_spaces_graph()
         self.item_constraints = {}
         self.add_spaces_constraints()
         self.add_item_constraints()
 
-    def init_windows_length(self) -> None:
+    def _init_windows_length(self) -> None:
         """
         Initialize the length of each window
         :return:
@@ -166,6 +173,51 @@ class ConstraintsManager:
                         length += (self.solver.positions[item.id, j]
                                    * int(component.length / 10))
             self.windows_length[str(item.id)] = length
+
+    def _init_spaces_distance(self) -> None:
+        """
+        Initialize the spaces distance matrix
+        :return:
+        """
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            self.spaces_distance.append([])
+            self.spaces_distance[i] = [0]*len(list(self.sp.spec.plan.mutable_spaces()))
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if i < j:
+                    if i_space.floor != j_space.floor:
+                        self.spaces_distance[i][j] = 1e20
+                        self.spaces_distance[j][i] = 1e20
+                    else:
+                        self.spaces_distance[i][j] = int(i_space.maximum_distance_to(j_space))
+                        self.spaces_distance[j][i] = int(i_space.maximum_distance_to(j_space))
+
+    def _init_spaces_graph(self) -> None:
+        """
+        Initialize the graph of adjacent seed spaces
+        :return:
+        """
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if i < j:
+                    if i_space.adjacent_to(j_space):
+                        self.space_graph.add_edge(i, j, weight=1)
+                        self.space_graph.add_edge(j, i, weight=1)
+
+    def _init_area_spaces_graph(self) -> None:
+        """
+        Initialize the graph of adjacent seed spaces with weight = space area
+        :return:
+        """
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if i != j:
+                    if i_space.adjacent_to(j_space):
+                        self.area_space_graph.add_edge(i, j, weight=j_space.area)
 
     def add_spaces_constraints(self) -> None:
         """
@@ -290,6 +342,147 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
+def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Maximum distance constraint between spaces constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    # TODO : find best param
+    # TODO : unit tests
+    """
+    if item.category.name in ["living", "dining"]:
+        param = 2
+    elif item.category.name in ["kitchen", "bedroom"]:
+        param = 2
+    else:
+        param = 2
+
+    max_distance = int(round(param * item.max_size.area**0.5))
+
+    ct = None
+
+    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            if j < k:
+                if ct is None:
+                    ct = ((manager.solver.positions[item.id, j] *
+                           manager.solver.positions[item.id, k])
+                          <= int(max_distance/manager.spaces_distance[j][k]))
+                else:
+                    new_ct = ((manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k])
+                              <= int(max_distance/manager.spaces_distance[j][k]))
+                    ct = manager.and_(ct, new_ct)
+
+    return ct
+
+
+def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Graph constraint:
+    - existing path between two seed space
+    - shortest path number of seed spaces < nbr of seed spaces
+    - shortest path area < max area (+ margin)
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    # TODO : unit tests
+    """
+
+    ct = None
+    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            if j < k:
+                if ct is None:
+                    if not nx.has_path(manager.space_graph, j, k):
+                        ct = (manager.solver.positions[item.id, j] *
+                              manager.solver.positions[item.id, k] == 0)
+                    else:
+                        path = nx.dijkstra_path(manager.area_space_graph, j, k)
+                        area_path = int(sum(space.area
+                                        for i, space in
+                                        enumerate(manager.sp.spec.plan.mutable_spaces())
+                                        if i in path))
+                        ct1 = ((manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k] *
+                               len(nx.dijkstra_path(manager.space_graph, j, k)))
+                               <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
+                                                            for l, l_space in enumerate(
+                                                            manager.sp.spec.plan.mutable_spaces())))
+                        ct2 = (manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k] * area_path
+                               <= int(item.max_size.area*4/3))
+                        ct = manager.and_(ct1, ct2)
+                        ct = ct
+
+                else:
+                    if not nx.has_path(manager.space_graph, j, k):
+                        new_ct = (manager.solver.positions[item.id, j] *
+                                  manager.solver.positions[item.id, k] == 0)
+                    else:
+                        path = nx.dijkstra_path(manager.area_space_graph, j, k)
+                        area_path = int(sum(space.area
+                                        for i, space in
+                                        enumerate(manager.sp.spec.plan.mutable_spaces())
+                                        if i in path))
+                        ct1 = ((manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k] *
+                               len(nx.dijkstra_path(manager.space_graph, j, k)))
+                               <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
+                                                            for l, l_space in enumerate(
+                                                            manager.sp.spec.plan.mutable_spaces())))
+                        ct2 = (manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k] * area_path
+                               <= int(item.max_size.area*4/3))
+                        new_ct = manager.and_(ct1, ct2)
+                    ct = manager.and_(ct, new_ct)
+
+    return ct
+
+
+def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Shape constraint : perimeter**2/area
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    # TODO : find best param
+    # TODO : unit tests
+    """
+
+    plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
+                       / manager.sp.spec.plan.indoor_area)
+
+    if item.category.name in ["living", "dining", "livingKitchen"]:
+        param = max(30, int(plan_ratio + 10))
+    elif item.category.name in ["kitchen", "bedroom", "entrance"]:
+        param = max(25, int(plan_ratio))
+    else:
+        param = 24
+
+    item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
+                                          for j, space in
+                                          enumerate(manager.sp.spec.plan.mutable_spaces()))
+
+    cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
+                                                int(space.perimeter)
+                                                for j, space in
+                                                enumerate(manager.sp.spec.plan.mutable_spaces()))
+    cells_adjacency = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
+                                                manager.solver.positions[item.id, k] *
+                                                int(j_space.contact_length(k_space))
+                                                for j, j_space in
+                                                enumerate(manager.sp.spec.plan.mutable_spaces())
+                                                for k, k_space in
+                                                enumerate(manager.sp.spec.plan.mutable_spaces())
+                                                )
+    item_perimeter = cells_perimeter - cells_adjacency
+    ct = (item_perimeter*item_perimeter <= param*item_area)
+
+    return ct
+
+
 def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
     """
     Windows length constraint
@@ -354,20 +547,21 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
     :return: ct: ortools.Constraint
     """
     ct = None
-    if item.category.name in manager.symmetry_breaker_memo.keys():
+    item_sym_id = str(item.category.name + item.variant)
+    if item_sym_id in manager.symmetry_breaker_memo.keys():
         for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 if k < j:
                     if ct is None:
                         ct = (manager.solver.positions[
-                                  manager.symmetry_breaker_memo[item.category.name], j] *
+                                  manager.symmetry_breaker_memo[item_sym_id], j] *
                               manager.solver.positions[item.id, k] == 0)
                     else:
                         ct = manager.and_(ct, (manager.solver.positions[
                                                    manager.symmetry_breaker_memo[
-                                                       item.category.name], j] *
+                                                       item_sym_id], j] *
                                                manager.solver.positions[item.id, k] == 0))
-    manager.symmetry_breaker_memo[item.category.name] = item.id
+    manager.symmetry_breaker_memo[item_sym_id] = item.id
     return ct
 
 
@@ -408,7 +602,7 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
                         .Max(a >= manager.solver.positions[item.id, k],
                              nbr_spaces_in_i_item == 1)))
 
-    ct = (manager.solver.solver.Min(ct1, ct2) == 1)
+    ct = (manager.and_(ct1, ct2) == 1)
 
     return ct
 
@@ -439,7 +633,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         else:
             for num, num_item in enumerate(manager.sp.spec.items):
-                if num_item.category.name == cat:
+                if num_item.category.name == cat and num_item != item:
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
                             int(j_space.adjacent_to(k_space)) *
@@ -546,7 +740,11 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
-        [area_constraint, {"min_max": "min"}]
+        [area_constraint, {"min_max": "min"}],
+        [distance_constraint, {}],
+        [graph_constraint, {}],
+        [shape_constraint, {}],
+        [windows_constraint, {}],
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
@@ -576,11 +774,20 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
-    "dining": [
+    "livingKitchen": [
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": "kitchen"}]
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [item_adjacency_constraint,
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+    ],
+    "dining": [
+        [item_attribution_constraint, {}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint, {"item_categories": ["kitchen"]}]
     ],
     "kitchen": [
         [item_attribution_constraint, {}],
@@ -626,20 +833,24 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
 T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
-        [windows_constraint, {}],
+
     ],
     "entrance": [
 
     ],
     "wc": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+            {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
     ],
     "bathroom": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+        [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
+        # [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
+        [externals_connection_constraint, {}]
+    ],
+    "livingKitchen": [
         [externals_connection_constraint, {}]
     ],
     "dining": [
@@ -649,7 +860,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
 
     ],
     "bedroom": [
-
+        # [item_adjacency_constraint,
+        #   {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
 

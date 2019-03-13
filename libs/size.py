@@ -21,7 +21,7 @@ class Size:
                  width: Optional[float] = None,
                  depth: Optional[float] = None,
                  epsilon: float = COORD_EPSILON):
-        self.area = round(float(area), FLOAT_DECIMAL) if area else None
+        self.area = round(float(area), FLOAT_DECIMAL) if area is not None else None
         self.width = round(float(width), FLOAT_DECIMAL) if width else None
         self.depth = round(float(depth), FLOAT_DECIMAL) if depth else None
         self.epsilon = epsilon

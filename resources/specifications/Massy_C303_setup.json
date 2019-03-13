@@ -2,70 +2,47 @@
   "setup": [
     {
       "type": "living",
-      "variant": "xs",
+      "variant": "l",
       "requiredArea": {
-        "min": 100000,
-        "max": 150000
+        "min": 225000,
+        "max": 300000
       },
       "opensOn": ["kitchen"]
     },
         {
       "type": "kitchen",
-      "variant": "xs",
+      "variant": "s",
       "requiredArea": {
-        "min": 50000,
-        "max": 100000
+        "min": 100000,
+        "max": 150000
       },
       "opensOn": ["living"]
     },
     {
       "type": "bedroom",
-      "variant": "s",
+      "variant": "xs",
       "requiredArea": {
-        "min": 90000,
-        "max": 100000
+        "min": 120000,
+        "max": 150000
       }
     },
     {
       "type": "bedroom",
       "variant": "xs",
       "requiredArea": {
-        "min": 90000,
-        "max": 95000.0
+        "min": 120000,
+        "max": 150000
       }
     },
     {
       "type": "bedroom",
-      "variant": "xs",
+      "variant": "xl",
       "requiredArea": {
-        "min": 90000,
-        "max": 95000.0
+        "min": 180000,
+        "max": 220000
       }
     },
-    {
-      "type": "bedroom",
-      "variant": "xs",
-      "requiredArea": {
-        "min": 90000,
-        "max": 95000.0
-      }
-    },
-    {
-      "type": "bathroom",
-      "variant": "s",
-      "requiredArea": {
-        "min": 40000,
-        "max": 60000
-      }
-    },
-    {
-      "type": "bathroom",
-      "variant": "xs",
-      "requiredArea": {
-        "min": 20000,
-        "max": 40000
-      }
-    },
+
     {
       "type": "wc",
       "variant": "s",
@@ -82,12 +59,22 @@
         "max": 50000
       }
     },
+
     {
-      "type": "wc",
-      "variant": "l",
+      "type": "bathroom",
+      "variant": "s",
       "requiredArea": {
-        "min": 30000,
-        "max": 50000
+        "min": 60000,
+        "max": 100000
+      }
+    },
+
+    {
+      "type": "laundry",
+      "variant": "s",
+      "requiredArea": {
+        "min": 60000,
+        "max": 100000
       }
     }
   ]

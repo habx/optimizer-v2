@@ -11,7 +11,7 @@
     {
       "requiredArea": {
         "min": 60000,
-        "max": 80000
+        "max": 130000
       },
       "type": "bathroom",
       "variant": "m"
@@ -26,7 +26,7 @@
     },
     {
       "requiredArea": {
-        "min": 130000,
+        "min": 100000,
         "max": 150000
       },
       "type": "bedroom",
@@ -34,7 +34,7 @@
     },
     {
       "requiredArea": {
-        "min": 130000,
+        "min": 100000,
         "max": 150000
       },
       "type": "bedroom",
@@ -42,7 +42,7 @@
     },
     {
       "requiredArea": {
-        "min": 130000,
+        "min": 100000,
         "max": 150000
       },
       "type": "bedroom",
@@ -59,7 +59,7 @@
     {
       "requiredArea": {
         "min": 200000,
-        "max": 300000
+        "max": 400000
       },
       "type": "living",
       "variant": "m"
