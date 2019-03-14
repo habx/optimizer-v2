@@ -89,11 +89,11 @@
                             "width": 90
                         },
                         {
-                            "coef1": 186,
-                            "coef2": 997,
+                            "coef1": 0,
+                            "coef2": 400,
                             "type": "duct",
-                            "vertex1": 10,
-                            "vertex2": 11,
+                            "vertex1": 3,
+                            "vertex2": 4,
                             "width": 97
                         },
                         {
@@ -107,12 +107,7 @@
                     ],
                     "forbiddenZones": [],
                     "level": 0,
-                    "loadBearingWalls": [
-                        [
-                            10,
-                            11
-                        ]
-                    ],
+                    "loadBearingWalls": [],
                     "rooms": [],
                     "unsplittableZones": [],
                     "vertices": [
@@ -155,14 +150,6 @@
                         {
                             "x": 1505,
                             "y": -689
-                        },
-                        {
-                            "x": 1736,
-                            "y": -1126
-                        },
-                        {
-                            "x": 1774,
-                            "y": -1164
                         }
                     ]
                 }
@@ -200,9 +187,6 @@
                     203,
                     204,
                     302,
-                    303,
-                    304,
-                    305,
                     306,
                     307
                 ],
@@ -286,39 +270,6 @@
                     1024
                 ],
                 "id": 302
-            },
-            {
-                "area": 159.53598469226628,
-                "category": "loadBearingWall",
-                "geometry": [
-                    1025,
-                    1026,
-                    1027,
-                    1028
-                ],
-                "id": 303
-            },
-            {
-                "area": 7.915878061439978,
-                "category": "loadBearingWall",
-                "geometry": [
-                    1029,
-                    1030,
-                    1031,
-                    1032
-                ],
-                "id": 304
-            },
-            {
-                "area": 1036.9674085969739,
-                "category": "loadBearingWall",
-                "geometry": [
-                    1033,
-                    1034,
-                    1035,
-                    1036
-                ],
-                "id": 305
             },
             {
                 "area": 5085.379285423575,
