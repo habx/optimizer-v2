@@ -1284,19 +1284,18 @@ def is_mutable() -> Predicate:
 def face_proportion(max_proportion: float = 0.1) -> Predicate:
     """
     Predicate factory
-    Returns a predicate indicating if (surface of edge face)/(surface of edge space) and
+    Returns a predicate indicating if (surface of edge.pair face)/(surface of edge space) and
     (surface of edge.pair face)/(surface of edge.pair space) are lower than max_proportion
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         if not edge.face or not edge.pair.face:
             return False
-        face_area = edge.face.area
         space_area = space.plan.get_space_of_edge(edge).area
         face_pair_area = edge.pair.face.area
         space_pair_area = space.plan.get_space_of_edge(edge.pair).area
 
-        if (face_area / space_area > max_proportion
+        if (face_pair_area / space_area > max_proportion
                 or face_pair_area / space_pair_area > max_proportion):
             return False
         return True
