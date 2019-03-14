@@ -294,7 +294,7 @@ if __name__ == '__main__':
             plan_index]  # 9 Antony B22, 13 Bussy 002
         # input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
         # input_file = "grenoble-cambridge_143.json"
-        # input_file = "Edison_20.json"
+        input_file = "Sartrouville_R2.json"
         plan = reader.create_plan_from_file(input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 

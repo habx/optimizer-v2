@@ -123,8 +123,7 @@ square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAI
 
 
 square_shape_shuffle_rooms = Shuffle('square_shape', [swap_action_room], (),
-                                     [CONSTRAINTS['few_corners'],
-                                      CONSTRAINTS['square_shape_regional']])
+                                     [CONSTRAINTS['few_corners']])
 
 square_shape_shuffle_component = Shuffle('square_shape', [swap_seed_action], (),
                                          [CONSTRAINTS['square_shape'],
