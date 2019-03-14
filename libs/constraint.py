@@ -122,6 +122,29 @@ def square_shape(_: Dict) -> scoreFunction:
     return _score
 
 
+def square_shape_regional(_: Dict) -> scoreFunction:
+    """
+    Scores the area / perimeter ratio of a space and adjacent spaces.
+    :return:
+    """
+
+    def _score(space: 'Space') -> float:
+
+        def square_score(current_space: 'Space'):
+            if (current_space is None or current_space.size is None or
+                    current_space.size.depth is None or current_space.size.width is None):
+                return 0.0
+            rectangle_area = current_space.size.depth * current_space.size.width
+            return max((rectangle_area - current_space.area) / rectangle_area, 0.0)
+
+        score = square_score(space)
+        for sp in space.adjacent_spaces():
+            score += square_score(sp)
+        return score
+
+    return _score
+
+
 def component_surface_objective(params: Dict) -> scoreFunction:
     """
     Scores the respect of surface margins for cells containing components defined in params
@@ -402,6 +425,10 @@ square_shape = SpaceConstraint(square_shape,
                                {"max_ratio": 100.0},
                                "square_shape", imperative=False)
 
+square_shape_regional = SpaceConstraint(square_shape_regional,
+                                        {"max_ratio": 100.0},
+                                        "square_shape", imperative=False)
+
 few_corners_constraint = SpaceConstraint(few_corners,
                                          {"min_corners": 4},
                                          "few_corners",
@@ -424,6 +451,7 @@ CONSTRAINTS = {
     "max_size_doorWindow_constraint_seed": ELEMENT_CONSTRAINT_SEED['doorWindow'],
     "max_size_default_constraint_seed": max_size_default_constraint_seed,
     "square_shape": square_shape,
+    "square_shape_regional": square_shape_regional,
     "component_surface_objective": component_surface_objective,
     "component_aspect_constraint": component_aspect_constraint,
     "number_of_components": number_of_components,
