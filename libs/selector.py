@@ -1264,10 +1264,89 @@ def has_space_pair() -> Predicate:
     return _predicate
 
 
+def is_mutable() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if an edge and its pair belongs to a mutable space
+    :return:
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if not edge.pair or not space.plan.get_space_of_edge(edge.pair):
+            return False
+        else:
+            if space.mutable and space.plan.get_space_of_edge(edge.pair).mutable:
+                return True
+
+    return _predicate
+
+
+def face_proportion(max_proportion: float = 0.1) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if (surface of edge.pair face)/(surface of edge space) and
+    (surface of edge.pair face)/(surface of edge.pair space) are lower than max_proportion
+    """
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if not edge.face or not edge.pair.face:
+            return False
+        space_area = space.plan.get_space_of_edge(edge).area
+        face_pair_area = edge.pair.face.area
+        space_pair_area = space.plan.get_space_of_edge(edge.pair).area
+
+        if (face_pair_area / space_area > max_proportion
+                or face_pair_area / space_pair_area > max_proportion):
+            return False
+        return True
+
+    return _predicate
+
+
+def face_without_component() -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if edge pair face has non mutable components
+    """
+
+    from libs.category import SPACE_CATEGORIES
+    from libs.plan import Space
+
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        if not edge.pair.face:
+            return False
+
+        # creates a temporary space with edge.pair.face as only space
+        tmp_space = Space(space.plan, space.floor, edge.pair,
+                          SPACE_CATEGORIES[space.category.name])
+        tmp_space.add_face(edge.pair.face)
+
+        has_component = False
+        if tmp_space.components_category_associated():
+            has_component = True
+
+        tmp_space.remove()
+
+        return not has_component
+
+    return _predicate
+
+
 # Catalog Selectors
 
 SELECTORS = {
     "space_boundary": Selector(space_boundary),
+
+    "polish": Selector(
+        space_boundary,
+        [
+            is_mutable(),
+            face_proportion(0.3),
+            face_without_component(),
+            is_not(corner_stone)
+
+        ]
+    ),
 
     "seed_component_boundary": Selector(seed_component_boundary),
 
@@ -1583,18 +1662,20 @@ SELECTORS = {
                                              edge_length(min_length=20)]),
 
     "corner_duct_first_edge": Selector(space_boundary,
-                                 [adjacent_to_space("duct"),
-                                  space_next_has(adjacent_to_space("duct")),
-                                  space_next_has(space_next_has(adjacent_to_space("exterior"))),
-                                  space_previous_has(adjacent_to_space("exterior")),
-                                  space_aligned_edges_length(min_length=80)]),
+                                       [adjacent_to_space("duct"),
+                                        space_next_has(adjacent_to_space("duct")),
+                                        space_next_has(
+                                            space_next_has(adjacent_to_space("exterior"))),
+                                        space_previous_has(adjacent_to_space("exterior")),
+                                        space_aligned_edges_length(min_length=80)]),
 
     "corner_duct_second_edge": Selector(space_boundary,
-                                 [adjacent_to_space("duct"),
-                                  space_next_has(adjacent_to_space("exterior")),
-                                  space_previous_has(adjacent_to_space("duct")),
-                                  space_previous_has(space_previous_has(adjacent_to_space("exterior"))),
-                                  space_aligned_edges_length(min_length=80)]),
+                                        [adjacent_to_space("duct"),
+                                         space_next_has(adjacent_to_space("exterior")),
+                                         space_previous_has(adjacent_to_space("duct")),
+                                         space_previous_has(
+                                             space_previous_has(adjacent_to_space("exterior"))),
+                                         space_aligned_edges_length(min_length=80)]),
 
     "corner_face": Selector(boundary_faces, [corner_face]),
 

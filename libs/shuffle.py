@@ -108,6 +108,7 @@ class Shuffle:
 
 swap_seed_action = Action(SELECTORS['other_seed_space'], MUTATIONS['swap_face'])
 swap_action = Action(SELECTORS["space_boundary"], MUTATIONS["swap_face"])
+swap_action_room = Action(SELECTORS["polish"], MUTATIONS["swap_face"])
 swap_aligned_action = Action(SELECTORS["swap_aligned"], MUTATIONS["swap_aligned_face"])
 
 simple_shuffle = Shuffle('simple', [swap_action], (), [CONSTRAINTS['square_shape']])
@@ -119,6 +120,10 @@ simple_shuffle_min_size = Shuffle('simple_min_size', [swap_action], (),
 few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS['few_corners']])
 square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAINTS['square_shape'],
                                                                         CONSTRAINTS['few_corners']])
+
+
+square_shape_shuffle_rooms = Shuffle('square_shape', [swap_action_room], (),
+                                     [CONSTRAINTS['few_corners']])
 
 square_shape_shuffle_component = Shuffle('square_shape', [swap_seed_action], (),
                                          [CONSTRAINTS['square_shape'],
@@ -141,7 +146,8 @@ SHUFFLES = {
     "seed_square_shape_component": square_shape_shuffle_component,
     "seed_square_shape_component_aligned": square_shape_shuffle_component_aligned,
     "simple_shuffle": simple_shuffle,
-    "simple_shuffle_min_size": simple_shuffle_min_size
+    "simple_shuffle_min_size": simple_shuffle_min_size,
+    "square_shape_shuffle_rooms": square_shape_shuffle_rooms
 }
 
 if __name__ == '__main__':
