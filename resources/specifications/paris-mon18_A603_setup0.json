@@ -23,10 +23,10 @@
       "variant": "s"
     },
     {
-      "linkedTo": [
+      "linkedTo": [],
+      "opensOn": [
         "kitchen"
       ],
-      "opensOn": [],
       "requiredArea": {
         "min": 120000,
         "max": 200000
@@ -36,16 +36,27 @@
       "variant": "s"
     },
     {
-      "linkedTo": [
+      "linkedTo": [],
+      "opensOn": [
         "living"
       ],
-      "opensOn": [],
       "requiredArea": {
         "min": 40000,
         "max": 80000
       },
       "tags": [],
       "type": "kitchen",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "min": 80000,
+        "max": 120000
+      },
+      "tags": [],
+      "type": "bedroom",
       "variant": "s"
     },
     {
