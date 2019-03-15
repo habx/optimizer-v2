@@ -38,6 +38,7 @@
                 "min": 225000,
                 "max": 300000
             },
+            "opensOn": ["kitchen"],
             "variant": "l"
         },
         {
@@ -46,6 +47,7 @@
                 "min": 120000,
                 "max": 150000
             },
+            "opensOn": ["living"],
             "variant": "l"
         },
         {

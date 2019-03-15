@@ -741,10 +741,10 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
-        [distance_constraint, {}],
-        [graph_constraint, {}],
-        [shape_constraint, {}],
-        [windows_constraint, {}],
+        #[distance_constraint, {}],
+        #[graph_constraint, {}],
+        #[shape_constraint, {}],
+        #[windows_constraint, {}],
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???

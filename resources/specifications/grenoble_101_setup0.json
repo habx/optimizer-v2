@@ -17,12 +17,12 @@
         "kitchen"
       ],
       "requiredArea": {
-        "max": 165000.0,
-        "min": 120000
+        "max": 225000.0,
+        "min": 200000
       },
       "tags": [],
       "type": "living",
-      "variant": "xs"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -52,8 +52,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 175000.0,
-        "min": 125000.0
+        "max": 85000.0,
+        "min": 60000
       },
       "tags": [
         "wc"

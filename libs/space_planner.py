@@ -291,7 +291,7 @@ if __name__ == '__main__':
 
         # input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
         #     plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "grenoble_211.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
@@ -303,11 +303,11 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1*SQM))
+         .merge_small_cells(min_cell_area=1*SQM, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 
-        input_file_setup = input_file[:-5] + "_setup.json"
+        input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan
