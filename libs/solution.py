@@ -104,7 +104,7 @@ class SolutionsCollector:
 
         best_sol = self.solutions[index_best_sol]
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
-
+        logging.debug("SolutionsCollector : dist_from_best_sol : %", dist_from_best_sol)
         second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
