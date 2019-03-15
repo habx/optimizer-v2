@@ -115,7 +115,7 @@ class ConstraintSolver:
 
             # Number of solutions
             nbr_solutions += 1
-            if nbr_solutions >= max_num_sol:
+            if nbr_solutions >= max_num_sol and (t0 - 3000) <= 0:
                 break
 
         # noinspection PyArgumentList
@@ -741,10 +741,10 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
-        #[distance_constraint, {}],
-        #[graph_constraint, {}],
-        #[shape_constraint, {}],
-        #[windows_constraint, {}],
+        [distance_constraint, {}],
+        [graph_constraint, {}],
+        [shape_constraint, {}],
+        [windows_constraint, {}],
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???

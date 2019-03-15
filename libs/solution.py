@@ -25,13 +25,13 @@ class SolutionsCollector:
         self.solutions: List['Solution'] = []
         self.spec = spec
 
-    def add_solution(self, plan: 'Plan') -> None:
+    def add_solution(self, plan: 'Plan', dict_items_spaces: Dict['Item', 'Space']) -> None:
         """
         creates and add plan solution to the list
         :param: plan
         :return: None
         """
-        sol = Solution(self, plan, len(self.solutions))
+        sol = Solution(self, plan, dict_items_spaces, len(self.solutions))
         self.solutions.append(sol)
 
     @property
@@ -104,7 +104,7 @@ class SolutionsCollector:
 
         best_sol = self.solutions[index_best_sol]
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
-        logging.debug("SolutionsCollector : dist_from_best_sol : %", dist_from_best_sol)
+
         second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
@@ -150,13 +150,12 @@ class Solution:
     item layout solution in a given plan
     """
 
-    def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', _id: int):
+    def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', dict_items_spaces: Dict['Item', 'Space'], _id: int):
         self._id = _id
         self.collector = collector
         self.plan = plan
         self.plan.name = self.plan.name[:-5] + "_Solution_Id" + str(self._id)
-        self.items_spaces: Dict['Item', 'Space'] = {}
-        self.init_items_spaces()
+        self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
@@ -168,7 +167,7 @@ class Solution:
         """
         for item in self.collector.spec.items:
             for space in self.plan.mutable_spaces():
-                if item.category.name == space.category.name:
+                if item.category == space.category:
                     self.items_spaces[item] = space
 
     def get_rooms(self, category_name: str) -> ['Space']:
@@ -247,7 +246,7 @@ class Solution:
         logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
-            logging.debug("room %s: P2/A : %i", item.category.name,
+            logging.debug("room %s: P2/A : %i", item.id,
                           int((space.perimeter*space.perimeter)/space.area))
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
@@ -475,7 +474,7 @@ class Solution:
                     if self.get_rooms("entrance")[0].as_sp.distance(space.as_sp) < CORRIDOR_SIZE:
                         item_position_score = 100
 
-            logging.debug("Solution %i: Position score : %f, room : %s, %f", self._id,
+            logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
                           item_position_score, item.category.name, nbr_room_position_score)
             position_score = position_score + item_position_score
 
