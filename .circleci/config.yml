@@ -7,8 +7,7 @@ jobs:
     steps:
       - checkout
       - run: env
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.6/site-packages
+      - run: sudo chown -R circleci:circleci /usr/local
       - run: ./run_tests.sh
 workflows:
   version: 2
