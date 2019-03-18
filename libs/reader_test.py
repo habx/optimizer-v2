@@ -15,7 +15,6 @@ BLUEPRINT_INPUT_FILES = [
     "grenoble_102.json",
     "grenoble_113.json",
     "grenoble_114.json",
-    "grenoble_115.json",
     "grenoble_121.json",
     "grenoble_122.json",
     "grenoble_125.json",

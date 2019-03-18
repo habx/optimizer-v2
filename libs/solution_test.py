@@ -39,8 +39,8 @@ def test_solution_distance():
     plan2.spaces[1].category = SPACE_CATEGORIES["kitchen"]
     plan2.spaces[2].category = SPACE_CATEGORIES["bedroom"]
 
-    collector.add_solution(plan1)
-    collector.add_solution(plan2)
+    collector.add_solution(plan1, {})
+    collector.add_solution(plan2, {})
 
     assert collector.solutions[0].distance(collector.solutions[1]) == 25, "Wrong distance"
 
@@ -48,12 +48,12 @@ def test_solution_distance():
     plan3.spaces[1].category = SPACE_CATEGORIES["kitchen"]
     plan3.spaces[2].category = SPACE_CATEGORIES["entrance"]
 
-    collector.add_solution(plan3)
+    collector.add_solution(plan3, {})
 
     assert collector.solutions[0].distance(collector.solutions[2]) == 50, "Wrong distance"
 
     plan4 = plan1.clone("4")
-    collector.add_solution(plan4)
+    collector.add_solution(plan4, {})
 
     assert collector.solutions[0].distance(collector.solutions[3]) == 0, "Wrong distance"
 
@@ -61,7 +61,7 @@ def test_solution_distance():
     plan5.spaces[0].category = SPACE_CATEGORIES["bedroom"]
     plan5.spaces[1].category = SPACE_CATEGORIES["living"]
     plan5.spaces[2].category = SPACE_CATEGORIES["kitchen"]
-    collector.add_solution(plan5)
+    collector.add_solution(plan5, {})
 
     assert collector.solutions[0].distance(collector.solutions[4]) == 100, "Wrong distance"
 

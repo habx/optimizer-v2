@@ -315,6 +315,7 @@ def _create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
                 space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
                 space_points = _clean_perimeter(space_points)
                 category = SPACE_CATEGORIES[space_data["category"]]
+                print("category", category)
                 my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
 
         # add steps linear "StartingStep". This linear must be inserted after the steps space.
