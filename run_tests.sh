@@ -6,8 +6,11 @@
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
+# Cutting tests
+tests=$(circleci tests glob "**/*_test.py") ||:
+
 # Verbose view
-pytest -v --duration 1
+pytest -v $tests
 
 # To compare the packages
 pip list

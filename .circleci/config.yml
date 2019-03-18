@@ -2,10 +2,11 @@ version: 2
 jobs:
   test:
     docker:
-      - image: python:3.6
+      - image: circleci/python:3.6
     parallelism: 4
     steps:
       - checkout
+      - run: env
       - run: ./run_tests.sh
 workflows:
   version: 2
