@@ -126,8 +126,8 @@
                     ],
                     "forbiddenZones": [
                         [
-                        	18,
-                        	19,
+                            18,
+                            19,
                             20,
                             21,
                             22,
@@ -152,12 +152,12 @@
                     ],
                     "rooms": [],
                     "unsplittableZones": [
-                    	[
-                    	31,
-                    	32,
-                    	33,
-                    	34
-                    ]
+                        [
+                            31,
+                            32,
+                            33,
+                            34
+                        ]
                     ],
                     "vertices": [
                         {
@@ -626,7 +626,7 @@
                 ],
                 "id": 201,
                 "length": 121.99300000000017,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -637,7 +637,7 @@
                 ],
                 "id": 202,
                 "length": 121.99300000000054,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -648,7 +648,7 @@
                 ],
                 "id": 203,
                 "length": 121.99299999994416,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -659,7 +659,7 @@
                 ],
                 "id": 204,
                 "length": 282.1229999998708,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -670,7 +670,7 @@
                 ],
                 "id": 205,
                 "length": 162.24399999997618,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -681,7 +681,7 @@
                 ],
                 "id": 206,
                 "length": 121.99300000002977,
-                "sillHeight": -1e-07
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",
@@ -710,7 +710,7 @@
                 ],
                 "id": 209,
                 "length": 121.99300000000028,
-                "sillHeight": 3.4999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -721,7 +721,7 @@
                 ],
                 "id": 2010,
                 "length": 121.99300000000065,
-                "sillHeight": 3.4999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -732,7 +732,7 @@
                 ],
                 "id": 2011,
                 "length": 121.9929999999442,
-                "sillHeight": 3.4999998999999997
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -743,7 +743,7 @@
                 ],
                 "id": 2012,
                 "length": 121.993000000016,
-                "sillHeight": 3.4999999
+                "sillHeight": 0
             },
             {
                 "category": "startingStep",
