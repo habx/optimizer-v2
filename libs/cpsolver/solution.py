@@ -29,7 +29,7 @@ MAX_SIZE_RATIO = 1.6
 SQM = 10000
 
 
-def import_test_plan(input_file: str = "Antony_A22.json") -> 'Plan':
+def import_test_plan(input_file: str = "grenoble_101.json") -> 'Plan':
     """
     Imports and add grid to a plan
     :return:
