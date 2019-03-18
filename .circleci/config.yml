@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  test:
+    docker:
+      - image: python:3.6
+    steps:
+      - checkout
+      - run: ./run_tests.sh
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test
