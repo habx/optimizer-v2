@@ -3,6 +3,7 @@ jobs:
   test:
     docker:
       - image: python:3.6
+    parallelism: 4
     steps:
       - checkout
       - run: ./run_tests.sh
