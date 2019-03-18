@@ -9,7 +9,6 @@ tests=$(circleci tests glob "**/*_test.py") ||:
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-
 # Verbose view
 pytest -v $tests
 
