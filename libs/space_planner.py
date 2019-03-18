@@ -64,7 +64,7 @@ class SpacePlanner:
                                         size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
-        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing",  "kitchen",
+        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "office", "misc",
                               "circulationSpace"]
         space_planner_spec.init_id(category_name_list)
@@ -200,7 +200,7 @@ class SpacePlanner:
                     plan_solution = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution)
                     logging.debug(plan_solution)
-                    plan_solution.plot()
+                    # plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
@@ -271,6 +271,7 @@ if __name__ == '__main__':
     import libs.reader as reader
     from libs.selector import SELECTORS
     from libs.grid import GRIDS
+    from libs.shuffle import SHUFFLES
     import argparse
 
     logging.getLogger().setLevel(logging.DEBUG)
@@ -289,9 +290,11 @@ if __name__ == '__main__':
         :return:
         """
 
-        # input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-        #     plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "grenoble_115.json"  # Levallois_Letourneur / Antony_A22
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+        # input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
+        # input_file = "grenoble-cambridge_143.json"
+        # input_file = "Sartrouville_R2.json"
         plan = reader.create_plan_from_file(input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
@@ -303,11 +306,11 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1*SQM))
+         .merge_small_cells(min_cell_area=1 * SQM))
 
         plan.plot()
 
-        input_file_setup = input_file[:-5] + "_setup0.json"
+        input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan
@@ -330,6 +333,12 @@ if __name__ == '__main__':
         best_solutions = space_planner.solution_research()
         logging.debug("solution_research time: %f", time.clock() - t1)
         logging.debug(best_solutions)
+
+        # shuffle
+        if best_solutions:
+            for sol in best_solutions:
+                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+                sol.plan.plot()
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
@@ -371,5 +380,6 @@ if __name__ == '__main__':
         # print("worst_name_list", worst_name_list)
         # print("worst_failures", worst_failures)
         # print("worst_branches", worst_branches)
+
 
     space_planning()
