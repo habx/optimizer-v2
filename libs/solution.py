@@ -108,7 +108,7 @@ class SolutionsCollector:
         second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] > 30 and ((second_score is None) or
+            if dist_from_best_sol[i] > 25 and ((second_score is None) or
                                                list_scores[i] > second_score):
                 index_second_sol = i
                 second_score = list_scores[i]

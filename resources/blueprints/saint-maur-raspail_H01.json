@@ -178,8 +178,6 @@
             {
                 "category": "doorWindow",
                 "externalSpaces": [
-                    302,
-                    302,
                     302
                 ],
                 "geometry": [
@@ -192,7 +190,7 @@
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [302],
                 "geometry": [
                     107,
                     108
@@ -203,7 +201,7 @@
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [302],
                 "geometry": [
                     109,
                     1010

@@ -41,12 +41,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 100000,
-        "min": 80000
+        "max": 220000,
+        "min": 180000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "xs"
+      "variant": "xl"
     },
     {
       "linkedTo": [],
@@ -71,28 +71,6 @@
       ],
       "type": "bathroom",
       "variant": "xs"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 40000,
-        "min": 20000
-      },
-      "tags": [],
-      "type": "laundry",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 70000,
-        "min": 50000
-      },
-      "tags": [],
-      "type": "dressing",
-      "variant": "m"
     }
   ]
 }
