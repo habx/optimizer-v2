@@ -115,7 +115,7 @@ class ConstraintSolver:
 
             # Number of solutions
             nbr_solutions += 1
-            if nbr_solutions >= max_num_sol or (time.clock() - t0 - 1800) >= 0:
+            if nbr_solutions >= max_num_sol or (time.clock() - t0 - 300) >= 0:
                 break
 
         # noinspection PyArgumentList

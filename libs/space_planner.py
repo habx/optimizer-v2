@@ -302,9 +302,9 @@ if __name__ == '__main__':
         :return:
         """
 
-        # input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-        #     plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "paris-mon18_A603.json"  # Levallois_Letourneur / Antony_A22
+        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
+            plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = "Levallois_A2-601.json"  # Levallois_Letourneur / Antony_A22
         plan = reader.create_plan_from_file(input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
@@ -347,10 +347,10 @@ if __name__ == '__main__':
         logging.debug(best_solutions)
 
         # shuffle
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-                sol.plan.plot()
+        # if best_solutions:
+        #     for sol in best_solutions:
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+        #         sol.plan.plot()
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
