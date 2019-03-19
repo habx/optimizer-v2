@@ -246,9 +246,8 @@
         ],
         "linears": [
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [
-                    302,
                     302
                 ],
                 "geometry": [
@@ -257,21 +256,23 @@
                 ],
                 "id": 201,
                 "length": 260.0000000000051,
-                "sillHeight": 216769.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
-                "externalSpaces": [],
+                "category": "doorWindow",
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     1011,
                     1012
                 ],
                 "id": 202,
                 "length": 90.00000000002768,
-                "sillHeight": 216769.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [],
                 "geometry": [
                     1013,
@@ -279,10 +280,10 @@
                 ],
                 "id": 203,
                 "length": 90.000000000092,
-                "sillHeight": 216769.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [],
                 "geometry": [
                     1015,
@@ -290,10 +291,10 @@
                 ],
                 "id": 204,
                 "length": 90.00000000014884,
-                "sillHeight": 216769.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [],
                 "geometry": [
                     1017,
@@ -301,7 +302,7 @@
                 ],
                 "id": 205,
                 "length": 90.00000000007695,
-                "sillHeight": 216769.9
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",

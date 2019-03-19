@@ -215,9 +215,8 @@
         ],
         "linears": [
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [
-                    302,
                     302
                 ],
                 "geometry": [
@@ -226,18 +225,20 @@
                 ],
                 "id": 201,
                 "length": 89.99999999994563,
-                "sillHeight": 210629.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
-                "externalSpaces": [],
+                "category": "doorWindow",
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     1013,
                     1014
                 ],
                 "id": 202,
                 "length": 259.99999999985437,
-                "sillHeight": 210629.9
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",

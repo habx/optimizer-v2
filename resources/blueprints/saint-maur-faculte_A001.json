@@ -203,8 +203,6 @@
             {
                 "category": "doorWindow",
                 "externalSpaces": [
-                    302,
-                    302,
                     302
                 ],
                 "geometry": [
@@ -213,29 +211,33 @@
                 ],
                 "id": 201,
                 "length": 139.99999999985374,
-                "sillHeight": 679.9000000000001
+                "sillHeight": 68
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     1011,
                     1012
                 ],
                 "id": 202,
                 "length": 352.7262023099902,
-                "sillHeight": 679.9000000000001
+                "sillHeight": 68
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     1013,
                     1014
                 ],
                 "id": 203,
                 "length": 139.99999999992525,
-                "sillHeight": 679.9000000000001
+                "sillHeight": 68
             },
             {
                 "category": "frontDoor",
