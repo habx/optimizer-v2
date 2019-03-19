@@ -63,7 +63,7 @@ class SolutionsCollector:
         # Distance array
         distance = []
         for i, sol1 in enumerate(self.solutions):
-            dist = sol1.distance(sol)
+            dist = sol.distance(sol1)
             distance.append(dist)
 
         return distance
@@ -123,7 +123,7 @@ class SolutionsCollector:
             second_sol = self.solutions[index_second_sol]
             dist_from_second_sol = self.distance_from_all_solutions(second_sol)
             for i in range(len(self.solutions)):
-                if (dist_from_best_sol[i] > 20 and dist_from_second_sol[i] > 20 and
+                if (dist_from_best_sol[i] > 25 and dist_from_second_sol[i] > 25 and
                         (third_score is None or list_scores[i] > third_score)):
                     index_third_sol = i
                     third_score = list_scores[i]
@@ -136,10 +136,9 @@ class SolutionsCollector:
             for i in best_distribution_list:
                 for j in best_distribution_list:
                     if i and j:
-                        if i < j:
-                            logging.debug(
-                                "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
-                                (self.solutions[i]).distance(self.solutions[j]))
+                        logging.debug(
+                            "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
+                            (self.solutions[i]).distance(self.solutions[j]))
 
         return best_sol_list
 
@@ -552,9 +551,9 @@ class Solution:
         :return: distance : float
         """
         # Day group
-        day_list = ["living", "kitchen", "dining", "cellar"]
+        day_list = ["livingKitchen", "living", "kitchen", "dining", "cellar"]
         # Night group
-        night_list = ["bedroom", "bathroom", "wc", "laundry", "dressing", "office"]
+        night_list = ["bedroom", "bathroom", "wc", "laundry", "dressing", "office", "misc"]
 
         difference_area = 0
         mesh_area = 0
@@ -565,9 +564,9 @@ class Solution:
                     mesh_area += face.area
                     other_space = other_solution.plan.get_space_of_face(face)
                     if ((space.category.name in day_list and
-                         other_space.category.name not in day_list) or
+                         not other_space.category.name in day_list) or
                             (space.category.name in night_list and
-                             other_space.category.name not in night_list)):
+                             not other_space.category.name in night_list)):
                         difference_area += face.area
 
         distance = difference_area * 100 / mesh_area

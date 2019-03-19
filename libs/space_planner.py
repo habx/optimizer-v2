@@ -286,7 +286,7 @@ if __name__ == '__main__':
     from libs.shuffle import SHUFFLES
     import argparse
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -304,7 +304,7 @@ if __name__ == '__main__':
         import time
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        #input_file = "grenoble_115.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "grenoble_102.json"  # Levallois_Letourneur / Antony_A22
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         print("input_file", input_file)
