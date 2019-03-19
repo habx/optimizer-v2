@@ -41,6 +41,8 @@ SMALL_VARIANTS = ["xs", "s"]
 OPEN_ON_ADJACENCY_SIZE = 200
 BIG_EXTERNAL_SPACE = 7000
 
+SQM = 10000
+
 
 class ConstraintSolver:
     """
@@ -100,7 +102,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 50000
+        max_num_sol = 5000
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
@@ -115,7 +117,7 @@ class ConstraintSolver:
 
             # Number of solutions
             nbr_solutions += 1
-            if nbr_solutions >= max_num_sol or (time.clock() - t0 - 300) >= 0:
+            if nbr_solutions >= max_num_sol or (time.clock() - t0 - 600) >= 0:
                 break
 
         # noinspection PyArgumentList
@@ -329,13 +331,13 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <=
-              int(item.max_size.area * max_area_coeff))
+              int(max(item.max_size.area * max_area_coeff, item.max_size.area + 1*SQM)))
 
     elif min_max == "min":
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >=
-              int(item.min_size.area * min_area_coeff))
+              int(min(item.min_size.area * min_area_coeff, item.min_size.area - 1*SQM)))
     else:
         ValueError("AreaConstraint")
 
