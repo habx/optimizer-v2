@@ -6,12 +6,12 @@ jobs:
     parallelism: 4
     steps:
       - checkout
+      - run: sudo chown -R circleci:circleci /usr/local
       - restore_cache:
           keys:
             - v1-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
             - v1-dependencies-{{ .Branch }}
             - v1-dependencies
-      - run: sudo chown -R circleci:circleci /usr/local
       - run: ./run_tests.sh
       - save_cache:
           paths:
