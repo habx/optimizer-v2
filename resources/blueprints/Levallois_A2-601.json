@@ -417,7 +417,7 @@
                 ],
                 "id": 201,
                 "length": 64.69308817735133,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -428,7 +428,7 @@
                 ],
                 "id": 202,
                 "length": 121.99300000009245,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -439,7 +439,7 @@
                 ],
                 "id": 203,
                 "length": 162.24399023713138,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -450,7 +450,7 @@
                 ],
                 "id": 204,
                 "length": 162.24400000013034,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -461,7 +461,7 @@
                 ],
                 "id": 205,
                 "length": 282.1230000012349,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "window",
@@ -472,7 +472,7 @@
                 ],
                 "id": 206,
                 "length": 99.99830292770136,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -483,7 +483,7 @@
                 ],
                 "id": 207,
                 "length": 278.38758616047295,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
@@ -494,7 +494,7 @@
                 ],
                 "id": 208,
                 "length": 282.12300000000585,
-                "sillHeight": 17.9999999
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",

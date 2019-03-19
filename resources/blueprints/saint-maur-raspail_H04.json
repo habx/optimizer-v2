@@ -177,40 +177,36 @@
         "linears": [
             {
                 "category": "doorWindow",
-                "externalSpaces": [
-                    302,
-                    302,
-                    302
-                ],
+                "externalSpaces": [302],
                 "geometry": [
                     105,
                     106
                 ],
                 "id": 201,
                 "length": 119.99999999999713,
-                "sillHeight": 2.4799999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [302],
                 "geometry": [
                     107,
                     108
                 ],
                 "id": 202,
                 "length": 300.0000000000016,
-                "sillHeight": 2.4799999
+                "sillHeight": 0
             },
             {
                 "category": "doorWindow",
-                "externalSpaces": [],
+                "externalSpaces": [302],
                 "geometry": [
                     109,
                     1010
                 ],
                 "id": 203,
                 "length": 119.99999999999886,
-                "sillHeight": 2.4799999
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",
