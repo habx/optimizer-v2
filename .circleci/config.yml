@@ -10,6 +10,8 @@ jobs:
       - restore_cache:
           keys:
             - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+            - v2-dependencies-{{ .Branch }}-
+            - v2-dependencies-
       - run: ./run_tests.sh
       - save_cache:
           paths:
