@@ -42,6 +42,9 @@ OPEN_ON_ADJACENCY_SIZE = 200
 BIG_EXTERNAL_SPACE = 7000
 
 SQM = 10000
+LBW_THICKNESS = 30
+MAX_AREA_COEFF = 4 / 3
+MIN_AREA_COEFF = 2 / 3
 
 
 class ConstraintSolver:
@@ -69,7 +72,7 @@ class ConstraintSolver:
         """
         # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulationSpace
         if not self.multilevel:
-            self.cells_item = [self.solver.IntVar(0, self.items_nbr-1,
+            self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
                                                   "cells_item[{0}]".format(j_space))
                                for j_space in range(self.spaces_nbr)]
         else:
@@ -184,7 +187,7 @@ class ConstraintsManager:
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             self.spaces_distance.append([])
-            self.spaces_distance[i] = [0]*len(list(self.sp.spec.plan.mutable_spaces()))
+            self.spaces_distance[i] = [0] * len(list(self.sp.spec.plan.mutable_spaces()))
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
@@ -246,6 +249,12 @@ class ConstraintsManager:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
+                print("HERE")
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
@@ -324,20 +333,18 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     :return: ct: ortools.Constraint
     """
     ct = None
-    max_area_coeff = 4 / 3
-    min_area_coeff = 2 / 3
 
     if min_max == "max":
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <=
-              int(max(item.max_size.area * max_area_coeff, item.max_size.area + 1*SQM)))
+              int(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM)))
 
     elif min_max == "min":
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * int(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >=
-              int(min(item.min_size.area * min_area_coeff, item.min_size.area - 1*SQM)))
+              int(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM)))
     else:
         ValueError("AreaConstraint")
 
@@ -360,7 +367,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     else:
         param = 2
 
-    max_distance = int(round(param * item.max_size.area**0.5))
+    max_distance = int(round(param * item.max_size.area ** 0.5))
 
     ct = None
 
@@ -370,21 +377,20 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                 if ct is None:
                     ct = ((manager.solver.positions[item.id, j] *
                            manager.solver.positions[item.id, k])
-                          <= int(max_distance/manager.spaces_distance[j][k]))
+                          <= int(max_distance / manager.spaces_distance[j][k]))
                 else:
                     new_ct = ((manager.solver.positions[item.id, j] *
                                manager.solver.positions[item.id, k])
-                              <= int(max_distance/manager.spaces_distance[j][k]))
+                              <= int(max_distance / manager.spaces_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
 
     return ct
 
 
-def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
     Graph constraint:
     - existing path between two seed space
-    - shortest path number of seed spaces < nbr of seed spaces
     - shortest path area < max area (+ margin)
     :param manager: 'ConstraintsManager'
     :param item: Item
@@ -402,21 +408,14 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                               manager.solver.positions[item.id, k] == 0)
                     else:
                         path = nx.dijkstra_path(manager.area_space_graph, j, k)
-                        area_path = int(sum(space.area
+                        area_path = sum(int(space.area)
                                         for i, space in
                                         enumerate(manager.sp.spec.plan.mutable_spaces())
-                                        if i in path))
-                        ct1 = ((manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k] *
-                               len(nx.dijkstra_path(manager.space_graph, j, k)))
-                               <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
-                                                            for l, l_space in enumerate(
-                                                            manager.sp.spec.plan.mutable_spaces())))
-                        ct2 = (manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k] * area_path
-                               <= int(item.max_size.area*4/3))
-                        ct = manager.and_(ct1, ct2)
-                        ct = ct
+                                        if i in path)
+                        ct = (manager.solver.positions[item.id, j] *
+                              manager.solver.positions[item.id, k] * area_path
+                              <= int(max(item.max_size.area * MAX_AREA_COEFF,
+                                         item.max_size.area + 1 * SQM)))
 
                 else:
                     if not nx.has_path(manager.space_graph, j, k):
@@ -424,20 +423,57 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                   manager.solver.positions[item.id, k] == 0)
                     else:
                         path = nx.dijkstra_path(manager.area_space_graph, j, k)
-                        area_path = int(sum(space.area
+                        area_path = sum(int(space.area)
                                         for i, space in
                                         enumerate(manager.sp.spec.plan.mutable_spaces())
-                                        if i in path))
-                        ct1 = ((manager.solver.positions[item.id, j] *
+                                        if i in path)
+                        new_ct = (manager.solver.positions[item.id, j] *
+                                  manager.solver.positions[item.id, k] * area_path
+                                  <= int(max(item.max_size.area * MAX_AREA_COEFF,
+                                             item.max_size.area + 1 * SQM)))
+                    ct = manager.and_(ct, new_ct)
+
+    return ct
+
+
+def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Graph constraint:
+    - existing path between two seed space
+    - shortest path number of seed spaces <= nbr of seed spaces
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    # TODO : unit tests
+    """
+
+    ct = None
+    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            if j < k:
+                if ct is None:
+                    if not nx.has_path(manager.space_graph, j, k):
+                        ct = (manager.solver.positions[item.id, j] *
+                              manager.solver.positions[item.id, k] == 0)
+                    else:
+                        ct = ((manager.solver.positions[item.id, j] *
                                manager.solver.positions[item.id, k] *
                                len(nx.dijkstra_path(manager.space_graph, j, k)))
-                               <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
-                                                            for l, l_space in enumerate(
-                                                            manager.sp.spec.plan.mutable_spaces())))
-                        ct2 = (manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k] * area_path
-                               <= int(item.max_size.area*4/3))
-                        new_ct = manager.and_(ct1, ct2)
+                              <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
+                                                           for l, l_space in enumerate(
+                                    manager.sp.spec.plan.mutable_spaces())))
+
+                else:
+                    if not nx.has_path(manager.space_graph, j, k):
+                        new_ct = (manager.solver.positions[item.id, j] *
+                                  manager.solver.positions[item.id, k] == 0)
+                    else:
+                        new_ct = ((manager.solver.positions[item.id, j] *
+                                   manager.solver.positions[item.id, k] *
+                                   len(nx.dijkstra_path(manager.space_graph, j, k)))
+                                  <= manager.solver.solver.Sum(manager.solver.positions[item.id, l]
+                                                               for l, l_space in enumerate(
+                                    manager.sp.spec.plan.mutable_spaces())))
                     ct = manager.and_(ct, new_ct)
 
     return ct
@@ -480,7 +516,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 enumerate(manager.sp.spec.plan.mutable_spaces())
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
-    ct = (item_perimeter*item_perimeter <= param*item_area)
+    ct = (item_perimeter * item_perimeter <= param * item_area)
 
     return ct
 
@@ -621,13 +657,14 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     :param addition_rule: str
     :return: ct: ortools.Constraint
     """
+
     ct = None
     for cat in item_categories:
         adjacency_sum = 0
         if cat == 'circulationSpace':
             adjacency_sum += manager.solver.solver.Sum(
                 manager.solver.solver.Sum(
-                    int(j_space.adjacent_to(k_space)) *
+                    int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
                     manager.solver.positions[item.id, j] *
                     (manager.solver.solver.Sum(manager.solver.positions[x_item.id, k] for x_item in
                                                manager.sp.spec.items) == 0) for
@@ -638,7 +675,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                 if num_item.category.name == cat and num_item != item:
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
-                            int(j_space.adjacent_to(k_space)) *
+                            int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
                             manager.solver.positions[item.id, j] *
                             manager.solver.positions[num, k] for
                             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
@@ -745,6 +782,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "min"}],
         [distance_constraint, {}],
         [graph_constraint, {}],
+        [area_graph_constraint, {}],
         [shape_constraint, {}],
         [windows_constraint, {}],
     ],
@@ -780,7 +818,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
@@ -833,6 +870,45 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ]
 }
 
+T2_MORE_ITEMS_CONSTRAINTS = {
+    "all": [
+
+    ],
+    "entrance": [
+
+    ],
+    "wc": [
+
+    ],
+    "bathroom": [
+
+    ],
+    "living": [
+
+    ],
+    "livingKitchen": [
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+    ],
+    "dining": [
+
+    ],
+    "kitchen": [
+
+    ],
+    "bedroom": [
+
+    ],
+    "office": [
+
+    ],
+    "dressing": [
+
+    ],
+    "laundry": [
+
+    ]
+}
+
 T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
 
@@ -842,7 +918,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "wc": [
         [item_adjacency_constraint,
-            {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
     ],
     "bathroom": [

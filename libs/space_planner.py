@@ -212,7 +212,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    #plan_solution.plot()
+                    plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
@@ -304,7 +304,7 @@ if __name__ == '__main__':
         import time
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "saint-maur-faculte_B153.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "grenoble_201.json"  # Levallois_Letourneur / Antony_A22
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         print("input_file", input_file)
