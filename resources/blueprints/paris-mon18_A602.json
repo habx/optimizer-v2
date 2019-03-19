@@ -168,10 +168,8 @@
         ],
         "linears": [
             {
-                "category": "window",
+                "category": "doorWindow",
                 "externalSpaces": [
-                    302,
-                    302,
                     302
                 ],
                 "geometry": [
@@ -180,29 +178,33 @@
                 ],
                 "id": 201,
                 "length": 136.5999999996876,
-                "sillHeight": 66349.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
-                "externalSpaces": [],
+                "category": "doorWindow",
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     107,
                     108
                 ],
                 "id": 202,
                 "length": 136.59999999953726,
-                "sillHeight": 66349.9
+                "sillHeight": 0
             },
             {
-                "category": "window",
-                "externalSpaces": [],
+                "category": "doorWindow",
+                "externalSpaces": [
+                    302
+                ],
                 "geometry": [
                     109,
                     1010
                 ],
                 "id": 203,
                 "length": 136.59999999891178,
-                "sillHeight": 66349.9
+                "sillHeight": 0
             },
             {
                 "category": "frontDoor",
