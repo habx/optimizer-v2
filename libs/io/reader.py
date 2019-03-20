@@ -17,12 +17,13 @@ from libs.utils.geometry import (
     move_point
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
-from libs.io.writer import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 from libs.mesh.mesh import COORD_EPSILON
 
 LOAD_BEARING_WALL_WIDTH = 15.0
 DEFAULT_BLUEPRINT_INPUT_FOLDER = "../../resources/blueprints"
 DEFAULT_SPECIFICATION_INPUT_FOLDER = "../../resources/specifications"
+DEFAULT_PLANS_OUTPUT_FOLDER = "../../output/plans"
+DEFAULT_MESHES_OUTPUT_FOLDER = "../../output/meshes"
 
 
 def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
