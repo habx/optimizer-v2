@@ -14,8 +14,8 @@ from libs.shuffle import SHUFFLES
 from libs.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.space_planner import SpacePlanner
 
-test_files = [("Antony_A22.json", "Antony_A22_setup.json"),
-              ("begles-carrelets_C304.json", "begles-carrelets_C304_setup.json")]
+test_files = [("grenoble_101.json", "grenoble_101_setup0.json"),
+              ("saint-maur-faculte_A001.json", "saint-maur-faculte_A001_setup0.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)

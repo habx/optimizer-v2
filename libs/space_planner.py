@@ -7,7 +7,7 @@ and a customer input setup
 
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 from libs.specification import Specification, Item
 from libs.size import Size
 from libs.solution import SolutionsCollector, Solution
@@ -45,6 +45,7 @@ class SpacePlanner:
         """
         change reader specification :
         living + kitchen : opensOn --> livingKitchen
+        area convergence
         :return: None
         """
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
@@ -69,6 +70,13 @@ class SpacePlanner:
                               "circulationSpace"]
         space_planner_spec.init_id(category_name_list)
 
+        # area
+        coeff = int(spec.plan.indoor_area) / int(sum(item.required_area for item in spec.items))
+        for item in spec.items:
+            item.min_size.area = item.min_size.area * coeff
+            item.max_size.area = item.max_size.area * coeff
+        logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
+        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         self.spec = space_planner_spec
 
     def _init_spaces_adjacency(self) -> None:
@@ -137,7 +145,7 @@ class SpacePlanner:
             for sol in sol_to_remove:
                 self.manager.solver.solutions.remove(sol)
 
-    def _rooms_building(self, plan: 'Plan', matrix_solution) -> 'Plan':
+    def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
         """
         Builds the rooms requested in the specification from the matrix and seed spaces.
         :param: plan
@@ -158,6 +166,7 @@ class SpacePlanner:
             if space.category.name == "seed":
                 space.category = SPACE_CATEGORIES["circulationSpace"]
 
+        dict_items_space = {}
         for item in self.spec.items:
             item_space = dict_items_spaces[item]
             if len(item_space) > 1:
@@ -173,10 +182,13 @@ class SpacePlanner:
                             space_ini.merge(space)
                             plan.remove_null_spaces()
                             break
+                dict_items_space[item] = space_ini
+            else:
+                dict_items_space[item] = item_space[0]
 
         assert plan.check()
 
-        return plan
+        return plan, dict_items_space
 
     def solution_research(self) -> Optional[List['Solution']]:
         """
@@ -197,10 +209,10 @@ class SpacePlanner:
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
-                    plan_solution = self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution)
+                    plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
+                    self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    # plan_solution.plot()
+                    plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
@@ -289,13 +301,13 @@ if __name__ == '__main__':
         Test
         :return:
         """
-
+        import time
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Vernouillet_A105.json"  # Levallois_Letourneur / Antony_A22
-        # input_file = "grenoble-cambridge_143.json"
-        # input_file = "Sartrouville_R2.json"
+        input_file = "Levallois_A2-601.json"  # Levallois_Letourneur / Antony_A22
+        t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
+        logging.info("input_file", input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
@@ -306,11 +318,11 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM))
+         .merge_small_cells(min_cell_area=1*SQM, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 
-        input_file_setup = input_file[:-5] + "_setup.json"
+        input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan
@@ -318,13 +330,14 @@ if __name__ == '__main__':
 
         logging.debug("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
-        import time
 
         # surfaces control
         logging.debug("PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         logging.debug("Setup max AREA : %i", int(sum(item.max_size.area for item in spec.items)))
         logging.debug("Setup min AREA : %i", int(sum(item.min_size.area for item in spec.items)))
+        plan_ratio = round(spec.plan.indoor_perimeter ** 2 / spec.plan.indoor_area)
+        logging.debug("PLAN Ratio : %i", plan_ratio)
 
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
@@ -335,10 +348,12 @@ if __name__ == '__main__':
         logging.debug(best_solutions)
 
         # shuffle
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-                sol.plan.plot()
+        # if best_solutions:
+        #     for sol in best_solutions:
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+        #         sol.plan.plot()
+
+        logging.info("total time : ", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",

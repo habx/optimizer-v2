@@ -13,18 +13,20 @@
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": [
+        "kitchen"
+      ],
       "requiredArea": {
-        "max": 165000.0,
-        "min": 120000
+        "max": 225000.0,
+        "min": 200000
       },
       "tags": [],
       "type": "living",
-      "variant": "xs"
+      "variant": "m"
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": ["living"],
       "requiredArea": {
         "max": 120000,
         "min": 80000
@@ -59,8 +61,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 175000.0,
-        "min": 125000.0
+        "max": 100000,
+        "min": 50000
       },
       "tags": [
         "wc"

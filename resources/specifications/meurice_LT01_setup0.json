@@ -48,9 +48,8 @@
     },
     {
       "linkedTo": [
-        "kitchen"
       ],
-      "opensOn": [],
+      "opensOn": ["kitchen"],
       "requiredArea": {
         "min": 120000,
         "max": 200000
@@ -61,9 +60,8 @@
     },
     {
       "linkedTo": [
-        "living"
       ],
-      "opensOn": [],
+      "opensOn": ["living"],
       "requiredArea": {
         "min": 40000,
         "max": 80000

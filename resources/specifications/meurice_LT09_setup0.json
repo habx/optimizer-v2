@@ -63,8 +63,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
+        "min": 80000,
+        "max": 120000
       },
       "tags": [],
       "type": "office",

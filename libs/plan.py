@@ -2683,7 +2683,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "Massy_C303.json"
+        input_file = "grenoble_101.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)

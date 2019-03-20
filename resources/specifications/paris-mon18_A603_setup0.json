@@ -15,8 +15,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 20000.0,
-        "min": 60000
+        "min": 20000,
+        "max": 60000
       },
       "tags": ["wc"],
       "type": "bathroom",
