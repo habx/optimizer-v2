@@ -46,7 +46,7 @@ ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
-INFINITY = 2**63 - 1
+INFINITY = 2 ** 63 - 1
 
 
 class MeshOps(enum.Enum):
@@ -62,6 +62,7 @@ class MeshComponent:
     """
     An abstract class for mesh component : vertex, edge or face
     """
+
     def __init__(self, mesh: 'Mesh', _id: Optional[uuid.UUID] = None):
         self._id = _id or uuid.uuid4()
         self._mesh = mesh
@@ -1114,7 +1115,6 @@ class Edge(MeshComponent):
             current = current.aligned_edge or current.continuous_edge
 
         return output
-
 
     @property
     def aligned_edge(self) -> Optional['Edge']:
@@ -2736,7 +2736,7 @@ class Mesh:
     """
 
     def __init__(self, _id: Optional[uuid.UUID] = None):
-        self._edge = None   # boundary edge of the mesh
+        self._edge = None  # boundary edge of the mesh
         self._faces = {}
         self._edges = {}
         self._vertices = {}
@@ -3433,7 +3433,7 @@ class Mesh:
         # check for overlapping pb
         faces_area = sum(face.area for face in self.faces)
         mesh_area = self.as_sp.area
-        if not pseudo_equal(faces_area, mesh_area, COORD_EPSILON**2):
+        if not pseudo_equal(faces_area, mesh_area, COORD_EPSILON ** 2):
             logging.error("Mesh: Faces are overlapping, total face area %s, total mesh area %s",
                           faces_area, mesh_area)
             is_valid = False
@@ -3518,7 +3518,6 @@ if __name__ == '__main__':
 
     # plot()
 
-
     def merge_two_faces_edge():
         """
         Test
@@ -3544,7 +3543,6 @@ if __name__ == '__main__':
 
     # merge_two_faces_edge()
 
-
     def simplify_mesh():
         """
         Test
@@ -3564,7 +3562,6 @@ if __name__ == '__main__':
 
     # simplify_mesh()
 
-
     def insert_complex_face_1():
         """
         Test
@@ -3581,6 +3578,7 @@ if __name__ == '__main__':
         mesh.plot()
 
         assert mesh.check()
+
 
     # insert_complex_face_1()
 

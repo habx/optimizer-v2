@@ -14,13 +14,13 @@ OR-Tools : google constraint programing solver
 """
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
-from libs.specification import Item
+from libs.specification.specification import Item
 import networkx as nx
 import time
 import logging
 
 if TYPE_CHECKING:
-    from libs.space_planner import SpacePlanner
+    from libs.space_planner.space_planner import SpacePlanner
 
 WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
 

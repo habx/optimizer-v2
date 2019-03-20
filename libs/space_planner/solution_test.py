@@ -5,13 +5,13 @@ Solution Module Tests
 
 from libs.space_planner.solution import SolutionsCollector
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.specification import Specification
+from libs.specification.specification import Specification
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
 from libs.operators.selector import SELECTORS
 from libs.io import reader
-from libs.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SpacePlanner
 from libs.modelers.shuffle import SHUFFLES
 
 

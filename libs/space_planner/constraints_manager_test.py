@@ -5,8 +5,8 @@ Constraint manager Module Tests
 
 from libs.plan.plan import Plan
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.space_planner import SpacePlanner
-from libs.specification import Specification, Item, Size
+from libs.space_planner.space_planner import SpacePlanner
+from libs.specification.specification import Specification, Item, Size
 
 
 def t1_test():

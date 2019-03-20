@@ -8,7 +8,7 @@ TODO : fusion of the entrance for small apartment untreated
 
 """
 from typing import List, Dict, Optional
-from libs.specification import Specification, Item
+from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, COST_RULES
 import logging
@@ -149,7 +149,11 @@ class Solution:
     item layout solution in a given plan
     """
 
-    def __init__(self, collector: 'SolutionsCollector', plan: 'Plan', dict_items_spaces: Dict['Item', 'Space'], _id: int):
+    def __init__(self,
+                 collector: 'SolutionsCollector',
+                 plan: 'Plan',
+                 dict_items_spaces: Dict['Item', 'Space'],
+                 _id: int):
         self._id = _id
         self.collector = collector
         self.plan = plan
@@ -564,7 +568,7 @@ class Solution:
                     mesh_area += face.area
                     other_space = other_solution.plan.get_space_of_face(face)
                     if ((space.category.name in day_list and
-                         not other_space.category.name in day_list) or
+                         other_space.category.name not in day_list) or
                             (space.category.name in night_list and
                              not other_space.category.name in night_list)):
                         difference_area += face.area

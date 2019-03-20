@@ -1,6 +1,6 @@
 import libs.io.reader as reader
 from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS
-from libs.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SpacePlanner
 from libs.operators.selector import SELECTORS
 from libs.modelers.grid import GRIDS
 from libs.modelers.shuffle import SHUFFLES

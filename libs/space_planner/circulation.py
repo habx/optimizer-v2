@@ -140,7 +140,7 @@ class Circulator:
             if not self.connectivity_graph.has_path(node, father_nodes[node.floor.level]):
                 path, cost = self.draw_path(father_nodes[node.floor.level], node)
                 self.circulation_cost += cost
-                self.actualize_path(path,node.floor.level)
+                self.actualize_path(path, node.floor.level)
                 self.connectivity_graph.add_edge(node, father_nodes[node.floor.level])
 
     def actualize_path(self, path: List, level: int):
@@ -340,7 +340,7 @@ if __name__ == '__main__':
     from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
     from libs.modelers.shuffle import SHUFFLES
-    from libs.space_planner import SpacePlanner
+    from libs.space_planner.space_planner import SpacePlanner
     from libs.plan.category import SPACE_CATEGORIES
     import argparse
 

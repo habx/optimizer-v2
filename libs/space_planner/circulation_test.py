@@ -12,7 +12,7 @@ from libs.modelers.grid import GRIDS
 from libs.operators.selector import SELECTORS
 from libs.space_planner.circulation import Circulator, COST_RULES
 
-from libs.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SpacePlanner
 
 test_files = [("grenoble_101.json", "grenoble_101_setup0.json")]
 
@@ -38,7 +38,6 @@ def test_circulation(input_file, input_setup):
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
 
-
     space_planner = SpacePlanner("test", spec)
     best_solutions = space_planner.solution_research()
 
@@ -46,4 +45,3 @@ def test_circulation(input_file, input_setup):
         for solution in best_solutions:
             circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
             circulator.connect()
-

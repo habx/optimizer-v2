@@ -6,8 +6,8 @@ from typing import Dict, Sequence, Tuple, List
 import os
 import json
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.specification import Specification, Item, Size
-from libs.plan.plan import Plan, plan
+from libs.specification.specification import Specification, Item, Size
+import libs.plan.plan as plan
 
 from libs.utils.geometry import (
     point_dict_to_tuple,
@@ -49,7 +49,7 @@ def _get_perimeter(input_blueprint_dict: Dict) -> Sequence[Coords2d]:
     return [(floor_vertices[i]['x'], floor_vertices[i]['y']) for i in perimeter_walls]
 
 
-def _add_not_floor_space(input_blueprint_dict: Dict, my_plan: 'Plan'):
+def _add_not_floor_space(input_blueprint_dict: Dict, my_plan: 'plan.Plan'):
     """
     Insert stairsObstacles and holes on a plan
     :param input_blueprint_dict: Dict
@@ -121,7 +121,7 @@ def _rectangle_from_segment(segment: Tuple[Coords2d, Coords2d], width: float) ->
     return point_1, point_2, point_3, point_4
 
 
-def _add_external_spaces(input_blueprint_dict: Dict, my_plan: 'Plan'):
+def _add_external_spaces(input_blueprint_dict: Dict, my_plan: 'plan.Plan'):
     """
     Returns a list with the perimeter of external space.
     :param input_blueprint_dict:
