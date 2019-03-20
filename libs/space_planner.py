@@ -353,7 +353,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        logging.info("total time : ", time.clock() - t00)
+        logging.info("total time : %s", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
