@@ -12,14 +12,14 @@ import logging
 import math
 import uuid
 
-from libs.category import SPACE_CATEGORIES
-import libs.reader as reader
-from libs.grid import GRIDS
-from libs.plan import Space
+from libs.plan.category import SPACE_CATEGORIES
+import libs.io.reader as reader
+from libs.modelers.grid import GRIDS
+from libs.plan.plan import Space
 from libs.cpsolver.solver import Solver, Cell
 
 if TYPE_CHECKING:
-    from libs.plan import Plan
+    from libs.plan.plan import Plan
 
 # the perimeter must be < sqrt(Area) * PERIMETER_RATIO
 PERIMETER_RATIO = 4.8

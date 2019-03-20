@@ -1,9 +1,8 @@
 import sys
 import os
-import argparse
 
 sys.path.append(os.path.abspath('../'))
-import libs.reader as reader
+import libs.io.reader as reader
 
 if __name__ == '__main__':
 

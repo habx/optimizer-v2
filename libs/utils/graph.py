@@ -8,8 +8,8 @@ using networkx library
 import networkx as nx
 import dijkstar
 from typing import Any, Generator, Tuple
-from libs.plan import Vertex
-from libs.mesh import Edge
+from libs.plan.plan import Vertex
+from libs.mesh.mesh import Edge
 
 class Graph_nx:
 
