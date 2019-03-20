@@ -1,9 +1,8 @@
 import sys
 import os
-import argparse
 
 sys.path.append(os.path.abspath('../'))
-import libs.reader as reader
+import libs.io.reader as reader
 
 if __name__ == '__main__':
 
@@ -12,9 +11,9 @@ if __name__ == '__main__':
         print("index_plan", type(index_plan))
         command_lauch_grid = "python ../libs/grid.py -p %i" % (index_plan)
         # command_lauch_grid = "python ../libs/grid.py -p {args.plan_index}".format(args=args)
-        #os.system(command_lauch_grid)
+        # os.system(command_lauch_grid)
 
         os.system("python ../libs/grid.py -p %i" % (index_plan))
-        #os.system("python ../libs/grid.py -p" +str(index_plan))
+        # os.system("python ../libs/grid.py -p" +str(index_plan))
 
 # os.system("rtl2gds -rtl={args.fileread} -rtl_top={args.module_name} -syn".format(args=args)

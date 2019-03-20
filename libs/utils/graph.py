@@ -8,8 +8,9 @@ using networkx library
 import networkx as nx
 import dijkstar
 from typing import Any, Generator, Tuple
-from libs.plan import Vertex
-from libs.mesh import Edge
+from libs.plan.plan import Vertex
+from libs.mesh.mesh import Edge
+
 
 class Graph_nx:
 
@@ -25,7 +26,6 @@ class Graph_nx:
         graph_copy.graph = self.graph.copy()
 
         return graph_copy
-
 
     def add_edge(self, i: Any, j: Any):
         """
@@ -81,14 +81,14 @@ class Graph_nx:
         return self.graph.nodes()
 
 
-
 class EdgeGraph:
     """
     Class Graph:
     function to build and deal with graph of mutable space edges,
     implementation for given graph libaries
     """
-    #TODO : add same functionnalities with networkx library
+
+    # TODO : add same functionnalities with networkx library
     def __init__(self, graph_lib: str = 'Dijkstar'):
         self.graph_lib = graph_lib
         self.cost_function = None
