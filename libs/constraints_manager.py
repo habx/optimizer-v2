@@ -252,12 +252,12 @@ class ConstraintsManager:
             if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS[item.category.name]:
+                for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
@@ -873,46 +873,13 @@ T2_MORE_ITEMS_CONSTRAINTS = {
     "all": [
 
     ],
-    "entrance": [
-
-    ],
-    "wc": [
-
-    ],
-    "bathroom": [
-
-    ],
-    "living": [
-
-    ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-    ],
-    "dining": [
-
-    ],
-    "kitchen": [
-
-    ],
-    "bedroom": [
-
-    ],
-    "office": [
-
-    ],
-    "dressing": [
-
-    ],
-    "laundry": [
-
     ]
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
-
-    ],
-    "entrance": [
 
     ],
     "wc": [
@@ -930,18 +897,9 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [externals_connection_constraint, {}]
     ],
-    "dining": [
-
-    ],
-    "kitchen": [
-
-    ],
     "bedroom": [
         # [item_adjacency_constraint,
         #   {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
-    ],
-    "office": [
-
     ],
     "dressing": [
         [item_adjacency_constraint,

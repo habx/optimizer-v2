@@ -304,10 +304,10 @@ if __name__ == '__main__':
         import time
         input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
             plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "grenoble_201.json"  # Levallois_Letourneur / Antony_A22
+        input_file = "Levallois_A2-601.json"  # Levallois_Letourneur / Antony_A22
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
-        print("input_file", input_file)
+        logging.info("input_file", input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
@@ -353,7 +353,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        print("total time : ", time.clock() - t00)
+        logging.info("total time : ", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
