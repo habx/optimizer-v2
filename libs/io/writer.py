@@ -7,8 +7,8 @@ from typing import Dict, Optional
 import os
 import json
 
-DEFAULT_PLANS_OUTPUT_FOLDER = "../output/plans"
-DEFAULT_MESHES_OUTPUT_FOLDER = "../output/meshes"
+DEFAULT_PLANS_OUTPUT_FOLDER = "../../output/plans"
+DEFAULT_MESHES_OUTPUT_FOLDER = "../../output/meshes"
 
 
 def save_as_json(data: Dict, output_folder: str, name: Optional[str] = None):

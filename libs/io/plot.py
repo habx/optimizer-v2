@@ -23,7 +23,7 @@ from libs.utils.geometry import (
     unit_vector
 )
 
-SAVE_PATH = "../output/plots"
+SAVE_PATH = "../../output/plots"
 module_path = os.path.dirname(__file__)
 output_path = os.path.join(module_path, SAVE_PATH)
 
