@@ -306,7 +306,7 @@ if __name__ == '__main__':
         input_file = "Levallois_A2-601.json"  # Levallois_Letourneur / Antony_A22
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
-        logging.info("input_file", input_file)
+        logging.info("input_file %s", input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
@@ -352,7 +352,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        logging.info("total time : %s", time.clock() - t00)
+        logging.info("total time : %f", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
