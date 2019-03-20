@@ -250,7 +250,6 @@ class ConstraintsManager:
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
-                print("HERE")
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS[item.category.name]:
