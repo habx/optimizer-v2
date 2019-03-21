@@ -972,3 +972,7 @@ def test_space_perimeter(l_plan):
     plan = Plan("test_perimeter")
     plan.add_floor_from_boundary(perimeter)
     assert plan.empty_space.perimeter == 2000.0
+    face_perimeter = [(0, 100), (100, 200), (100, 200), (0, 200)]
+    plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["duct"])
+    print(plan)
+    assert plan.empty_space.perimeter == (2000.0 - 100)
