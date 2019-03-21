@@ -303,8 +303,8 @@ if __name__ == '__main__':
         :return:
         """
         import time
-        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "grenoble_114.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        # input_file = "grenoble_114.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -313,13 +313,19 @@ if __name__ == '__main__':
 
         GRIDS['optimal_grid'].apply_to(plan)
 
+        if plan.indoor_area < 60 * SQM:
+            min_cell_area = 1 * SQM
+        elif plan.indoor_area < 90 * SQM:
+            min_cell_area = 2 * SQM
+        elif plan.indoor_area < 130 * SQM:
+            min_cell_area = 3 * SQM
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1*SQM, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 

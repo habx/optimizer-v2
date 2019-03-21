@@ -340,13 +340,20 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
 
     if min_max == "max":
-        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+        if (item.category.variant in ["l", "xl"] or item.category.name in ["entrance"]
+                and item.category.name not in ["living", "livingKitchen", "dining"]):
+            max_area = item.max_size.area
+        else:
+            max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
 
     elif min_max == "min":
-        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        if item.category.variant in ["xs", "s"] or item.category.name in ["entrance"]:
+            min_area = item.min_size.area
+        else:
+            min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
