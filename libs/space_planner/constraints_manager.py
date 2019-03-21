@@ -260,6 +260,11 @@ class ConstraintsManager:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -492,9 +497,9 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = max(30, int(plan_ratio + 10))
+        param = min(max(30, int(plan_ratio + 10)), 40)
     elif item.category.name in ["kitchen", "bedroom", "entrance"]:
-        param = max(25, int(plan_ratio))
+        param = min(max(25, int(plan_ratio)), 35)
     else:
         param = 24
 
@@ -889,17 +894,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
-        # [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
         [externals_connection_constraint, {}]
     ],
     "livingKitchen": [
         [externals_connection_constraint, {}]
-    ],
-    "bedroom": [
-        # [item_adjacency_constraint,
-        #   {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
         [item_adjacency_constraint,
@@ -908,5 +908,17 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "laundry": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ]
+}
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "all": [
+
+    ],
+    "bathroom": [
+        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
+    ],
+    "bedroom": [
+        [item_adjacency_constraint,
+          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }

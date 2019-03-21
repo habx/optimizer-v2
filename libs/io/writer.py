@@ -93,6 +93,7 @@ def generate_output_dict(input_file_name: str, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(room_max_id + 7000)
 
+    output_dict = {"v2": output_dict}
     print(output_dict)
 
     return output_dict
