@@ -94,7 +94,6 @@ def generate_output_dict(input_file_name: str, solution: Solution) -> dict:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
     output_dict = {"v2": output_dict}
-    print(output_dict)
 
     return output_dict
 
