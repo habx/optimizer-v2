@@ -220,9 +220,10 @@ class ConstraintsManager:
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if i != j:
+                if i < j:
                     if i_space.adjacent_to(j_space):
-                        self.area_space_graph.add_edge(i, j, weight=j_space.area)
+                        self.area_space_graph.add_edge(i, j, weight=j_space.area + i_space.area)
+                        self.area_space_graph.add_edge(j, i, weight=j_space.area + i_space.area)
 
     def add_spaces_constraints(self) -> None:
         """
@@ -258,6 +259,11 @@ class ConstraintsManager:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
@@ -334,16 +340,16 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
 
     if min_max == "max":
+        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
-              .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <=
-              int(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM)))
+              .Sum(manager.solver.positions[item.id, j] * round(space.area)
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
 
     elif min_max == "min":
+        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
-              .Sum(manager.solver.positions[item.id, j] * int(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >=
-              int(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM)))
+              .Sum(manager.solver.positions[item.id, j] * round(space.area)
+                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
     else:
         ValueError("AreaConstraint")
 
@@ -398,6 +404,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
     """
 
     ct = None
+    max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             if j < k:
@@ -413,8 +420,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                         if i in path)
                         ct = (manager.solver.positions[item.id, j] *
                               manager.solver.positions[item.id, k] * area_path
-                              <= int(max(item.max_size.area * MAX_AREA_COEFF,
-                                         item.max_size.area + 1 * SQM)))
+                              <= max_area)
 
                 else:
                     if not nx.has_path(manager.space_graph, j, k):
@@ -428,8 +434,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                         if i in path)
                         new_ct = (manager.solver.positions[item.id, j] *
                                   manager.solver.positions[item.id, k] * area_path
-                                  <= int(max(item.max_size.area * MAX_AREA_COEFF,
-                                             item.max_size.area + 1 * SQM)))
+                                  <= max_area)
                     ct = manager.and_(ct, new_ct)
 
     return ct
@@ -492,9 +497,9 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = max(30, int(plan_ratio + 10))
+        param = min(max(30, int(plan_ratio + 10)), 40)
     elif item.category.name in ["kitchen", "bedroom", "entrance"]:
-        param = max(25, int(plan_ratio))
+        param = min(max(25, int(plan_ratio)), 35)
     else:
         param = 24
 
@@ -529,7 +534,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
     """
     ct = None
     for j_item in manager.sp.spec.items:
-        if item.required_area < j_item.required_area:
+        if j_item.category.name in WINDOW_ROOMS and item.required_area < j_item.required_area:
             if ct is None:
                 ct = (manager.windows_length[str(item.id)] <=
                       manager.windows_length[str(j_item.id)])
@@ -889,17 +894,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
-        # [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
     ],
     "living": [
         [externals_connection_constraint, {}]
     ],
     "livingKitchen": [
         [externals_connection_constraint, {}]
-    ],
-    "bedroom": [
-        # [item_adjacency_constraint,
-        #   {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
         [item_adjacency_constraint,
@@ -908,5 +908,17 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "laundry": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ]
+}
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "all": [
+
+    ],
+    "bathroom": [
+        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
+    ],
+    "bedroom": [
+        [item_adjacency_constraint,
+          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }

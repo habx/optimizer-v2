@@ -15,6 +15,7 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
+import libs.io.writer as writer
 import networkx as nx
 
 SQM = 10000
@@ -201,6 +202,7 @@ class SpacePlanner:
         if len(self.manager.solver.solutions) == 0:
             logging.warning(
                 "SpacePlanner : solution_research : Plan without space planning solution")
+            return []
         else:
             self._check_validity()
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
@@ -212,7 +214,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    plan_solution.plot()
+                    # plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
@@ -301,12 +303,12 @@ if __name__ == '__main__':
         :return:
         """
         import time
-        input_file = reader.get_list_from_folder(reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        input_file = "Levallois_A2-601.json"  # Levallois_Letourneur / Antony_A22
+        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "grenoble_101.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
-        logging.info("input_file", input_file)
+        logging.info("input_file %s", input_file)
+        # print("input_file", input_file)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
@@ -346,13 +348,19 @@ if __name__ == '__main__':
         logging.debug("solution_research time: %f", time.clock() - t1)
         logging.debug(best_solutions)
 
+        # Output
+        for sol in best_solutions:
+            solution_dict = writer.generate_output_dict(input_file, sol)
+            writer.save_json_solution(solution_dict, sol.get_id)
+
         # shuffle
         # if best_solutions:
         #     for sol in best_solutions:
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        logging.info("total time : %s", time.clock() - t00)
+        logging.info("total time : %f", time.clock() - t00)
+        # print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",

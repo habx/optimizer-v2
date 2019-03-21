@@ -164,6 +164,10 @@ class Solution:
         output = 'Solution Id' + str(self._id)
         return output
 
+    @property
+    def get_id(self):
+        return self._id
+
     def init_items_spaces(self):
         """
         Dict item --> space initialization
@@ -570,7 +574,7 @@ class Solution:
                     if ((space.category.name in day_list and
                          other_space.category.name not in day_list) or
                             (space.category.name in night_list and
-                             not other_space.category.name in night_list)):
+                             other_space.category.name not in night_list)):
                         difference_area += face.area
 
         distance = difference_area * 100 / mesh_area
