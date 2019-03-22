@@ -2,7 +2,7 @@
 """
 Reader module : Used to read file from json input and create a plan.
 """
-from typing import Dict, Sequence, Tuple, List
+from typing import Dict, Sequence, Tuple, List, Optional
 import os
 import json
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
@@ -271,15 +271,14 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
         return create_plan_from_v1_data(floor_plan_dict, file_name)
 
 
-def create_plan_from_v2_data(v2_data: Dict, file_name: str) -> plan.Plan:
+def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 2 of the blueprint data format.
-    :param file_name:
-    :param v2_data:
-    :return:
     """
-    my_plan = plan.Plan(file_name)
+
+    plan_name = v2_data["aptInfos"]["name"] if name is None else name
+    my_plan = plan.Plan(plan_name)
 
     # get vertices data
     vertices_by_id: Dict[int, Coords2d] = {}
