@@ -19,6 +19,7 @@ import logging
 import copy
 
 import matplotlib.pyplot as plt
+from libs.io.plot import DO_PLOT
 
 from libs.plan.plan import Space, PlanComponent, Plan, Linear
 from libs.io.plot import plot_point, Plot
@@ -457,6 +458,9 @@ class Seeder:
         Creates a plot
         :return:
         """
+        if not DO_PLOT:
+            return
+
         # if the seeder has already a plot : do nothing
         if self.plot:
             return
@@ -477,6 +481,9 @@ class Seeder:
         :param ax:
         :return:
         """
+        if not DO_PLOT:
+            return
+
         for seed in self.seeds:
             ax = seed.plot(ax)
         return ax
