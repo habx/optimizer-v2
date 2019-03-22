@@ -48,16 +48,10 @@ def save_mesh_as_json(data: Dict, name: Optional[str] = None):
     """
     save_as_json(data, reader.DEFAULT_MESHES_OUTPUT_FOLDER, name)
 
+def generate_output_dict(input_data: dict, solution: Solution) -> dict:
 
-def generate_output_dict(input_file_name: str, solution: Solution) -> dict:
-
-    floor_plan_dict = reader.get_json_from_file(input_file_name)
-
-    if "v2" in floor_plan_dict.keys():
-        output_dict = floor_plan_dict["v2"]
-    else:
-        logging.warning("Writer : v1 input plan")
-        return {}
+    # deep copy is not thread safe, dict comprehension is not deep, so we use this small hack
+    output_dict = json.loads(json.dumps(input_data))
 
     points = output_dict["vertices"]
     spaces = output_dict["spaces"]
@@ -96,6 +90,19 @@ def generate_output_dict(input_file_name: str, solution: Solution) -> dict:
     output_dict = {"v2": output_dict}
 
     return output_dict
+
+
+def generate_output_dict_from_file(input_file_name: str, solution: Solution) -> dict:
+
+    floor_plan_dict = reader.get_json_from_file(input_file_name)
+
+    if "v2" in floor_plan_dict.keys():
+        input_dict = floor_plan_dict["v2"]
+    else:
+        logging.warning("Writer : v1 input plan")
+        return {}
+
+    return generate_output_dict(input_dict, solution)
 
 
 def save_json_solution(data, num_sol):
