@@ -8,7 +8,7 @@ import shutil
 # plots all files in specified folder on same html page
 
 def startHTML(repo, module):
-    output_filename = repo + 'summary_' + module + '.html'
+    output_filename = os.path.join(repo, 'summary_' + module + '.html')
     html_file = open(output_filename, "w")
 
     html_str = """
@@ -26,7 +26,7 @@ def startHTML(repo, module):
 
 # Integration of .svg in the HTML page
 def putSvgIntoHTML(image, repo, module):
-    output_filename = repo + 'summary_' + module + '.html'
+    output_filename = os.path.join(repo, 'summary_' + module + '.html')
     html_file = open(output_filename, "a")
     html_str = "<img src=" + image + " alt=/>"
     html_file.write(html_str)
@@ -36,7 +36,7 @@ def putSvgIntoHTML(image, repo, module):
 # End of the HTML page
 
 def endHTML(repo, module):
-    output_filename = repo + 'summary_' + module + '.html'
+    output_filename = os.path.join(repo, 'summary_' + module + '.html')
     html_file = open(output_filename, "a")
 
     html_str = """
@@ -50,13 +50,15 @@ def endHTML(repo, module):
 
 if __name__ == '__main__':
 
+    from output import DEFAULT_PLOTS_OUTPUT_FOLDER
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--module", help="choose launched module",
                         default="grid")
     args = parser.parse_args()
     module = args.module
 
-    repo = "../output/plots/" + module + "/"
+    repo = os.path.join(DEFAULT_PLOTS_OUTPUT_FOLDER, module)
     print("REPO IS", repo)
     startHTML(repo, module)
 

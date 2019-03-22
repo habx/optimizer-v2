@@ -25,13 +25,11 @@ from libs.utils.geometry import (
 
 DO_PLOT = "HABX_DEV" not in os.environ
 
-SAVE_PATH = "../../output/plots"
-module_path = os.path.dirname(__file__)
-output_path = os.path.join(module_path, SAVE_PATH)
+from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
-if not os.path.exists(output_path):
+output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
+if not os.path.exists(output_path) and DO_PLOT:
     os.makedirs(output_path)
-
 
 def plot_save(save: bool = True, show: bool = False):
     """
