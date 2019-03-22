@@ -350,7 +350,7 @@ if __name__ == '__main__':
 
         # Output
         for sol in best_solutions:
-            solution_dict = writer.generate_output_dict(input_file, sol)
+            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
         # shuffle
