@@ -50,7 +50,8 @@ def save_mesh_as_json(data: Dict, name: Optional[str] = None):
 
 
 def generate_output_dict(input_data: dict, solution: Solution) -> dict:
-    # deep copy is not thread safe, dict comprehension is not deep, so we use this small hack
+    # deep copy is not thread safe, dict comprehension is not deep
+    # so we use this hack (fast enough)
     output_dict = json.loads(json.dumps(input_data))
 
     points = output_dict["vertices"]
