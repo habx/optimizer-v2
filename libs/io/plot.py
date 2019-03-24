@@ -6,7 +6,7 @@ from random import randint
 import os
 import datetime
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, List
 
 from shapely.geometry import LineString
 from typing import Sequence
@@ -22,6 +22,9 @@ from libs.utils.geometry import (
     ccw_angle,
     unit_vector
 )
+
+if TYPE_CHECKING:
+    from libs.plan.plan import Plan, Floor, Space, Linear
 
 SAVE_PATH = "../../output/plots"
 module_path = os.path.dirname(__file__)
@@ -195,16 +198,32 @@ class Plot:
     """
     Plot class
     """
-    def __init__(self):
-        _fig = plt.figure()
-        _ax = _fig.add_subplot(111)
-        _ax.set_aspect('equal')
+    def __init__(self, plan: 'Plan'):
+        _fig, _ax = plt.subplots(1, plan.floor_count)
+        if plan.floor_count > 1:
+            for _sub in _ax:
+                _sub.set_aspect('equal')
+        else:
+            _ax.set_aspect('equal')
+        _fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
+        # we must create a lookup dict to assign to each floor a plotting ax
+        self._floor_to_ax = {floor.id: i for i, floor in enumerate(plan.floors.values())}
         self.ax = _ax
         self.fig = _fig
         self.space_figs = {}
         self.face_figs = {}
 
-    def draw(self, plan):
+    def get_ax(self, floor: 'Floor'):
+        """
+        Returns the ax corresponding to the specified floor
+        :param floor:
+        :return:
+        """
+        if len(self._floor_to_ax) > 1:
+            return self.ax[self._floor_to_ax[floor.id]]
+        return self.ax
+
+    def draw(self, plan: 'Plan'):
         """
         Draw a plan
         :param plan:
@@ -215,24 +234,25 @@ class Plot:
         for space in plan.spaces:
             self._draw_space(space)
             for face in space.faces:
-                self._draw_face(face)
+                self._draw_face(face, space)
 
         for linear in plan.linears:
             self._draw_linear(linear)
 
-    def _draw_boundary(self, plan):
-        xy = zip(*plan.boundary_as_sp.coords)
-        self.ax.plot(*xy, 'k', color='k',
-                     linewidth=2.0, alpha=1.0,
-                     solid_capstyle='butt')
+    def _draw_boundary(self, plan: 'Plan'):
+        for floor in plan.floors.values():
+            xy = zip(*floor.boundary_as_sp.coords)
+            self.get_ax(floor).plot(*xy, 'k', color='k', linewidth=2.0, alpha=1.0,
+                                    solid_capstyle='butt')
 
-    def _draw_linear(self, linear):
+    def _draw_linear(self, linear: 'Linear'):
+        ax = self.get_ax(linear.floor)
         xy = zip(*linear.as_sp.coords)
-        self.ax.plot(*xy, 'k', color=linear.category.color,
+        ax.plot(*xy, 'k', color=linear.category.color,
                      linewidth=linear.category.width, alpha=0.6,
                      solid_capstyle='butt')
 
-    def _draw_space(self, space):
+    def _draw_space(self, space: 'Space'):
         """
         NOTE : this does not plot correctly holes in spaces.
         :param space:
@@ -240,21 +260,23 @@ class Plot:
         """
         if space.edge is None:
             return
+        ax = self.get_ax(space.floor)
         color = space.category.color
         xy = space.as_sp.exterior.coords
         new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
-        self.ax.add_patch(new_patch)
+        ax.add_patch(new_patch)
         self.space_figs[space.id] = new_patch
 
-    def _draw_face(self, face):
+    def _draw_face(self, face, space: 'Space'):
         if face.edge is None:
             return
         color = 'r'
+        ax = self.get_ax(space.floor)
         xy = face.as_sp.exterior.xy
-        new_line, = self.ax.plot(*xy, color=color, ls=':', lw=0.5)
+        new_line, = ax.plot(*xy, color=color, ls=':', lw=0.5)
         self.face_figs[face.id] = new_line
 
-    def update_faces(self, spaces):
+    def update_faces(self, spaces: List['Space']):
         """
         Updates the faces of the spaces
         :param spaces:
@@ -263,7 +285,7 @@ class Plot:
         if len(spaces) == 0:
             return
 
-        plan = spaces[0].plan
+        plan: 'Plan' = spaces[0].plan
 
         for space in spaces:
             for face in space.faces:
@@ -272,7 +294,7 @@ class Plot:
                 if _id not in self.face_figs:
                     if xy is None:
                         continue
-                    self._draw_face(face)
+                    self._draw_face(face, space)
                 else:
                     if xy is None:
                         self.face_figs[_id].set_visible(False)
@@ -281,7 +303,7 @@ class Plot:
                         self.face_figs[_id].set_visible(True)
 
         for face_id in self.face_figs:
-            if face_id not in plan.mesh._faces:
+            if all(not floor.mesh.has_face(face_id) for floor in plan.floors.values()):
                 self.face_figs[face_id].set_visible(False)
 
         self.fig.canvas.draw()

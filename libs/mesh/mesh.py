@@ -3024,6 +3024,14 @@ class Mesh:
         """
         return self._faces[_id]
 
+    def has_face(self, _id: uuid.UUID) -> bool:
+        """
+        Returns True if the specified face id belongs to the mesh
+        :param _id: id of the desired face
+        :return: True or False
+        """
+        return _id in self._faces
+
     def _add_edge(self, edge: 'Edge'):
         """
         Adds an edge to the mesh
@@ -3048,6 +3056,14 @@ class Mesh:
         """
         return self._edges[edge_id]
 
+    def has_edge(self, _id: uuid.UUID) -> bool:
+        """
+        Returns True if the specified edge id belongs to the mesh
+        :param _id: id of the desired edge
+        :return: True or False
+        """
+        return _id in self._edges
+
     def _add_vertex(self, vertex: Vertex):
         """
         Adds a vertex to the mesh storage
@@ -3071,6 +3087,14 @@ class Mesh:
         :return:
         """
         return self._vertices[vertex_id]
+
+    def has_vertex(self, _id: uuid.UUID) -> bool:
+        """
+        Returns True if the specified vertex id belongs to the mesh
+        :param _id: id of the desired vertex
+        :return: True or False
+        """
+        return _id in self._vertices
 
     @property
     def faces(self) -> List['Face']:
@@ -3130,7 +3154,7 @@ class Mesh:
     def edges(self) -> Generator[Edge, None, None]:
         """
         property
-        :return: the faces of the mesh
+        :return: the edges of the mesh
         """
         return (edge for edge in self._edges.values())
 

@@ -1500,7 +1500,7 @@ class Space(PlanComponent):
         :return: float
         """
 
-        def is_t_edge(edge: 'Edge') -> bool:
+        def _is_t_edge(edge: 'Edge') -> bool:
             continuous_edge = edge.continuous_edge
             if continuous_edge:
                 space_continuous = self.plan.get_space_of_edge(continuous_edge)
@@ -1516,8 +1516,8 @@ class Space(PlanComponent):
                                  edge).vector) >= corner_min_angle]
 
         for edge in list_corner_edges:
-            number_of_t_edge += is_t_edge(edge)
-            number_of_t_edge += is_t_edge(self.next_edge(
+            number_of_t_edge += _is_t_edge(edge)
+            number_of_t_edge += _is_t_edge(self.next_edge(
                 edge).pair)
 
         return number_of_t_edge
@@ -1866,6 +1866,13 @@ class Floor:
         self.meta = value["meta"]
 
         return self
+
+    @property
+    def boundary_as_sp(self) -> Optional[LinearRing]:
+        """
+        Returns the boundary of the plan as a LineString
+        """
+        return self.mesh.boundary_as_sp if self.mesh else None
 
 
 class Plan:
@@ -2560,8 +2567,7 @@ class Plan:
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
              floor: Optional[Floor] = None):
         """
-        Plots a plan. If a plan has more than one floor, the desired floor_id must be
-        specified.
+        Plots a plan.
         :return:
         """
         assert floor is None or floor.id in self.floors, (

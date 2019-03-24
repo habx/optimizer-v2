@@ -56,7 +56,7 @@ class Shuffle:
 
         if show:
             if not plot:
-                self._plot = Plot()
+                self._plot = Plot(plan)
                 plt.ion()
                 self._plot.draw(plan)
                 plt.show()
