@@ -65,7 +65,7 @@ class Executor:
                                  grid_type: Optional[str] = None,
                                  shuffle_type: Optional[str] = None,
                                  setup_name: Optional[str] = None,
-                                 plot: Optional[bool] = None) -> None:
+                                 do_plot: Optional[bool] = None) -> None:
         """
         Change parameters of executor. If one is not specified (None), default value is used.
         """
@@ -75,8 +75,8 @@ class Executor:
             self.shuffle_type = shuffle_type
         if setup_name is not None:
             self.setup_name = setup_name
-        if plot is not None:
-            self.do_plot = plot
+        if do_plot is not None:
+            self.do_plot = do_plot
 
     def run_from_file_names(self,
                             lot_file_name: str = "grenoble_101.json",
@@ -174,7 +174,7 @@ if __name__ == '__main__':
         """
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
-        executor.set_execution_parameters(grid_type="optimal_grid")
+        executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
         response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
         logging.info("Time: %i", int(response.elapsed_time))
         logging.info("Nb solutions: %i", len(response.solutions))
