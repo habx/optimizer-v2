@@ -191,7 +191,7 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
-    def solution_research(self) -> Optional[List['Solution']]:
+    def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
         :return: None
@@ -214,12 +214,14 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    # plan_solution.plot()
+                    if show:
+                        plan_solution.plot()
 
                 best_sol = self.solutions_collector.best()
                 for sol in best_sol:
                     logging.debug(sol)
-                    sol.plan.plot(save=True)
+                    if show:
+                        sol.plan.plot(save=True)
                 return best_sol
 
     def generate_best_solutions_files(self, best_sol: ['Solution']):
@@ -286,7 +288,7 @@ if __name__ == '__main__':
     from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
     import argparse
-    from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
+    import time
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -303,7 +305,6 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        import time
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "grenoble_101.json"
         t00 = time.clock()
@@ -320,7 +321,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1*SQM, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=1 * SQM, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 

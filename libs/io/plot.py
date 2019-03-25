@@ -23,13 +23,12 @@ from libs.utils.geometry import (
     unit_vector
 )
 
-DO_PLOT = "HABX_ENV" not in os.environ
-
 from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
 output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
-if not os.path.exists(output_path) and DO_PLOT:
+if not os.path.exists(output_path):
     os.makedirs(output_path)
+
 
 def plot_save(save: bool = True, show: bool = False):
     """
@@ -39,7 +38,7 @@ def plot_save(save: bool = True, show: bool = False):
     :return:
     """
 
-    if not DO_PLOT or (not save and not show):
+    if not save and not show:
         return
 
     if save:
@@ -68,9 +67,6 @@ def plot_point(x_coords: Sequence[float],
     :param save
     :return:
     """
-
-    if not DO_PLOT:
-        return
 
     if _ax is None:
         fig, _ax = plt.subplots()
@@ -102,9 +98,6 @@ def plot_edge(x_coords: Sequence[float],
     :param save: whether to save the plot
     :return:
     """
-    if not DO_PLOT:
-        return
-
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
@@ -137,10 +130,6 @@ def plot_polygon(_ax,
     :param should_save: whether to save the plot
     :return:
     """
-
-    if not DO_PLOT:
-        return
-
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
@@ -202,22 +191,16 @@ def random_color() -> str:
 class Plot:
     """
     Plot class
-    Do not add public method without check of self.do_plot
     """
 
-    def __init__(self, do_plot: bool = DO_PLOT):
-        self.do_plot = do_plot
-        self.ax = None
-        self.fig = None
+    def __init__(self):
+        _fig = plt.figure()
+        _ax = _fig.add_subplot(111)
+        _ax.set_aspect('equal')
+        self.ax = _ax
+        self.fig = _fig
         self.space_figs = {}
         self.face_figs = {}
-
-        if self.do_plot:
-            _fig = plt.figure()
-            _ax = _fig.add_subplot(111)
-            _ax.set_aspect('equal')
-            self.ax = _ax
-            self.fig = _fig
 
     def draw(self, plan):
         """
@@ -225,9 +208,6 @@ class Plot:
         :param plan:
         :return:
         """
-        if not self.do_plot:
-            return
-
         self._draw_boundary(plan)
 
         for space in plan.spaces:
@@ -278,9 +258,6 @@ class Plot:
         :param spaces:
         :return:
         """
-        if not self.do_plot:
-            return
-
         if len(spaces) == 0:
             return
 
@@ -314,8 +291,6 @@ class Plot:
         :param spaces:
         :return:
         """
-        if not self.do_plot:
-            return
         for space in spaces:
             if space is None:
                 continue
@@ -340,5 +315,4 @@ class Plot:
         Show the plot
         :return:
         """
-        if self.do_plot:
-            self.fig.show()
+        self.fig.show()
