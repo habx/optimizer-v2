@@ -1003,6 +1003,10 @@ if __name__ == '__main__':
                                                                      sp.category.name, sp.size,
                                                                      sp.as_sp.centroid.coords.xy))
 
+
+    # grow_a_plan_trames()
+
+
     def failed_plan():
         """
         Test
@@ -1017,5 +1021,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed())
+
+        plan.plot()
 
     failed_plan()
