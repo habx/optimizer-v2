@@ -23,7 +23,7 @@ from libs.utils.geometry import (
     unit_vector
 )
 
-DO_PLOT = "HABX_DEV" not in os.environ
+DO_PLOT = "HABX_ENV" not in os.environ
 
 from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
