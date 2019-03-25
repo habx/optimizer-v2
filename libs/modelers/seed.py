@@ -105,9 +105,6 @@ class Seeder:
         """
         logging.debug("Seeder: Starting to grow")
 
-        show = show
-        show = show
-
         # Real time plot updates
         if show:
             self._initialize_plot(plot)
