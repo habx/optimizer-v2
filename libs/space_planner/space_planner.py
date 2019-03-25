@@ -286,6 +286,7 @@ if __name__ == '__main__':
     from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
     import argparse
+    from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -303,7 +304,7 @@ if __name__ == '__main__':
         :return:
         """
         import time
-        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "grenoble_101.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
@@ -350,7 +351,7 @@ if __name__ == '__main__':
 
         # Output
         for sol in best_solutions:
-            solution_dict = writer.generate_output_dict(input_file, sol)
+            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
         # shuffle
