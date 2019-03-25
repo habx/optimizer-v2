@@ -319,7 +319,7 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     # find all aligned edges
     # we check forward with the edge and backward with the edge pair
-    line = edge.line
+    line = space.line(edge)
     removed = 0
     for line_edge in line:
         # if we encounter a boundary edge : we stop
@@ -328,7 +328,7 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
             if line_edge is line[0]:
                 continue
             break
-        # we must cannot remove an internal edge as it would break the mesh
+        # we must cannot remove an internal edge of face as it would break the mesh
         if not line_edge.is_internal:
             removed += space.remove_internal_edge(line_edge)
 
