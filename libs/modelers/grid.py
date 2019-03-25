@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from libs.io import reader
 from libs.operators.mutation import MUTATIONS, MUTATION_FACTORIES
 from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
-from libs.io.plot import Plot, DO_PLOT
+from libs.io.plot import Plot
 
 
 if TYPE_CHECKING:
@@ -108,9 +108,6 @@ class Grid:
         Creates a plot
         :return:
         """
-        if not DO_PLOT:
-            return
-
         # if the grid has already a plot : do nothing
         if self._plot:
             return

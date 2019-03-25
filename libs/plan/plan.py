@@ -13,7 +13,6 @@ import logging
 import uuid
 
 import matplotlib.pyplot as plt
-from libs.io.plot import DO_PLOT
 from shapely.geometry import Polygon, LineString, LinearRing
 
 from libs.mesh.mesh import Mesh, Face, Edge, Vertex, MeshOps
@@ -2593,10 +2592,6 @@ class Plan:
         Plots a plan.
         :return:
         """
-
-        if not DO_PLOT:
-            return
-
         assert floor is None or floor.id in self.floors, (
             "The floor id specified does not exist in the plan floors")
 

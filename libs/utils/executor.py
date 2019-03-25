@@ -48,15 +48,24 @@ class Executor:
     """
 
     def __init__(self):
-        self.grid_type: str = "optimal_grid"
-        self.shuffle_type: str = "square_shape_shuffle_rooms"
-        self.setup_name: str = "unnamed"
+        self.grid_type: Optional[str] = None
+        self.shuffle_type: Optional[str] = None
+        self.setup_name: Optional[str] = None
+        self.do_plot: Optional[bool] = None
         # NOTE: a seeder_name should be chosen too
+        self.reset_to_default()
+
+    def reset_to_default(self):
+        self.grid_type = "optimal_grid"
+        self.shuffle_type = "square_shape_shuffle_rooms"
+        self.setup_name = "unnamed"
+        self.do_plot = False
 
     def set_execution_parameters(self,
                                  grid_type: Optional[str] = None,
                                  shuffle_type: Optional[str] = None,
-                                 setup_name: Optional[str] = None) -> None:
+                                 setup_name: Optional[str] = None,
+                                 do_plot: Optional[bool] = None) -> None:
         """
         Change parameters of executor. If one is not specified (None), default value is used.
         """
@@ -66,6 +75,8 @@ class Executor:
             self.shuffle_type = shuffle_type
         if setup_name is not None:
             self.setup_name = setup_name
+        if do_plot is not None:
+            self.do_plot = do_plot
 
     def run_from_file_names(self,
                             lot_file_name: str = "grenoble_101.json",
@@ -86,8 +97,6 @@ class Executor:
     def run_from_file_paths(self, lot_file_path, setup_file_path) -> Response:
         """
         Run Optimizer from file paths.
-        :param lot_file_name:
-        :param setup_file_name:
         :return: optimizer response
         """
         lot = reader.get_json_from_file(lot_file_path, "")
@@ -112,20 +121,24 @@ class Executor:
 
         # grid
         logging.info("Grid")
-        GRIDS[self.grid_type].apply_to(plan)
+        GRIDS[self.grid_type].apply_to(plan, show=self.do_plot)
 
         # seeder
         logging.info("Seeder")
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
+        if self.do_plot:
+            plan.plot()
 
         (seeder.plant()
-         .grow(show=True)
+         .grow(show=self.do_plot)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=1 * SQM,
+                            excluded_components=["loadBearingWall"],
+                            show=self.do_plot))
 
-        plan.plot()
+        if self.do_plot:
+            plan.plot()
 
         # reading setup
         logging.info("Read setup")
@@ -137,14 +150,15 @@ class Executor:
         # space planner
         logging.info("Space planner")
         space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
+        best_solutions = space_planner.solution_research(show=False)
         logging.debug(best_solutions)
 
         # shuffle
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES[self.shuffle_type].run(sol.plan, show=True)
-                sol.plan.plot()
+                SHUFFLES[self.shuffle_type].run(sol.plan, show=self.do_plot)
+                if self.do_plot:
+                    sol.plan.plot()
 
         # output
         logging.info("Output")
@@ -160,7 +174,7 @@ if __name__ == '__main__':
         """
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
-        executor.set_execution_parameters(grid_type="optimal_grid")
+        executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
         response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
         logging.info("Time: %i", int(response.elapsed_time))
         logging.info("Nb solutions: %i", len(response.solutions))
