@@ -782,14 +782,6 @@ classic_seed_category = GrowthMethod(
 ELEMENT_SEED_CATEGORIES = {
     "duct": GrowthMethod(
         'duct',
-        # (CONSTRAINTS["max_size_duct_constraint_seed"],),
-        # (
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        #     Action(SELECTORS['seed_component_boundary'], MUTATIONS['swap_face']),
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-        #            True),
-        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-        # )
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
             Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
@@ -797,13 +789,6 @@ ELEMENT_SEED_CATEGORIES = {
     ),
     "frontDoor": GrowthMethod(
         'frontDoor',
-        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
-        # (
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-        #            True),
-        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
             Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
@@ -811,50 +796,22 @@ ELEMENT_SEED_CATEGORIES = {
     ),
     "window": GrowthMethod(
         'window',
-        # (CONSTRAINTS["max_size_window_constraint_seed"],),
-        # (
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-        #            True),
-        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-        # )
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
             Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
     "doorWindow": GrowthMethod(
         'doorWindow',
-        # (CONSTRAINTS["max_size_window_constraint_seed"],),
-        # (
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-        #            True),
-        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-        # )
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face']),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-            # Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
             Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
             Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
         )
     ),
     "startingStep": GrowthMethod(
         'startingStep',
-        # (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
-        # (
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        #     Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-        #            True),
-        #     Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-        # )
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
             Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
