@@ -331,7 +331,7 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
-    (SELECTOR_FACTORIES["tight_lines"]([40]), MUTATIONS["remove_line"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([60]), MUTATIONS["remove_line"], False),
     # (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
