@@ -282,8 +282,13 @@ def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None
     edge_homogeneous_growth = None
 
     for edge in space.edges:
-        if edge.pair.face and space.plan.get_space_of_edge(edge.pair).category.name == 'empty':
+        if edge.pair.face:
             face_added = edge.pair.face
+            space_added = space.plan.get_space_of_face(face_added)
+            if space_added.category.name != 'empty':
+                continue
+            if space_added.corner_stone(face_added):
+                continue
             shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
             area = space.area + face_added.area
             perimeter = space.perimeter + face_added.perimeter - shared_perimeter

@@ -962,14 +962,15 @@ if __name__ == '__main__':
         :return:
         """
 
-        plan = reader.create_plan_from_file("Levallois_A2-601.json")
+        plan = reader.create_plan_from_file("meurice_X.R0.05.json")
         GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed())
+         .from_space_empty_to_seed()
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 
