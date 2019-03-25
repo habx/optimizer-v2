@@ -2,11 +2,11 @@
 """Test of DecoratorCache"""
 
 from libs.utils.decorator_cache import DecoratorCache
-
+from output import DEFAULT_CACHE_OUTPUT_FOLDER
 nb_calls = 0
 
 
-@DecoratorCache([__file__], 'output/cache')
+@DecoratorCache([__file__], DEFAULT_CACHE_OUTPUT_FOLDER)
 def _decorated_function(x):
     global nb_calls
     print('computing')

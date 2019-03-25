@@ -22,15 +22,15 @@ from libs.utils.geometry import (
     ccw_angle,
     unit_vector
 )
+from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
 if TYPE_CHECKING:
     from libs.plan.plan import Plan, Floor, Space, Linear
 
-SAVE_PATH = "../../output/plots"
-module_path = os.path.dirname(__file__)
-output_path = os.path.join(module_path, SAVE_PATH)
+DO_PLOT = "HABX_ENV" not in os.environ
 
-if not os.path.exists(output_path):
+output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
+if not os.path.exists(output_path) and DO_PLOT:
     os.makedirs(output_path)
 
 
@@ -42,7 +42,7 @@ def plot_save(save: bool = True, show: bool = False):
     :return:
     """
 
-    if not save and not show:
+    if not DO_PLOT or (not save and not show):
         return
 
     if save:
@@ -72,6 +72,9 @@ def plot_point(x_coords: Sequence[float],
     :return:
     """
 
+    if not DO_PLOT:
+        return
+
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
@@ -91,7 +94,6 @@ def plot_edge(x_coords: Sequence[float],
               width: float = 1.0,
               alpha: float = 1,
               save: Optional[bool] = None):
-
     """
     Plots an edge
     :param _ax:
@@ -103,6 +105,9 @@ def plot_edge(x_coords: Sequence[float],
     :param save: whether to save the plot
     :return:
     """
+    if not DO_PLOT:
+        return
+
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
@@ -135,6 +140,9 @@ def plot_polygon(_ax,
     :param should_save: whether to save the plot
     :return:
     """
+
+    if not DO_PLOT:
+        return
 
     if _ax is None:
         fig, _ax = plt.subplots()
@@ -197,8 +205,12 @@ def random_color() -> str:
 class Plot:
     """
     Plot class
+    Do not add public method without check of self.do_plot
     """
-    def __init__(self, plan: 'Plan'):
+    def __init__(self, plan: 'Plan', do_plot: bool = DO_PLOT):
+        self.do_plot = do_plot
+        if not self.do_plot:
+            return
         _fig, _ax = plt.subplots(1, plan.floor_count)
         if plan.floor_count > 1:
             for _sub in _ax:
@@ -229,6 +241,9 @@ class Plot:
         :param plan:
         :return:
         """
+        if not self.do_plot:
+            return
+
         self._draw_boundary(plan)
 
         for space in plan.spaces:
@@ -282,6 +297,9 @@ class Plot:
         :param spaces:
         :return:
         """
+        if not self.do_plot:
+            return
+
         if len(spaces) == 0:
             return
 
@@ -315,6 +333,8 @@ class Plot:
         :param spaces:
         :return:
         """
+        if not self.do_plot:
+            return
         for space in spaces:
             if space is None:
                 continue
@@ -339,4 +359,5 @@ class Plot:
         Show the plot
         :return:
         """
-        self.fig.show()
+        if self.do_plot:
+            self.fig.show()

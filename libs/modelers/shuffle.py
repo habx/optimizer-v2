@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, Sequence, Any
 from libs.io.plot import Plot
 
 import matplotlib.pyplot as plt
+from libs.io.plot import DO_PLOT
 import logging
 
 from libs.operators.mutation import MUTATIONS
@@ -54,6 +55,7 @@ class Shuffle:
         for action in self.actions:
             action.flush()
 
+        show = show and DO_PLOT
         if show:
             if not plot:
                 self._plot = Plot(plan)

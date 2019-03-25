@@ -2,16 +2,18 @@
 """Logging setup helper"""
 import logging.handlers
 import os
+from output import DEFAULT_LOGS_OUTPUT_FOLDER
 
 
-def init(reset=False, override_default=True, log_file='output/logs/optimizer.log'):
+def init(reset=False, override_default=True, log_file_name='optimizer.log'):
     """Logging setup"""
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    log_path = os.path.join(DEFAULT_LOGS_OUTPUT_FOLDER, log_file_name)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     logger = logging.getLogger("default")
     logger.setLevel(logging.DEBUG)
 
-    file_handler = logging.handlers.RotatingFileHandler(log_file,
+    file_handler = logging.handlers.RotatingFileHandler(log_path,
                                                         maxBytes=100 * 1024,
                                                         backupCount=20)
 
