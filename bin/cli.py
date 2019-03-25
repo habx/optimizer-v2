@@ -34,17 +34,23 @@ if __name__ == '__main__':
                             help="grid type", default="optimal_grid")
         parser.add_argument("-u", dest="shuffle", required=False,
                             help="shuffle type", default="square_shape_shuffle_rooms")
+        parser.add_argument("-p", "--plot",
+                            help="plot outputs",
+                            action="store_true")
         args = parser.parse_args()
         lot_path = args.lot
         setup_path = args.setup
         output_dir = args.output
         grid_type = args.grid
         shuffle_type = args.shuffle
+        do_plot = bool(args.plot)
 
         # run
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
-        executor.set_execution_parameters(grid_type=grid_type, shuffle_type=shuffle_type)
+        executor.set_execution_parameters(grid_type=grid_type,
+                                          shuffle_type=shuffle_type,
+                                          do_plot=do_plot)
         response = executor.run_from_file_paths(lot_path, setup_path)
         for i, solution in enumerate(response.solutions):
             solution_path = os.path.join(output_dir, "output{}.json".format(i))
