@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from libs.io.plot import DO_PLOT
 
 from libs.plan.plan import Space, PlanComponent, Plan, Linear
-from libs.io.plot import plot_point, Plot
+from libs.io.plot import Plot
 from libs.specification.size import Size
 from libs.operators.action import Action
 
@@ -30,8 +30,6 @@ from libs.operators.constraint import CONSTRAINTS
 from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.operators.mutation import MUTATIONS
 from libs.plan.category import SPACE_CATEGORIES
-
-from libs.utils.geometry import barycenter, move_point
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge, Face
@@ -468,27 +466,14 @@ class Seeder:
             return
 
         if not plot:
-            self.plot = Plot()
+            self.plot = Plot(self.plan)
             plt.ion()
             self.plot.draw(self.plan)
-            self.plot_seeds(self.plot.ax)
+            self.plot.draw_seeds_points(self)
             plt.show()
             plt.pause(0.0001)
         else:
             self.plot = plot
-
-    def plot_seeds(self, ax):
-        """
-        Plots the seeds point
-        :param ax:
-        :return:
-        """
-        if not DO_PLOT:
-            return
-
-        for seed in self.seeds:
-            ax = seed.plot(ax)
-        return ax
 
     def get_seed_from_space(self, space: 'Space') -> Optional['Seed']:
         """
@@ -700,17 +685,6 @@ class Seed:
         self.components.append(component)
         self.growth_methods = self.get_growth_methods()
         self.max_size = self.get_components_max_size()
-
-    def plot(self, ax):
-        """
-        Plots the seed
-        :param ax:
-        :return:
-        """
-        seed_distance_to_edge = 15  # per convention
-        point = barycenter(self.edge.start.coords, self.edge.end.coords, 0.5)
-        point = move_point(point, self.edge.normal, seed_distance_to_edge)
-        return plot_point([point[0]], [point[1]], ax, save=False)
 
 
 class GrowthMethod:

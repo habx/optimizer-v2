@@ -20,7 +20,8 @@ from libs.utils.geometry import (
     move_point,
     magnitude,
     ccw_angle,
-    unit_vector
+    unit_vector,
+    barycenter
 )
 from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
@@ -55,36 +56,6 @@ def plot_save(save: bool = True, show: bool = False):
 
     if show:
         plt.show()
-
-
-def plot_point(x_coords: Sequence[float],
-               y_coords: Sequence[float],
-               _ax=None,
-               color: str = 'r',
-               save: Optional[bool] = None):
-    """
-    Plots a point
-    :param x_coords:
-    :param y_coords:
-    :param _ax:
-    :param color:
-    :param save
-    :return:
-    """
-
-    if not DO_PLOT:
-        return
-
-    if _ax is None:
-        fig, _ax = plt.subplots()
-        _ax.set_aspect('equal')
-        save = True if save is None else save
-
-    _ax.plot(x_coords, y_coords, 'ro', color=color)
-
-    plot_save(save)
-
-    return _ax
 
 
 def plot_edge(x_coords: Sequence[float],
@@ -353,6 +324,22 @@ class Plot:
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
+
+    def draw_seeds_points(self, seeder):
+        """
+        Draw the seed point on fixed items
+        :param seeder:
+        :return:
+        """
+        seed_distance_to_edge = 15  # per convention
+
+        for seed in seeder.seeds:
+            if seed.space is None:
+                continue
+            _ax = self.get_ax(seed.space.floor)
+            point = barycenter(seed.edge.start.coords, seed.edge.end.coords, 0.5)
+            point = move_point(point, seed.edge.normal, seed_distance_to_edge)
+            _ax.plot([point[0]], [point[1]], 'ro', color='r')
 
     def show(self):
         """
