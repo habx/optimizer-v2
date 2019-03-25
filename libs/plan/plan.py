@@ -572,6 +572,14 @@ class Space(PlanComponent):
         Note: this will count the perimeter of each holes of the space
         :return:
         """
+        return sum(map(lambda e: e.length, self.edges))
+
+    @property
+    def perimeter_without_duct(self) -> float:
+        """
+        Returns the length of the Space perimeter without duct adjacencies
+        :return:
+        """
         duct_space = [edge for space in self.plan.spaces if space.category.name == "duct"
                       for edge in space.edges]
         return sum(edge.length for edge in self.edges if edge.pair not in duct_space)

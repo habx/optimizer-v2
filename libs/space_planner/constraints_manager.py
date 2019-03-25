@@ -340,20 +340,22 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
 
     if min_max == "max":
-        if (item.category.variant in ["l", "xl"] or item.category.name in ["entrance"]
-                and item.category.name not in ["living", "livingKitchen", "dining"]):
-            max_area = item.max_size.area
-        else:
-            max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+        # if ((item.variant in ["l", "xl"] or item.category.name in ["entrance"])
+        #         and item.category.name not in ["living", "livingKitchen", "dining"]):
+        #     max_area = round(item.max_size.area)
+        # else:
+        #     max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
 
     elif min_max == "min":
-        if item.category.variant in ["xs", "s"] or item.category.name in ["entrance"]:
-            min_area = item.min_size.area
-        else:
-            min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        # if item.variant in ["xs", "s"] or item.category.name in ["entrance"]:
+        #     min_area = round(item.min_size.area)
+        # else:
+        #     min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -505,17 +507,16 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = min(max(30, int(plan_ratio + 10)), 40)
-    elif item.category.name in ["kitchen", "bedroom", "entrance"]:
+    elif item.category.name in ["kitchen", "bedroom"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
-        param = 24
+        param = 22
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
                                           enumerate(manager.sp.spec.plan.mutable_spaces()))
-
     cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
-                                                int(space.perimeter)
+                                                int(space.perimeter_without_duct)
                                                 for j, space in
                                                 enumerate(manager.sp.spec.plan.mutable_spaces()))
     cells_adjacency = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
