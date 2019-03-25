@@ -275,25 +275,25 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-     face is added to space, the ratio area/perimeter is smallest
+    face is added to space, the ratio area/perimeter is smallest
     """
 
-    biggest_shape_factor = None
+    biggest_shape_factor = math.inf
     edge_homogeneous_growth = None
 
     for edge in space.edges:
-        if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
-                edge.pair).category.name == 'empty':
+        if edge.pair.face:
             face_added = edge.pair.face
-            space_contact = space.plan.get_space_of_face(face_added)
-            if space_contact.corner_stone(face_added):
+            space_added = space.plan.get_space_of_face(face_added)
+            if space_added.category.name != 'empty':
                 continue
-            space_contact.remove_face(face_added)
-            space.add_face(face_added)
-            current_shape_factor = space.perimeter / space.area
-            space.remove_face(face_added)
-            space_contact.add_face(face_added)
-            if biggest_shape_factor is None or current_shape_factor <= biggest_shape_factor:
+            if space_added.corner_stone(face_added):
+                continue
+            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
+            area = space.area + face_added.area
+            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
+            current_shape_factor = perimeter / area
+            if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
 
@@ -471,7 +471,7 @@ def min_depth(depth: float, min_length: float = 10) -> EdgeQuery:
     return _selector
 
 
-def tight_lines(depth: float) -> EdgeQuery:
+def tight_lines(depth: float, min_line_length: float = 20) -> EdgeQuery:
     """
     Returns a query that returns the edge of a line close to another line.
     The line is chosen to enable the best grid after its removal, according to the following rules:
@@ -480,6 +480,7 @@ def tight_lines(depth: float) -> EdgeQuery:
     • if three lines are close together we pick the middle one
     • if there are only two lines we pick the shortest one
     :param depth:
+    :param min_line_length:
     :return: an EdgeQuery
     """
 
@@ -491,7 +492,7 @@ def tight_lines(depth: float) -> EdgeQuery:
         output = None
 
         for edge in min_depth(depth)(space):
-            edges = list(_parallel_edges(edge, depth))
+            edges = list(_parallel_edges(edge, space, depth, min_line_length))
             # specific case of triangle faces, otherwise edges should always have >= 2 elems
             if len(edges) <= 1:
                 continue
@@ -503,8 +504,8 @@ def tight_lines(depth: float) -> EdgeQuery:
             elif len(_edges) >= 2:
                 # we calculate the length of the line that touches a border per increment of 20
                 borders = [int(_border_length(edge, space) / 20) * 20 for edge in _edges]
-                lengths = [_line_length(edge) for edge in _edges]
-                for criteria in (borders, lengths):
+                lengths = [int(_line_length(edge) / 20) * 20 for edge in _edges]
+                for criteria in (lengths, borders):
                     order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
                     if order.count(0) == 1:
                         i = order.index(0)
@@ -559,9 +560,10 @@ def _border_length(edge: 'Edge', space: 'Space') -> float:
                    filter(lambda e: space.is_boundary(e) or space.is_boundary(e.pair), edge.line)))
 
 
-def _parallel_edges(edge: 'Edge', depth: float) -> ['Edge']:
+def _parallel_edges(edge: 'Edge', space: 'Space',
+                    depth: float, min_length: float = 20.0) -> ['Edge']:
     """
-    Returns up to three parallel close edges
+    Returns up to three parallel close edges of minimum line length
           left
     *-------------->
     <--------------*
@@ -575,22 +577,23 @@ def _parallel_edges(edge: 'Edge', depth: float) -> ['Edge']:
     <-------------*
     :param edge
     :param depth
+    :param min_length
     :return:
     """
     middle = None
 
     # look to the left
-    left = _parallel(edge, depth)
+    left = _parallel(edge, space, depth, min_length)
     if left:
         middle = edge
     else:
         left = edge
 
     # look to the right
-    right = _parallel(edge.pair, depth)
+    right = _parallel(edge.pair, space, depth, min_length)
     if not right:
         if middle:
-            new_left = _parallel(left, depth)
+            new_left = _parallel(left, space, depth, min_length)
             if new_left:
                 return [new_left, left, middle]
             return [left, middle]
@@ -602,24 +605,30 @@ def _parallel_edges(edge: 'Edge', depth: float) -> ['Edge']:
             return left, middle, right
         else:
             middle = right.pair
-            new_right = _parallel(middle.pair, depth)
+            new_right = _parallel(middle.pair, space, depth, min_length)
             if new_right:
                 return [left, right, new_right]
             else:
                 return [edge, right]
 
 
-def _parallel(edge: 'Edge', dist: float) -> Optional['Edge']:
+def _parallel(edge: 'Edge', space: 'Space',
+              dist: float, min_length: float = 20) -> Optional['Edge']:
     """
     Returns an edge parallel to the left at a distance smaller than the specified dist
+    and a line length superior at the min_length specified
     :param edge:
+    :param space:
     :param dist:
+    :param min_length
     :return: the parallel edge
     """
     for _edge in edge.siblings:
         if (_edge is not edge and edge.face is not None
+                and not space.is_boundary(_edge)
                 and parallel(_edge.pair.vector, edge.vector)
-                and _edge.max_distance(edge, parallel=True) < dist):
+                and _edge.max_distance(edge, parallel=True) < dist
+                and _line_length(_edge) > min_length):
             return _edge.pair
     return None
 
@@ -1439,7 +1448,7 @@ SELECTORS = {
         boundary_faces,
         [
             not_space_boundary,
-            close_to_linear('frontDoor', min_distance=100.0)
+            close_to_linear('frontDoor', min_distance=80.0)
         ]
     ),
 

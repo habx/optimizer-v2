@@ -412,7 +412,7 @@ class Space(PlanComponent):
 
     def aligned_siblings(self, edge: 'Edge') -> Generator['Edge', 'Edge', None]:
         """
-        Returns all the edge
+        Returns all the edge on the space boundary that are aligned with the edge
         :param edge:
         :return:
         """
@@ -432,6 +432,29 @@ class Space(PlanComponent):
         while self.previous_is_aligned(current):
             current = self.previous_edge(current)
             yield current
+
+    def line(self, edge: 'Edge', mesh_line: Optional[List['Edge']] = None) -> ['Edge']:
+        """
+        Returns the internal edges of the space that are aligned with the specified edge.
+        :param edge:
+        :param mesh_line: for performance purpose the already computed mesh line of the edge
+        :return:
+        """
+        # retrieve all the edges of the mesh aligned with the edge
+        # and search for the continuous segment of edges belonging to the space
+        line = mesh_line or edge.line
+        if not line:
+            return
+        temp_line = [line[0]]
+        # we skip the first edge because it can be set on the boundary per convention
+        for _edge in line[1::]:
+            if self.is_outside(_edge) or self.is_boundary(_edge):
+                if edge in temp_line:
+                    return temp_line
+                temp_line = []
+            else:
+                temp_line.append(_edge)
+        return temp_line
 
     def siblings(self, edge: 'Edge') -> Generator[Edge, None, None]:
         """
@@ -1499,7 +1522,7 @@ class Space(PlanComponent):
         :return: float
         """
 
-        def is_t_edge(edge: 'Edge') -> bool:
+        def _is_t_edge(edge: 'Edge') -> bool:
             continuous_edge = edge.continuous_edge
             if continuous_edge:
                 space_continuous = self.plan.get_space_of_edge(continuous_edge)
@@ -1515,8 +1538,8 @@ class Space(PlanComponent):
                                  edge).vector) >= corner_min_angle]
 
         for edge in list_corner_edges:
-            number_of_t_edge += is_t_edge(edge)
-            number_of_t_edge += is_t_edge(self.next_edge(
+            number_of_t_edge += _is_t_edge(edge)
+            number_of_t_edge += _is_t_edge(self.next_edge(
                 edge).pair)
 
         return number_of_t_edge
@@ -1865,6 +1888,13 @@ class Floor:
         self.meta = value["meta"]
 
         return self
+
+    @property
+    def boundary_as_sp(self) -> Optional[LinearRing]:
+        """
+        Returns the boundary of the plan as a LineString
+        """
+        return self.mesh.boundary_as_sp if self.mesh else None
 
 
 class Plan:
@@ -2559,8 +2589,7 @@ class Plan:
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
              floor: Optional[Floor] = None):
         """
-        Plots a plan. If a plan has more than one floor, the desired floor_id must be
-        specified.
+        Plots a plan.
         :return:
         """
         assert floor is None or floor.id in self.floors, (
