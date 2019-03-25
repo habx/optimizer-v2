@@ -3459,7 +3459,6 @@ class Mesh:
         :param show: whether to show as matlplotlib window
         :return: ax
         """
-
         for face in self.faces:
             color = random_color()
             ax = face.plot(ax, options, color, False)

@@ -282,8 +282,6 @@ class Seeder:
                         edges_in_space = list(
                             edge for edge in contiguous_edges if space.has_edge(edge))
                         self.divide_along_line(space, edges_in_space)
-
-        self.plan.plot()
         return self
 
     def from_space_empty_to_seed(self):

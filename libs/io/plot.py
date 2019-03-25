@@ -23,10 +23,9 @@ from libs.utils.geometry import (
     unit_vector
 )
 
-SAVE_PATH = "../../output/plots"
-module_path = os.path.dirname(__file__)
-output_path = os.path.join(module_path, SAVE_PATH)
+from output import DEFAULT_PLOTS_OUTPUT_FOLDER
 
+output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 
@@ -88,7 +87,6 @@ def plot_edge(x_coords: Sequence[float],
               width: float = 1.0,
               alpha: float = 1,
               save: Optional[bool] = None):
-
     """
     Plots an edge
     :param _ax:
@@ -132,7 +130,6 @@ def plot_polygon(_ax,
     :param should_save: whether to save the plot
     :return:
     """
-
     if _ax is None:
         fig, _ax = plt.subplots()
         _ax.set_aspect('equal')
@@ -195,6 +192,7 @@ class Plot:
     """
     Plot class
     """
+
     def __init__(self):
         _fig = plt.figure()
         _ax = _fig.add_subplot(111)

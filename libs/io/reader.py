@@ -2,7 +2,7 @@
 """
 Reader module : Used to read file from json input and create a plan.
 """
-from typing import Dict, Sequence, Tuple, List
+from typing import Dict, Sequence, Tuple, List, Optional
 import os
 import json
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
@@ -20,10 +20,8 @@ from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.mesh.mesh import COORD_EPSILON
 
 LOAD_BEARING_WALL_WIDTH = 15.0
-DEFAULT_BLUEPRINT_INPUT_FOLDER = "../../resources/blueprints"
-DEFAULT_SPECIFICATION_INPUT_FOLDER = "../../resources/specifications"
-DEFAULT_PLANS_OUTPUT_FOLDER = "../../output/plans"
-DEFAULT_MESHES_OUTPUT_FOLDER = "../../output/meshes"
+from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER, DEFAULT_SPECIFICATION_INPUT_FOLDER
+from output import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 
 
 def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
@@ -212,7 +210,7 @@ def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
                 (coord[1] - new_perimeter[-1][1]) ** 2)) ** 0.5 > COORD_EPSILON:
             new_perimeter.append(coord)
     if (((new_perimeter[0][0] - new_perimeter[-1][0]) ** 2) + (
-                (new_perimeter[0][1] - new_perimeter[-1][1]) ** 2)) ** 0.5 < COORD_EPSILON:
+            (new_perimeter[0][1] - new_perimeter[-1][1]) ** 2)) ** 0.5 < COORD_EPSILON:
         del new_perimeter[-1]
     return new_perimeter
 
@@ -264,22 +262,21 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     file_name = os.path.splitext(os.path.basename(input_file_name))[0]
 
     if "v2" in floor_plan_dict.keys():
-        return _create_plan_from_v2_data(file_name, floor_plan_dict["v2"])
+        return create_plan_from_v2_data(floor_plan_dict["v2"], file_name)
     elif "v1" in floor_plan_dict.keys():
-        return _create_plan_from_v1_data(file_name, floor_plan_dict["v1"])
+        return create_plan_from_v1_data(floor_plan_dict["v1"], file_name)
     else:
-        return _create_plan_from_v1_data(file_name, floor_plan_dict)
+        return create_plan_from_v1_data(floor_plan_dict, file_name)
 
 
-def _create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
+def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 2 of the blueprint data format.
-    :param file_name:
-    :param v2_data:
-    :return:
     """
-    my_plan = plan.Plan(file_name)
+
+    plan_name = v2_data["aptInfos"]["name"] if name is None else name
+    my_plan = plan.Plan(plan_name)
 
     # get vertices data
     vertices_by_id: Dict[int, Coords2d] = {}
@@ -329,7 +326,7 @@ def _create_plan_from_v2_data(file_name: str, v2_data: Dict) -> plan.Plan:
     return my_plan
 
 
-def _create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
+def create_plan_from_v1_data(v1_data: Dict, file_name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 1 of the blueprint data format.
@@ -368,9 +365,18 @@ def _create_plan_from_v1_data(file_name: str, v1_data: Dict) -> plan.Plan:
     return my_plan
 
 
-def create_specification_from_file(input_file: str):
+def create_specification_from_file(input_file: str) -> Specification:
     """
-    Creates a specification object from a json data
+    Creates a specification object from a json file name/
+    """
+    spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
+    return create_specification_from_data(spec_dict, input_file)
+
+
+def create_specification_from_data(input_data: dict,
+                                   spec_name: str = "unnamed spec") -> Specification:
+    """
+    Creates a specification object from a dict
     The model is in the form:
     {
       "setup": [
@@ -392,9 +398,8 @@ def create_specification_from_file(input_file: str):
         }]
     }
     """
-    spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
-    specification = Specification(input_file)
-    for item in spec_dict["setup"]:
+    specification = Specification(spec_name)
+    for item in input_data["setup"]:
         _category = item["type"]
         if _category not in SPACE_CATEGORIES:
             raise ValueError("Space type not present in space categories: {0}".format(_category))
@@ -416,7 +421,6 @@ def create_specification_from_file(input_file: str):
 
 
 if __name__ == '__main__':
-
     def specification_read():
         """
         Test
@@ -425,6 +429,7 @@ if __name__ == '__main__':
         input_file = "grenoble_101_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
+
 
     def plan_read():
         """
@@ -435,6 +440,7 @@ if __name__ == '__main__':
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
+
 
     specification_read()
     plan_read()

@@ -34,7 +34,6 @@ from libs.utils.geometry import (
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
-
 class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
