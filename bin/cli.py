@@ -53,9 +53,12 @@ def _cli():
     executor.set_execution_parameters(grid_type=grid_type,
                                       shuffle_type=shuffle_type,
                                       do_plot=do_plot)
+    logging.info('Running (%s, %s)', lot_path, setup_path)
     response = executor.run_from_file_paths(lot_path, setup_path)
     for i, solution in enumerate(response.solutions):
         solution_path = os.path.join(output_dir, "output{}.json".format(i))
         json.dump(solution, solution_path, indent=2, sort_keys=True)
 
-_cli()
+# I don't think it makes any sense here: https://stackoverflow.com/a/419185
+if __name__ == "__main__":
+    _cli()
