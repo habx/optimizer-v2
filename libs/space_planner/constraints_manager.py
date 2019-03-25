@@ -515,10 +515,18 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
                                           enumerate(manager.sp.spec.plan.mutable_spaces()))
-    cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
-                                                int(space.perimeter_without_duct)
-                                                for j, space in
-                                                enumerate(manager.sp.spec.plan.mutable_spaces()))
+    if item.category.name in ["wc", "bathroom"]:
+        cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
+                                                    int(space.perimeter_without_duct)
+                                                    for j, space in
+                                                    enumerate(
+                                                        manager.sp.spec.plan.mutable_spaces()))
+    else:
+        cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
+                                                    int(space.perimeter)
+                                                    for j, space in
+                                                    enumerate(
+                                                        manager.sp.spec.plan.mutable_spaces()))
     cells_adjacency = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
                                                 manager.solver.positions[item.id, k] *
                                                 int(j_space.contact_length(k_space))

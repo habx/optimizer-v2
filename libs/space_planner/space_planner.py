@@ -290,7 +290,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -326,7 +326,7 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 
@@ -357,6 +357,7 @@ if __name__ == '__main__':
 
         # Output
         for sol in best_solutions:
+            sol.plan.plot()
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
