@@ -258,7 +258,7 @@ class Seeder:
 
         return contiguous_edges
 
-    def divide_along_seed_borders(self, selector: 'Selector'):
+    def divide_along_seed_borders(self, selector: 'Selector', show: bool = False):
         """
         divide empty spaces along all lines drawn from selected edges
         Iterates though seed spaces, at each iteration :
@@ -266,8 +266,14 @@ class Seeder:
         2 - the list of its contiguous edges is built
         3 - each empty space cut by a set of those contiguous edges is cut into two parts
         :param selector:
+        :param show: whether to display the plot
         :return:
         """
+        show = show and DO_PLOT
+
+        if show:
+            self._initialize_plot()
+
         for seed_space in self.plan.get_spaces("seed"):
             for edge_selected in selector.yield_from(seed_space):
 
@@ -284,7 +290,6 @@ class Seeder:
                             edge for edge in contiguous_edges if space.has_edge(edge))
                         self.divide_along_line(space, edges_in_space)
 
-        self.plan.plot()
         return self
 
     def from_space_empty_to_seed(self):
@@ -922,8 +927,7 @@ if __name__ == '__main__':
         :return:
         """
         logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.get_list_from_folder()[plan_index]  # 9 Antony B22, 13 Bussy 002
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['finer_ortho_grid'].apply_to(plan)
@@ -999,5 +1003,19 @@ if __name__ == '__main__':
                                                                      sp.category.name, sp.size,
                                                                      sp.as_sp.centroid.coords.xy))
 
+    def failed_plan():
+        """
+        Test
+        :return:
+        """
 
-    grow_a_plan_trames()
+        plan = reader.create_plan_from_file("Levallois_A2-601.json")
+        GRIDS['optimal_grid'].apply_to(plan)
+
+        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        (seeder.plant()
+         .grow(show=True)
+         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .from_space_empty_to_seed())
+
+    failed_plan()

@@ -275,25 +275,20 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-     face is added to space, the ratio area/perimeter is smallest
+    face is added to space, the ratio area/perimeter is smallest
     """
 
-    biggest_shape_factor = None
+    biggest_shape_factor = math.inf
     edge_homogeneous_growth = None
 
     for edge in space.edges:
-        if edge.pair and edge.pair.face and space.plan.get_space_of_edge(
-                edge.pair).category.name == 'empty':
+        if edge.pair.face and space.plan.get_space_of_edge(edge.pair).category.name == 'empty':
             face_added = edge.pair.face
-            space_contact = space.plan.get_space_of_face(face_added)
-            if space_contact.corner_stone(face_added):
-                continue
-            space_contact.remove_face(face_added)
-            space.add_face(face_added)
-            current_shape_factor = space.perimeter / space.area
-            space.remove_face(face_added)
-            space_contact.add_face(face_added)
-            if biggest_shape_factor is None or current_shape_factor <= biggest_shape_factor:
+            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
+            area = space.area + face_added.area
+            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
+            current_shape_factor = perimeter / area
+            if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
 
