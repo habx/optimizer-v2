@@ -29,6 +29,7 @@ output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 
+
 def plot_save(save: bool = True, show: bool = False):
     """
     Saves or displays the plot
@@ -198,6 +199,8 @@ class Plot:
         _ax.set_aspect('equal')
         self.ax = _ax
         self.fig = _fig
+        self.space_figs = {}
+        self.face_figs = {}
 
     def draw(self, plan):
         """
