@@ -471,7 +471,7 @@ def min_depth(depth: float, min_length: float = 10) -> EdgeQuery:
     return _selector
 
 
-def tight_lines(depth: float, min_line_length: float = 60) -> EdgeQuery:
+def tight_lines(depth: float, min_line_length: float = 20) -> EdgeQuery:
     """
     Returns a query that returns the edge of a line close to another line.
     The line is chosen to enable the best grid after its removal, according to the following rules:
@@ -561,7 +561,7 @@ def _border_length(edge: 'Edge', space: 'Space') -> float:
 
 
 def _parallel_edges(edge: 'Edge', space: 'Space',
-                    depth: float, min_length: float = 60.0) -> ['Edge']:
+                    depth: float, min_length: float = 20.0) -> ['Edge']:
     """
     Returns up to three parallel close edges of minimum line length
           left
@@ -613,7 +613,7 @@ def _parallel_edges(edge: 'Edge', space: 'Space',
 
 
 def _parallel(edge: 'Edge', space: 'Space',
-              dist: float, min_length: float = 60) -> Optional['Edge']:
+              dist: float, min_length: float = 20) -> Optional['Edge']:
     """
     Returns an edge parallel to the left at a distance smaller than the specified dist
     and a line length superior at the min_length specified
