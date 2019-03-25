@@ -35,7 +35,7 @@ from libs.utils.geometry import (
     truncate,
     distance
 )
-from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save, DO_PLOT
+from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
 # MODULE CONSTANTS
 
@@ -1816,8 +1816,6 @@ class Edge(MeshComponent):
         :param save:
         :return:
         """
-        if not DO_PLOT:
-            return
         x_coords, y_coords = zip(*(self.start.coords, self.end.coords))
         return plot_edge(x_coords, y_coords, ax, color=color, save=save)
 
@@ -1829,8 +1827,6 @@ class Edge(MeshComponent):
         :param save: whether to save the plot
         :return:
         """
-        if not DO_PLOT:
-            return
         arrow = make_arrow(self.start.coords, self.vector, self.normal)
         x_coords, y_coords = zip(*arrow.coords)
         return plot_edge(x_coords, y_coords, ax, color=color, save=save)
@@ -1842,8 +1838,6 @@ class Edge(MeshComponent):
         :param color:
         :return:
         """
-        if not DO_PLOT:
-            return
         start_point = barycenter(self.start.coords, self.end.coords, 0.5)
         arrow = self.normal
         # noinspection PyCompatibility
@@ -2732,8 +2726,6 @@ class Face(MeshComponent):
         Plots the face
         :return:
         """
-        if not DO_PLOT:
-            return
         x, y = self.as_sp.exterior.xy
         return plot_polygon(ax, x, y, options, color, save)
 
@@ -3467,9 +3459,6 @@ class Mesh:
         :param show: whether to show as matlplotlib window
         :return: ax
         """
-        if DO_PLOT:
-            return
-
         for face in self.faces:
             color = random_color()
             ax = face.plot(ax, options, color, False)
