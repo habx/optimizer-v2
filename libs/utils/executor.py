@@ -24,7 +24,7 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str: float]):
+                 elapsed_times: Dict[str, float]):
         self.solutions: List[dict] = solutions
         self.elapsed_times = elapsed_times
 

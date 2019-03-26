@@ -77,7 +77,7 @@ def _cli():
     response = executor.run(lot, setup)
 
     meta = {
-        "elapsed_time": response.elapsed_time
+        "times": response.elapsed_times
     }
 
     with open(os.path.join(output_dir, "meta.json"), 'w') as meta_fp:
