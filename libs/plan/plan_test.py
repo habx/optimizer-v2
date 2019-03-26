@@ -983,4 +983,4 @@ def test_perimeter_without_duct(l_plan):
     face_perimeter = [(0, 100), (100, 200), (100, 200), (0, 200)]
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["duct"])
     print(plan)
-    assert plan.empty_space.perimeter == (2000.0 - 100)
+    assert plan.empty_space.perimeter_without_duct == (2000.0 - 100)
