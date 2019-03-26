@@ -4,7 +4,7 @@ module used to run optimizer
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 import time
 import os
 import json
@@ -23,9 +23,11 @@ class Response:
     Response of an optimizer run. Contains solutions and all run data.
     """
 
-    def __init__(self, solutions: List[dict], elapsed_time: float):
+    def __init__(self,
+                 solutions: List[dict],
+                 elapsed_times: Dict[str: float]):
         self.solutions: List[dict] = solutions
-        self.elapsed_time: float = elapsed_time
+        self.elapsed_times = elapsed_times
 
     @property
     def as_dict(self) -> dict:
@@ -111,24 +113,29 @@ class Executor:
         :param setup: setup data
         :return: optimizer response
         """
-        # time
-        t0 = time.time()
+        # times
+        elapsed_times = {}
+        t0_all = time.process_time()
 
         # reading lot
         logging.info("Read lot")
+        t0_reader = time.process_time()
         assert "v2" in lot.keys(), "lot must contain v2 data"
         plan = reader.create_plan_from_v2_data(lot["v2"])
+        elapsed_times["reader"] = time.process_time() - t0_reader
 
         # grid
         logging.info("Grid")
+        t0_grid = time.process_time()
         GRIDS[self.grid_type].apply_to(plan, show=self.do_plot)
+        elapsed_times["grid"] = time.process_time() - t0_grid
 
         # seeder
         logging.info("Seeder")
+        t0_seeder = time.process_time()
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         if self.do_plot:
             plan.plot()
-
         (seeder.plant()
          .grow(show=self.do_plot)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
@@ -136,35 +143,46 @@ class Executor:
          .merge_small_cells(min_cell_area=1 * SQM,
                             excluded_components=["loadBearingWall"],
                             show=self.do_plot))
-
         if self.do_plot:
             plan.plot()
+        elapsed_times["seeder"] = time.process_time() - t0_seeder
 
         # reading setup
         logging.info("Read setup")
+        t0_setup = time.process_time()
         spec = reader.create_specification_from_data(setup)
         logging.debug(spec)
         spec.plan = plan
         spec.plan.remove_null_spaces()
+        elapsed_times["setup"] = time.process_time() - t0_setup
 
         # space planner
+        t0_space_planner = time.process_time()
         logging.info("Space planner")
         space_planner = SpacePlanner("test", spec)
         best_solutions = space_planner.solution_research(show=False)
         logging.debug(best_solutions)
+        elapsed_times["space planner"] = time.process_time() - t0_space_planner
 
         # shuffle
+        t0_shuffle = time.process_time()
+        logging.info("Shuffle")
         if best_solutions:
             for sol in best_solutions:
                 SHUFFLES[self.shuffle_type].run(sol.plan, show=self.do_plot)
                 if self.do_plot:
                     sol.plan.plot()
+        elapsed_times["shuffle"] = time.process_time() - t0_shuffle
 
         # output
+        t0_output = time.process_time()
         logging.info("Output")
         solutions = [generate_output_dict(lot["v2"], sol) for sol in best_solutions]
-        elapsed_time = time.time() - t0
-        return Response(solutions, elapsed_time)
+        elapsed_times["output"] = time.process_time() - t0_output
+
+        elapsed_times["all"] = time.process_time() - t0_all
+
+        return Response(solutions, elapsed_times)
 
 
 if __name__ == '__main__':
@@ -176,7 +194,7 @@ if __name__ == '__main__':
         executor = Executor()
         executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
         response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
-        logging.info("Time: %i", int(response.elapsed_time))
+        logging.info("Time: %i", int(response.elapsed_times["all"]))
         logging.info("Nb solutions: %i", len(response.solutions))
 
 
