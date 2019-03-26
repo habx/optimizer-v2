@@ -69,7 +69,12 @@ def _cli():
 
     logging.info('Running (%s, %s) --> %s', lot_path, setup_path, output_dir)
 
-    response = executor.run_from_file_paths(lot_path, setup_path)
+    with open(lot_path, 'r') as lot_fp:
+        lot = json.load(lot_fp)
+    with open(setup_path, 'r') as setup_fp:
+        setup = json.load(setup_fp)
+
+    response = executor.run(lot, setup)
 
     meta = {
         "elapsed_time": response.elapsed_time

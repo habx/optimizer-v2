@@ -94,23 +94,24 @@ class Executor:
         self.setup_name = os.path.splitext(setup_file_name)[0]
         return self.run(lot, setup)
 
-    def run_from_file_paths(self, lot_file_path, setup_file_path) -> Response:
-        """
-        Run Optimizer from file paths.
-        :return: optimizer response
-        """
-        # OPT-72: Please note we're using the CLI to run tests from ANYWHERE, not just from here.
-        # As such, using this helper is only adding confusion here. If we want to use this code
-        # for tests, we are probably better of using run_from_file_names
+    # OPT-72: Actually the whole function doesn't solve any correctly architectured use-case
+    # def run_from_file_paths(self, lot_file_path, setup_file_path) -> Response:
+    #     """
+    #     Run Optimizer from file paths.
+    #     :return: optimizer response
+    #     """
+    #     # OPT-72: Please note we're using the CLI to run tests from ANYWHERE, not just from here.
+    #     # As such, using this helper is only adding confusion here. If we want to use this code
+    #     # for tests, we are probably better of using run_from_file_names
 
-        # lot = reader.get_json_from_file(lot_file_path, "")
-        # setup = reader.get_json_from_file(setup_file_path, "")
-        with open(lot_file_path, 'r') as lot_fp:
-            lot = json.load(lot_fp)
-        with open(setup_file_path, 'r') as setup_fp:
-            setup = json.load(setup_fp)
-        self.setup_name = os.path.splitext(os.path.basename(setup_file_path))[0]
-        return self.run(lot, setup)
+    #     # lot = reader.get_json_from_file(lot_file_path, "")
+    #     # setup = reader.get_json_from_file(setup_file_path, "")
+    #     with open(lot_file_path, 'r') as lot_fp:
+    #         lot = json.load(lot_fp)
+    #     with open(setup_file_path, 'r') as setup_fp:
+    #         setup = json.load(setup_fp)
+    #     self.setup_name = os.path.splitext(os.path.basename(setup_file_path))[0]
+    #     return self.run(lot, setup)
 
     def run(self, lot: dict, setup: dict) -> Response:
         """
