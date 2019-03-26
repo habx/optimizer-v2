@@ -176,7 +176,7 @@ class ConstraintsManager:
                     if (component.category.name == "window"
                             or component.category.name == "doorWindow"):
                         length += (self.solver.positions[item.id, j]
-                                   * int(component.length / 10))
+                                   * int(component.length))
             self.windows_length[str(item.id)] = length
 
     def _init_spaces_distance(self) -> None:
@@ -355,6 +355,8 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        # min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -542,20 +544,21 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
 def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
     """
-    Windows length constraint
+    Windows length constraint : margin of 10 cm
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
     """
+    margin = 20
     ct = None
     for j_item in manager.sp.spec.items:
         if j_item.category.name in WINDOW_ROOMS and item.required_area < j_item.required_area:
             if ct is None:
                 ct = (manager.windows_length[str(item.id)] <=
-                      manager.windows_length[str(j_item.id)])
+                      manager.windows_length[str(j_item.id)] + margin)
             else:
                 new_ct = (manager.windows_length[str(item.id)] <=
-                          manager.windows_length[str(j_item.id)])
+                          manager.windows_length[str(j_item.id)] + margin)
                 ct = manager.solver.solver.Min(ct, new_ct)
     if ct is None:
         return ct
