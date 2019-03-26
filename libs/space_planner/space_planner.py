@@ -186,8 +186,9 @@ class SpacePlanner:
                 dict_items_space[item] = space_ini
             else:
                 dict_items_space[item] = item_space[0]
-
-        assert plan.check()
+        # OPT-72: If we really want to enable it, it should be done through some execution context
+        # parameters.
+        # assert plan.check()
 
         return plan, dict_items_space
 
