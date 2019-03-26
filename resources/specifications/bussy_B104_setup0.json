@@ -5,7 +5,7 @@
       "opensOn": [],
       "requiredArea": {
         "max": 60000,
-        "min": 25000.0
+        "min": 25000
       },
       "tags": [],
       "type": "entrance",
@@ -13,9 +13,11 @@
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": [
+        "kitchen"
+      ],
       "requiredArea": {
-        "max": 225000.0,
+        "max": 225000,
         "min": 200000
       },
       "tags": [],
@@ -24,7 +26,9 @@
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": [
+        "living"
+      ],
       "requiredArea": {
         "max": 120000,
         "min": 80000
@@ -37,28 +41,6 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "office",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "office",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
         "max": 150000,
         "min": 120000
       },
@@ -70,37 +52,22 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
+        "max": 100000,
+        "min": 80000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
         "max": 150000,
         "min": 120000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 85000.0,
-        "min": 60000
-      },
-      "tags": [
-        "wc"
-      ],
-      "type": "bathroom",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 85000.0,
-        "min": 60000
-      },
-      "tags": [
-        "wc"
-      ],
-      "type": "bathroom",
       "variant": "m"
     },
     {
@@ -110,9 +77,11 @@
         "max": 40000,
         "min": 20000
       },
-      "tags": [],
-      "type": "laundry",
-      "variant": "s"
+      "tags": [
+        "wc"
+      ],
+      "type": "bathroom",
+      "variant": "xs"
     }
   ]
 }
