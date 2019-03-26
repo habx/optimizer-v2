@@ -50,7 +50,9 @@ class Executor:
     def __init__(self):
         self.grid_type: Optional[str] = None
         self.shuffle_type: Optional[str] = None
-        self.setup_name: Optional[str] = None
+        # OPT-72: Setup name is not pat of the execution context, it should be handled on a
+        # per-plan basis, and most probably directly in the input data.
+        # self.setup_name: Optional[str] = None
         self.do_plot: Optional[bool] = None
         # NOTE: a seeder_name should be chosen too
         self.reset_to_default()
@@ -58,13 +60,13 @@ class Executor:
     def reset_to_default(self):
         self.grid_type = "optimal_grid"
         self.shuffle_type = "square_shape_shuffle_rooms"
-        self.setup_name = "unnamed"
+        # self.setup_name = "unnamed"
         self.do_plot = False
 
     def set_execution_parameters(self,
                                  grid_type: Optional[str] = None,
                                  shuffle_type: Optional[str] = None,
-                                 setup_name: Optional[str] = None,
+                                 # setup_name: Optional[str] = None,
                                  do_plot: Optional[bool] = None) -> None:
         """
         Change parameters of executor. If one is not specified (None), default value is used.
@@ -73,8 +75,8 @@ class Executor:
             self.grid_type = grid_type
         if shuffle_type is not None:
             self.shuffle_type = shuffle_type
-        if setup_name is not None:
-            self.setup_name = setup_name
+        # if setup_name is not None:
+        #    self.setup_name = setup_name
         if do_plot is not None:
             self.do_plot = do_plot
 
@@ -91,7 +93,7 @@ class Executor:
                                         reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
-        self.setup_name = os.path.splitext(setup_file_name)[0]
+        # self.setup_name = os.path.splitext(setup_file_name)[0]
         return self.run(lot, setup)
 
     # OPT-72: Actually the whole function doesn't solve any correctly architectured use-case
