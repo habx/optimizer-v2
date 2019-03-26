@@ -3462,7 +3462,7 @@ class Mesh:
                           faces_area, mesh_area)
             is_valid = False
 
-        logging.info('Mesh: Checking Mesh: ' + ('✅OK' if is_valid else '❌KO'))
+        logging.info('Mesh: Checking Mesh: ' + ('✅ OK' if is_valid else '❌ KO'))
         return is_valid
 
     def plot(self,
