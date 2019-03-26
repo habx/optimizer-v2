@@ -113,7 +113,7 @@ class Grid:
             return
 
         if not plot:
-            self._plot = Plot()
+            self._plot = Plot(plan)
             plt.ion()
             self._plot.draw(plan)
             plt.show()
@@ -358,7 +358,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("saint-maur-faculte_A001.json")
+        plan = reader.create_plan_from_file("Levallois_A2-601.json")
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
