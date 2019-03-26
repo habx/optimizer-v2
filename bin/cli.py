@@ -35,7 +35,7 @@ def _exists_path(parser, path, file=None):
 
 def _cli():
     # arg parser
-    parser = argparse.ArgumentParser(description="Optimizer V2")
+    parser = argparse.ArgumentParser(description="Optimizer V2 CLI")
     parser.add_argument("-l", dest="lot", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input lot file path")
@@ -87,6 +87,7 @@ def _cli():
         solution_path = os.path.join(output_dir, "solution_%d.json" % i)
         with open(solution_path, 'w') as solution_fp:
             json.dump(solution, solution_fp, indent=2, sort_keys=True)
+
 
 # I don't think it makes any sense here: https://stackoverflow.com/a/419185
 if __name__ == "__main__":
