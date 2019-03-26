@@ -6,7 +6,6 @@ module used to run optimizer
 import logging
 from typing import List, Optional
 import time
-import os
 import json
 
 from libs.io import reader
