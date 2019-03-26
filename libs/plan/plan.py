@@ -2644,9 +2644,9 @@ class Plan:
                         is_valid = False
 
         if is_valid:
-            logging.info('Plan: Checking plan: ' + '✅ OK')
+            logging.info('Plan: Checking Plan: ' + '✅ OK')
         else:
-            logging.info('Plan: Checking plan: ' + '🔴 NOT OK')
+            logging.info('Plan: Checking Plan: ' + '🔴 NOT OK')
 
         return is_valid
 
