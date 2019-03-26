@@ -351,11 +351,10 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
 
     elif min_max == "min":
-        # if item.variant in ["xs", "s"] or item.category.name in ["entrance"]:
-        #     min_area = round(item.min_size.area)
-        # else:
-        #     min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
-        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        if item.variant in ["xs", "s"]:
+            min_area = round(item.min_size.area)
+        else:
+            min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -685,6 +684,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
             adjacency_sum += manager.solver.solver.Sum(
                 manager.solver.solver.Sum(
                     int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
+                    int(k_space.floor.level == j_space.floor.level) *
                     manager.solver.positions[item.id, j] *
                     (manager.solver.solver.Sum(manager.solver.positions[x_item.id, k] for x_item in
                                                manager.sp.spec.items) == 0) for
@@ -696,6 +696,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                     adjacency_sum += manager.solver.solver.Sum(
                         manager.solver.solver.Sum(
                             int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
+                            int(k_space.floor.level == j_space.floor.level) *
                             manager.solver.positions[item.id, j] *
                             manager.solver.positions[num, k] for
                             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))

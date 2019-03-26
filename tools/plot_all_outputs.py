@@ -50,22 +50,20 @@ def endHTML(repo, module):
 
 if __name__ == '__main__':
 
-    from output import DEFAULT_PLOTS_OUTPUT_FOLDER
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--module", help="choose launched module",
                         default="grid")
     args = parser.parse_args()
     module = args.module
 
-    repo = os.path.join(DEFAULT_PLOTS_OUTPUT_FOLDER, module)
+    repo = os.path.join("../output/plots/", module)
     print("REPO IS", repo)
     startHTML(repo, module)
 
     # file renaming
     x = next(os.walk(repo))[2]
     for current_x in x:
-        init_name = repo + current_x
+        init_name = repo + "/" + current_x
         fin_name = init_name.replace(" ", "")
         shutil.move(init_name, init_name.replace(" ", ""))
 

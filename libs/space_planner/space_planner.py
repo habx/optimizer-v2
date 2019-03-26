@@ -290,7 +290,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -305,8 +305,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "grenoble_101.json"
+        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "grenoble_121.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -358,6 +358,8 @@ if __name__ == '__main__':
         # Output
         for sol in best_solutions:
             sol.plan.plot()
+            for space in sol.plan.spaces:
+                print(space.category.name, space.area, )
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
