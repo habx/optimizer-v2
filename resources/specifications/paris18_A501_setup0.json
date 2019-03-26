@@ -5,7 +5,7 @@
       "opensOn": [],
       "requiredArea": {
         "max": 60000,
-        "min": 25000.0
+        "min": 25000
       },
       "tags": [],
       "type": "entrance",
@@ -15,7 +15,7 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 225000.0,
+        "max": 225000,
         "min": 200000
       },
       "tags": [],
@@ -37,23 +37,23 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 150000,
+        "min": 120000
       },
       "tags": [],
-      "type": "office",
-      "variant": "s"
+      "type": "bedroom",
+      "variant": "m"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 150000,
+        "min": 120000
       },
       "tags": [],
-      "type": "office",
-      "variant": "s"
+      "type": "bedroom",
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -81,38 +81,45 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 85000.0,
-        "min": 60000
-      },
-      "tags": [
-        "wc"
-      ],
-      "type": "bathroom",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 85000.0,
-        "min": 60000
-      },
-      "tags": [
-        "wc"
-      ],
-      "type": "bathroom",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 40000,
-        "min": 20000
+        "max": 20000,
+        "min": 10000
       },
       "tags": [],
-      "type": "laundry",
+      "type": "wc",
       "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000,
+        "min": 60000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 20000,
+        "min": 10000
+      },
+      "tags": [],
+      "type": "wc",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000,
+        "min": 60000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "m"
     }
   ]
 }
