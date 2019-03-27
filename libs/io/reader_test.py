@@ -52,7 +52,22 @@ BLUEPRINT_INPUT_FILES = [
     "saint-maur-raspail_H05.json",
     "saint-maur-raspail_H06.json",
     "saint-maur-raspail_H07.json",
-    "saint-maur-raspail_H08.json"
+    "saint-maur-raspail_H08.json",
+    "antony_A33.json",
+    "antony_B14.json",
+    "antony_B22.json",
+    "bagneux_A124.json",
+    "bagneux_B232.json",
+    "bussy_B002.json",
+    "bussy_B104.json",
+    "edison_10.json",
+    "edison_20.json",
+    "florent.json",
+    "nantes-unile_B701.json",
+    "paris18_A402.json",
+    "paris18_A501.json",
+    "sartrouville_R1.json",
+    "vernouillet_A002.json"
 ]
 
 SPECIFICATION_INPUT_FILES = [
@@ -99,7 +114,22 @@ SPECIFICATION_INPUT_FILES = [
     "saint-maur-raspail_H05_setup0.json",
     "saint-maur-raspail_H06_setup0.json",
     "saint-maur-raspail_H07_setup0.json",
-    "saint-maur-raspail_H08_setup0.json"
+    "saint-maur-raspail_H08_setup0.json",
+    "antony_A33_setup0.json",
+    "antony_B14_setup0.json",
+    "antony_B22_setup0.json",
+    "bagneux_A124_setup0.json",
+    "bagneux_B232_setup0.json",
+    "bussy_B002_setup0.json",
+    "bussy_B104_setup0.json",
+    "edison_10_setup0.json",
+    "edison_20_setup0.json",
+    "florent_setup0.json",
+    "nantes-unile_B701_setup0.json",
+    "paris18_A402_setup0.json",
+    "paris18_A501_setup0.json",
+    "sartrouville_R1_setup0.json",
+    "vernouillet_A002_setup0.json"
 ]
 
 
