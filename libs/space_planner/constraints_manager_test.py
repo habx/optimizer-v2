@@ -9,7 +9,7 @@ from libs.space_planner.space_planner import SpacePlanner
 from libs.specification.specification import Specification, Item, Size
 
 
-def t1_test():
+def test_t1():
     """
     Test
     Tested : inside_adjacency_constraint / area_constraint / components_adjacency_constraint /
@@ -46,7 +46,7 @@ def t1_test():
     assert len(space_planner_t1.solutions_collector.solutions) == 1
 
 
-def t1_bis_test():
+def test_t1_bis():
     """
     Test
     tested : opens_on_constraint
@@ -84,7 +84,7 @@ def t1_bis_test():
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1
 
 
-def t3_test():
+def test_t3():
     """
     Test
     :return:
@@ -125,7 +125,7 @@ def t3_test():
     assert len(space_planner_t3.solutions_collector.solutions) == 3
 
 
-def t3_balcony_test():
+def test_t3_balcony():
     """
     Test
     Tested : externals spaces
@@ -171,7 +171,7 @@ def t3_balcony_test():
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
 
-def t3_bis_test():
+def test_t3_bis():
     """
     Test
     Tested : symmetry_breaker / windows_constraint

@@ -598,19 +598,23 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
 
 
 def symmetry_breaker_constraint(manager: 'ConstraintsManager',
-                                item: Item) -> ortools.Constraint:
+                                item: Item, categories_name : [str]) -> ortools.Constraint:
     """
     Symmetry Breaker constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
+    :param categories_name
     :return: ct: ortools.Constraint
     """
     ct = None
+    print(categories_name)
     item_sym_id = str(item.category.name + item.variant)
     if item_sym_id in manager.symmetry_breaker_memo.keys():
         for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                if k < j:
+                if k < j and (categories_name == [] or
+                              (sum(int(cat in categories_name) for cat in j_space.components_category_associated()) > 0
+                               and sum(int(cat in categories_name) for cat in k_space.components_category_associated()))):
                     if ct is None:
                         ct = (manager.solver.positions[
                                   manager.symmetry_breaker_memo[item_sym_id], j] *
@@ -820,7 +824,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
     ],
     "bathroom": [
         [area_constraint, {"min_max": "min"}],
@@ -829,7 +833,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
     ],
     "living": [
         [area_constraint, {"min_max": "min"}],
@@ -871,7 +875,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}]
     ],
     "office": [
         [area_constraint, {"min_max": "min"}],
@@ -879,7 +883,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}]
     ],
     "dressing": [
         [area_constraint, {"min_max": "min"}],
@@ -888,7 +892,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": []}]
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
@@ -898,7 +902,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
     ]
 }
 
