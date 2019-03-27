@@ -306,8 +306,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        # input_file = "antony_A33.json"
+        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -329,15 +329,8 @@ if __name__ == '__main__':
                 for face in space.faces:
                     new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
                     new_space_list.append(new_space)
-        for space in plan.spaces:
-            if space.category.name == "empty":
-                plan.remove(space)
-        print(plan)
-        # for new_space in new_space_list:
-        #     plan.insert_space_from_boundary(new_space.edge.face.coords,
-        #                                     SPACE_CATEGORIES["seed"], new_space.floor)
         plan.remove_null_spaces()
-
+        print(plan)
 
         # seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         # (seeder.plant()
