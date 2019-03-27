@@ -345,8 +345,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-        # max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-        max_area = round(item.max_size.area)
+        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
@@ -357,7 +356,6 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         # min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
-        min_area = round(item.min_size.area)
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
