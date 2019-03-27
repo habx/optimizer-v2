@@ -282,7 +282,9 @@ corner_grid = Grid("corner", [
 
 load_bearing_wall_grid = Grid("load_bearing_wall", [
     (SELECTORS["adjacent_to_load_bearing_wall"],
-     MUTATION_FACTORIES["barycenter_cut"](0), True)
+     MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["adjacent_to_load_bearing_wall"],
+     MUTATION_FACTORIES["barycenter_cut"](1), True)
 ])
 
 window_grid = Grid("window", [
@@ -331,9 +333,10 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
     (SELECTOR_FACTORIES["tight_lines"]([60]), MUTATIONS["remove_line"], False),
     # (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
+    # (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
 
 
@@ -358,7 +361,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Levallois_A2-601.json")
+        plan = reader.create_plan_from_file("saint-maur-faculte_A104.json")
+        plan.check()
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)

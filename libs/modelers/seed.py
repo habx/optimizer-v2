@@ -813,6 +813,7 @@ ELEMENT_SEED_CATEGORIES = {
 
 GROWTH_METHODS = {
     "default": classic_seed_category,
+    "startingStep": ELEMENT_SEED_CATEGORIES["startingStep"],
     "duct": ELEMENT_SEED_CATEGORIES['duct'],
     "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
     "window": ELEMENT_SEED_CATEGORIES['window'],
@@ -962,7 +963,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        plan = reader.create_plan_from_file("meurice_X.R0.05.json")
+        plan = reader.create_plan_from_file("meurice_LT04.json")
         GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
@@ -970,8 +971,11 @@ if __name__ == '__main__':
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         )
 
-        plan.plot()
+        plan.plot(show=True)
+        plt.show()
+        plan.check()
 
     failed_plan()
