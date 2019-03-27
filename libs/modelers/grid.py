@@ -335,8 +335,8 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
     (SELECTOR_FACTORIES["tight_lines"]([60]), MUTATIONS["remove_line"], False),
-    # (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
-    # (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
+    (SELECTORS["h_edge"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["face_min_area"], MUTATIONS["remove_edge"], False)
 ])
 
 
@@ -347,7 +347,7 @@ GRIDS = {
     "finer_ortho_grid": finer_ortho_grid,
     "rectangle_grid": rectangle_grid,
     "duct": duct_grid,
-    "optimal_grid": (section_grid + corner_grid + duct_grid + load_bearing_wall_grid + window_grid +
+    "optimal_grid": (section_grid + duct_grid + corner_grid + load_bearing_wall_grid + window_grid +
                      entrance_grid + stair_grid + completion_grid + cleanup_grid),
     "test_grid_temp": section_grid
 }
@@ -361,7 +361,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Levallois_A2-601.json")
+        plan = reader.create_plan_from_file("Levallois_A3-006.json")
         plan.check()
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
