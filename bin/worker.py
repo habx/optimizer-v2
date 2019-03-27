@@ -205,7 +205,7 @@ class MessageProcessor:
                 error_result = {
                     'type': 'optimizer-processing-result',
                     'data': {
-                        'request_id': msg.content.get('requestId'),
+                        'requestId': msg.content.get('requestId'),
                         'status': 'error',
                         'error': repr(exc),
                     },
