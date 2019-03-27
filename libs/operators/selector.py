@@ -145,12 +145,23 @@ def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edge reference face
+    Returns the edge reference of the space
     :param space:
     :return:
     """
     if space.edge:
         yield space.edge
+
+
+def boundary_faces_smallest(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the smallest edge of each face
+    :param space:
+    :return:
+    """
+    for face in space.faces:
+        if face.edge:
+            yield min((e for e in face.edges if space.has_edge(e.pair)), key=lambda e: e.length)
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -1385,6 +1396,20 @@ def face_without_component() -> Predicate:
     return _predicate
 
 
+def face_area(min_area: float) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if the edge face area is superior to a specified minimum
+    """
+
+    def _predicate(edge: 'Edge', _: 'Space') -> bool:
+        if not edge.face:
+            return False
+        return edge.face.area <= min_area
+
+    return _predicate
+
+
 # Catalog Selectors
 
 SELECTORS = {
@@ -1793,6 +1818,7 @@ SELECTORS = {
         ]
     ),
 
+    "face_min_area": Selector(boundary_faces_smallest, [face_area(1000)])
 }
 
 SELECTOR_FACTORIES = {
