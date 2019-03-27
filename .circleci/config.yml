@@ -112,7 +112,20 @@ workflows:
                 - dev
                 - OPT-73-worker-optimizer-v2
 
-      - deploy-to-kubernetes:
+      - deploy-to-kubernetes-standard-worker:
+          context: default_env_vars
+          requires:
+          - build-container
+          - tests
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only:
+                - dev
+                - OPT-73-worker-optimizer-v2
+
+      - deploy-to-kubernetes-standard-worker-low-priority:
           context: default_env_vars
           requires:
           - build-container
