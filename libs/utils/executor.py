@@ -79,7 +79,7 @@ class Executor:
 
         return self.run(lot, setup, params)
 
-    def run(self, lot: dict, setup: dict, params_dict: dict) -> Response:
+    def run(self, lot: dict, setup: dict, params_dict: dict = None) -> Response:
         """
         Run Optimizer
         :param lot: lot data

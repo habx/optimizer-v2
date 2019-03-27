@@ -236,7 +236,7 @@ class MessageProcessor:
         context = data['context']
 
         # Processing it
-        executor_result = self.executor.run(lot, setup)
+        executor_result = self.executor.run(lot, setup, params)
         result = {
             'type': 'optimizer-processing-result',
             'requestId': request_id,
@@ -268,8 +268,11 @@ def _send_message(args, exchanger: Exchanger):
         lot = json.load(lot_fp)
     with open(args.setup) as setup_fp:
         setup = json.load(setup_fp)
-    with open(args.params) as params_fp:
-        params = json.load(params_fp)
+    if args.params:
+        with open(args.params) as params_fp:
+            params = json.load(params_fp)
+    else:
+        params = {}
 
     # Preparing a request
     request = {
