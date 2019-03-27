@@ -232,6 +232,8 @@ class MessageProcessor:
         data = msg.content['data']
         lot = data['lot']
         setup = data['setup']
+        params = data['params']
+        context = data['context']
 
         # Processing it
         executor_result = self.executor.run(lot, setup)
@@ -242,6 +244,10 @@ class MessageProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'version': Executor.VERSION,
+                'lot': lot,
+                'setup': setup,
+                'params': params,
+                'context': context,
             }
         }
         return result
