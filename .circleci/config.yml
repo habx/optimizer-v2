@@ -33,7 +33,7 @@ jobs:
     steps:
       - attach_workspace:
           at: /home/circleci/
-      - run: source .venv/bin/activate ./run_tests.sh
+      - run: source .venv/bin/activate && ./run_tests.sh
 
   build-container:
     docker:
