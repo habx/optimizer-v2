@@ -25,7 +25,7 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float]):
-        self.solutions: List[dict] = solutions
+        self.solutions = solutions
         self.elapsed_times = elapsed_times
 
     @property
@@ -104,22 +104,26 @@ class Executor:
         :param setup: setup data
         :return: optimizer response
         """
+        assert "v2" in lot.keys(), "lot must contain v2 data"
+
         # times
         elapsed_times = {}
-        t0_all = time.process_time()
+        t0_total = time.process_time()
+        t0_total_real = time.time()
 
         # reading lot
         logging.info("Read lot")
         t0_reader = time.process_time()
-        assert "v2" in lot.keys(), "lot must contain v2 data"
         plan = reader.create_plan_from_v2_data(lot["v2"])
         elapsed_times["reader"] = time.process_time() - t0_reader
+        logging.info("Lot read in %f", elapsed_times["reader"])
 
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
         GRIDS[self.grid_type].apply_to(plan, show=self.do_plot)
         elapsed_times["grid"] = time.process_time() - t0_grid
+        logging.info("Grid achieved in %f", elapsed_times["grid"])
 
         # seeder
         logging.info("Seeder")
@@ -137,6 +141,7 @@ class Executor:
         if self.do_plot:
             plan.plot()
         elapsed_times["seeder"] = time.process_time() - t0_seeder
+        logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
         # reading setup
         logging.info("Read setup")
@@ -146,6 +151,7 @@ class Executor:
         spec.plan = plan
         spec.plan.remove_null_spaces()
         elapsed_times["setup"] = time.process_time() - t0_setup
+        logging.info("Setup read in %f", elapsed_times["setup"])
 
         # space planner
         t0_space_planner = time.process_time()
@@ -154,6 +160,7 @@ class Executor:
         best_solutions = space_planner.solution_research(show=False)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
+        logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
         # shuffle
         t0_shuffle = time.process_time()
@@ -164,14 +171,20 @@ class Executor:
                 if self.do_plot:
                     sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
+        logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
 
         # output
         t0_output = time.process_time()
         logging.info("Output")
         solutions = [generate_output_dict(lot["v2"], sol) for sol in best_solutions]
         elapsed_times["output"] = time.process_time() - t0_output
+        logging.info("Output written in %f", elapsed_times["output"])
 
-        elapsed_times["all"] = time.process_time() - t0_all
+        elapsed_times["total"] = time.process_time() - t0_total
+        elapsed_times["total_real"] = time.time() - t0_total_real
+        logging.info("Run complete in %f (process time), %f (real time)",
+                     elapsed_times["total"],
+                     elapsed_times["total_real"])
 
         return Response(solutions, elapsed_times)
 
