@@ -25,7 +25,7 @@ class Config:
         topic_requests_base = self.TOPIC_REQUESTS_BASE
 
         if env_low_priority:
-            topic_requests_base += '-low-priority'
+            topic_requests_base += '-lowpriority'
 
         self.requests_topic_name = '%s-%s' % (env, topic_requests_base)
         self.requests_queue_name = '%s-%s-%s' % (env, name, topic_requests_base)
@@ -37,6 +37,7 @@ class Config:
 
 
 class Message:
+    """Message wrapper"""
     def __init__(self, content, handle):
         self.content = content
         self.handle = handle
@@ -107,17 +108,22 @@ class Exchanger:
             logging.exception("Couldn't create queue: %s", queue_name)
             raise
 
-    def start(self):
+    def start(self) -> None:
+        """Start the worker by performing some setup operations"""
+
+        # Creating the consuming (requests) queue and registering it to a topic
         self._consuming_queue_url = self._get_or_create_queue(
             self.config.requests_queue_name,
             self.config.requests_topic_name
         )
 
+        # Creating the publishing (results) topic
         self._publishing_topic_arn = self._get_or_create_topic(
             self.config.results_topic_name
         )
 
     def get_request(self):
+        """Fetch a request as a message"""
         logging.info("Waiting for a message to process...")
         sqs_response = self._sqs_client.receive_message(
             QueueUrl=self._consuming_queue_url,
@@ -129,7 +135,7 @@ class Exchanger:
         if not messages:
             logging.info("   ...no result")
             return
-        # Fetching the first SQS message
+        # Fetching the first (and sole) SQS message
         sqs_message = messages[0]
 
         # Getting the SNS content (what a message)
@@ -143,12 +149,14 @@ class Exchanger:
         return msg
 
     def acknowledge_msg(self, msg: Message):
+        """Acknowledge a message to make it disappear from the processing queue"""
         self._sqs_client.delete_message(
             QueueUrl=self._consuming_queue_url,
             ReceiptHandle=msg.handle,
         )
 
-    def send_result(self, result):
+    def send_result(self, result: dict):
+        """Send a result"""
         j = json.dumps(result)
         logging.info("Sending the processing result: %s", j)
         self._sns_client.publish(
@@ -179,9 +187,11 @@ class MessageProcessor:
         self.executor = Executor()
 
     def start(self):
+        """Start the message processor"""
         self.exchanger.start()
 
     def run(self):
+        """Make it run. Once called it never stops."""
         while True:
             msg = self.exchanger.get_request()
             if not msg:
@@ -219,18 +229,22 @@ class MessageProcessor:
             'data': {
                 'status': 'ok',
                 'solutions': executor_result.solutions,
+                'version': Executor.VERSION,
             }
         }
         return result
 
 
 def _process_messages(exchanger: Exchanger):
+    """Core processing message method"""
+    logging.info("Optimizer V2 v"+Executor.VERSION)
     processing = MessageProcessor(exchanger)
     processing.start()
     processing.run()
 
 
 def _send_message(args, exchanger: Exchanger):
+    """Core sending message function"""
     # Reading the input files
     with open(args.lot) as lot_fp:
         lot = json.load(lot_fp)
@@ -252,6 +266,7 @@ def _send_message(args, exchanger: Exchanger):
 
 
 def _cli():
+    """CLI orchestrating function"""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s",
@@ -260,10 +275,11 @@ def _cli():
     config = Config()
     exchanger = Exchanger(config)
 
-    parser = argparse.ArgumentParser(description="Optimizer V2 Worker")
+    parser = argparse.ArgumentParser(description="Optimizer V2 Worker v"+Executor.VERSION)
     parser.add_argument("-l", dest="lot", metavar="FILE", help="Lot input file")
     parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
     args = parser.parse_args()
+
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:

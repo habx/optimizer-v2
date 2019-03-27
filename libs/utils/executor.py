@@ -15,6 +15,7 @@ from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.operators.selector import SELECTORS
 from libs.modelers.shuffle import SHUFFLES
 from libs.space_planner.space_planner import SpacePlanner, SQM
+from libs.version import VERSION as OPTIMIZER_VERSION
 
 
 class Response:
@@ -46,6 +47,9 @@ class Executor:
     Class used to run Optimizer with defined parameters.
     """
 
+    VERSION = OPTIMIZER_VERSION
+    """Current version"""
+
     def __init__(self):
         self.grid_type: Optional[str] = None
         self.shuffle_type: Optional[str] = None
@@ -57,6 +61,7 @@ class Executor:
         self.reset_to_default()
 
     def reset_to_default(self):
+        """Reset all execution parameters to their default values"""
         self.grid_type = "optimal_grid"
         self.shuffle_type = "square_shape_shuffle_rooms"
         # self.setup_name = "unnamed"
