@@ -63,7 +63,7 @@
         "min": 120000
       },
       "tags": [],
-      "type": "office",
+      "type": "bedroom",
       "variant": "m"
     },
     {
@@ -96,7 +96,7 @@
         "min": 60000
       },
       "tags": [],
-      "type": "laundry",
+      "type": "bathroom",
       "variant": "m"
     }
   ]
