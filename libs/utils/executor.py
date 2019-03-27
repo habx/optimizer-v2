@@ -198,7 +198,7 @@ if __name__ == '__main__':
         executor = Executor()
         executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
         response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
-        logging.info("Time: %i", int(response.elapsed_times["all"]))
+        logging.info("Time: %i", int(response.elapsed_times["total"]))
         logging.info("Nb solutions: %i", len(response.solutions))
 
 
