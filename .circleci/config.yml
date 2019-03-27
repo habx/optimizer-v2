@@ -13,6 +13,7 @@ jobs:
             - v2-dependencies-{{ .Branch }}-
             - v2-dependencies-
 #      - run: ./run_tests.sh
+      - run: pwd && ls
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
