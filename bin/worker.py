@@ -16,24 +16,36 @@ class Config:
     TOPIC_REQUESTS_BASE = 'optimizer-processing-requests'
     TOPIC_RESULTS_BASE = 'optimizer-processing-results'
 
-    def __init__(self):
+    def __init__(
+            self,
+            topic_requests_base=TOPIC_REQUESTS_BASE,
+            topic_results_base=TOPIC_RESULTS_BASE
+    ):
         name = os.getenv('WORKER_NAME', 'worker')
         env = os.getenv('HABX_ENV', 'dev')
         env_ns = os.getenv('HABX_ENV_NS')
         env_low_priority = os.getenv('LOW_PRIORITY', 'false') == 'true'
 
-        topic_requests_base = self.TOPIC_REQUESTS_BASE
-
         if env_low_priority:
             topic_requests_base += '-lowpriority'
 
-        self.requests_topic_name = '%s-%s' % (env, topic_requests_base)
-        self.requests_queue_name = '%s-%s-%s' % (env, name, topic_requests_base)
+        self.requests_topic_name = '{env}-{topic}'.format(
+            env=env,
+            topic=topic_requests_base,
+        )
+        self.requests_queue_name = '{env}-{name}-{topic}'.format(
+            env=env,
+            name=name,
+            topic=topic_requests_base,
+        )
 
         if env_ns:
             self.requests_queue_name += env_ns
 
-        self.results_topic_name = '%s-%s' % (env, self.TOPIC_RESULTS_BASE)
+        self.results_topic_name = '{env}-{topic}'.format(
+            env=env,
+            topic=topic_results_base,
+        )
 
 
 class Message:

@@ -89,6 +89,5 @@ def _cli():
             json.dump(solution, solution_fp, indent=2, sort_keys=True)
 
 
-# I don't think it makes any sense here: https://stackoverflow.com/a/419185
 if __name__ == "__main__":
     _cli()
