@@ -306,8 +306,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "saint-maur-faculte_A104.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "grenoble_122.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)

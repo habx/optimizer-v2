@@ -802,7 +802,6 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
-        [area_constraint, {"min_max": "min"}],
         [distance_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
@@ -814,6 +813,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "max"}]
     ],
     "wc": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
@@ -823,6 +823,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
@@ -831,6 +832,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "living": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -838,6 +840,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "livingKitchen": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -845,6 +848,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
@@ -852,6 +856,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["kitchen"]}]
     ],
     "kitchen": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -861,6 +866,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
@@ -868,6 +874,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "office": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
@@ -875,6 +882,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "dressing": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
@@ -883,6 +891,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "laundry": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
@@ -912,7 +921,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
     ],
     "bathroom": [
-        [item_adjacency_constraint, {"item_categories": ["bedroom"]}],
+        [item_adjacency_constraint, {"item_categories": ["bedroom"], "adj": True}],
     ],
     "living": [
         [externals_connection_constraint, {}]
