@@ -705,15 +705,6 @@ def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
 
     return False
 
-def _line_removal_will_create_big_face(line : ['Edge'], space: 'Space') -> bool:
-    """
-    Returns True if the
-    :param line:
-    :param space:
-    :return:
-    """
-    pass
-
 
 def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
     """
@@ -1319,11 +1310,11 @@ def face_proportion(max_proportion: float = 0.1) -> Predicate:
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         if not edge.face or not edge.pair.face:
             return False
-        space_area = space.plan.get_space_of_edge(edge).area
+        _space_area = space.plan.get_space_of_edge(edge).area
         face_pair_area = edge.pair.face.area
         space_pair_area = space.plan.get_space_of_edge(edge.pair).area
 
-        if (face_pair_area / space_area > max_proportion
+        if (face_pair_area / _space_area > max_proportion
                 or face_pair_area / space_pair_area > max_proportion):
             return False
         return True
@@ -1636,7 +1627,7 @@ SELECTORS = {
         boundary_unique_longest,
         [
             space_area(max_area=15000),
-            cell_with_component(has_component=False)
+            cell_with_component()
         ]
     ),
 
