@@ -29,10 +29,10 @@ jobs:
     parallelism: 2
     steps:
       - checkout
-      - sudo pip install -q --upgrade pip
-      - sudo pip install -q -r requirements.txt
       # We need to reinstall protobuf because it puts some test data on some system path 
-      - run: sudo pip install -r requirements.txt && ./run_tests.sh
+      - run: sudo pip install -q --upgrade pip
+      - run: sudo pip install -q -r requirements.txt
+      - run: ./run_tests.sh
 
   build-container:
     docker:
