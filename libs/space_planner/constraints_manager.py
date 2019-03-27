@@ -543,7 +543,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
 def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
     """
-    Windows length constraint : margin of 10 cm
+    Windows length constraint : margin
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -614,7 +614,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
             for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 if k < j and (categories_name == [] or
                               (sum(int(cat in categories_name) for cat in j_space.components_category_associated()) > 0
-                               and sum(int(cat in categories_name) for cat in k_space.components_category_associated()))):
+                               and sum(int(cat in categories_name) for cat in k_space.components_category_associated()) > 0)):
                     if ct is None:
                         ct = (manager.solver.positions[
                                   manager.symmetry_breaker_memo[item_sym_id], j] *
