@@ -962,7 +962,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        plan = reader.create_plan_from_file("Levallois_A2-601.json")
+        plan = reader.create_plan_from_file("grenoble_122.json")
         GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
