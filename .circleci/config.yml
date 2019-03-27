@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test:
+  get-requirements:
     docker:
       - image: circleci/python:3.6
     parallelism: 2
@@ -13,6 +13,8 @@ jobs:
             - v2-dependencies-{{ .Branch }}-
             - v2-dependencies-
 #      - run: ./run_tests.sh
+      - run: pip install -q --upgrade pip
+      - run: pip install -q -r requirements.txt
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
