@@ -125,7 +125,7 @@ workflows:
                 - dev
                 - OPT-73-worker-optimizer-v2
 
-      - deploy-to-kubernetes-standard-worker-low-priority:
+      - deploy-to-kubernetes-low-priority-worker:
           context: default_env_vars
           requires:
           - build-container
