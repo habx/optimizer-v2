@@ -30,7 +30,7 @@ jobs:
     parallelism: 2
     steps:
       - attach_workspace:
-          at: /root/
+          at: /home/circleci/
       - run: ./run_tests.sh
 
   build-container:
