@@ -63,7 +63,7 @@ jobs:
 
 workflows:
   version: 2
-  test:
+  get-requirements:
     jobs:
       - test
       - build-container:
