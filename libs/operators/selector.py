@@ -161,7 +161,10 @@ def boundary_faces_smallest(space: 'Space', *_) -> Generator['Edge', bool, None]
     """
     for face in space.faces:
         if face.edge:
-            yield min((e for e in face.edges if space.has_edge(e.pair)), key=lambda e: e.length)
+            output = min((e for e in face.edges if space.has_edge(e.pair)),
+                         key=lambda e: e.length, default=None)
+            if output:
+                yield output
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
