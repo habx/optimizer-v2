@@ -20,9 +20,15 @@ class Config:
         name = os.getenv('WORKER_NAME', 'worker')
         env = os.getenv('HABX_ENV', 'dev')
         env_ns = os.getenv('HABX_ENV_NS')
+        env_precaching = os.getenv('PRECACHING', 'false') == 'true'
 
-        self.requests_topic_name = '%s-%s' % (env, self.TOPIC_REQUESTS_BASE)
-        self.requests_queue_name = '%s-%s-%s' % (env, name, self.TOPIC_REQUESTS_BASE)
+        topic_requests_base = self.TOPIC_REQUESTS_BASE
+
+        if env_precaching:
+            topic_requests_base += '-lowpriority'
+
+        self.requests_topic_name = '%s-%s' % (env, topic_requests_base)
+        self.requests_queue_name = '%s-%s-%s' % (env, name, topic_requests_base)
 
         if env_ns:
             self.requests_queue_name += env_ns
