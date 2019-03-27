@@ -678,6 +678,16 @@ def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
     end_edge = line[len(line) - 1]
     start_edge = line[0]
 
+    j = len(line) - 1
+    while not space.is_internal(end_edge) and j > 0:
+        j -= 1
+        end_edge = line[j]
+
+    i = 0
+    while not space.is_internal(start_edge) and i < j:
+        i += 1
+        start_edge = line[i]
+
     for edge in (start_edge.pair, end_edge):
         found_linear = False
         # forward check
@@ -694,6 +704,15 @@ def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
                     return True
 
     return False
+
+def _line_removal_will_create_big_face(line : ['Edge'], space: 'Space') -> bool:
+    """
+    Returns True if the
+    :param line:
+    :param space:
+    :return:
+    """
+    pass
 
 
 def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
