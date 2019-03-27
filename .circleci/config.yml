@@ -12,7 +12,6 @@ jobs:
             - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
             - v2-dependencies-{{ .Branch }}-
             - v2-dependencies-
-#      - run: ./run_tests.sh
       - run: pip install -q --upgrade pip
       - run: pip install -q -r requirements.txt
       - save_cache:
@@ -24,6 +23,15 @@ jobs:
           root: /home/circleci/
           paths:
             - project
+
+  tests:
+    docker:
+      - image: circleci/python:3.6
+    parallelism: 2
+    steps:
+      - attach_workspace:
+          at: /root/
+      - run: ./run_tests.sh
 
   build-container:
     docker:
@@ -66,6 +74,13 @@ workflows:
   ci-process:
     jobs:
       - get-requirements
+      - tests:
+          requires:
+          - get-requirements
+          filters:
+            tags:
+              only: /^v.*/
+
       - build-container:
           context: default_env_vars
           requires:
@@ -76,12 +91,13 @@ workflows:
             branches:
               only:
                 - dev
-                - /release.*/
                 - OPT-73-worker-optimizer-v2
+
       - deploy-to-kubernetes:
           context: default_env_vars
           requires:
           - build-container
+          - tests
           filters:
             tags:
               only: /^v.*/
