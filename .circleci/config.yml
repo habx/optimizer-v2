@@ -6,11 +6,11 @@ jobs:
     parallelism: 2
     steps:
       - checkout
-      - restore_cache:
-          keys:
-            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-            - v2-dependencies-{{ .Branch }}-
-            - v2-dependencies-
+#      - restore_cache:
+#          keys:
+#            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+#            - v2-dependencies-{{ .Branch }}-
+#            - v2-dependencies-
       - run: virtualenv .venv
       - run: source .venv/bin/activate && pip install -q --upgrade pip
       - run: source .venv/bin/activate && pip install -q -r requirements.txt
