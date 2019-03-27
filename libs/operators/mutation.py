@@ -191,8 +191,8 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     other_space = plan.get_space_of_edge(edge.pair)
 
     if other_space.face:
-        assert (other_space.adjacent_to(edge.face),
-                "Mutation: The edge face must be adjacent to the second space")
+        assert other_space.adjacent_to(edge.face), "Mutation: The edge face must be adjacent to " \
+                                                   "the second space "
 
     # list of aligned edges
     aligned_edges = []
@@ -249,8 +249,8 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     other_space = plan.get_space_of_edge(edge.pair)
 
     if other_space.face:
-        assert (other_space.adjacent_to(edge.face),
-                "Mutation: The edge face must be adjacent to the second space")
+        assert other_space.adjacent_to(edge.face), "Mutation: The edge face must be adjacent to " \
+                                                   "the second space "
 
     aligned_edges = []
     for aligned in space.next_aligned_siblings(edge):
