@@ -20,7 +20,7 @@ jobs:
             - /usr/local/bin
           key: v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - persist_to_workspace:
-          root: /root
+          root: /home/circleci/
           paths:
             - project
 
@@ -29,7 +29,7 @@ jobs:
       - image: plugins/ecr:17.05
     steps:
       - attach_workspace:
-          at: /root/
+          at: /home/circleci/
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
