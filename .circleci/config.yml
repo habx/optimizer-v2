@@ -47,10 +47,9 @@ jobs:
 
             export PLUGIN_TAGS=${BUILD_REF}
             export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/worker-optimizer-v2
-            pwd && ls
             /usr/local/bin/dockerd-entrypoint.sh /bin/drone-docker-ecr
 
-  deploy-to-kubernetes:
+  deploy-to-kubernetes-standard-worker:
     docker:
     - image: quay.io/honestbee/drone-kubernetes
     steps:
@@ -64,6 +63,25 @@ jobs:
           export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/${CIRCLE_PROJECT_REPONAME}
           export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}
           export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}
+          export PLUGIN_NAMESPACE=${DST_NAMESPACE}
+          export PLUGIN_KUBERNETES_SERVER=${KUBERNETES_SERVER_DEV}
+          export PLUGIN_KUBERNETES_TOKEN=${KUBERNETES_TOKEN_DEV}
+          /bin/update.sh
+
+  deploy-to-kubernetes-low-priority-worker:
+    docker:
+    - image: quay.io/honestbee/drone-kubernetes
+    steps:
+    - run:
+        command: |
+          export CIRCLE_PROJECT_REPONAME=worker-optimizer-v2
+          export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          export DST_NAMESPACE=$(if [ -z "$CIRCLE_TAG" ]; then echo dev; else echo staging; fi)
+
+          export PLUGIN_TAG=${BUILD_REF}
+          export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/${CIRCLE_PROJECT_REPONAME}
+          export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}-low-priority
+          export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}-low-priority
           export PLUGIN_NAMESPACE=${DST_NAMESPACE}
           export PLUGIN_KUBERNETES_SERVER=${KUBERNETES_SERVER_DEV}
           export PLUGIN_KUBERNETES_TOKEN=${KUBERNETES_TOKEN_DEV}
