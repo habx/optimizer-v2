@@ -28,7 +28,7 @@ jobs:
       - image: plugins/ecr:17.05
     steps:
       - attach_workspace:
-          at: /root/project
+          at: /root/
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
