@@ -248,7 +248,7 @@ class MessageProcessor:
                 'setup': setup,
                 'params': params,
                 'context': context,
-            }
+            },
         }
         return result
 
@@ -268,14 +268,21 @@ def _send_message(args, exchanger: Exchanger):
         lot = json.load(lot_fp)
     with open(args.setup) as setup_fp:
         setup = json.load(setup_fp)
+    with open(args.params) as params_fp:
+        params = json.load(params_fp)
 
     # Preparing a request
     request = {
         'type': 'optimizer-processing-request',
+        'from': 'worker-optimizer:sender',
         'requestId': str(uuid.uuid4()),
         'data': {
             'lot': lot,
             'setup': setup,
+            'params': params,
+            'context': {
+                'sender-version': Executor.VERSION,
+            },
         },
     }
 
@@ -296,6 +303,7 @@ def _cli():
     parser = argparse.ArgumentParser(description="Optimizer V2 Worker v"+Executor.VERSION)
     parser.add_argument("-l", dest="lot", metavar="FILE", help="Lot input file")
     parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
+    parser.add_argument("-p", dest="params", metavar="FILE", help="Params input file")
     args = parser.parse_args()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect

@@ -42,6 +42,17 @@ class Response:
             json.dump(self.as_dict, output_file, sort_keys=True, indent=2)
 
 
+class ExecParams:
+    """Dict wrapper, mostly useful for auto-completion"""
+    def __init__(self, params):
+        if not params:
+            params = {}
+
+        self.grid_type = params.get('grid_type', 'optimal_grid')
+        self.do_plot = params.get('do_plot', False)
+        self.shuffle_type = params.get('shuffle_type', 'square_shape_shuffle_rooms')
+
+
 class Executor:
     """
     Class used to run Optimizer with defined parameters.
@@ -49,40 +60,6 @@ class Executor:
 
     VERSION = OPTIMIZER_VERSION
     """Current version"""
-
-    def __init__(self):
-        self.grid_type: Optional[str] = None
-        self.shuffle_type: Optional[str] = None
-        # OPT-72: Setup name is not pat of the execution context, it should be handled on a
-        # per-plan basis, and most probably directly in the input data.
-        # self.setup_name: Optional[str] = None
-        self.do_plot: Optional[bool] = None
-        # NOTE: a seeder_name should be chosen too
-        self.reset_to_default()
-
-    def reset_to_default(self):
-        """Reset all execution parameters to their default values"""
-        self.grid_type = "optimal_grid"
-        self.shuffle_type = "square_shape_shuffle_rooms"
-        # self.setup_name = "unnamed"
-        self.do_plot = False
-
-    def set_execution_parameters(self,
-                                 grid_type: Optional[str] = None,
-                                 shuffle_type: Optional[str] = None,
-                                 # setup_name: Optional[str] = None,
-                                 do_plot: Optional[bool] = None) -> None:
-        """
-        Change parameters of executor. If one is not specified (None), default value is used.
-        """
-        if grid_type is not None:
-            self.grid_type = grid_type
-        if shuffle_type is not None:
-            self.shuffle_type = shuffle_type
-        # if setup_name is not None:
-        #    self.setup_name = setup_name
-        if do_plot is not None:
-            self.do_plot = do_plot
 
     def run_from_file_names(self,
                             lot_file_name: str = "grenoble_101.json",
@@ -100,13 +77,16 @@ class Executor:
         # self.setup_name = os.path.splitext(setup_file_name)[0]
         return self.run(lot, setup)
 
-    def run(self, lot: dict, setup: dict) -> Response:
+    def run(self, lot: dict, setup: dict, params_dict: dict) -> Response:
         """
         Run Optimizer
         :param lot: lot data
         :param setup: setup data
+        :param params_dict: execution parameters
         :return: optimizer response
         """
+        params = ExecParams(params_dict)
+
         # time
         t0 = time.time()
 
@@ -117,23 +97,23 @@ class Executor:
 
         # grid
         logging.info("Grid")
-        GRIDS[self.grid_type].apply_to(plan, show=self.do_plot)
+        GRIDS[params.grid_type].apply_to(plan, show=params.do_plot)
 
         # seeder
         logging.info("Seeder")
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        if self.do_plot:
+        if params.do_plot:
             plan.plot()
 
         (seeder.plant()
-         .grow(show=self.do_plot)
+         .grow(show=params.do_plot)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
          .merge_small_cells(min_cell_area=1 * SQM,
                             excluded_components=["loadBearingWall"],
-                            show=self.do_plot))
+                            show=params.do_plot))
 
-        if self.do_plot:
+        if params.do_plot:
             plan.plot()
 
         # reading setup
@@ -152,8 +132,8 @@ class Executor:
         # shuffle
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES[self.shuffle_type].run(sol.plan, show=self.do_plot)
-                if self.do_plot:
+                SHUFFLES[params.shuffle_type].run(sol.plan, show=params.do_plot)
+                if params.do_plot:
                     sol.plan.plot()
 
         # output

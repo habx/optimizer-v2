@@ -35,13 +35,16 @@ def _exists_path(parser, path, file=None):
 
 def _cli():
     # arg parser
-    parser = argparse.ArgumentParser(description="Optimizer V2 CLI v"+executor.VERSION)
+    parser = argparse.ArgumentParser(description="Optimizer V2 CLI v"+Executor.VERSION)
     parser.add_argument("-l", dest="lot", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input lot file path")
     parser.add_argument("-s", dest="setup", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input setup file path")
+    parser.add_argument("-p", dest="params", required=False, metavar="FILE",
+                        type=lambda x: _exists_path(parser, x, True),
+                        help="the input params file path")
     parser.add_argument("-o", dest="output", required=True,
                         type=lambda x: _exists_path(parser, x, False),
                         help="the output solutions dir")
@@ -49,23 +52,18 @@ def _cli():
                         help="grid type", default="optimal_grid")
     parser.add_argument("-u", dest="shuffle", required=False,
                         help="shuffle type", default="square_shape_shuffle_rooms")
-    parser.add_argument("-p", "--plot",
+    parser.add_argument("-P", "--plot",
                         help="plot outputs",
                         action="store_true")
     args = parser.parse_args()
     lot_path = args.lot
     setup_path = args.setup
+    params_path = args.params
     output_dir = args.output
-    grid_type = args.grid
-    shuffle_type = args.shuffle
-    do_plot = bool(args.plot)
 
     # run
     logging.getLogger().setLevel(logging.INFO)
     executor = Executor()
-    executor.set_execution_parameters(grid_type=grid_type,
-                                      shuffle_type=shuffle_type,
-                                      do_plot=do_plot)
 
     logging.info('Running (%s, %s) --> %s', lot_path, setup_path, output_dir)
 
@@ -73,8 +71,16 @@ def _cli():
         lot = json.load(lot_fp)
     with open(setup_path, 'r') as setup_fp:
         setup = json.load(setup_fp)
+    if params_path:
+        with open(params_path, 'r') as params_fp:
+            params = json.load(params_fp)
+    else:
+        params = {}
 
-    response = executor.run(lot, setup)
+    if args.plot:
+        params['do_plot'] = True
+
+    response = executor.run(lot, setup, params)
 
     meta = {
         "elapsed_time": response.elapsed_time
