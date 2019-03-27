@@ -813,6 +813,7 @@ ELEMENT_SEED_CATEGORIES = {
 
 GROWTH_METHODS = {
     "default": classic_seed_category,
+    "startingStep": ELEMENT_SEED_CATEGORIES["startingStep"],
     "duct": ELEMENT_SEED_CATEGORIES['duct'],
     "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
     "window": ELEMENT_SEED_CATEGORIES['window'],
@@ -969,8 +970,12 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed())
+         .from_space_empty_to_seed()
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         )
 
-        plan.plot()
+        plan.plot(show=True)
+        plt.show()
+        plan.check()
 
     failed_plan()
