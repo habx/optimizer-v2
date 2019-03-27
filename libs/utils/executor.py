@@ -63,19 +63,21 @@ class Executor:
 
     def run_from_file_names(self,
                             lot_file_name: str = "grenoble_101.json",
-                            setup_file_name: str = "grenoble_101_setup0.json") -> Response:
+                            setup_file_name: str = "grenoble_101_setup0.json",
+                            params: dict = None) -> Response:
         """
         Run Optimizer from file names.
         :param lot_file_name: name of lot file, file has to be in resources/blueprints
         :param setup_file_name: name of setup file, file has to be in resources/specifications
+        :param params: Execution parameters
         :return: optimizer response
         """
         lot = reader.get_json_from_file(lot_file_name,
                                         reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
-        # self.setup_name = os.path.splitext(setup_file_name)[0]
-        return self.run(lot, setup)
+
+        return self.run(lot, setup, params)
 
     def run(self, lot: dict, setup: dict, params_dict: dict) -> Response:
         """
@@ -150,8 +152,14 @@ if __name__ == '__main__':
         """
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
-        executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
-        response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
+        response = executor.run_from_file_names(
+            "grenoble_102.json",
+            "grenoble_102_setup0.json",
+            {
+                "grid_type": "optimal_grid",
+                "do_plot": False,
+            }
+        )
         logging.info("Time: %i", int(response.elapsed_time))
         logging.info("Nb solutions: %i", len(response.solutions))
 
