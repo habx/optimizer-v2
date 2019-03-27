@@ -322,6 +322,12 @@ def remove_line(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     line = space.line(edge)
     removed = 0
     for line_edge in line:
+        # check if the line_edge still belongs to the mesh
+        # this is needed because sometimes the edge will have already be removed if
+        # the removal of a previous line_edge caused the edge.remove() method to clean the mesh
+        # of single vertex (edge case but it can happened and it has)
+        if not line_edge.mesh:
+            continue
         # if we encounter a boundary edge : we stop
         if not space.is_internal(line_edge):
             # if the first edge of the line is on the boundary we do not need to break
