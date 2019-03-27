@@ -12,9 +12,9 @@ jobs:
 #            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
 #            - v2-dependencies-{{ .Branch }}-
 #            - v2-dependencies-
-      - run: virtualenv .venv && source .venv/bin/activate
-      - run: pip install -q --upgrade pip
-      - run: pip install -q -r requirements.txt
+      - run: virtualenv .venv
+      - run: source .venv/bin/activate && pip install -q --upgrade pip
+      - run: source .venv/bin/activate && pip install -q -r requirements.txt
       - save_cache:
           paths:
             - .venv
@@ -33,8 +33,7 @@ jobs:
     steps:
       - attach_workspace:
           at: /home/circleci/
-      - run: source .venv/bin/activate
-      - run: ./run_tests.sh
+      - run: source .venv/bin/activate ./run_tests.sh
 
   build-container:
     docker:
