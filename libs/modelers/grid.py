@@ -360,7 +360,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("grenoble_113.json")
+        plan = reader.create_plan_from_file("meurice_LT100.json")
+        plan.check()
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
