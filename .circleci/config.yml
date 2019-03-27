@@ -31,7 +31,7 @@ jobs:
       - attach_workspace:
           at: /home/circleci/
       # We need to reinstall protobuf because it puts some test data on some system path 
-      - run: sudo pip install protobuf && source .venv/bin/activate && ./run_tests.sh
+      - run: sudo pip -r requirements.txt && ./run_tests.sh
 
   build-container:
     docker:
