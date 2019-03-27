@@ -6,20 +6,17 @@ jobs:
     parallelism: 2
     steps:
       - checkout
-#      - run: sudo chown -R circleci:circleci /usr/local
-#      - restore_cache:
-#          keys:
-#            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-#            - v2-dependencies-{{ .Branch }}-
-#            - v2-dependencies-
+      - restore_cache:
+          keys:
+            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+            - v2-dependencies-{{ .Branch }}-
+            - v2-dependencies-
       - run: virtualenv .venv
       - run: source .venv/bin/activate && pip install -q --upgrade pip
       - run: source .venv/bin/activate && pip install -q -r requirements.txt
       - save_cache:
           paths:
             - .venv
-#            - /usr/local/lib/python3.6/site-packages
-#            - /usr/local/bin
           key: v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - persist_to_workspace:
           root: /home/circleci/
