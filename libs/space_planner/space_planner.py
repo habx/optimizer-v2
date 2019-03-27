@@ -291,7 +291,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -306,8 +306,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        # input_file = "paris18_A402.json"
+        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "saint-maur-raspail_H02.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -322,32 +322,30 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        # plan.plot()
-        # new_space_list = []
-        # for space in plan.spaces:
-        #     if space.category.name == "empty":
-        #         for face in space.faces:
-        #             new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-        #             new_space_list.append(new_space)
-        # has_empty_space = True
-        # while has_empty_space:
-        #     has_empty_space = False
-        #     for space in plan.spaces:
-        #         if space.category.name == "empty":
-        #             plan.remove(space)
-        #             has_empty_space = True
-        #     plan.remove_null_spaces()
-        # print(plan)
-
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        (seeder.plant()
-         .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"])
-         )
-        print(plan)
         plan.plot()
+        new_space_list = []
+        for space in plan.spaces:
+            if space.category.name == "empty":
+                for face in space.faces:
+                    new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
+                    new_space_list.append(new_space)
+        has_empty_space = True
+        while has_empty_space:
+            has_empty_space = False
+            for space in plan.spaces:
+                if space.category.name == "empty":
+                    plan.remove(space)
+                    has_empty_space = True
+            plan.remove_null_spaces()
+
+        # seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        # (seeder.plant()
+        #  .grow(show=True)
+        #  .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+        #  .from_space_empty_to_seed()
+        #  .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"])
+        #  )
+        # plan.plot()
 
         input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
