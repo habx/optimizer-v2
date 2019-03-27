@@ -63,9 +63,9 @@ jobs:
 
 workflows:
   version: 2
-  get-requirements:
+  ci-process:
     jobs:
-      - test
+      - get-requirements
       - build-container:
           context: default_env_vars
           requires:
