@@ -69,7 +69,7 @@ workflows:
       - build-container:
           context: default_env_vars
           requires:
-          - test
+          - get-requirements
           filters:
             tags:
               only: /^v.*/
