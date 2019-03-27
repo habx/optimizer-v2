@@ -21,7 +21,7 @@ class Config:
             topic_requests_base=TOPIC_REQUESTS_BASE,
             topic_results_base=TOPIC_RESULTS_BASE
     ):
-        name = os.getenv('WORKER_NAME', 'worker')
+        name = os.getenv('WORKER_NAME', 'worker-optimizer')
         env = os.getenv('HABX_ENV', 'dev')
         env_ns = os.getenv('HABX_ENV_NS')
         env_low_priority = os.getenv('LOW_PRIORITY', 'false') == 'true'
