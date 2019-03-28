@@ -19,6 +19,7 @@ for edge in selector.catalog['boundary'].yield_from(space):
 """
 from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
+import logging
 
 from libs.utils.geometry import (
     ccw_angle,
@@ -144,12 +145,26 @@ def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edge reference face
+    Returns the edge reference of the space
     :param space:
     :return:
     """
     if space.edge:
         yield space.edge
+
+
+def boundary_faces_smallest(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the smallest edge of each face
+    :param space:
+    :return:
+    """
+    for face in space.faces:
+        if face.edge:
+            output = min((e for e in face.edges if space.has_edge(e.pair)),
+                         key=lambda e: e.length, default=None)
+            if output:
+                yield output
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -505,7 +520,8 @@ def tight_lines(depth: float, min_line_length: float = 20) -> EdgeQuery:
                 # we calculate the length of the line that touches a border per increment of 20
                 borders = [int(_border_length(edge, space) / 20) * 20 for edge in _edges]
                 lengths = [int(_line_length(edge) / 20) * 20 for edge in _edges]
-                for criteria in (lengths, borders):
+                logging.debug("Selector: removing tight lines")
+                for criteria in (borders, lengths):
                     order = [sum((c > b + EPSILON) for b in criteria) for c in criteria]
                     if order.count(0) == 1:
                         i = order.index(0)
@@ -556,8 +572,18 @@ def _border_length(edge: 'Edge', space: 'Space') -> float:
     :param space:
     :return:
     """
-    return sum(map(lambda e: e.length,
-                   filter(lambda e: space.is_boundary(e) or space.is_boundary(e.pair), edge.line)))
+    plan = space.plan
+
+    def _duct_loadbearingwall_length(_edge: 'Edge') -> float:
+        if space.is_internal(_edge):
+            return 0.0
+        _edge_to_check = _edge if space.is_outside(_edge) else _edge.pair
+        _space_to_check = plan.get_space_of_edge(_edge_to_check)
+        if _space_to_check and _space_to_check.category.name in ("duct", "loadBearingWall"):
+            return _edge_to_check.length
+        return 0.0
+
+    return sum(map(_duct_loadbearingwall_length, edge.line))
 
 
 def _parallel_edges(edge: 'Edge', space: 'Space',
@@ -678,6 +704,16 @@ def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
     end_edge = line[len(line) - 1]
     start_edge = line[0]
 
+    j = len(line) - 1
+    while not space.is_internal(end_edge) and j > 0:
+        j -= 1
+        end_edge = line[j]
+
+    i = 0
+    while not space.is_internal(start_edge) and i < j:
+        i += 1
+        start_edge = line[i]
+
     for edge in (start_edge.pair, end_edge):
         found_linear = False
         # forward check
@@ -696,6 +732,26 @@ def _line_is_between_windows(line: ['Edge'], space: 'Space') -> bool:
     return False
 
 
+def _line_touches_duct_or_loadbearingwall(line: ['Edge'], space: 'Space') -> bool:
+    """
+    Returns True if the line touches a duct
+    The objective is to prevent ducts from being isolated inside a face
+    :param line:
+    :param space:
+    :return:
+    """
+    plan = space.plan
+
+    for edge in line:
+        if space.is_internal(edge):
+            continue
+        _edge_to_check = edge if space.is_outside(edge) else edge.pair
+        _space_to_check = plan.get_space_of_edge(_edge_to_check)
+        if _space_to_check and _space_to_check.category.name in ("duct", "loadBearingWall"):
+            return True
+    return False
+
+
 def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
     """
     Filter function
@@ -705,7 +761,9 @@ def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
 
     def _filter(edge: 'Edge') -> bool:
         line = edge.line
-        return not _line_is_between_windows(line, space) and not _line_cuts_angle(line, space)
+        return (not _line_is_between_windows(line, space)
+                # and not _line_touches_duct_or_loadbearingwall(line, space)
+                and not _line_cuts_angle(line, space))
 
     return _filter
 
@@ -1300,11 +1358,11 @@ def face_proportion(max_proportion: float = 0.1) -> Predicate:
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         if not edge.face or not edge.pair.face:
             return False
-        space_area = space.plan.get_space_of_edge(edge).area
+        _space_area = space.plan.get_space_of_edge(edge).area
         face_pair_area = edge.pair.face.area
         space_pair_area = space.plan.get_space_of_edge(edge.pair).area
 
-        if (face_pair_area / space_area > max_proportion
+        if (face_pair_area / _space_area > max_proportion
                 or face_pair_area / space_pair_area > max_proportion):
             return False
         return True
@@ -1337,6 +1395,20 @@ def face_without_component() -> Predicate:
         tmp_space.remove()
 
         return not has_component
+
+    return _predicate
+
+
+def face_area(min_area: float) -> Predicate:
+    """
+    Predicate factory
+    Returns a predicate indicating if the edge face area is superior to a specified minimum
+    """
+
+    def _predicate(edge: 'Edge', _: 'Space') -> bool:
+        if not edge.face:
+            return False
+        return edge.face.area <= min_area
 
     return _predicate
 
@@ -1617,7 +1689,7 @@ SELECTORS = {
         boundary_unique_longest,
         [
             space_area(max_area=15000),
-            cell_with_component(has_component=False)
+            cell_with_component()
         ]
     ),
 
@@ -1749,6 +1821,7 @@ SELECTORS = {
         ]
     ),
 
+    "face_min_area": Selector(boundary_faces_smallest, [face_area(1000)])
 }
 
 SELECTOR_FACTORIES = {
