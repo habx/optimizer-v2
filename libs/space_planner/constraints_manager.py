@@ -371,6 +371,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
@@ -380,6 +381,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -421,6 +423,12 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                                manager.solver.positions[item.id, k])
                               <= int(max_distance / manager.spaces_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
+
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
 
     return ct
 
@@ -474,6 +482,12 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                   <= max_area)
                     ct = manager.and_(ct, new_ct)
 
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
+
     return ct
 
 
@@ -517,6 +531,11 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                                for l, l_space in enumerate(
                                     manager.sp.spec.plan.mutable_spaces())))
                     ct = manager.and_(ct, new_ct)
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
 
     return ct
 
@@ -566,6 +585,12 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
     ct = (item_perimeter * item_perimeter <= param * item_area)
+
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
 
     return ct
 
@@ -696,6 +721,12 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
 
     ct = (manager.and_(ct1, ct2) == 1)
 
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
+
     return ct
 
 
@@ -715,7 +746,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
     for cat in item_categories:
         adjacency_sum = 0
-        if cat == 'circulationSpace':
+        if cat == "circulationSpace" and item.category.name != "circulationSpace":
             adjacency_sum += manager.solver.solver.Sum(
                 manager.solver.solver.Sum(
                     int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
@@ -758,8 +789,40 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                         ct = manager.and_(ct, (adjacency_sum == 0))
                     else:
                         ValueError("ComponentsAdjacencyConstraint")
-
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.or_(ct, ct0)
     return ct
+
+
+def circulation_adjacency_constraint(manager: 'ConstraintsManager',
+                                     item: Item) -> ortools.Constraint:
+    """
+    circulation adjacency constraint :
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+
+    ct1 = item_adjacency_constraint(manager, item,
+                                    ["living", "livingKitchen", "dining", "entrance"], True, "Or")
+    ct2 = item_adjacency_constraint(manager, item, ["circulationSpace"], True)
+    ct3 = item_adjacency_constraint(manager, item,
+                                    ["living", "livingKitchen", "dining", "entrance"], False, "And")
+
+    ct4 = manager.solver.solver.Min(ct2, ct3)
+
+    ct = manager.solver.solver.Max(ct1, ct4)
+
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        ct = manager.solver.solver.Max(ct, ct0)
+
+    return ct ==1
 
 
 def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
@@ -831,7 +894,7 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
     return ct
 
-
+CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
@@ -844,7 +907,10 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
-        [area_constraint, {"min_max": "max"}]
+        [area_constraint, {"min_max": "max"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["living", "livingKitchen", "dining", "circulationSpace"], "adj": True,
+          "addition_rule": "Or"}]
     ],
     "wc": [
         [item_attribution_constraint, {}],
@@ -853,7 +919,9 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}],
+        [item_adjacency_constraint,
+            {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
         [item_attribution_constraint, {}],
@@ -861,28 +929,40 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["entrance", "livingKitchen", "dining", "circulationSpace"], "adj": True,
+          "addition_rule": "Or"}]
+
     ],
     "livingKitchen": [
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["living", "entrance", "dining", "circulationSpace"], "adj": True,
+          "addition_rule": "Or"}]
     ],
     "dining": [
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["kitchen"]}]
+        [item_adjacency_constraint, {"item_categories": ["kitchen"]}],
+        [item_adjacency_constraint,
+         {"item_categories": ["living", "livingKitchen", "entrance", "circulationSpace"], "adj": True,
+          "addition_rule": "Or"}]
     ],
     "kitchen": [
         [item_attribution_constraint, {}],
@@ -891,21 +971,27 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
          {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
+        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bedroom": [
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}]
+        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}]
+        [symmetry_breaker_constraint, {"categories_name": ["window", "doorWindow"]}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
         [item_attribution_constraint, {}],
@@ -913,7 +999,9 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {"categories_name": []}]
+        [symmetry_breaker_constraint, {"categories_name": []}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
         [item_attribution_constraint, {}],
@@ -922,7 +1010,17 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {"categories_name": ["duct"]}]
+        [symmetry_breaker_constraint, {"categories_name": ["duct"]}],
+        [item_adjacency_constraint,
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ],
+    "circulationSpace": [
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": WINDOW_CATEGORY, "adj": False,
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["living", "livingKitchen", "dining", "entrance"], "adj": True,
+          "addition_rule": "Or"}]
     ]
 }
 

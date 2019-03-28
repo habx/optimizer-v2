@@ -15,6 +15,7 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
+from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
 import networkx as nx
 
@@ -124,7 +125,7 @@ class SpacePlanner:
             # else check the connectivity of the subgraph composed of the fi inside the given room
             room_line = room_positions[i_item]
             fi_in_room = tuple([i for i, e in enumerate(room_line) if e])
-            if not connectivity_checker(fi_in_room):
+            if not connectivity_checker(fi_in_room) and item.category.name != "circulationSpace":
                 return False
 
         return True
@@ -185,11 +186,20 @@ class SpacePlanner:
                             plan.remove_null_spaces()
                             break
                 dict_items_space[item] = space_ini
-            else:
+            elif item.category.name != "circulationSpace":
                 dict_items_space[item] = item_space[0]
+            else:
+                dict_items_space[item] = []
+                # circulationSpace case :
+                for j_space, space in enumerate(plan.mutable_spaces()):
+                    if space.category.name == "seed":
+                        space.category = SPACE_CATEGORIES["circulationSpace"]
+                        dict_items_space[item].append(space)
         # OPT-72: If we really want to enable it, it should be done through some execution context
         # parameters.
         # assert plan.check()
+
+        plan.plot()
 
         return plan, dict_items_space
 
@@ -292,7 +302,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -307,8 +317,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        #input_file = "antony_A33.json"
+        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -393,10 +403,10 @@ if __name__ == '__main__':
             writer.save_json_solution(solution_dict, sol.get_id)
 
         # shuffle
-        # if best_solutions:
-        #     for sol in best_solutions:
-        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-        #         sol.plan.plot()
+        if best_solutions:
+            for sol in best_solutions:
+                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+                sol.plan.plot()
 
         # logging.info("total time : %f", time.clock() - t00)
         print("total time :", time.clock() - t00)
