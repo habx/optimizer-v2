@@ -269,9 +269,9 @@ class MessageProcessor:
         target_worker = params.get('target_worker')
         if target_worker and target_worker != self.myself:
             logging.info(
-                "Message is not for me: target=\"%s\", myself=\"%s\"",
+                "   ... message is not for me: target=\"%s\", myself=\"%s\"",
                 target_worker,
-                self.myself
+                self.myself,
             )
             return None
 
@@ -371,6 +371,10 @@ def _cli():
     )
 
     _local_dev_hack()
+
+    # We're using AWS_REGION at habx and boto3 expects AWS_DEFAULT_REGION
+    if 'AWS_DEFAULT_REGION' not in os.environ and 'AWS_REGION' in os.environ:
+        os.environ['AWS_DEFAULT_REGION'] = os.environ['AWS_REGION']
 
     config = Config()
     exchanger = Exchanger(config)
