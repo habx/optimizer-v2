@@ -78,6 +78,7 @@ class SpacePlanner:
             item.max_size.area = item.max_size.area * coeff
         logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+
         self.spec = space_planner_spec
 
     def _init_spaces_adjacency(self) -> None:
@@ -306,8 +307,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "antony_A33.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
