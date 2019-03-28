@@ -35,7 +35,7 @@ def _exists_path(parser, path, file=None):
 
 def _cli():
     # arg parser
-    parser = argparse.ArgumentParser(description="Optimizer V2 CLI v"+Executor.VERSION)
+    parser = argparse.ArgumentParser(description="Optimizer V2 CLI (%s)" % Executor.VERSION)
     parser.add_argument("-l", dest="lot", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input lot file path")

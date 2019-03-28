@@ -258,7 +258,7 @@ class MessageProcessor:
 
 def _process_messages(exchanger: Exchanger):
     """Core processing message method"""
-    logging.info("Optimizer V2 v"+Executor.VERSION)
+    logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
     processing = MessageProcessor(exchanger)
     processing.start()
     processing.run()
