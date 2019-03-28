@@ -230,6 +230,8 @@ class MessageProcessor:
         request_id = msg.content['requestId']
         # Parsing the message
         data = msg.content['data']
+
+        # These are mandatory parameters and as such have to exist
         lot = data['lot']
         setup = data['setup']
         params = data['params']
@@ -243,6 +245,7 @@ class MessageProcessor:
             'data': {
                 'status': 'ok',
                 'solutions': executor_result.solutions,
+                'times': executor_result.elapsed_times,
                 'version': Executor.VERSION,
                 'lot': lot,
                 'setup': setup,
@@ -293,12 +296,26 @@ def _send_message(args, exchanger: Exchanger):
     exchanger.send_request(request)
 
 
+def _local_dev_hack():
+    import socket
+    if not os.path.exists(os.path.join(os.getenv('HOME'), '.aws/credentials'))\
+            and not os.getenv('AWS_ACCESS_KEY_ID') \
+            and not os.getenv('HABX_ENV'):
+        logging.warning("[LOCAL DEV ONLY] Injecting some AWS credentials [LOCAL DEV ONLY]")
+        os.environ['AWS_ACCESS_KEY_ID'] = 'AKIAJLYSRVQ2B5NDHC3A'
+        os.environ['AWS_SECRET_ACCESS_KEY'] = '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'
+        os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
+        os.environ['HABX_ENV_NS'] = socket.gethostname()
+
+
 def _cli():
     """CLI orchestrating function"""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s",
     )
+
+    _local_dev_hack()
 
     config = Config()
     exchanger = Exchanger(config)
