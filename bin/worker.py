@@ -6,6 +6,8 @@ import os
 import uuid
 import traceback
 import sys
+import socket
+from typing import Optional
 
 import libpath
 import boto3
@@ -75,17 +77,39 @@ class Exchanger:
         )
         return topic.get('TopicArn')
 
-    def _get_or_create_queue(self, queue_name: str, topic_name: str = None) -> str:
+    def _get_or_create_queue(self,
+                             queue_name: str,
+                             topic_name: str = None,
+                             visibility_timeout: int = 3600*10
+                             ) -> str:
         """Create a queue and return its URL"""
         logging.info("Getting queue \"%s\" ...", queue_name)
         try:
-            queue = self._sqs_client.create_queue(QueueName=queue_name)
+            queue = self._sqs_client.create_queue(
+                QueueName=queue_name,
+            )
             queue_url = queue.get('QueueUrl')
             queue_attrs = self._sqs_client.get_queue_attributes(
                 QueueUrl=queue_url,
-                AttributeNames=['QueueArn'],
+                AttributeNames=['QueueArn', 'VisibilityTimeout'],
             )
             queue_arn = queue_attrs['Attributes']['QueueArn']
+
+            # Allowing to chang the visibility timeout
+            if int(queue_attrs['Attributes']['VisibilityTimeout']) != visibility_timeout:
+                logging.warning(
+                    "Changing the visibility timeout of %s to %d",
+                    queue_arn,
+                    visibility_timeout
+                )
+                self._sqs_client.set_queue_attributes(
+                    QueueUrl=queue_url,
+                    Attributes={
+                        'VisibilityTimeout': str(visibility_timeout),
+                    },
+                )
+
+            # Allowing to register to a topic
             if topic_name:
                 topic_arn = self._get_or_create_topic(topic_name)
                 self._sns_client.subscribe(
@@ -196,9 +220,10 @@ class Exchanger:
 class MessageProcessor:
     """Message processing"""
 
-    def __init__(self, exchanger: Exchanger):
+    def __init__(self, exchanger: Exchanger, myself: str = None):
         self.exchanger = exchanger
         self.executor = Executor()
+        self.myself = myself
 
     def start(self):
         """Start the message processor"""
@@ -212,7 +237,8 @@ class MessageProcessor:
                 continue
             try:
                 result_ok = self._process_message(msg)
-                self.exchanger.send_result(result_ok)
+                if result_ok:
+                    self.exchanger.send_result(result_ok)
                 self.exchanger.acknowledge_msg(msg)
             except Exception:
                 logging.exception("Problem handing message: %s", msg.content)
@@ -226,7 +252,7 @@ class MessageProcessor:
                 }
                 self.exchanger.send_result(error_result)
 
-    def _process_message(self, msg: Message) -> dict:
+    def _process_message(self, msg: Message) -> Optional[dict]:
         """Actual message processing (without any error handling on purpose)"""
         logging.info("Processing message: %s", msg.content)
         request_id = msg.content['requestId']
@@ -239,6 +265,17 @@ class MessageProcessor:
         params = data['params']
         context = data['context']
 
+        # Only process message to ourselves if requested
+        target_worker = params.get('target_worker')
+        if target_worker and target_worker != self.myself:
+            logging.info(
+                "Message is not for me: target=\"%s\", myself=\"%s\"",
+                target_worker,
+                self.myself
+            )
+            return None
+
+        # We can get an explicit crash request
         if params.get('crash', False):
             raise Exception('You asked me to crash !')
 
@@ -261,15 +298,20 @@ class MessageProcessor:
         return result
 
 
-def _process_messages(exchanger: Exchanger):
+def _process_messages(args: argparse.Namespace, exchanger: Exchanger):
     """Core processing message method"""
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
-    processing = MessageProcessor(exchanger)
+
+    myself = None
+    if args.myself:
+        myself = socket.gethostname()
+
+    processing = MessageProcessor(exchanger, myself)
     processing.start()
     processing.run()
 
 
-def _send_message(args, exchanger: Exchanger):
+def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     """Core sending message function"""
     # Reading the input files
     with open(args.lot) as lot_fp:
@@ -284,6 +326,9 @@ def _send_message(args, exchanger: Exchanger):
 
     if args.params_crash:
         params['crash'] = True
+
+    if args.myself:
+        params['target_worker'] = socket.gethostname()
 
     # Preparing a request
     request = {
@@ -335,12 +380,13 @@ def _cli():
     parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
     parser.add_argument("-p", dest="params", metavar="FILE", help="Params input file")
     parser.add_argument("--params-crash", dest="params_crash", action='store_true', help='Add a crash param')
+    parser.add_argument('--myself', dest='myself', action='store_true', help='Only deal with myself')
     args = parser.parse_args()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:
-        _process_messages(exchanger)
+        _process_messages(args, exchanger)
 
 
 _cli()
