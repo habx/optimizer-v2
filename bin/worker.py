@@ -40,7 +40,7 @@ class Config:
         )
 
         if env_ns:
-            self.requests_queue_name += env_ns
+            self.requests_queue_name += '-'+env_ns
 
         self.results_topic_name = '{env}-{topic}'.format(
             env=env,
