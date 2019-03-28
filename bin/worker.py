@@ -3,14 +3,15 @@ import argparse
 import json
 import logging
 import os
-import uuid
-import traceback
-import sys
 import socket
+import sys
+import traceback
+import uuid
 from typing import Optional
 
-import libpath
 import boto3
+
+import libpath
 
 from libs.utils.executor import Executor
 
@@ -44,7 +45,7 @@ class Config:
         )
 
         if env_ns:
-            self.requests_queue_name += '-'+env_ns
+            self.requests_queue_name += '-' + env_ns
 
         self.results_topic_name = '{env}-{topic}'.format(
             env=env,
@@ -54,6 +55,7 @@ class Config:
 
 class Message:
     """Message wrapper"""
+
     def __init__(self, content, handle):
         self.content = content
         self.handle = handle
@@ -80,7 +82,7 @@ class Exchanger:
     def _get_or_create_queue(self,
                              queue_name: str,
                              topic_name: str = None,
-                             visibility_timeout: int = 3600*10
+                             visibility_timeout: int = 3600 * 10
                              ) -> str:
         """Create a queue and return its URL"""
         logging.info("Getting queue \"%s\" ...", queue_name)
@@ -265,9 +267,10 @@ class MessageProcessor:
         params = data['params']
         context = data['context']
 
-        # Only process message to ourselves if requested
+        # If we're having a personal identify, we only accept message to ourself
         target_worker = params.get('target_worker')
-        if target_worker and target_worker != self.myself:
+        if (self.myself is not None and target_worker != self.myself) or (
+                self.myself is None and target_worker):
             logging.info(
                 "   ... message is not for me: target=\"%s\", myself=\"%s\"",
                 target_worker,
@@ -350,8 +353,7 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
 
 
 def _local_dev_hack():
-    import socket
-    if not os.path.exists(os.path.join(os.getenv('HOME'), '.aws/credentials'))\
+    if not os.path.exists(os.path.join(os.getenv('HOME'), '.aws/credentials')) \
             and not os.getenv('AWS_ACCESS_KEY_ID') \
             and not os.getenv('HABX_ENV'):
         logging.warning(
@@ -379,12 +381,14 @@ def _cli():
     config = Config()
     exchanger = Exchanger(config)
 
-    parser = argparse.ArgumentParser(description="Optimizer V2 Worker v"+Executor.VERSION)
+    parser = argparse.ArgumentParser(description="Optimizer V2 Worker v" + Executor.VERSION)
     parser.add_argument("-l", dest="lot", metavar="FILE", help="Lot input file")
     parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
     parser.add_argument("-p", dest="params", metavar="FILE", help="Params input file")
-    parser.add_argument("--params-crash", dest="params_crash", action='store_true', help='Add a crash param')
-    parser.add_argument('--myself', dest='myself', action='store_true', help='Only deal with myself')
+    parser.add_argument("--params-crash", dest="params_crash", action='store_true',
+                        help='Add a crash param')
+    parser.add_argument('--myself', dest='myself', action='store_true',
+                        help='Only deal with myself')
     args = parser.parse_args()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
