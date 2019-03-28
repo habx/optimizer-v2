@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import uuid
+import traceback
+import sys
 
 import libpath
 import boto3
@@ -212,14 +214,14 @@ class MessageProcessor:
                 result_ok = self._process_message(msg)
                 self.exchanger.send_result(result_ok)
                 self.exchanger.acknowledge_msg(msg)
-            except Exception as exc:
+            except Exception:
                 logging.exception("Problem handing message: %s", msg.content)
                 error_result = {
                     'type': 'optimizer-processing-result',
                     'data': {
                         'requestId': msg.content.get('requestId'),
                         'status': 'error',
-                        'error': repr(exc),
+                        'error': traceback.format_exception(*sys.exc_info()),
                     },
                 }
                 self.exchanger.send_result(error_result)
@@ -236,6 +238,9 @@ class MessageProcessor:
         setup = data['setup']
         params = data['params']
         context = data['context']
+
+        if params.get('crash', False):
+            raise Exception('You asked me to crash !')
 
         # Processing it
         executor_result = self.executor.run(lot, setup, params)
@@ -276,6 +281,9 @@ def _send_message(args, exchanger: Exchanger):
             params = json.load(params_fp)
     else:
         params = {}
+
+    if args.params_crash:
+        params['crash'] = True
 
     # Preparing a request
     request = {
@@ -326,6 +334,7 @@ def _cli():
     parser.add_argument("-l", dest="lot", metavar="FILE", help="Lot input file")
     parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
     parser.add_argument("-p", dest="params", metavar="FILE", help="Params input file")
+    parser.add_argument("--params-crash", dest="params_crash", action='store_true', help='Add a crash param')
     args = parser.parse_args()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
