@@ -6,8 +6,9 @@
 # Cutting tests
 tests=$(circleci tests glob "**/*_test.py" | circleci tests split) ||:
 
-pip install -q --upgrade pip
-pip install -q -r requirements.txt
+# requirements installation is done in CI
+#pip install -q --upgrade pip
+#pip install -q -r requirements.txt
 
 # Verbose view
 pytest -v $tests
