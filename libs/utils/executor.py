@@ -15,6 +15,7 @@ from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.operators.selector import SELECTORS
 from libs.modelers.shuffle import SHUFFLES
 from libs.space_planner.space_planner import SpacePlanner, SQM
+from libs.version import VERSION as OPTIMIZER_VERSION
 
 
 class Response:
@@ -43,68 +44,54 @@ class Response:
             json.dump(self.as_dict, output_file, sort_keys=True, indent=2)
 
 
+class ExecParams:
+    """Dict wrapper, mostly useful for auto-completion"""
+    def __init__(self, params):
+        if not params:
+            params = {}
+
+        self.grid_type = params.get('grid_type', 'optimal_grid')
+        self.do_plot = params.get('do_plot', False)
+        self.shuffle_type = params.get('shuffle_type', 'square_shape_shuffle_rooms')
+
+
 class Executor:
     """
     Class used to run Optimizer with defined parameters.
     """
 
-    def __init__(self):
-        self.grid_type: Optional[str] = None
-        self.shuffle_type: Optional[str] = None
-        # OPT-72: Setup name is not pat of the execution context, it should be handled on a
-        # per-plan basis, and most probably directly in the input data.
-        # self.setup_name: Optional[str] = None
-        self.do_plot: Optional[bool] = None
-        # NOTE: a seeder_name should be chosen too
-        self.reset_to_default()
-
-    def reset_to_default(self):
-        self.grid_type = "optimal_grid"
-        self.shuffle_type = "square_shape_shuffle_rooms"
-        # self.setup_name = "unnamed"
-        self.do_plot = False
-
-    def set_execution_parameters(self,
-                                 grid_type: Optional[str] = None,
-                                 shuffle_type: Optional[str] = None,
-                                 # setup_name: Optional[str] = None,
-                                 do_plot: Optional[bool] = None) -> None:
-        """
-        Change parameters of executor. If one is not specified (None), default value is used.
-        """
-        if grid_type is not None:
-            self.grid_type = grid_type
-        if shuffle_type is not None:
-            self.shuffle_type = shuffle_type
-        # if setup_name is not None:
-        #    self.setup_name = setup_name
-        if do_plot is not None:
-            self.do_plot = do_plot
+    VERSION = OPTIMIZER_VERSION
+    """Current version"""
 
     def run_from_file_names(self,
                             lot_file_name: str = "grenoble_101.json",
-                            setup_file_name: str = "grenoble_101_setup0.json") -> Response:
+                            setup_file_name: str = "grenoble_101_setup0.json",
+                            params: dict = None) -> Response:
         """
         Run Optimizer from file names.
         :param lot_file_name: name of lot file, file has to be in resources/blueprints
         :param setup_file_name: name of setup file, file has to be in resources/specifications
+        :param params: Execution parameters
         :return: optimizer response
         """
         lot = reader.get_json_from_file(lot_file_name,
                                         reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
-        # self.setup_name = os.path.splitext(setup_file_name)[0]
-        return self.run(lot, setup)
 
-    def run(self, lot: dict, setup: dict) -> Response:
+        return self.run(lot, setup, params)
+
+    def run(self, lot: dict, setup: dict, params_dict: dict = None) -> Response:
         """
         Run Optimizer
         :param lot: lot data
         :param setup: setup data
+        :param params_dict: execution parameters
         :return: optimizer response
         """
         assert "v2" in lot.keys(), "lot must contain v2 data"
+
+        params = ExecParams(params_dict)
 
         # times
         elapsed_times = {}
@@ -121,7 +108,7 @@ class Executor:
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
-        GRIDS[self.grid_type].apply_to(plan, show=self.do_plot)
+        GRIDS[params.grid_type].apply_to(plan, show=params.do_plot)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -129,16 +116,16 @@ class Executor:
         logging.info("Seeder")
         t0_seeder = time.process_time()
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        if self.do_plot:
+        if params.do_plot:
             plan.plot()
         (seeder.plant()
-         .grow(show=self.do_plot)
+         .grow(show=params.do_plot)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
          .merge_small_cells(min_cell_area=1 * SQM,
                             excluded_components=["loadBearingWall"],
-                            show=self.do_plot))
-        if self.do_plot:
+                            show=params.do_plot))
+        if params.do_plot:
             plan.plot()
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
@@ -167,8 +154,8 @@ class Executor:
         logging.info("Shuffle")
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES[self.shuffle_type].run(sol.plan, show=self.do_plot)
-                if self.do_plot:
+                SHUFFLES[params.shuffle_type].run(sol.plan, show=params.do_plot)
+                if params.do_plot:
                     sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
@@ -196,8 +183,14 @@ if __name__ == '__main__':
         """
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
-        executor.set_execution_parameters(grid_type="optimal_grid", do_plot=False)
-        response = executor.run_from_file_names("grenoble_102.json", "grenoble_102_setup0.json")
+        response = executor.run_from_file_names(
+            "grenoble_102.json",
+            "grenoble_102_setup0.json",
+            {
+                "grid_type": "optimal_grid",
+                "do_plot": False,
+            }
+        )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
         logging.info("Nb solutions: %i", len(response.solutions))
 
