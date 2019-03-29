@@ -797,9 +797,10 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
     :param item: Item
     :return: ct: ortools.Constraint
     """
-
+    circulations_rooms = ["living", "livingKitchen", "dining", "entrance"]
+    adjacency_sum = 0
+    adjacency_rooms_sum = 0
     for num, num_item in enumerate(manager.sp.spec.items):
-        adjacency_sum = 0
         if num_item != item:
             adjacency_sum += manager.solver.solver.Sum(
                 manager.solver.solver.Sum(
@@ -809,6 +810,16 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
                     manager.solver.positions[num, k] for
                     j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+            for num_j, num_item_j in enumerate(manager.sp.spec.items):
+                if num_item_j.category.name
+                adjacency_sum += manager.solver.solver.Sum(
+                    manager.solver.solver.Sum(
+                        int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
+                        int(k_space.floor.level == j_space.floor.level) *
+                        manager.solver.positions[num_j, j] *
+                        manager.solver.positions[num, k] for
+                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
 
     ct1 = item_adjacency_constraint(manager, item,
                                     ["living", "livingKitchen", "dining", "entrance"], True, "Or")
