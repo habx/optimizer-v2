@@ -799,7 +799,16 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
     """
 
     for num, num_item in enumerate(manager.sp.spec.items):
-        ct = manager.solver.solver.Sum()
+        adjacency_sum = 0
+        if num_item != item:
+            adjacency_sum += manager.solver.solver.Sum(
+                manager.solver.solver.Sum(
+                    int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
+                    int(k_space.floor.level == j_space.floor.level) *
+                    manager.solver.positions[item.id, j] *
+                    manager.solver.positions[num, k] for
+                    j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
 
     ct1 = item_adjacency_constraint(manager, item,
                                     ["living", "livingKitchen", "dining", "entrance"], True, "Or")
