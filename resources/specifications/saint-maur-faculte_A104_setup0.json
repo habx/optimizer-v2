@@ -63,12 +63,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 150000,
-        "min": 120000
+        "max": 100000,
+        "min": 80000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "m"
+      "variant": "xs"
     },
     {
       "linkedTo": [],
