@@ -15,12 +15,12 @@
       "linkedTo": [],
       "opensOn": ["kitchen"],
       "requiredArea": {
-        "max": 400000,
-        "min": 300000
+        "max": 500000,
+        "min": 400000
       },
       "tags": [],
       "type": "living",
-      "variant": "l"
+      "variant": "xl"
     },
     {
       "linkedTo": [],
@@ -31,17 +31,6 @@
       },
       "tags": [],
       "type": "kitchen",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 150000,
-        "min": 120000
-      },
-      "tags": [],
-      "type": "bedroom",
       "variant": "m"
     },
     {
