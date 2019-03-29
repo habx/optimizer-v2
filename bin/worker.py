@@ -353,7 +353,7 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
 
 
 def _local_dev_hack():
-    if not os.path.exists(os.path.join(os.getenv('HOME'), '.aws/credentials')) \
+    if not os.path.exists(os.path.expanduser('~/.aws/credentials')) \
             and not os.getenv('AWS_ACCESS_KEY_ID') \
             and not os.getenv('HABX_ENV'):
         logging.warning(

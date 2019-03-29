@@ -6,4 +6,5 @@ FROM python:3.6
 WORKDIR /app
 CMD bin/worker.py
 COPY . /app
+CMD ["bin/worker.py"]
 RUN pip install -r requirements.txt
