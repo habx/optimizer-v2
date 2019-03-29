@@ -9,7 +9,7 @@ from libs.space_planner.space_planner import SpacePlanner
 from libs.specification.specification import Specification, Item, Size
 
 
-def t1_test():
+def test_t1():
     """
     Test
     Tested : inside_adjacency_constraint / area_constraint / components_adjacency_constraint /
@@ -46,7 +46,7 @@ def t1_test():
     assert len(space_planner_t1.solutions_collector.solutions) == 1
 
 
-def t1_bis_test():
+def test_t1_bis():
     """
     Test
     tested : opens_on_constraint
@@ -76,7 +76,8 @@ def t1_bis_test():
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=80000), Size(area=100000), ["bedroom"])
-    bedroom = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=80000), Size(area=100000), ["living"])
+    bedroom = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=80000), Size(area=100000),
+                   ["living"])
     spec = Specification("simple_test", plan_t1_bis, [bathroom, entrance, living, bedroom])
 
     space_planner_t1_bis = SpacePlanner("t1_bis", spec)
@@ -84,7 +85,7 @@ def t1_bis_test():
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1
 
 
-def t3_test():
+def test_t3():
     """
     Test
     :return:
@@ -125,7 +126,7 @@ def t3_test():
     assert len(space_planner_t3.solutions_collector.solutions) == 3
 
 
-def t3_balcony_test():
+def test_t3_balcony():
     """
     Test
     Tested : externals spaces
@@ -171,7 +172,7 @@ def t3_balcony_test():
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
 
-def t3_bis_test():
+def test_t3_bis():
     """
     Test
     Tested : symmetry_breaker / windows_constraint
