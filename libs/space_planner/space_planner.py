@@ -54,7 +54,7 @@ class SpacePlanner:
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
         for item in spec.items:
-            if ((item.category.name != "living" or len(item.opens_on) == 0) and
+            if ((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
