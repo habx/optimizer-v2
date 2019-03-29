@@ -105,7 +105,7 @@ class ConstraintSolver:
         self.solver.NewSearch(db)
 
         # Maximum number of solutions
-        max_num_sol = 5000
+        max_num_sol = 1000
         nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
@@ -234,7 +234,7 @@ class ConstraintsManager:
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
-                    if i_space.adjacent_to(j_space):
+                    if i_space.adjacent_to(j_space, 40):
                         self.space_graph.add_edge(i, j, weight=1)
                         self.space_graph.add_edge(j, i, weight=1)
 
@@ -247,7 +247,7 @@ class ConstraintsManager:
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
-                    if i_space.adjacent_to(j_space):
+                    if i_space.adjacent_to(j_space, 40):
                         self.area_space_graph.add_edge(i, j, weight=j_space.area + i_space.area)
                         self.area_space_graph.add_edge(j, i, weight=j_space.area + i_space.area)
 
@@ -371,7 +371,6 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
@@ -381,7 +380,6 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
-        min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -400,12 +398,12 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : find best param
     # TODO : unit tests
     """
-    if item.category.name in ["living", "dining"]:
+    if item.category.name in ["living", "dining", "livingKitchen"]:
         param = 2
-    elif item.category.name in ["kitchen", "bedroom"]:
+    elif item.category.name in ["kitchen", "bedroom", "entrance", "office"]:
         param = 2
     else:
-        param = 2
+        param = 1.8
 
     max_distance = int(round(param * item.max_size.area ** 0.5))
 
@@ -445,7 +443,12 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
     """
 
     ct = None
-    max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+    if ((item.variant in ["l", "xl"] or item.category.name in ["entrance"])
+            and item.category.name not in ["living", "livingKitchen", "dining"]):
+        max_area = round(item.max_size.area)
+    else:
+        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             if j < k:
@@ -558,7 +561,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     elif item.category.name in ["kitchen", "bedroom"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
-        param = 22
+        param = 20
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
@@ -695,7 +698,7 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
         range(manager.sp.spec.plan.count_mutable_spaces()))
     spaces_adjacency = manager.solver.solver.Sum(
         manager.solver.solver.Sum(
-            int(j_space.adjacent_to(k_space)) *
+            int(j_space.adjacent_to(k_space, 40)) *
             manager.solver.positions[item.id, j] *
             manager.solver.positions[item.id, k] for
             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if j > k)
@@ -706,7 +709,7 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
     for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         a = (manager.solver.positions[item.id, k] *
              manager.solver.solver
-             .Sum(int(j_space.adjacent_to(k_space)) * manager.solver.positions[item.id, j]
+             .Sum(int(j_space.adjacent_to(k_space, 40)) * manager.solver.positions[item.id, j]
                   for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if k != j))
 
         if ct2 is None:
@@ -746,27 +749,16 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
     for cat in item_categories:
         adjacency_sum = 0
-        if cat == "circulationSpace" and item.category.name != "circulationSpace":
-            adjacency_sum += manager.solver.solver.Sum(
-                manager.solver.solver.Sum(
-                    int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
-                    int(k_space.floor.level == j_space.floor.level) *
-                    manager.solver.positions[item.id, j] *
-                    (manager.solver.solver.Sum(manager.solver.positions[x_item.id, k] for x_item in
-                                               manager.sp.spec.items) == 0) for
-                    j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
-                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
-        else:
-            for num, num_item in enumerate(manager.sp.spec.items):
-                if num_item.category.name == cat and num_item != item:
-                    adjacency_sum += manager.solver.solver.Sum(
-                        manager.solver.solver.Sum(
-                            int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
-                            int(k_space.floor.level == j_space.floor.level) *
-                            manager.solver.positions[item.id, j] *
-                            manager.solver.positions[num, k] for
-                            j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
-                        for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+        for num, num_item in enumerate(manager.sp.spec.items):
+            if num_item.category.name == cat and num_item != item:
+                adjacency_sum += manager.solver.solver.Sum(
+                    manager.solver.solver.Sum(
+                        int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
+                        int(k_space.floor.level == j_space.floor.level) *
+                        manager.solver.positions[item.id, j] *
+                        manager.solver.positions[num, k] for
+                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
 
         if adjacency_sum is not 0:
             if ct is None:
@@ -805,6 +797,9 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
     :param item: Item
     :return: ct: ortools.Constraint
     """
+
+    for num, num_item in enumerate(manager.sp.spec.items):
+        ct = manager.solver.solver.Sum()
 
     ct1 = item_adjacency_constraint(manager, item,
                                     ["living", "livingKitchen", "dining", "entrance"], True, "Or")
@@ -1018,9 +1013,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": WINDOW_CATEGORY, "adj": False,
                                            "addition_rule": "And"}],
-        [item_adjacency_constraint,
-         {"item_categories": ["living", "livingKitchen", "dining", "entrance"], "adj": True,
-          "addition_rule": "Or"}]
     ]
 }
 
