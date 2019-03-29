@@ -63,7 +63,7 @@ if __name__ == '__main__':
     # file renaming
     x = next(os.walk(repo))[2]
     for current_x in x:
-        init_name = repo + os.path.join("/", current_x)
+        init_name = os.path.join(repo, current_x)
         fin_name = init_name.replace(" ", "")
         shutil.move(init_name, init_name.replace(" ", ""))
 
