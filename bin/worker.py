@@ -3,6 +3,7 @@ import argparse
 import json
 import logging
 import os
+import socket
 import sys
 import traceback
 import uuid
@@ -251,15 +252,17 @@ class MessageProcessor:
                 }
 
             if result:
-                # OPT-74: The fields coming from the source are always added to the answer
+                # OPT-74: The fields coming from the request are always added to the result
                 data = result.get('data')
-                if data:
-                    data['version'] = Executor.VERSION
-                    data['requestId'] = msg.content.get('requestId')
-                    data['lot'] = msg.content.get('lot')
-                    data['setup'] = msg.content.get('setup')
-                    data['params'] = msg.content.get('params')
-                    data['context'] = msg.content.get('context')
+                if not data:  # If we don't have data, we create one
+                    data = {'status': 'unknown'}
+                    result['data'] = data
+                data['version'] = Executor.VERSION
+                data['requestId'] = msg.content.get('requestId')
+                data['lot'] = msg.content.get('lot')
+                data['setup'] = msg.content.get('setup')
+                data['params'] = msg.content.get('params')
+                data['context'] = msg.content.get('context')
                 self.exchanger.send_result(result)
 
     def _process_message(self, msg: Message) -> Optional[dict]:
@@ -391,7 +394,6 @@ def _cli():
     args = parser.parse_args()
 
     if args.myself:
-        import socket
         args.target = socket.gethostname()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
