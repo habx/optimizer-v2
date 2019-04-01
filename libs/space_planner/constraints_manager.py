@@ -45,6 +45,7 @@ SQM = 10000
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
+INSIDE_ADJACENCY_LENGTH = 40
 
 
 class ConstraintSolver:
@@ -61,7 +62,7 @@ class ConstraintSolver:
         self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
         self.cells_item: List[ortools.IntVar] = []
-        self.positions = {}  # List[List[ortools.IntVar]] = [[]]
+        self.positions = {}
         self._init_positions()
         self.solutions = []
 
@@ -161,6 +162,7 @@ class ConstraintsManager:
         self._init_spaces_graph()
         self.area_space_graph = nx.Graph()
         self._init_area_spaces_graph()
+
         self.item_constraints = {}
         self.add_spaces_constraints()
         self.add_item_constraints()
@@ -234,7 +236,7 @@ class ConstraintsManager:
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
-                    if i_space.adjacent_to(j_space, 40):
+                    if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
                         self.space_graph.add_edge(i, j, weight=1)
                         self.space_graph.add_edge(j, i, weight=1)
 
@@ -247,7 +249,7 @@ class ConstraintsManager:
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
-                    if i_space.adjacent_to(j_space, 40):
+                    if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
                         self.area_space_graph.add_edge(i, j, weight=j_space.area + i_space.area)
                         self.area_space_graph.add_edge(j, i, weight=j_space.area + i_space.area)
 
@@ -453,9 +455,9 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             if j < k:
                 if ct is None:
-                    if j not in nx.nodes(manager.area_space_graph) or k not in nx.nodes(
-                            manager.area_space_graph) or not nx.has_path(manager.area_space_graph,
-                                                                          j, k):
+                    if (j not in nx.nodes(manager.area_space_graph)
+                            or k not in nx.nodes(manager.area_space_graph)
+                            or not nx.has_path(manager.area_space_graph, j, k)):
                         ct = (manager.solver.positions[item.id, j] *
                               manager.solver.positions[item.id, k] == 0)
                     else:
@@ -469,9 +471,9 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                               <= max_area)
 
                 else:
-                    if j not in nx.nodes(manager.area_space_graph) or k not in nx.nodes(
-                            manager.area_space_graph) or not nx.has_path(manager.area_space_graph,
-                                                                          j, k):
+                    if (j not in nx.nodes(manager.area_space_graph)
+                            or k not in nx.nodes(manager.area_space_graph)
+                            or not nx.has_path(manager.area_space_graph, j, k)):
                         new_ct = (manager.solver.positions[item.id, j] *
                                   manager.solver.positions[item.id, k] == 0)
                     else:
@@ -561,7 +563,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     elif item.category.name in ["kitchen", "bedroom"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
-        param = 20
+        param = 22
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
@@ -607,7 +609,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
     """
     ct = None
     for j_item in manager.sp.spec.items:
-        if item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS and item.required_area < j_item.required_area:
+        if (item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS
+                and item.required_area < j_item.required_area):
             if ct is None:
                 ct = (manager.windows_length[str(item.id)] <=
                       manager.windows_length[str(j_item.id)])
@@ -698,7 +701,7 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
         range(manager.sp.spec.plan.count_mutable_spaces()))
     spaces_adjacency = manager.solver.solver.Sum(
         manager.solver.solver.Sum(
-            int(j_space.adjacent_to(k_space, 40)) *
+            int(j_space.adjacent_to(k_space, INSIDE_ADJACENCY_LENGTH)) *
             manager.solver.positions[item.id, j] *
             manager.solver.positions[item.id, k] for
             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if j > k)
@@ -709,7 +712,8 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
     for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         a = (manager.solver.positions[item.id, k] *
              manager.solver.solver
-             .Sum(int(j_space.adjacent_to(k_space, 40)) * manager.solver.positions[item.id, j]
+             .Sum(int(j_space.adjacent_to(k_space, INSIDE_ADJACENCY_LENGTH)) *
+                  manager.solver.positions[item.id, j]
                   for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()) if k != j))
 
         if ct2 is None:
@@ -928,6 +932,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "wc": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
@@ -939,6 +944,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
             {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
@@ -949,6 +955,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -960,6 +967,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
     ],
     "livingKitchen": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -970,6 +978,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "dining": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
@@ -980,6 +989,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "kitchen": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -991,6 +1001,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bedroom": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
@@ -1000,6 +1011,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
@@ -1009,6 +1021,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
@@ -1019,6 +1032,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
+        [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,

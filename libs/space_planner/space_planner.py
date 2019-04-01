@@ -30,6 +30,7 @@ class SpacePlanner:
     def __init__(self, name: str, spec: 'Specification'):
         self.name = name
         self._init_spec(spec)
+        self._plan_cleaner()
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
@@ -53,7 +54,7 @@ class SpacePlanner:
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
         for item in spec.items:
-            if ((item.category.name != "living" or len(item.opens_on) == 0) and
+            if ((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
@@ -81,6 +82,16 @@ class SpacePlanner:
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
 
         self.spec = space_planner_spec
+
+    def _plan_cleaner(self, min_area: float = 100) -> None:
+        """
+        Plan cleaner for little spaces
+        :return: None
+        """
+        self.spec.plan.remove_null_spaces()
+        for space in self.spec.plan.spaces:
+            if space.area < min_area:
+                self.spec.plan.remove(space)
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -333,38 +344,13 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        # plan.plot()
-        # new_space_list = []
-        # for space in plan.spaces:
-        #     if space.category.name == "empty":
-        #         for face in space.faces:
-        #             new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-        #             new_space_list.append(new_space)
-        # has_empty_space = True
-        # while has_empty_space:
-        #     has_empty_space = False
-        #     for space in plan.spaces:
-        #         if space.category.name == "empty":
-        #             plan.remove(space)
-        #             has_empty_space = True
-        #     plan.remove_null_spaces()
-
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"])
-         )
-        has_empty_space = True
-        while has_empty_space:
-            has_empty_space = False
-            for space in plan.spaces:
-                if space.area < 100:
-                    plan.remove(space)
-                    print("remove")
-                    has_empty_space = True
-            plan.remove_null_spaces()
+         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
+
         plan.plot()
 
         input_file_setup = input_file[:-5] + "_setup0.json"
