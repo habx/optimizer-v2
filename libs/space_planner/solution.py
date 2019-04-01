@@ -253,8 +253,13 @@ class Solution:
         logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
-            logging.debug("room %s: P2/A : %i", item.id,
-                          int((space.perimeter*space.perimeter)/space.area))
+            if item.category.name in ["wc", "bathroom"]:
+                logging.debug("room %s: P2/A : %i", item.id,
+                              int((space.perimeter_without_duct *
+                                   space.perimeter_without_duct)/space.area))
+            else:
+                logging.debug("room %s: P2/A : %i", item.id,
+                              int((space.perimeter*space.perimeter)/space.area))
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
             if convex_hull.is_valid and sp_space.is_valid:

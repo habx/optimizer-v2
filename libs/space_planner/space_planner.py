@@ -15,6 +15,7 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
+from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
 import networkx as nx
 
@@ -29,6 +30,7 @@ class SpacePlanner:
     def __init__(self, name: str, spec: 'Specification'):
         self.name = name
         self._init_spec(spec)
+        self._plan_cleaner()
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
@@ -52,7 +54,7 @@ class SpacePlanner:
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
         for item in spec.items:
-            if ((item.category.name != "living" or len(item.opens_on) == 0) and
+            if ((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
@@ -79,6 +81,16 @@ class SpacePlanner:
         logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         self.spec = space_planner_spec
+
+    def _plan_cleaner(self, min_area: float = 100) -> None:
+        """
+        Plan cleaner for little spaces
+        :return: None
+        """
+        self.spec.plan.remove_null_spaces()
+        for space in self.spec.plan.spaces:
+            if space.area < min_area:
+                self.spec.plan.remove(space)
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -316,13 +328,19 @@ if __name__ == '__main__':
 
         GRIDS['optimal_grid'].apply_to(plan)
 
+        min_cell_area = 1 * SQM
+        if plan.indoor_area > 105 * SQM and plan.floor_count < 2:
+            min_cell_area = 2 * SQM
+        elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
+            min_cell_area = 3 * SQM
+
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
          .grow(show=True)
          .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 
@@ -357,10 +375,10 @@ if __name__ == '__main__':
             writer.save_json_solution(solution_dict, sol.get_id)
 
         # shuffle
-        # if best_solutions:
-        #     for sol in best_solutions:
-        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-        #         sol.plan.plot()
+        if best_solutions:
+            for sol in best_solutions:
+                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+                sol.plan.plot()
 
         logging.info("total time : %f", time.clock() - t00)
         # print("total time :", time.clock() - t00)
