@@ -9,6 +9,7 @@ import sys
 import traceback
 import uuid
 import tempfile
+import time
 from typing import Optional
 
 import boto3
@@ -229,6 +230,7 @@ class MessageProcessor:
         self.executor = Executor()
         self.my_name = my_name
         self.output_dir = None
+        self.log_handler = None
 
     def start(self):
         """Start the message processor"""
@@ -242,6 +244,8 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
+            before_time = time.time()
+
             try:
                 result = self._process_message(msg)
             except Exception:
@@ -251,40 +255,63 @@ class MessageProcessor:
                     'data': {
                         'status': 'error',
                         'error': traceback.format_exception(*sys.exc_info()),
+                        'times': {
+                            'total_real': (time.time() - before_time)
+                        },
                     },
                 }
 
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
                 data = result.get('data')
+                result['requestId'] = msg.content.get('requestId')
                 if not data:  # If we don't have a data sub-structure, we create one
                     data = {'status': 'unknown'}
                     result['data'] = data
                 data['version'] = Executor.VERSION
-                data['requestId'] = msg.content.get('requestId')
-                data['lot'] = msg.content.get('lot')
-                data['setup'] = msg.content.get('setup')
-                data['params'] = msg.content.get('params')
-                data['context'] = msg.content.get('context')
+                src_data = msg.content.get('data')
+                data['lot'] = src_data.get('lot')
+                data['setup'] = src_data.get('setup')
+                data['params'] = src_data.get('params')
+                data['context'] = src_data.get('context')
                 self.exchanger.send_result(result)
 
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
 
-    def _set_output_data(self):
+    def _prepare_output_dir(self):
         logger = logging.getLogger("")
-        handler = logging.FileHandler(os.path.join(self.output_dir, 'output.log'))
+        log_file = os.path.join(self.output_dir, 'output.log')
+        logging.info("Writing logs to %s", log_file)
+        handler = logging.FileHandler(log_file)
         formatter = logging.Formatter(
-            "%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s"
+            "%(asctime)-15s | %(filename)10s:%(lineno)-5d | %(levelname).4s | %(message)s"
         )
+        handler.setFormatter(formatter)
+
+        # Adding the new handler
+        self.log_handler = handler
         logger.addHandler(handler)
 
+    def _cleanup_output_dir(self):
+        logger = logging.getLogger("")
+        # Removing the previous handler
+        if self.log_handler:
+            logger.removeHandler(self.log_handler)
+            self.log_handler = None
+
+        import glob, os
+        output_files = os.path.join(self.output_dir, '*')
+        for f in glob.glob(output_files):
+            logging.info("Deleting file \"%s\"", f)
+            os.remove(f)
 
     def _process_message(self, msg: Message) -> Optional[dict]:
         """Actual message processing (without any error handling on purpose)"""
         logging.info("Processing message: %s", msg.content)
 
-        self._set_output_data()
+        self._cleanup_output_dir()
+        self._prepare_output_dir()
 
         # request_id = msg.content['requestId']
 
@@ -321,6 +348,7 @@ class MessageProcessor:
                 'times': executor_result.elapsed_times,
             },
         }
+        self._cleanup_output_dir()
         return result
 
 
