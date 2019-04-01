@@ -2,11 +2,13 @@
 import argparse
 import json
 import logging
+import logging.handlers
 import os
 import socket
 import sys
 import traceback
 import uuid
+import tempfile
 from typing import Optional
 
 import boto3
@@ -226,10 +228,12 @@ class MessageProcessor:
         self.exchanger = exchanger
         self.executor = Executor()
         self.my_name = my_name
+        self.output_dir = None
 
     def start(self):
         """Start the message processor"""
         self.exchanger.start()
+        self.output_dir = tempfile.mkdtemp('worker-optimizer')
 
     def run(self):
         """Make it run. Once called it never stops."""
@@ -267,9 +271,20 @@ class MessageProcessor:
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
 
+    def _set_output_data(self):
+        logger = logging.getLogger("")
+        handler = logging.FileHandler(os.path.join(self.output_dir, 'output.log'))
+        formatter = logging.Formatter(
+            "%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s"
+        )
+        logger.addHandler(handler)
+
+
     def _process_message(self, msg: Message) -> Optional[dict]:
         """Actual message processing (without any error handling on purpose)"""
         logging.info("Processing message: %s", msg.content)
+
+        self._set_output_data()
 
         # request_id = msg.content['requestId']
 
