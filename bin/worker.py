@@ -263,9 +263,12 @@ class MessageProcessor:
 
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
+                result['requestId'] = msg.content.get('requestId')
+
+                # If we don't have a data sub-structure, we create one
                 data = result.get('data')
                 result['requestId'] = msg.content.get('requestId')
-                if not data:  # If we don't have a data sub-structure, we create one
+                if not data:
                     data = {'status': 'unknown'}
                     result['data'] = data
                 data['version'] = Executor.VERSION

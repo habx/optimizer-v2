@@ -52,11 +52,13 @@ def save_mesh_as_json(data: Dict, name: Optional[str] = None):
 def generate_output_dict(input_data: dict, solution: Solution) -> dict:
     # deep copy is not thread safe, dict comprehension is not deep
     # so we use this hack (fast enough)
-    output_dict = json.loads(json.dumps(input_data))
+    assert "v2" in input_data.keys()
 
-    points = output_dict["vertices"]
-    spaces = output_dict["spaces"]
-    floors = output_dict["floors"]
+    output_data_v2 = json.loads(json.dumps(input_data["v2"]))
+
+    points = output_data_v2["vertices"]
+    spaces = output_data_v2["spaces"]
+    floors = output_data_v2["floors"]
     vertices_max_id = 0
     room_max_id = 0
 
@@ -87,21 +89,17 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
-    output_dict = {"v2": output_dict}
-
-    return output_dict
+    return {"v2": output_data_v2}
 
 
 def generate_output_dict_from_file(input_file_name: str, solution: Solution) -> dict:
     floor_plan_dict = reader.get_json_from_file(input_file_name)
 
-    if "v2" in floor_plan_dict.keys():
-        input_dict = floor_plan_dict["v2"]
-    else:
+    if "v2" not in floor_plan_dict.keys():
         logging.warning("Writer : v1 input plan")
         return {}
 
-    return generate_output_dict(input_dict, solution)
+    return generate_output_dict(floor_plan_dict, solution)
 
 
 def save_json_solution(data, num_sol):

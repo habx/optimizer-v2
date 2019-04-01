@@ -101,7 +101,7 @@ class Executor:
         # reading lot
         logging.info("Read lot")
         t0_reader = time.process_time()
-        plan = reader.create_plan_from_v2_data(lot["v2"])
+        plan = reader.create_plan_from_data(lot)
         elapsed_times["reader"] = time.process_time() - t0_reader
         logging.info("Lot read in %f", elapsed_times["reader"])
 
@@ -163,7 +163,7 @@ class Executor:
         # output
         t0_output = time.process_time()
         logging.info("Output")
-        solutions = [generate_output_dict(lot["v2"], sol) for sol in best_solutions]
+        solutions = [generate_output_dict(lot, sol) for sol in best_solutions]
         elapsed_times["output"] = time.process_time() - t0_output
         logging.info("Output written in %f", elapsed_times["output"])
 

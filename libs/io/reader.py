@@ -18,10 +18,10 @@ from libs.utils.geometry import (
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.mesh.mesh import COORD_EPSILON
-
-LOAD_BEARING_WALL_WIDTH = 15.0
 from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER, DEFAULT_SPECIFICATION_INPUT_FOLDER
 from output import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
+
+LOAD_BEARING_WALL_WIDTH = 15.0
 
 
 def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
@@ -259,24 +259,34 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     :return: a plan object
     """
     floor_plan_dict = get_json_from_file(input_file_name)
-    file_name = os.path.splitext(os.path.basename(input_file_name))[0]
+    return create_plan_from_data(floor_plan_dict)
 
+
+def create_plan_from_data(floor_plan_dict: Dict, name: Optional[str] = None) -> plan.Plan:
+    """
+    Create a plan object from data as found in blueprint files
+    :return: a plan object
+    """
     if "v2" in floor_plan_dict.keys():
-        return create_plan_from_v2_data(floor_plan_dict["v2"], file_name)
+        lot_slug = floor_plan_dict["meta"]["slug"]
+        project_slug = floor_plan_dict["meta"]["projectSlug"]
+        plan_name = "_".join((project_slug, lot_slug)) if name is None else name
+        return create_plan_from_v2_data(floor_plan_dict["v2"], plan_name)
     elif "v1" in floor_plan_dict.keys():
-        return create_plan_from_v1_data(floor_plan_dict["v1"], file_name)
+        plan_name = floor_plan_dict["v1"]["apartment"]["id"] if name is None else name
+        return create_plan_from_v1_data(floor_plan_dict["v1"], plan_name)
     else:
-        return create_plan_from_v1_data(floor_plan_dict, file_name)
+        plan_name = floor_plan_dict["apartment"]["id"] if name is None else name
+        return create_plan_from_v1_data(floor_plan_dict, plan_name)
 
 
-def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.Plan:
+def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 2 of the blueprint data format.
     """
 
-    plan_name = v2_data["aptInfos"]["name"] if name is None else name
-    my_plan = plan.Plan(plan_name)
+    my_plan = plan.Plan(name)
 
     # get vertices data
     vertices_by_id: Dict[int, Coords2d] = {}
@@ -326,16 +336,16 @@ def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.
     return my_plan
 
 
-def create_plan_from_v1_data(v1_data: Dict, file_name: str) -> plan.Plan:
+def create_plan_from_v1_data(v1_data: Dict, name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 1 of the blueprint data format.
     Note: only 1 floor per apartment
-    :param file_name:
+    :param name: name for the plan
     :param v1_data:
     :return:
     """
-    my_plan = plan.Plan(file_name)
+    my_plan = plan.Plan(name)
 
     apartment = v1_data["apartment"]
 
