@@ -815,7 +815,7 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
                     j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
             for num_j, num_item_j in enumerate(manager.sp.spec.items):
-                if num_item_j.category.name
+
                 adjacency_sum += manager.solver.solver.Sum(
                     manager.solver.solver.Sum(
                         int(j_space.distance_to(k_space, "min") < LBW_THICKNESS) *
@@ -916,7 +916,6 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
-        [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         [distance_constraint, {}],
@@ -925,6 +924,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "min"}],
     ],
     "entrance": [
+        [inside_adjacency_constraint, {}],
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
@@ -932,6 +932,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "wc": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -944,6 +945,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
             {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -955,6 +957,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
@@ -967,6 +970,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
     ],
     "livingKitchen": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
@@ -978,6 +982,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "dining": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -989,6 +994,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
           "addition_rule": "Or"}]
     ],
     "kitchen": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -1001,6 +1007,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bedroom": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -1011,6 +1018,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "office": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -1021,6 +1029,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint,
@@ -1032,6 +1041,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
+        [inside_adjacency_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
