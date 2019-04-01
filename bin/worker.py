@@ -240,7 +240,6 @@ class MessageProcessor:
 
             try:
                 result = self._process_message(msg)
-                self.exchanger.acknowledge_msg(msg)
             except Exception:
                 logging.exception("Problem handing message: %s", msg.content)
                 result = {
@@ -254,7 +253,7 @@ class MessageProcessor:
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
                 data = result.get('data')
-                if not data:  # If we don't have data, we create one
+                if not data:  # If we don't have a data sub-structure, we create one
                     data = {'status': 'unknown'}
                     result['data'] = data
                 data['version'] = Executor.VERSION
@@ -265,10 +264,15 @@ class MessageProcessor:
                 data['context'] = msg.content.get('context')
                 self.exchanger.send_result(result)
 
+            # Always acknowledging messages
+            self.exchanger.acknowledge_msg(msg)
+
     def _process_message(self, msg: Message) -> Optional[dict]:
         """Actual message processing (without any error handling on purpose)"""
         logging.info("Processing message: %s", msg.content)
-        request_id = msg.content['requestId']
+
+        # request_id = msg.content['requestId']
+
         # Parsing the message
         data = msg.content['data']
 
