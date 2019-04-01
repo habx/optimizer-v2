@@ -4,13 +4,14 @@ import json
 import logging
 import logging.handlers
 import os
+import glob
 import socket
 import sys
 import traceback
 import uuid
 import tempfile
 import time
-from typing import Optional
+from typing import Optional, List
 
 import boto3
 
@@ -54,6 +55,8 @@ class Config:
             env=env,
             topic=topic_results_base,
         )
+
+        self.s3_repository = 'habx-{env}-worker-optimizer-v2'.format(env=env)
 
 
 class Message:
@@ -225,12 +228,14 @@ class Exchanger:
 class MessageProcessor:
     """Message processing"""
 
-    def __init__(self, exchanger: Exchanger, my_name: str = None):
+    def __init__(self, config: Config, exchanger: Exchanger, my_name: str = None):
         self.exchanger = exchanger
+        self.config = config
         self.executor = Executor()
         self.my_name = my_name
         self.output_dir = None
         self.log_handler = None
+        self.s3_client = boto3.client('s3')
 
     def start(self):
         """Start the message processor"""
@@ -245,6 +250,8 @@ class MessageProcessor:
                 continue
 
             before_time = time.time()
+
+            self._process_message_before(msg)
 
             try:
                 result = self._process_message(msg)
@@ -261,13 +268,14 @@ class MessageProcessor:
                     },
                 }
 
+            self._process_message_after(msg)
+
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
                 result['requestId'] = msg.content.get('requestId')
 
                 # If we don't have a data sub-structure, we create one
                 data = result.get('data')
-                result['requestId'] = msg.content.get('requestId')
                 if not data:
                     data = {'status': 'unknown'}
                     result['data'] = data
@@ -288,7 +296,7 @@ class MessageProcessor:
         logging.info("Writing logs to %s", log_file)
         handler = logging.FileHandler(log_file)
         formatter = logging.Formatter(
-            "%(asctime)-15s | %(filename)10s:%(lineno)-5d | %(levelname).4s | %(message)s"
+            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
         )
         handler.setFormatter(formatter)
 
@@ -296,27 +304,64 @@ class MessageProcessor:
         self.log_handler = handler
         logger.addHandler(handler)
 
+    def _save_output_dir(self, request_id: str):
+        for src_file in self._output_files():
+            dst_file = "{request_id}/{file}".format(
+                request_id=request_id,
+                file=src_file[len(self.output_dir)+1:]
+            )
+            logging.info(
+                "Uploading \"%s\" to s3://%s/%s",
+                src_file,
+                self.config.s3_repository,
+                dst_file
+            )
+            self.s3_client.upload_file(
+                src_file,
+                self.config.s3_repository,
+                dst_file,
+                ExtraArgs={
+                    'ACL': 'public-read'
+                }
+            )
+        pass
+
+    def _output_files(self) -> List[str]:
+        return glob.glob(os.path.join(self.output_dir, '*'))
+
     def _cleanup_output_dir(self):
         logger = logging.getLogger("")
         # Removing the previous handler
         if self.log_handler:
+            self.log_handler.close()
             logger.removeHandler(self.log_handler)
             self.log_handler = None
 
-        import glob, os
-        output_files = os.path.join(self.output_dir, '*')
-        for f in glob.glob(output_files):
+        for f in self._output_files():
             logging.info("Deleting file \"%s\"", f)
             os.remove(f)
 
-    def _process_message(self, msg: Message) -> Optional[dict]:
-        """Actual message processing (without any error handling on purpose)"""
-        logging.info("Processing message: %s", msg.content)
-
+    def _process_message_before(self, msg: Message):
         self._cleanup_output_dir()
         self._prepare_output_dir()
 
-        # request_id = msg.content['requestId']
+        # This is where we will add CPU & memory profiling start code
+
+    def _process_message_after(self, msg: Message):
+        self._save_output_dir(msg.content.get('requestId'))
+        self._cleanup_output_dir()
+
+        # This is where we will add CPU & memory profiling stop code
+
+    def _process_message(self, msg: Message) -> Optional[dict]:
+        """
+        Actual message processing (without any error handling on purpose)
+        :param msg: Message to process
+        :return: Message to return
+        """
+        logging.info("Processing message: %s", msg.content)
+
+        request_id = msg.content['requestId']
 
         # Parsing the message
         data = msg.content['data']
@@ -325,6 +370,8 @@ class MessageProcessor:
         lot = data['lot']
         setup = data['setup']
         params = data['params']
+
+        self._process_message_before(msg)
 
         # If we're having a personal identify, we only accept message to ourself
         target_worker = params.get('target_worker')
@@ -351,15 +398,17 @@ class MessageProcessor:
                 'times': executor_result.elapsed_times,
             },
         }
-        self._cleanup_output_dir()
+
+        self._process_message_after(msg)
+
         return result
 
 
-def _process_messages(args: argparse.Namespace, exchanger: Exchanger):
+def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
     """Core processing message method"""
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
 
-    processing = MessageProcessor(exchanger, args.target)
+    processing = MessageProcessor(config, exchanger, args.target)
     processing.start()
     processing.run()
 
@@ -449,7 +498,7 @@ def _cli():
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:
-        _process_messages(args, exchanger)
+        _process_messages(args, config, exchanger)
 
 
 _cli()
