@@ -598,6 +598,18 @@ class Space(PlanComponent):
         return sum(map(lambda e: e.length, self.edges))
 
     @property
+    def perimeter_without_duct(self) -> float:
+        """
+        Returns the length of the Space perimeter without duct adjacencies
+        :return:
+        """
+        output = 0
+        for edge in self.edges:
+            space = self.plan.get_space_of_edge(edge.pair)
+            output += 0 if space and space.category.name == "duct" else edge.length
+        return output
+
+    @property
     def as_sp(self) -> Optional[Polygon]:
         """
         Returns a shapely polygon
