@@ -52,11 +52,13 @@ def save_mesh_as_json(data: Dict, name: Optional[str] = None):
 def generate_output_dict(input_data: dict, solution: Solution) -> dict:
     # deep copy is not thread safe, dict comprehension is not deep
     # so we use this hack (fast enough)
-    output_data = json.loads(json.dumps(input_data))
+    assert "v2" in input_data.keys()
 
-    points = output_data["v2"]["vertices"]
-    spaces = output_data["v2"]["spaces"]
-    floors = output_data["v2"]["floors"]
+    output_data_v2 = json.loads(json.dumps(input_data["v2"]))
+
+    points = output_data_v2["vertices"]
+    spaces = output_data_v2["spaces"]
+    floors = output_data_v2["floors"]
     vertices_max_id = 0
     room_max_id = 0
 
@@ -87,7 +89,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
-    return output_data
+    return {"v2": output_data_v2}
 
 
 def generate_output_dict_from_file(input_file_name: str, solution: Solution) -> dict:
