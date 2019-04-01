@@ -222,10 +222,10 @@ class Exchanger:
 class MessageProcessor:
     """Message processing"""
 
-    def __init__(self, exchanger: Exchanger, myself: str = None):
+    def __init__(self, exchanger: Exchanger, my_name: str = None):
         self.exchanger = exchanger
         self.executor = Executor()
-        self.myself = myself
+        self.my_name = my_name
 
     def start(self):
         """Start the message processor"""
@@ -235,29 +235,44 @@ class MessageProcessor:
         """Make it run. Once called it never stops."""
         while True:
             msg = self.exchanger.get_request()
-            if not msg:
+            if not msg:  # No message received (queue is empty)
                 continue
+
             try:
-                result_ok = self._process_message(msg)
-                if result_ok:
-                    self.exchanger.send_result(result_ok)
-                self.exchanger.acknowledge_msg(msg)
+                result = self._process_message(msg)
             except Exception:
                 logging.exception("Problem handing message: %s", msg.content)
-                error_result = {
+                result = {
                     'type': 'optimizer-processing-result',
                     'data': {
-                        'requestId': msg.content.get('requestId'),
                         'status': 'error',
                         'error': traceback.format_exception(*sys.exc_info()),
                     },
                 }
-                self.exchanger.send_result(error_result)
+
+            if result:
+                # OPT-74: The fields coming from the request are always added to the result
+                data = result.get('data')
+                if not data:  # If we don't have a data sub-structure, we create one
+                    data = {'status': 'unknown'}
+                    result['data'] = data
+                data['version'] = Executor.VERSION
+                data['requestId'] = msg.content.get('requestId')
+                data['lot'] = msg.content.get('lot')
+                data['setup'] = msg.content.get('setup')
+                data['params'] = msg.content.get('params')
+                data['context'] = msg.content.get('context')
+                self.exchanger.send_result(result)
+
+            # Always acknowledging messages
+            self.exchanger.acknowledge_msg(msg)
 
     def _process_message(self, msg: Message) -> Optional[dict]:
         """Actual message processing (without any error handling on purpose)"""
         logging.info("Processing message: %s", msg.content)
-        request_id = msg.content['requestId']
+
+        # request_id = msg.content['requestId']
+
         # Parsing the message
         data = msg.content['data']
 
@@ -265,16 +280,15 @@ class MessageProcessor:
         lot = data['lot']
         setup = data['setup']
         params = data['params']
-        context = data['context']
 
         # If we're having a personal identify, we only accept message to ourself
         target_worker = params.get('target_worker')
-        if (self.myself is not None and target_worker != self.myself) or (
-                self.myself is None and target_worker):
+        if (self.my_name is not None and target_worker != self.my_name) or (
+                self.my_name is None and target_worker):
             logging.info(
                 "   ... message is not for me: target=\"%s\", myself=\"%s\"",
                 target_worker,
-                self.myself,
+                self.my_name,
             )
             return None
 
@@ -286,16 +300,10 @@ class MessageProcessor:
         executor_result = self.executor.run(lot, setup, params)
         result = {
             'type': 'optimizer-processing-result',
-            'requestId': request_id,
             'data': {
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
-                'version': Executor.VERSION,
-                'lot': lot,
-                'setup': setup,
-                'params': params,
-                'context': context,
             },
         }
         return result
@@ -305,11 +313,7 @@ def _process_messages(args: argparse.Namespace, exchanger: Exchanger):
     """Core processing message method"""
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
 
-    myself = None
-    if args.myself:
-        myself = socket.gethostname()
-
-    processing = MessageProcessor(exchanger, myself)
+    processing = MessageProcessor(exchanger, args.target)
     processing.start()
     processing.run()
 
@@ -330,8 +334,8 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     if args.params_crash:
         params['crash'] = True
 
-    if args.myself:
-        params['target_worker'] = socket.gethostname()
+    if args.target:
+        params['target_worker'] = args.target
 
     # Preparing a request
     request = {
@@ -382,14 +386,19 @@ def _cli():
     exchanger = Exchanger(config)
 
     parser = argparse.ArgumentParser(description="Optimizer V2 Worker v" + Executor.VERSION)
-    parser.add_argument("-l", dest="lot", metavar="FILE", help="Lot input file")
-    parser.add_argument("-s", dest="setup", metavar="FILE", help="Setup input file")
-    parser.add_argument("-p", dest="params", metavar="FILE", help="Params input file")
-    parser.add_argument("--params-crash", dest="params_crash", action='store_true',
-                        help='Add a crash param')
-    parser.add_argument('--myself', dest='myself', action='store_true',
-                        help='Only deal with myself')
+    parser.add_argument("-l", "--lot", dest="lot", metavar="FILE", help="Lot input file")
+    parser.add_argument("-s", "--setup", dest="setup", metavar="FILE", help="Setup input file")
+    parser.add_argument("-p", "--params", dest="params", metavar="FILE", help="Params input file")
+    parser.add_argument("--params-crash", dest="params_crash", action="store_true",
+                        help="Add a crash param")
+    parser.add_argument("-t", "--target", dest="target", metavar="WORKER_NAME",
+                        help="Target worker name")
+    parser.add_argument('--myself', dest='myself', action="store_true",
+                        help="Use this hostname as target worker")
     args = parser.parse_args()
+
+    if args.myself:
+        args.target = socket.gethostname()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
