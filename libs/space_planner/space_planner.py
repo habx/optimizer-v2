@@ -82,20 +82,15 @@ class SpacePlanner:
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         self.spec = space_planner_spec
 
-    def _plan_cleaner(self) -> None:
+    def _plan_cleaner(self, min_area: float = 100) -> None:
         """
         Plan cleaner for little spaces
         :return: None
         """
-        little_area = 100
-        has_little_space = True
-        while has_little_space:
-            has_little_space = False
-            for space in self.spec.plan.spaces:
-                if space.area < little_area:
-                    self.spec.plan.remove(space)
-                    has_little_space = True
         self.spec.plan.remove_null_spaces()
+        for space in self.spec.plan.spaces:
+            if space.area < min_area:
+                self.spec.plan.remove(space)
 
     def _init_spaces_adjacency(self) -> None:
         """

@@ -603,9 +603,11 @@ class Space(PlanComponent):
         Returns the length of the Space perimeter without duct adjacencies
         :return:
         """
-        duct_space = [edge for space in self.plan.spaces if space.category.name == "duct"
-                      for edge in space.edges]
-        return sum(edge.length for edge in self.edges if edge.pair not in duct_space)
+        output = 0
+        for edge in self.edges:
+            space = self.plan.get_space_of_edge(edge.pair)
+            output += 0 if space and space.category.name == "duct" else edge.length
+        return output
 
     @property
     def as_sp(self) -> Optional[Polygon]:
