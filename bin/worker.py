@@ -11,6 +11,7 @@ import traceback
 import uuid
 import tempfile
 import time
+import cProfile
 from typing import Optional, List
 
 import boto3
@@ -249,9 +250,9 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
-            before_time = time.time()
-
             self._process_message_before(msg)
+
+            before_time = time.time()
 
             try:
                 result = self._process_message(msg)
@@ -345,13 +346,22 @@ class MessageProcessor:
         self._cleanup_output_dir()
         self._prepare_output_dir()
 
-        # This is where we will add CPU & memory profiling start code
+        # CPU Profiling start
+        params = msg.content.get('data', {}).get('params')
+        if params.get('cpu_profile'):
+            self.cpu_prof = cProfile.Profile()
+            self.cpu_prof.enable()
 
     def _process_message_after(self, msg: Message):
+        # CPU profiling stop
+        if self.cpu_prof:
+            self.cpu_prof.disable()
+            self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
+            self.cpu_prof = None
+
         self._save_output_dir(msg.content.get('requestId'))
         self._cleanup_output_dir()
 
-        # This is where we will add CPU & memory profiling stop code
 
     def _process_message(self, msg: Message) -> Optional[dict]:
         """
