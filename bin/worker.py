@@ -265,7 +265,7 @@ class MessageProcessor:
                         'status': 'error',
                         'error': traceback.format_exception(*sys.exc_info()),
                         'times': {
-                            'total_real': (time.time() - before_time)
+                            'totalReal': (time.time() - before_time)
                         },
                     },
                 }
