@@ -19,7 +19,7 @@ CATEGORIES_COLORS = {
     'dining': 'turquoise',
     'kitchen': 'paleturquoise',
     'bedroom': 'mistyrose',
-    'wc': 'cornflowerblue',
+    'toilet': 'cornflowerblue',
     'bathroom': 'lightskyblue',
     'circulationSpace': 'lightgray',
     'entrance': 'grey',
@@ -63,7 +63,7 @@ class Category:
 class SpaceCategory(Category):
     """
     A category of a space
-    Examples: duct, bedroom, kitchen, wc, bathroom, entrance
+    Examples: duct, bedroom, kitchen, toilet, bathroom, entrance
     """
 
     def __init__(self,
@@ -137,7 +137,7 @@ SPACE_CATEGORIES = {
     "office": SpaceCategory('office', needed_linears=window_linears),
     "dressing": SpaceCategory('dressing'),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
-    "wc": SpaceCategory('wc', needed_spaces=[duct_space]),
+    "toilet": SpaceCategory('toilet', needed_spaces=[duct_space]),
     "circulationSpace": SpaceCategory("circulationSpace", circulation=True),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),

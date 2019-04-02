@@ -65,7 +65,7 @@ class SpacePlanner:
                                         size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
-        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing", "kitchen",
+        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "office", "misc",
                               "circulationSpace"]
         space_planner_spec.init_id(category_name_list)
@@ -275,7 +275,7 @@ if __name__ == '__main__':
         # print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
+        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen", "living",
         # "bedroom", "dressing"] #,
         # #"laundry", "dressing"]
         # #spaces_list = list(spec.plan.spaces)
