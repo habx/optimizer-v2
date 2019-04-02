@@ -270,8 +270,6 @@ class MessageProcessor:
                     },
                 }
 
-            self._process_message_after(msg)
-
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
                 result['requestId'] = msg.content.get('requestId')
@@ -289,10 +287,20 @@ class MessageProcessor:
                 data['context'] = src_data.get('context')
                 self.exchanger.send_result(result)
 
+                if data.get('status') != 'ok':
+                    # If we had an issue, we save the output
+                    for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
+                        if k in data:
+                            with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
+                                json.dump(data[k], f)
+
+            # End of processing code
+            self._process_message_after(msg)
+
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
 
-    def _save_output_dir(self, request_id: str):
+    def _save_output_files(self, request_id: str):
         files = self._output_files()
 
         if files:
@@ -385,7 +393,7 @@ class MessageProcessor:
 
         self._logging_to_file_after()
 
-        self._save_output_dir(msg.content.get('requestId'))
+        self._save_output_files(msg.content.get('requestId'))
 
     def _process_message(self, msg: Message) -> Optional[dict]:
         """
@@ -402,8 +410,6 @@ class MessageProcessor:
         lot = data['lot']
         setup = data['setup']
         params = data['params']
-
-        self._process_message_before(msg)
 
         # If we're having a personal identify, we only accept message to ourself
         target_worker = params.get('target_worker')
@@ -430,8 +436,6 @@ class MessageProcessor:
                 'times': executor_result.elapsed_times,
             },
         }
-
-        self._process_message_after(msg)
 
         return result
 
