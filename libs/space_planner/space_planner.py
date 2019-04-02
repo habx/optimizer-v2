@@ -154,7 +154,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-
+                    #plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "antony_A33.json"
+        input_file = "saint-maur-raspail_H05.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -205,12 +205,13 @@ if __name__ == '__main__':
             min_cell_area = 2 * SQM
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
-
+        plan.plot()
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
-         .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .grow(show=True))
+        plan.plot()
+        (seeder.divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
          .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
