@@ -12,6 +12,7 @@ import uuid
 import tempfile
 import time
 import cProfile
+import tracemalloc
 from typing import Optional, List
 
 import boto3
@@ -291,20 +292,6 @@ class MessageProcessor:
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
 
-    def _prepare_output_dir(self):
-        logger = logging.getLogger("")
-        log_file = os.path.join(self.output_dir, 'output.log')
-        logging.info("Writing logs to %s", log_file)
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter(
-            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
-        )
-        handler.setFormatter(formatter)
-
-        # Adding the new handler
-        self.log_handler = handler
-        logger.addHandler(handler)
-
     def _save_output_dir(self, request_id: str):
         for src_file in self._output_files():
             dst_file = "{request_id}/{file}".format(
@@ -331,6 +318,11 @@ class MessageProcessor:
         return glob.glob(os.path.join(self.output_dir, '*'))
 
     def _cleanup_output_dir(self):
+        for f in self._output_files():
+            logging.info("Deleting file \"%s\"", f)
+            os.remove(f)
+
+    def _logging_to_file_before(self):
         logger = logging.getLogger("")
         # Removing the previous handler
         if self.log_handler:
@@ -338,30 +330,55 @@ class MessageProcessor:
             logger.removeHandler(self.log_handler)
             self.log_handler = None
 
-        for f in self._output_files():
-            logging.info("Deleting file \"%s\"", f)
-            os.remove(f)
+    def _logging_to_file_after(self):
+        logger = logging.getLogger("")
+        log_file = os.path.join(self.output_dir, 'output.log')
+        logging.info("Writing logs to %s", log_file)
+        handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter(
+            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
+        )
+        handler.setFormatter(formatter)
+
+        # Adding the new handler
+        self.log_handler = handler
+        logger.addHandler(handler)
 
     def _process_message_before(self, msg: Message):
         self._cleanup_output_dir()
-        self._prepare_output_dir()
+        self._logging_to_file_before()
+
+        params = msg.content.get('data', {}).get('params')
 
         # CPU Profiling start
-        params = msg.content.get('data', {}).get('params')
         if params.get('cpu_profile'):
             self.cpu_prof = cProfile.Profile()
             self.cpu_prof.enable()
 
+        # Memory analysis start
+        if params.get('tracemalloc'):
+            tracemalloc.start()
+
     def _process_message_after(self, msg: Message):
+        params = msg.content.get('data', {}).get('params')
+
         # CPU profiling stop
-        if self.cpu_prof:
+        if params.get('cpu_profile'):
             self.cpu_prof.disable()
             self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
             self.cpu_prof = None
 
-        self._save_output_dir(msg.content.get('requestId'))
-        self._cleanup_output_dir()
+        if params.get('tracemalloc'):
+            snapshot = tracemalloc.take_snapshot()
+            top_stats = snapshot.statistics('lineno')
 
+            with open(os.path.join(self.output_dir, 'mem_stats.txt'), 'w') as f:
+                for stat in top_stats[:40]:
+                    f.write("%s\n" % stat)
+
+        self._logging_to_file_after()
+
+        self._save_output_dir(msg.content.get('requestId'))
 
     def _process_message(self, msg: Message) -> Optional[dict]:
         """
@@ -370,8 +387,6 @@ class MessageProcessor:
         :return: Message to return
         """
         logging.info("Processing message: %s", msg.content)
-
-        request_id = msg.content['requestId']
 
         # Parsing the message
         data = msg.content['data']
