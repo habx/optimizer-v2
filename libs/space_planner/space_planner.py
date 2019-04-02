@@ -17,7 +17,6 @@ from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
-import networkx as nx
 
 SQM = 10000
 
@@ -88,24 +87,6 @@ class SpacePlanner:
         for space in self.spec.plan.spaces:
             if space.area < min_area:
                 self.spec.plan.remove(space)
-
-    def _check_validity(self) -> None:
-        """
-        check_connectivity of constraint programming solutions and remove wrong results of
-        self.manager.solver.solutions
-        :return: None
-        """
-        connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
-
-        sol_to_remove = []
-        for sol in self.manager.solver.solutions:
-            is_a_good_sol = self._check_adjacency(sol, connectivity_checker)
-            if not is_a_good_sol:
-                sol_to_remove.append(sol)
-
-        if sol_to_remove:
-            for sol in sol_to_remove:
-                self.manager.solver.solutions.remove(sol)
 
     def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
         """
@@ -210,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "grenoble_101.json"
+        input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)

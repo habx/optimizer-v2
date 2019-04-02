@@ -30,7 +30,8 @@ CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulati
 
 DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "toilet"]
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace",
+                 "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
@@ -734,7 +735,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
             for j in range(manager.solver.spaces_nbr))
         current = manager.solver.solver.Sum(2 ** j * manager.solver.positions[item.id, j]
                                             for j in range(manager.solver.spaces_nbr))
-        ct = memo < current
+        ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
     manager.symmetry_breaker_memo[item_sym_id] = item.id
 
