@@ -293,7 +293,12 @@ class MessageProcessor:
             self.exchanger.acknowledge_msg(msg)
 
     def _save_output_dir(self, request_id: str):
-        for src_file in self._output_files():
+        files = self._output_files()
+
+        if files:
+            logging.info("Uploading some files on S3...")
+
+        for src_file in files:
             dst_file = "{request_id}/{file}".format(
                 request_id=request_id,
                 file=src_file[len(self.output_dir)+1:]
@@ -312,7 +317,9 @@ class MessageProcessor:
                     'ACL': 'public-read'
                 }
             )
-        pass
+
+        if files:
+            logging.info("Upload done...")
 
     def _output_files(self) -> List[str]:
         return glob.glob(os.path.join(self.output_dir, '*'))
