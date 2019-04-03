@@ -212,7 +212,7 @@ def test_t3_bis():
     plan_t3_bis.remove_null_spaces()
     plan_t3_bis.plot()
 
-    bathroom = Item(SPACE_CATEGORIES["wc"], "xs", Size(area=25000), Size(area=35000))
+    bathroom = Item(SPACE_CATEGORIES["toilet"], "xs", Size(area=25000), Size(area=35000))
     entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "m", Size(area=140000), Size(area=200000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))

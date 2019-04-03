@@ -22,15 +22,16 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom"]
 
-DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "wc", "bathroom"]
+DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
 
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 
 DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "wc"]
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace",
+                 "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
@@ -376,7 +377,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     """
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = 2
-    elif item.category.name in ["kitchen", "bedroom", "entrance", "office"]:
+    elif item.category.name in ["kitchen", "bedroom", "entrance", "study"]:
         param = 2
     else:
         param = 1.8
@@ -525,7 +526,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
                                           enumerate(manager.sp.spec.plan.mutable_spaces()))
-    if item.category.name in ["wc", "bathroom"]:
+    if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
                                                     int(space.perimeter_without_duct)
                                                     for j, space in
@@ -823,7 +824,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
         [area_constraint, {"min_max": "max"}]
     ],
-    "wc": [
+    "toilet": [
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -884,7 +885,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [symmetry_breaker_constraint, {}]
     ],
-    "office": [
+    "study": [
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -926,10 +927,10 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
 
     ],
-    "wc": [
+    "toilet": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
+        [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}]
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"], "adj": True}],
