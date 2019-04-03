@@ -191,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "grenoble_101.json"
+        input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -256,8 +256,8 @@ if __name__ == '__main__':
         # print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen", "living",
-        # "bedroom", "dressing"] #,
+        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen",
+        # "living", "bedroom", "dressing"] #,
         # #"laundry", "dressing"]
         # #spaces_list = list(spec.plan.spaces)
         # best_name_list = None

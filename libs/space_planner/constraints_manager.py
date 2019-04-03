@@ -720,8 +720,7 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
-def symmetry_breaker_constraint(manager: 'ConstraintsManager',
-                                item: Item) -> ortools.Constraint:
+def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
     Symmetry Breaker constraint
     :param manager: 'ConstraintsManager'
@@ -731,19 +730,15 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager',
     ct = None
     item_sym_id = str(item.category.name + item.variant)
     if item_sym_id in manager.symmetry_breaker_memo.keys():
-        for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-            for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                if k < j:
-                    if ct is None:
-                        ct = (manager.solver.positions[
-                                  manager.symmetry_breaker_memo[item_sym_id], j] *
-                              manager.solver.positions[item.id, k] == 0)
-                    else:
-                        ct = manager.and_(ct, (manager.solver.positions[
-                                                   manager.symmetry_breaker_memo[
-                                                       item_sym_id], j] *
-                                               manager.solver.positions[item.id, k] == 0))
+        memo = manager.solver.solver.Sum(
+            2 ** j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j]
+            for j in range(manager.solver.spaces_nbr))
+        current = manager.solver.solver.Sum(2 ** j * manager.solver.positions[item.id, j]
+                                            for j in range(manager.solver.spaces_nbr))
+        ct = manager.solver.solver.IsLessVar(memo, current) == 1
+
     manager.symmetry_breaker_memo[item_sym_id] = item.id
+
     return ct
 
 
@@ -931,6 +926,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [distance_constraint, {}],
         [shape_constraint, {}],
         [windows_constraint, {}],
+        [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
@@ -944,7 +940,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
     ],
     "bathroom": [
         [area_constraint, {"min_max": "min"}],
@@ -953,7 +948,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
     ],
     "living": [
         [area_constraint, {"min_max": "min"}],
@@ -995,7 +989,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {}]
     ],
     "study": [
         [area_constraint, {"min_max": "min"}],
@@ -1003,7 +996,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [symmetry_breaker_constraint, {}]
     ],
     "dressing": [
         [area_constraint, {"min_max": "min"}],
@@ -1012,7 +1004,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
@@ -1022,7 +1013,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
-        [symmetry_breaker_constraint, {}]
     ]
 }
 
