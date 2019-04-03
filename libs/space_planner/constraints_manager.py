@@ -489,7 +489,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : unit tests
     """
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-        param = 2.2
+        param = 2
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = 1.8
     else:

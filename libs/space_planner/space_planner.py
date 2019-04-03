@@ -190,8 +190,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "antony_A33.json" #saint-maur-faculte_B112
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "antony_A33.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -200,11 +200,11 @@ if __name__ == '__main__':
 
         GRIDS['optimal_grid'].apply_to(plan)
 
-        min_cell_area = 1 * SQM
+        min_cell_area = 0.5 * SQM
         if plan.indoor_area > 105 * SQM and plan.floor_count < 2:
-            min_cell_area = 2 * SQM
+            min_cell_area = 1 * SQM
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
-            min_cell_area = 3 * SQM
+            min_cell_area = 2 * SQM
 
         # plan.plot()
         # new_space_list = []
@@ -228,7 +228,8 @@ if __name__ == '__main__':
          .grow(show=True))
         plan.plot()
         (seeder.divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed())
+         .from_space_empty_to_seed()
+         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))
