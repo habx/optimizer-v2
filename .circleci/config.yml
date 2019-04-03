@@ -6,9 +6,6 @@ jobs:
     parallelism: 2
     steps:
       - checkout
-      - add_ssh_keys:
-          fingerprints:
-            - "d4:ac:04:84:82:c6:d5:f2:4c:9e:88:7f:70:54:1d:69"
 #      - restore_cache:
 #          keys:
 #            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
