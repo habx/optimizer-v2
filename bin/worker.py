@@ -4,13 +4,16 @@ import json
 import logging
 import logging.handlers
 import os
+import glob
 import socket
 import sys
 import traceback
 import uuid
 import tempfile
 import time
-from typing import Optional
+import cProfile
+import tracemalloc
+from typing import Optional, List
 
 import boto3
 
@@ -54,6 +57,8 @@ class Config:
             env=env,
             topic=topic_results_base,
         )
+
+        self.s3_repository = 'habx-{env}-worker-optimizer-v2'.format(env=env)
 
 
 class Message:
@@ -225,12 +230,14 @@ class Exchanger:
 class MessageProcessor:
     """Message processing"""
 
-    def __init__(self, exchanger: Exchanger, my_name: str = None):
+    def __init__(self, config: Config, exchanger: Exchanger, my_name: str = None):
         self.exchanger = exchanger
+        self.config = config
         self.executor = Executor()
         self.my_name = my_name
         self.output_dir = None
         self.log_handler = None
+        self.s3_client = boto3.client('s3')
 
     def start(self):
         """Start the message processor"""
@@ -244,6 +251,8 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
+            self._process_message_before(msg)
+
             before_time = time.time()
 
             try:
@@ -256,7 +265,7 @@ class MessageProcessor:
                         'status': 'error',
                         'error': traceback.format_exception(*sys.exc_info()),
                         'times': {
-                            'total_real': (time.time() - before_time)
+                            'totalReal': (time.time() - before_time)
                         },
                     },
                 }
@@ -267,7 +276,6 @@ class MessageProcessor:
 
                 # If we don't have a data sub-structure, we create one
                 data = result.get('data')
-                result['requestId'] = msg.content.get('requestId')
                 if not data:
                     data = {'status': 'unknown'}
                     result['data'] = data
@@ -279,16 +287,71 @@ class MessageProcessor:
                 data['context'] = src_data.get('context')
                 self.exchanger.send_result(result)
 
+                if data.get('status') != 'ok':
+                    # If we had an issue, we save the output
+                    for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
+                        if k in data:
+                            with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
+                                json.dump(data[k], f)
+
+            # End of processing code
+            self._process_message_after(msg)
+
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
 
-    def _prepare_output_dir(self):
+    def _save_output_files(self, request_id: str):
+        files = self._output_files()
+
+        if files:
+            logging.info("Uploading some files on S3...")
+
+        for src_file in files:
+            dst_file = "{request_id}/{file}".format(
+                request_id=request_id,
+                file=src_file[len(self.output_dir)+1:]
+            )
+            logging.info(
+                "Uploading \"%s\" to s3://%s/%s",
+                src_file,
+                self.config.s3_repository,
+                dst_file
+            )
+            self.s3_client.upload_file(
+                src_file,
+                self.config.s3_repository,
+                dst_file,
+                ExtraArgs={
+                    'ACL': 'public-read'
+                }
+            )
+
+        if files:
+            logging.info("Upload done...")
+
+    def _output_files(self) -> List[str]:
+        return glob.glob(os.path.join(self.output_dir, '*'))
+
+    def _cleanup_output_dir(self):
+        for f in self._output_files():
+            logging.info("Deleting file \"%s\"", f)
+            os.remove(f)
+
+    def _logging_to_file_before(self):
+        logger = logging.getLogger("")
+        # Removing the previous handler
+        if self.log_handler:
+            self.log_handler.close()
+            logger.removeHandler(self.log_handler)
+            self.log_handler = None
+
+    def _logging_to_file_after(self):
         logger = logging.getLogger("")
         log_file = os.path.join(self.output_dir, 'output.log')
         logging.info("Writing logs to %s", log_file)
         handler = logging.FileHandler(log_file)
         formatter = logging.Formatter(
-            "%(asctime)-15s | %(filename)10s:%(lineno)-5d | %(levelname).4s | %(message)s"
+            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
         )
         handler.setFormatter(formatter)
 
@@ -296,27 +359,49 @@ class MessageProcessor:
         self.log_handler = handler
         logger.addHandler(handler)
 
-    def _cleanup_output_dir(self):
-        logger = logging.getLogger("")
-        # Removing the previous handler
-        if self.log_handler:
-            logger.removeHandler(self.log_handler)
-            self.log_handler = None
+    def _process_message_before(self, msg: Message):
+        self._cleanup_output_dir()
+        self._logging_to_file_before()
 
-        import glob, os
-        output_files = os.path.join(self.output_dir, '*')
-        for f in glob.glob(output_files):
-            logging.info("Deleting file \"%s\"", f)
-            os.remove(f)
+        params = msg.content.get('data', {}).get('params')
+
+        # CPU Profiling start
+        if params.get('cpu_profile'):
+            self.cpu_prof = cProfile.Profile()
+            self.cpu_prof.enable()
+
+        # Memory analysis start
+        if params.get('tracemalloc'):
+            tracemalloc.start()
+
+    def _process_message_after(self, msg: Message):
+        params = msg.content.get('data', {}).get('params')
+
+        # CPU profiling stop
+        if params.get('cpu_profile'):
+            self.cpu_prof.disable()
+            self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
+            self.cpu_prof = None
+
+        if params.get('tracemalloc'):
+            snapshot = tracemalloc.take_snapshot()
+            top_stats = snapshot.statistics('lineno')
+
+            with open(os.path.join(self.output_dir, 'mem_stats.txt'), 'w') as f:
+                for stat in top_stats[:40]:
+                    f.write("%s\n" % stat)
+
+        self._logging_to_file_after()
+
+        self._save_output_files(msg.content.get('requestId'))
 
     def _process_message(self, msg: Message) -> Optional[dict]:
-        """Actual message processing (without any error handling on purpose)"""
+        """
+        Actual message processing (without any error handling on purpose)
+        :param msg: Message to process
+        :return: Message to return
+        """
         logging.info("Processing message: %s", msg.content)
-
-        self._cleanup_output_dir()
-        self._prepare_output_dir()
-
-        # request_id = msg.content['requestId']
 
         # Parsing the message
         data = msg.content['data']
@@ -351,15 +436,15 @@ class MessageProcessor:
                 'times': executor_result.elapsed_times,
             },
         }
-        self._cleanup_output_dir()
+
         return result
 
 
-def _process_messages(args: argparse.Namespace, exchanger: Exchanger):
+def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
     """Core processing message method"""
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
 
-    processing = MessageProcessor(exchanger, args.target)
+    processing = MessageProcessor(config, exchanger, args.target)
     processing.start()
     processing.run()
 
@@ -449,7 +534,7 @@ def _cli():
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:
-        _process_messages(args, exchanger)
+        _process_messages(args, config, exchanger)
 
 
 _cli()
