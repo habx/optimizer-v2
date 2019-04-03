@@ -195,7 +195,7 @@ if __name__ == '__main__':
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
-        # print("input_file", input_file)
+        # print("input_file", input_file, " - area : ", plan.indoor_area)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
@@ -205,7 +205,23 @@ if __name__ == '__main__':
             min_cell_area = 2 * SQM
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
-        plan.plot()
+
+        # plan.plot()
+        # new_space_list = []
+        # for space in plan.spaces:
+        #     if space.category.name == "empty":
+        #         for face in space.faces:
+        #             new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
+        #             new_space_list.append(new_space)
+        # has_empty_space = True
+        # while has_empty_space:
+        #     has_empty_space = False
+        #     for space in plan.spaces:
+        #         if space.category.name == "empty":
+        #             plan.remove(space)
+        #             has_empty_space = True
+        #     plan.remove_null_spaces()
+
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         plan.plot()
         (seeder.plant()
@@ -216,6 +232,7 @@ if __name__ == '__main__':
          .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
+        print(list(space.components_category_associated() for space in plan.mutable_spaces()))
 
         input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -237,13 +254,17 @@ if __name__ == '__main__':
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
         logging.debug("space_planner time : %f", time.clock() - t0)
+        print("space_planner time : ", time.clock() - t0)
         t1 = time.clock()
         best_solutions = space_planner.solution_research()
+        print("solution_research time : ", time.clock() - t1)
         logging.debug("solution_research time: %f", time.clock() - t1)
         logging.debug(best_solutions)
 
         # Output
         for sol in best_solutions:
+            sol.plan.plot()
+            print(sol, sol.score())
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
@@ -253,8 +274,8 @@ if __name__ == '__main__':
                 SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
                 sol.plan.plot()
 
-        logging.info("total time : %f", time.clock() - t00)
-        # print("total time :", time.clock() - t00)
+        # logging.info("total time : %f", time.clock() - t00)
+        print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
         # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen", "living",

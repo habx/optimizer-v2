@@ -112,15 +112,13 @@ LINEAR_CATEGORIES = {
 }
 
 duct_space = SpaceCategory('duct', mutable=False, seedable=True)
-startingStep_linear = LinearCategory('startingStep', mutable=False, seedable=True, aperture=True)
-frontDoor_linear = LinearCategory('frontDoor', mutable=False, seedable=True, aperture=True)
 window_linears = [LINEAR_CATEGORIES[name] for name in LINEAR_CATEGORIES.keys() if
                   LINEAR_CATEGORIES[name].window_type]
 
 SPACE_CATEGORIES = {
     "empty": SpaceCategory('empty'),
     "seed": SpaceCategory('seed'),
-    "duct": SpaceCategory('duct', mutable=False, seedable=True),
+    "duct": duct_space,
     "loadBearingWall": SpaceCategory('loadBearingWall', mutable=False),
     "hole": SpaceCategory('hole', mutable=False),
     "stairsObstacle": SpaceCategory('stairsObstacle', mutable=False),
@@ -128,7 +126,8 @@ SPACE_CATEGORIES = {
     "living": SpaceCategory('living', circulation=True, needed_linears=window_linears),
     "livingKitchen": SpaceCategory('livingKitchen', circulation=True, needed_linears=window_linears,
                                    needed_spaces=[duct_space]),
-    "entrance": SpaceCategory('entrance', circulation=True, needed_linears=[frontDoor_linear]),
+    "entrance": SpaceCategory('entrance', circulation=True,
+                              needed_linears=[LINEAR_CATEGORIES["frontDoor"]]),
     "kitchen": SpaceCategory('kitchen', needed_spaces=[duct_space],
                              needed_linears=window_linears),
     "bathroom": SpaceCategory('bathroom', needed_spaces=[duct_space]),
