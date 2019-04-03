@@ -154,7 +154,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    #plan_solution.plot()
+                    #  plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    #  logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        #input_file = "antony_A33.json" #saint-maur-faculte_B112
+        #  input_file = "antony_A33.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -280,8 +280,8 @@ if __name__ == '__main__':
         print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen", "living",
-        # "bedroom", "dressing"] #,
+        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen",
+        # "living", "bedroom", "dressing"] #,
         # #"laundry", "dressing"]
         # #spaces_list = list(spec.plan.spaces)
         # best_name_list = None

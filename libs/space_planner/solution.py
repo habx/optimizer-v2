@@ -223,7 +223,8 @@ class Solution:
                             area_penalty += 1
                         elif space.area > item.max_size.area:
                             area_penalty += 3
-                    elif space.category.name == "bathroom" or space.category.name == "toiletBathroom":
+                    elif (space.category.name == "bathroom"
+                          or space.category.name == "toiletBathroom"):
                         if space.area < 20000:
                             area_penalty += 1
                     elif space.category.name == "bedroom":
@@ -361,8 +362,9 @@ class Solution:
             associated_space = self.items_spaces[item]
             level = associated_space.floor.level
             # Day
-            if (item.category.name in day_list or (item.category.name == "toilet" and
-                                                   associated_space == self.get_rooms("toilet")[0])):
+            if (item.category.name in day_list
+                    or (item.category.name == "toilet"
+                        and associated_space == self.get_rooms("toilet")[0])):
                 if day_polygon_list[level - first_level] is None:
                     day_polygon_list[level - first_level] = associated_space.as_sp
                 else:
