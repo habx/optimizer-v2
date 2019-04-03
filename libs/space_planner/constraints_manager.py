@@ -55,10 +55,12 @@ class ConstraintSolver:
     Encapsulation of the OR-tools solver adapted to our problem
     """
 
-    def __init__(self, items_nbr: int, spaces_nbr: int, multilevel: bool = False):
+    def __init__(self, items_nbr: int, spaces_nbr: int, spaces_adjacency_matrix: List[List[int]],
+                 multilevel: bool = False):
         self.items_nbr = items_nbr
         self.spaces_nbr = spaces_nbr
         self.multilevel = multilevel
+        self.spaces_adjacency_matrix = spaces_adjacency_matrix
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
         # Declare variables
@@ -95,6 +97,31 @@ class ConstraintSolver:
         if ct is not None:
             self.solver.Add(ct)
 
+    def _check_adjacency(self, room_positions, connectivity_checker) -> bool:
+        """
+        Experimental function using BFS graph analysis in order to check wether each room is
+        connected.
+        A room is considered a subgraph of the voronoi graph.
+        :param room_positions:
+        :param connectivity_checker:
+        :return: a boolean indicating wether each room is connected
+
+        """
+        # check for the connectivity of each room
+        for i_item in range(self.items_nbr):
+            # compute the number of fixed item in the room
+            nbr_cells_in_room = sum(room_positions[i_item])
+            # if a room has only one fixed item there is no need to check for adjacency
+            if nbr_cells_in_room <= 1:
+                continue
+            # else check the connectivity of the subgraph composed of the fi inside the given room
+            room_line = room_positions[i_item]
+            fi_in_room = tuple([i for i, e in enumerate(room_line) if e])
+            if not connectivity_checker(fi_in_room):
+                return False
+
+        return True
+
     def solve(self) -> None:
         """
         search and solution
@@ -105,6 +132,8 @@ class ConstraintSolver:
         db = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
                                self.solver.ASSIGN_MIN_VALUE)
         self.solver.NewSearch(db)
+
+        connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
 
         # Maximum number of solutions
         max_num_sol = 1000
@@ -118,12 +147,14 @@ class ConstraintSolver:
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
-            self.solutions.append(sol_positions)
+            validity = self._check_adjacency(sol_positions, connectivity_checker)
+            if validity:
+                self.solutions.append(sol_positions)
 
-            # Number of solutions
-            nbr_solutions += 1
-            if nbr_solutions >= max_num_sol or (time.clock() - t0 - 600) >= 0:
-                break
+                # Number of solutions
+                nbr_solutions += 1
+                if nbr_solutions >= max_num_sol or (time.clock() - t0 - 600) >= 0:
+                    break
 
         # noinspection PyArgumentList
         self.solver.EndSearch()
@@ -134,6 +165,58 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
         # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
         logging.debug("ConstraintSolver: Process time : %f", time.clock() - t0)
+
+
+def adjacency_matrix_to_graph(matrix):
+    """
+    Converts adjacency matrix to a networkx graph structure,
+    a value of 1 in the matrix correspond to an edge in the Graph
+    :param matrix: an adjacency_matrix
+    :return: a networkx graph structure
+    """
+
+    nb_cells = len(matrix)  # get the matrix dimensions
+    graph = nx.Graph()
+    edge_list = [(i, j) for i in range(nb_cells) for j in range(nb_cells) if
+                 matrix[i][j] == 1]
+    graph.add_edges_from(edge_list)
+
+    return graph
+
+
+def check_room_connectivity_factory(adjacency_matrix):
+    """
+
+    A factory to enable memoization on the check connectivity room
+
+    :param adjacency_matrix: an adjacency_matrix
+    :return: check_room_connectivity: a memoized function returning the connectivity of a room
+    """
+
+    connectivity_cache = {}
+    # create graph from adjacency_matrix
+    graph = adjacency_matrix_to_graph(adjacency_matrix)
+
+    def check_room_connectivity(fi_in_room):
+        """
+        :param fi_in_room: a tuple indicating the fixed items present in the room
+        :return: a Boolean indicating if the fixed items in the room are connected according to the
+        graph
+        """
+
+        # check if the connectivity of these fixed items has already been checked
+        # if it is the case fetch the result from the cache
+        if fi_in_room in connectivity_cache:
+            return connectivity_cache[fi_in_room]
+
+        # else compute the connectivity and stores the result in the cache
+        is_connected = nx.is_connected(graph.subgraph(fi_in_room))
+        connectivity_cache[fi_in_room] = is_connected
+
+        return is_connected
+
+    # return the memorized function
+    return check_room_connectivity
 
 
 class ConstraintsManager:
@@ -147,12 +230,18 @@ class ConstraintsManager:
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
         self.name = name
         self.sp = sp
+
+        self.spaces_adjacency_matrix = []
+        self._init_spaces_adjacency()
         if sp.spec.plan.floor_count < 2:
             self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces())
+                                           self.sp.spec.plan.count_mutable_spaces(),
+                                           self.spaces_adjacency_matrix, False)
         else:
             self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces(), True)
+                                           self.sp.spec.plan.count_mutable_spaces(),
+                                           self.spaces_adjacency_matrix, True)
+
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self._init_windows_length()
@@ -227,6 +316,29 @@ class ConstraintsManager:
                     if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
                         self.area_space_graph.add_edge(i, j, weight=j_space.area + i_space.area)
                         self.area_space_graph.add_edge(j, i, weight=j_space.area + i_space.area)
+
+    def _init_spaces_adjacency(self) -> None:
+        """
+        spaces adjacency matrix init
+        :return: None
+        """
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            self.spaces_adjacency_matrix.append([])
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if j != i:
+                    self.spaces_adjacency_matrix[i].append(0)
+                else:
+                    self.spaces_adjacency_matrix[i].append(1)
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if j < i:
+                    if i_space.adjacent_to(j_space):
+                        self.spaces_adjacency_matrix[i][j] = 1
+                        self.spaces_adjacency_matrix[j][i] = 1
+                    else:
+                        self.spaces_adjacency_matrix[i][j] = 0
+                        self.spaces_adjacency_matrix[j][i] = 0
 
     def add_spaces_constraints(self) -> None:
         """
