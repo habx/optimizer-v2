@@ -19,7 +19,7 @@ jobs:
 #            - v2-dependencies-
       - run: virtualenv .venv
       - run: source .venv/bin/activate && pip install -q --upgrade pip
-      - run: source .venv/bin/activate && pip install -q -r requirements.txt
+      - run: source .venv/bin/activate && pip install -r requirements.txt
       - save_cache:
           paths:
             - .venv
