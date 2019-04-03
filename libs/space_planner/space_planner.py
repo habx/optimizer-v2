@@ -190,8 +190,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        # input_file = "meurice_LT04.json" #saint-maur-faculte_B112
+        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "antony_A33.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -228,8 +228,7 @@ if __name__ == '__main__':
          .grow(show=True))
         plan.plot()
         (seeder.divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
+         .from_space_empty_to_seed())
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))
@@ -265,6 +264,8 @@ if __name__ == '__main__':
         for sol in best_solutions:
             sol.plan.plot()
             print(sol, sol.score())
+            for space in sol.plan.mutable_spaces():
+                print(space.category.name, " : ", space.area)
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 

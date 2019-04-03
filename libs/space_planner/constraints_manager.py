@@ -161,6 +161,7 @@ class ConstraintSolver:
 
         logging.debug("ConstraintSolver: Statistics")
         logging.debug("ConstraintSolver: num_solutions: %i", nbr_solutions)
+        print("ConstraintSolver: num_solutions:", nbr_solutions)
         logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
         # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
@@ -629,11 +630,11 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-        param = 40#min(max(30, int(plan_ratio + 10)), 40)
+        param = min(max(28, int(plan_ratio + 10)), 40)
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
-        param = min(max(25, int(plan_ratio)), 35)
+        param = min(max(22, int(plan_ratio)), 30)
     else:
-        param = 22  # wc / bedroom / entrance / kitchen
+        param = 20  # wc / bedroom / entrance / kitchen
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
