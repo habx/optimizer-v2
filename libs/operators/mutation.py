@@ -490,8 +490,7 @@ def insert_aligned_rectangle(height: float,
     return _action
 
 
-def slice_cut(offset: float,
-              padding: float = 20) -> EdgeMutation:
+def slice_cut(offset: float, padding: float = 0) -> EdgeMutation:
     """
     Cuts the face with a slice
     :param offset:
@@ -501,9 +500,18 @@ def slice_cut(offset: float,
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         # check depth of the face, if the face is not deep enough do not slice
+        # try recursively to slice the next adjacent face
+        # note:  we're making the assumption that the mesh is a quad grid
+        # we're also limiting the recursion to three times only to prevent possible infinite loops
+        max_iteration = 3
         deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:
-            return []
+            new_edge = edge.next.next.pair
+            if max_iteration == 0 or space.plan.get_space_of_edge(new_edge) is not space:
+                return []
+            else:
+                max_iteration -= 1
+                return _action(new_edge, space)
         # note we need to select the opposite vector of the edge vector because
         # of the order in which shapely will return the vertices of the
         # slice intersection (see the edge slice method)
