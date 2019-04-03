@@ -153,15 +153,15 @@ def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield space.edge
 
 
-def boundary_faces_smallest(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def boundary_faces_biggest(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the smallest edge of each face
+    Returns the biggest edge of each face
     :param space:
     :return:
     """
     for face in space.faces:
         if face.edge:
-            output = min((e for e in face.edges if space.has_edge(e.pair)),
+            output = max((e for e in face.edges if space.has_edge(e.pair)),
                          key=lambda e: e.length, default=None)
             if output:
                 yield output
@@ -1821,7 +1821,7 @@ SELECTORS = {
         ]
     ),
 
-    "face_min_area": Selector(boundary_faces_smallest, [face_area(1000)])
+    "face_min_area": Selector(boundary_faces_biggest, [face_area(1000)])
 }
 
 SELECTOR_FACTORIES = {
