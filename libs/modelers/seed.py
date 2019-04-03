@@ -790,16 +790,14 @@ ELEMENT_SEED_CATEGORIES = {
         'window',
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
-            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "doorWindow": GrowthMethod(
         'doorWindow',
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
-            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "startingStep": GrowthMethod(

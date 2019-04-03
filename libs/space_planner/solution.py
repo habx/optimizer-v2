@@ -517,7 +517,7 @@ class Solution:
                 continue
             #  isolated room
             list_of_non_concerned_room = ["entrance", "circulationSpace", "dressing", "cellar",
-                                          "office", "laundry"]
+                                          "study", "laundry"]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
             for i_item in self.collector.spec.items:
@@ -566,7 +566,7 @@ class Solution:
         # Day group
         day_list = ["livingKitchen", "living", "kitchen", "dining", "cellar"]
         # Night group
-        night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "office", "misc"]
+        night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "study", "misc"]
 
         difference_area = 0
         mesh_area = 0

@@ -65,7 +65,7 @@ class SpacePlanner:
                         space_planner_spec.add_item(new_item)
 
         category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
-                              "living", "livingKitchen", "dining", "bedroom", "office", "misc",
+                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulationSpace"]
         space_planner_spec.init_id(category_name_list)
 
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -190,12 +190,12 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "saint-maur-raspail_H05.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        # input_file = "meurice_LT04.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
-        logging.info("input_file %s", input_file)
-        # print("input_file", input_file, " - area : ", plan.indoor_area)
+        # logging.info("input_file %s", input_file)
+        print("input_file", input_file, " - area : ", plan.indoor_area)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)

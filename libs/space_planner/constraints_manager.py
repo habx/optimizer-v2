@@ -22,7 +22,7 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom"]
 
 DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
 
@@ -488,7 +488,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : unit tests
     """
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-        param = 2
+        param = 2.2
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = 1.8
     else:
@@ -629,7 +629,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-        param = min(max(30, int(plan_ratio + 10)), 40)
+        param = 40#min(max(30, int(plan_ratio + 10)), 40)
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
@@ -990,7 +990,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
     ],
-    "office": [
+    "study": [
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
