@@ -223,8 +223,7 @@ class Solution:
                             area_penalty += 1
                         elif space.area > item.max_size.area:
                             area_penalty += 3
-                    elif (space.category.name == "bathroom"
-                          or space.category.name == "toiletBathroom"):
+                    elif space.category.name == "bathroom":
                         if space.area < 20000:
                             area_penalty += 1
                     elif space.category.name == "bedroom":

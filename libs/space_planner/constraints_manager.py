@@ -161,7 +161,6 @@ class ConstraintSolver:
 
         logging.debug("ConstraintSolver: Statistics")
         logging.debug("ConstraintSolver: num_solutions: %i", nbr_solutions)
-        print("ConstraintSolver: num_solutions:", nbr_solutions)
         logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
         # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
