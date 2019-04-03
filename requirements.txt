@@ -4,7 +4,7 @@ shapely==1.6.4.post2
 ortools==6.7.4973
 Dijkstar==2.4.0
 networkx==2.2
-git+ssh://git@github.com/habx/lib-py-logger.git@v1.0.0#egg=habx_logger
+# git+ssh://git@github.com/habx/lib-py-logger.git@v1.0.0#egg=habx_logger
 
 # For the worker:
 boto3
