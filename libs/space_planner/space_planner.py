@@ -175,7 +175,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #  logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        #  input_file = "antony_A33.json" #saint-maur-faculte_B112
+        #input_file = "saint-maur-faculte_B121.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)

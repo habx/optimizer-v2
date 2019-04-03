@@ -630,10 +630,14 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = min(max(28, int(plan_ratio + 10)), 40)
-    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+        print("param", item.category.name, param)
+    elif (item.category.name in ["bathroom", "study", "misc", "kitchen"]
+            or (item.category.name in ["bedroom"] and item.variant in ["m", "l", "xl"])):
         param = min(max(22, int(plan_ratio)), 30)
+        print("param", item.category.name, param)
     else:
-        param = 20  # wc / bedroom / entrance / kitchen
+        param = 25  # wc / bedroom / entrance
+        print("param", item.category.name, param)
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
