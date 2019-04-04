@@ -152,8 +152,10 @@ class EdgeGraph:
             raise ValueError('graph library does not exit')
         for edge in edges1:
             self.graph_struct.add_edge("virtual1", edge.start, {'cost': 0})
+            self.graph_struct.add_edge(edge.start, "virtual1", {'cost': 0})
         for edge in edges2:
             self.graph_struct.add_edge(edge.start, "virtual2", {'cost': 0})
+            self.graph_struct.add_edge("virtual2", edge.start, {'cost': 0})
         search_tree_result = dijkstar.find_path(self.graph_struct, "virtual1", "virtual2",
                                                 cost_func=self.cost_function)
         path = search_tree_result[0][1:-1]
