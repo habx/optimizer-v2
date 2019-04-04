@@ -184,8 +184,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
         response = executor.run_from_file_names(
-            "grenoble_102.json",
-            "grenoble_102_setup0.json",
+            "012.json",
+            "012_setup0.json",
             {
                 "grid_type": "optimal_grid",
                 "do_plot": False,

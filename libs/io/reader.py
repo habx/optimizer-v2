@@ -436,7 +436,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101_setup0.json"
+        input_file = "011_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -446,7 +446,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101.json"
+        input_file = "011.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
