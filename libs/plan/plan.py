@@ -857,7 +857,7 @@ class Space(PlanComponent):
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
 
-    def remove_face(self, face: Face) -> [[Optional['Space']]]:
+    def remove_face(self, face: Face) -> List[Optional['Space']]:
         """
         Remove a face from the space
 

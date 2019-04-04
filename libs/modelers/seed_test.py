@@ -60,7 +60,8 @@ def test_grow_a_plan(input_file):
     (seeder.plant()
      .grow()
      .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-     .from_space_empty_to_seed())
+     .from_space_empty_to_seed()
+     .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
 
     plan.plot()
 

@@ -445,19 +445,36 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     if direction not in ('horizontal', 'vertical'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
+    go_left = {}
+
     def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
         if not space.edge:
             return
 
-        vectors = ((space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
-                   if direction == 'horizontal' else (space.edge.normal,))
+        if direction == "horizontal":
+            vectors = (space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
+            # we alternate for each space : left and right to insure a symmetric progagation
+            # go_left is memoized
+            if go_left.get(space.id, False):
+                vectors = vectors[::-1]
+                go_left[space.id] = False
+            else:
+                go_left[space.id] = True
+        else:
+            vectors = (space.edge.normal,)
 
         for vector in vectors:
             edges_list = [edge for edge in space.exterior_edges
-                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)]
+                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)
+                          and edge.pair.face]
             for edge in edges_list:
-                yield edge
+                # we only return edges that are on the boundary of the plan
+                for e in edge.pair.face.edges:
+                    other_space = space.plan.get_space_of_edge(e)
+                    if not other_space or other_space.category.name != "empty":
+                        yield edge
+                        break
 
     return _selector
 

@@ -29,6 +29,7 @@ from libs.operators.constraint import CONSTRAINTS
 from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.operators.mutation import MUTATIONS
 from libs.plan.category import SPACE_CATEGORIES
+from libs.utils.geometry import ccw_angle, truncate
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge, Face
@@ -70,13 +71,13 @@ class Seeder:
                     or component.category.name in self.selectors):
 
                 if isinstance(component, Space):
-                    for edge in self.space_seed_edges(component):
+                    for edge in self._space_seed_edges(component):
                         seed_edge = edge
-                        self.add_seed(seed_edge, component)
+                        self._add_seed(seed_edge, component)
 
                 if isinstance(component, Linear):
                     seed_edge = component.edge
-                    self.add_seed(seed_edge, component)
+                    self._add_seed(seed_edge, component)
 
         return self
 
@@ -150,6 +151,70 @@ class Seeder:
                 break
             if max_recursion == 0:
                 raise Exception("Seed: Fill max recursion reach")
+
+        return self
+
+    def simple_fill(self, show: bool = False) -> 'Seeder':
+        """
+        Fills the rest of the empty spaces :
+        1. transform each face adjacent to the seed spaces of the remaining empty spaces
+        in a seed space
+        2. merge the seed spaces that are adjacent to the same seed space
+        (with the same orientation)
+        :param show:
+        :return:
+        """
+        if show:
+            self._initialize_plot()
+        # create new seed space
+        new_spaces = []
+        for seed in self.seeds:
+            for edge in seed.space.edges:
+                other_space = self.plan.get_space_of_edge(edge.pair)
+                if (not other_space
+                        or other_space.category.name != "empty"
+                        or other_space in new_spaces):
+                    continue
+
+                modified_spaces = other_space.remove_face(edge.pair.face)
+                # create a new seed space
+                new_space = Space(self.plan, other_space.floor, edge.pair, SPACE_CATEGORIES["empty"])
+                new_spaces.append(new_space)
+                if show:
+                    self.plot.update(modified_spaces + [new_space])
+
+        # merge new seed spaces
+        adjacencies = {}
+        for new_space in new_spaces:
+            for edge in new_space.edges:
+                other_space = self.plan.get_space_of_edge(edge.pair)
+                if not other_space or other_space.category.name != "seed":
+                    continue
+                # store all adjacencies of each space
+                adjacency = adjacencies.get(new_space.id, set())
+                angle = truncate(ccw_angle(edge.unit_vector) % 180.0)
+                adjacency.add((other_space.id, angle))
+                adjacencies[new_space.id] = adjacency
+
+        for space in new_spaces:
+            for other in new_spaces:
+                if space.id not in adjacencies or other.id not in adjacencies:
+                    logging.debug("Seeder: Problem with adjacencies cache !")
+                if space is other:
+                    continue
+                if adjacencies[space.id] == adjacencies[other.id] and space.adjacent_to(other):
+                    space.merge(other)
+                    new_spaces.remove(other)
+                    if show:
+                        self.plot.update([space, other])
+
+        for space in new_spaces:
+            space.category = SPACE_CATEGORIES["seed"]
+            new_seed = Seed(self, space.edge, space=space)
+            self.seeds.append(new_seed)
+
+        if new_spaces:
+            return self.simple_fill(show)
 
         return self
 
@@ -402,7 +467,7 @@ class Seeder:
         shuffle.run(self.plan, [self], show=show, plot=self.plot)
         return self
 
-    def add_seed(self, seed_edge: 'Edge', component: PlanComponent):
+    def _add_seed(self, seed_edge: 'Edge', component: PlanComponent):
         """
         Adds a seed to the seeder
         :param seed_edge:
@@ -424,7 +489,7 @@ class Seeder:
             new_seed = Seed(self, seed_edge, component)
             self.seeds.append(new_seed)
 
-    def space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
+    def _space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
         """
         returns the edges of the space that should produce a seed on their pair edge
         (for example : a duct)
@@ -494,12 +559,12 @@ class Seed:
     def __init__(self,
                  seeder: Seeder,
                  edge: 'Edge',
-                 plan_component: Optional[PlanComponent] = None):
+                 plan_component: Optional[PlanComponent] = None,
+                 space: Optional['Space'] = None):
         self.seeder = seeder
         self.edges = [edge]  # the reference edge of the seed
-        self.components = [
-            plan_component] if PlanComponent else []  # the components of the seed
-        self.space: Optional[Space] = None  # the seed space
+        self.components = [plan_component] if plan_component else []  # the components of the seed
+        self.space = space  # the seed space
         # per convention we apply the growth method corresponding
         # to the first component category name
         self.growth_methods = self.get_growth_methods()
@@ -790,16 +855,18 @@ ELEMENT_SEED_CATEGORIES = {
         'window',
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
-            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
         )
     ),
     "doorWindow": GrowthMethod(
         'doorWindow',
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            Action(SELECTORS['add_aligned_vertical'], MUTATIONS['add_aligned_face']),
-            Action(SELECTORS['add_aligned'], MUTATIONS['add_aligned_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
         )
     ),
     "startingStep": GrowthMethod(
@@ -834,9 +901,7 @@ if __name__ == '__main__':
     import libs.io.reader as reader
     from libs.modelers.grid import GRIDS
     from libs.operators.selector import SELECTORS
-    from libs.modelers.shuffle import SHUFFLES
     import argparse
-    import matplotlib
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -847,115 +912,6 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
 
-    matplotlib.use('TkAgg')
-
-
-    def seed_multiple_floors():
-        """
-        Test
-        :return:
-        """
-        from libs.plan.category import LINEAR_CATEGORIES
-        boundaries = [(0, 0), (1000, 0), (1000, 700), (0, 700)]
-        # boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
-
-        plan = Plan("test_plan")
-        floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
-        # floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
-
-        plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_1)
-        plan.insert_linear((200, 0), (300, 0), LINEAR_CATEGORIES["window"], floor_1)
-        # plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_2)
-        # plan.insert_linear((400, 0), (500, 0), LINEAR_CATEGORIES["window"], floor_2)
-
-        return plan
-
-
-    def grow_a_plan():
-        """
-        Test
-        :return:
-        """
-        logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[plan_index]  # 9 Antony B22, 13 Bussy 002
-        plan = reader.create_plan_from_file(input_file)
-
-        GRIDS['finer_ortho_grid'].apply_to(plan)
-
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        (seeder.plant()
-         .grow(show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS,
-               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                "empty"), show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-               show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_90000"])
-         .fill(FILL_METHODS_HOMOGENEOUS,
-               (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                "empty"), show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-               show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
-
-        plan.plot(show=True)
-        plt.show()
-
-        for sp in plan.spaces:
-            sp_comp = sp.components_category_associated()
-            logging.debug(
-                "space area and category {0} {1} {2}".format(sp.area, sp_comp,
-                                                             sp.category.name))
-
-
-    def grow_a_plan_trames():
-        """
-        Test
-        :return:
-        """
-        logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Vernouillet_A003.json"
-
-        plan = reader.create_plan_from_file(input_file)
-
-        # plan = test_seed_multiple_floors()
-
-        GRIDS['optimal_grid'].apply_to(plan)
-
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
-        (seeder.plant()
-         .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
-        # .shuffle(SHUFFLES['seed_square_shape_component'], show=True))
-
-        plan.remove_null_spaces()
-        plan.plot(show=True)
-        plt.show()
-        plan.check()
-
-        for sp in plan.spaces:
-            if sp.area == 0:
-                input("space area should not be zero")
-            sp_comp = sp.components_category_associated()
-
-            if sp.size and sp.category.name is not "empty" and sp.mutable:
-                logging.debug(
-                    "space area and category {0} {1} {2} {3}".format(sp_comp,
-                                                                     sp.category.name, sp.size,
-                                                                     sp.as_sp.centroid.coords.xy))
-
-
-    # grow_a_plan_trames()
-
 
     def failed_plan():
         """
@@ -963,19 +919,15 @@ if __name__ == '__main__':
         :return:
         """
 
-        plan = reader.create_plan_from_file("grenoble_122.json")
+        plan = reader.create_plan_from_file("edison_20.json")
         GRIDS['optimal_grid'].apply_to(plan)
-
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         #.simple_fill(show=True)
+         #.merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
          )
-
-        plan.plot(show=True)
-        plt.show()
+        plan.plot()
         plan.check()
 
     failed_plan()
