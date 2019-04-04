@@ -290,10 +290,39 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-    face is added to space, the ratio area/perimeter is smallest
+    face is added to space, the ratio perimeter/area is smallest
     """
 
     biggest_shape_factor = math.inf
+    edge_homogeneous_growth = None
+
+    for edge in space.edges:
+        if edge.pair.face:
+            face_added = edge.pair.face
+            space_added = space.plan.get_space_of_face(face_added)
+            if space_added.category.name != 'empty':
+                continue
+            if space_added.corner_stone(face_added):
+                continue
+            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
+            area = space.area + face_added.area
+            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
+            current_shape_factor = perimeter / area
+            if current_shape_factor < biggest_shape_factor:
+                biggest_shape_factor = current_shape_factor
+                edge_homogeneous_growth = edge
+
+    if edge_homogeneous_growth:
+        yield edge_homogeneous_growth
+
+
+def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns among all edges on the space border the one such as when the pair
+    face is added to space, the ratio perimeter/area is reduced
+    """
+
+    biggest_shape_factor = space.perimeter / space.area
     edge_homogeneous_growth = None
 
     for edge in space.edges:
@@ -1703,6 +1732,8 @@ SELECTORS = {
     "homogeneous": Selector(homogeneous, name='homogeneous'),
 
     "homogeneous_aspect_ratio": Selector(homogeneous_aspect_ratio, name='homogeneous_aspect_ratio'),
+
+    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,

@@ -674,7 +674,7 @@ ELEMENT_SEED_CATEGORIES = {
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         ),
         priority=1
     ),
@@ -685,7 +685,7 @@ ELEMENT_SEED_CATEGORIES = {
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         ),
         priority=1
     ),
@@ -740,7 +740,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "paris-mon18_A603"
+        plan_name = "saint-maur-faculte_B112"
 
         # to not run each time the grid generation
         try:
