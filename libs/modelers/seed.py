@@ -740,7 +740,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "saint-maur-faculte_B112"
+        plan_name = "meurice_LT100"
 
         # to not run each time the grid generation
         try:

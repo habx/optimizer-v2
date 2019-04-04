@@ -460,7 +460,7 @@ def farthest_edges_barycenter(coeff: float = 0) -> EdgeQuery:
     return _query
 
 
-def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
+def oriented_edges(direction: str, epsilon: float = 30.0) -> EdgeQuery:
     """
     EdgeQuery factory
     Returns an edge query that yields edges facing the direction or the normal
@@ -475,9 +475,12 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
 
     go_left = {}
 
-    def _selector(space: 'Space', seeder: 'Seeder') -> Generator['Edge', bool, None]:
+    def _selector(space: 'Space',
+                  seeder: Optional['Seeder'] = None) -> Generator['Edge', bool, None]:
 
-        reference_edge = seeder.get_seed_from_space(space).components[0].edge
+        reference_edge = (seeder.get_seed_from_space(space).components[0].edge
+                          if seeder else space.edge)
+
         if not space.is_boundary(reference_edge):
             raise ValueError("Selector: The edge must be a boundary of the space")
 
@@ -487,11 +490,11 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
         if direction == "horizontal":
             angle = ccw_angle(reference_edge.unit_vector) % 180.0
             edges_list = [edge for edge in space.siblings(reference_edge)
-                          if pseudo_equal(ccw_angle(edge.normal) % 180.0, angle, 15.0)]
+                          if pseudo_equal(ccw_angle(edge.normal) % 180.0, angle, epsilon)]
 
             if not edges_list:
                 return
-            # we alternate for each space : left and right to ensure a symmetric propagagation
+            # we alternate for each space : left and right to ensure a symmetric propagation
             # go_left is memoized
             if go_left.get(space.id, False):
                 edges_list = edges_list[::-1]
@@ -501,11 +504,10 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
 
             # we only return the first edge found
             yield edges_list[0]
-            return
         else:
             angle = ccw_angle(reference_edge.pair.normal)
             edges_list = [edge for edge in space.siblings(reference_edge)
-                          if pseudo_equal(ccw_angle(edge.normal), angle, 15.0)]
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)]
             # only yield if all edges pair point to an empty space
             for e in edges_list:
                 other_space = space.plan.get_space_of_edge(e.pair)
