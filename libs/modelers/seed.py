@@ -877,7 +877,7 @@ if __name__ == '__main__':
         :return:
         """
         logging.debug("Start test")
-        input_file = reader.get_list_from_folder()[plan_index]  # 9 Antony B22, 13 Bussy 002
+        input_file = reader.get_list_from_folder()[plan_index]
         plan = reader.create_plan_from_file(input_file)
 
         GRIDS['finer_ortho_grid'].apply_to(plan)
@@ -919,8 +919,7 @@ if __name__ == '__main__':
         """
         logging.debug("Start test")
         input_file = reader.get_list_from_folder()[
-            plan_index]  # 9 Antony B22, 13 Bussy 002
-        # input_file = "Vernouillet_A003.json"
+            plan_index]
 
         plan = reader.create_plan_from_file(input_file)
 
@@ -963,7 +962,7 @@ if __name__ == '__main__':
         :return:
         """
 
-        plan = reader.create_plan_from_file("grenoble_122.json")
+        plan = reader.create_plan_from_file("017.json")
         GRIDS['optimal_grid'].apply_to(plan)
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')

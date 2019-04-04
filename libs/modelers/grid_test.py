@@ -55,7 +55,7 @@ def test_simple_ortho_grid():
     simple_ortho_grid = Grid('simple_ortho_grid', [(SELECTORS["previous_angle_salient_ortho"],
                                                     MUTATIONS['ortho_projection_cut'], False)])
 
-    plan = reader.create_plan_from_file("grenoble_101.json")
+    plan = reader.create_plan_from_file("011.json")
     new_plan = simple_ortho_grid.apply_to(plan)
     new_plan.plot()
 

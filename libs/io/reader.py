@@ -232,7 +232,7 @@ def get_json_from_file(file_name: str = '011.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_root: str = 'grenoble_101',
+def get_plan_from_json(file_root: str = '011',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input

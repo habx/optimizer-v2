@@ -14,7 +14,7 @@ from libs.space_planner.circulation import Circulator, COST_RULES
 
 from libs.space_planner.space_planner import SpacePlanner
 
-test_files = [("grenoble_101.json", "grenoble_101_setup0.json")]
+test_files = [("011.json", "011_setup0.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
