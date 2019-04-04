@@ -14,7 +14,7 @@ until the space is totally filled
 
 """
 
-from typing import Tuple, TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
+from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
 import logging
 import copy
 
@@ -129,35 +129,7 @@ class Seeder:
 
         return self
 
-    def fill(self,
-             growth_methods: ['GrowthMethod'],
-             selector_and_category: Tuple['Selector', str],
-             recursive: bool = False,
-             show: bool = False) -> 'Seeder':
-        """
-        Fills the empty space
-        :param growth_methods:
-        :param selector_and_category:
-        :param recursive: whether to repeat the fill until there are no empty spaces
-        :param show: whether to display the plot in real time
-        :return:
-        """
-        if show:
-            self._initialize_plot()
-        max_recursion = 100  # to prevent infinite loops
-        while True:
-            (Seeder(self.plan, growth_methods).add_condition(*selector_and_category)
-             .plant()
-             .grow(show=show, plot=self.plot))
-            max_recursion -= 1
-            if not recursive or self.plan.count_category_spaces("empty") == 0:
-                break
-            if max_recursion == 0:
-                raise Exception("Seed: Fill max recursion reach")
-
-        return self
-
-    def simple_fill(self, show: bool = False) -> 'Seeder':
+    def fill(self, show: bool = False) -> 'Seeder':
         """
         Fills the rest of the empty spaces :
         1. transform each face adjacent to the seed spaces of the remaining empty spaces
@@ -219,9 +191,21 @@ class Seeder:
             space.category = SPACE_CATEGORIES["seed"]
             self.seeds.append(new_seed)
 
+        # remove empty spaces
+        self.plan.remove_null_spaces()
+
         # apply recursion to finalize the fill
         if new_spaces:
-            return self.simple_fill(show)
+            return self.fill(show)
+
+        # search for empty spaces not yet converted in seed spaces
+        # can happen in weirdly shaped plan
+        for space in self.plan.get_spaces("empty"):
+            if not space.edge:
+                break
+            new_seed = Seed(self, space.edge, space=space)
+            space.category = SPACE_CATEGORIES["seed"]
+            self.seeds.append(new_seed)
 
         return self
 
@@ -756,7 +740,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "saint-maur-faculte_B002"
+        plan_name = "paris-mon18_A603"
 
         # to not run each time the grid generation
         try:
@@ -770,10 +754,10 @@ if __name__ == '__main__':
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
          .grow(show=True)
-         .simple_fill(show=True)
+         .fill(show=True)
          .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
          )
-        plan.plot(show=True)
+        plan.plot()
         plan.check()
 
     failed_plan()

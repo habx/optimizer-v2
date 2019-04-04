@@ -459,6 +459,9 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
             angle = ccw_angle(reference_edge.unit_vector) % 180.0
             edges_list = [edge for edge in space.siblings(reference_edge)
                           if pseudo_equal(ccw_angle(edge.normal) % 180.0, angle, 15.0)]
+
+            if not edges_list:
+                return
             # we alternate for each space : left and right to ensure a symmetric propagagation
             # go_left is memoized
             if go_left.get(space.id, False):

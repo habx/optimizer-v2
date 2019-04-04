@@ -112,7 +112,7 @@ def test_duplex():
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow()
-     .simple_fill()
+     .fill()
      .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
      )
 

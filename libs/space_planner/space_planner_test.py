@@ -30,7 +30,7 @@ def test_space_planner(input_file, input_setup):
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
     (seeder.plant()
      .grow()
-     .simple_fill()
+     .fill()
      .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
 
     spec = reader.create_specification_from_file(input_setup)
@@ -80,7 +80,7 @@ def test_duplex():
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow()
-     .simple_fill()
+     .fill()
      .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
 
     plan.plot()

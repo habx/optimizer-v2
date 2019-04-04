@@ -336,10 +336,9 @@ COST_RULES = {
 
 if __name__ == '__main__':
     import libs.io.reader as reader
-    from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
+    from libs.modelers.seed import Seeder, GROWTH_METHODS
     from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
-    from libs.modelers.shuffle import SHUFFLES
     from libs.space_planner.space_planner import SpacePlanner
     from libs.plan.category import SPACE_CATEGORIES
     import argparse
@@ -402,19 +401,9 @@ if __name__ == '__main__':
 
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
         (seeder.plant()
-         .grow(show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                                          "empty"), show=True)
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-               show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-         .empty(SELECTORS["corner_big_cell_area_70000"])
-         .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_50000"],
-                                          "empty"), show=True)
-         .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-         .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+         .grow()
+         .fill()
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
 
         plan.plot()
 

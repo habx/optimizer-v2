@@ -30,7 +30,7 @@ def test_circulation(input_file, input_setup):
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
      .grow()
-     .simple_fill())
+     .fill())
 
     plan.remove_null_spaces()
 
