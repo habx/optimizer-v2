@@ -32,7 +32,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
-    from libs.plan.plan import Space
+    from libs.plan.plan import Space, Plan
     from libs.modelers.seed import Seeder
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
@@ -323,7 +323,6 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if not space.category or space.category.name != 'duct':
         raise ValueError('You should provide a duct to the query seed_duct!')
 
-    # case n°1 : duct is along a boundary, we only set two seed point
     edge_along_plan = None
     for edge in space.edges:
         if edge.pair.face is None:
@@ -447,34 +446,41 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
 
     go_left = {}
 
-    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    def _selector(space: 'Space', seeder: 'Seeder') -> Generator['Edge', bool, None]:
 
-        if not space.edge:
+        reference_edge = seeder.get_seed_from_space(space).components[0].edge
+        if not space.is_boundary(reference_edge):
+            raise ValueError("Selector: The edge must be a boundary of the space")
+
+        if not reference_edge:
             return
 
         if direction == "horizontal":
-            vectors = (space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
-            # we alternate for each space : left and right to insure a symmetric progagation
+            angle = ccw_angle(reference_edge.unit_vector) % 180.0
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal) % 180.0, angle, 15.0)]
+            # we alternate for each space : left and right to ensure a symmetric propagagation
             # go_left is memoized
             if go_left.get(space.id, False):
-                vectors = vectors[::-1]
+                edges_list = edges_list[::-1]
                 go_left[space.id] = False
             else:
                 go_left[space.id] = True
-        else:
-            vectors = (space.edge.normal,)
 
-        for vector in vectors:
-            edges_list = [edge for edge in space.exterior_edges
-                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)
-                          and edge.pair.face]
-            for edge in edges_list:
-                # we only return edges that are on the boundary of the plan
-                for e in edge.pair.face.edges:
-                    other_space = space.plan.get_space_of_edge(e)
-                    if not other_space or other_space.category.name != "empty":
-                        yield edge
-                        break
+            # we only return the first edge found
+            yield edges_list[0]
+            return
+        else:
+            angle = ccw_angle(reference_edge.pair.normal)
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal), angle, 15.0)]
+            # only yield if all edges pair point to an empty space
+            for e in edges_list:
+                other_space = space.plan.get_space_of_edge(e.pair)
+                if not other_space or other_space.category.name != "empty":
+                    break
+            else:
+                yield from (e for e in edges_list)
 
     return _selector
 
@@ -1250,7 +1256,7 @@ def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        plan = space.plan
+        plan: 'Plan' = space.plan
 
         # per convention if an edge is on the apartment boundary it cannot be too close
         if plan.is_external(edge.pair):

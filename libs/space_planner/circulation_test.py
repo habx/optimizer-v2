@@ -29,9 +29,8 @@ def test_circulation(input_file, input_setup):
     GRIDS["optimal_grid"].apply_to(plan)
     seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
     (seeder.plant()
-     .grow(show=True)
-     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-     .from_space_empty_to_seed())
+     .grow()
+     .simple_fill())
 
     plan.remove_null_spaces()
 
