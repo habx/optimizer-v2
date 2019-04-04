@@ -7,7 +7,7 @@ using networkx library
 
 import networkx as nx
 import dijkstar
-from typing import Any, Generator, Tuple
+from typing import Any, Generator, Tuple, List, Sequence
 from libs.plan.plan import Vertex
 from libs.mesh.mesh import Edge
 
@@ -140,16 +140,22 @@ class EdgeGraph:
         else:
             raise ValueError('graph library does not exit')
 
-    def get_shortest_path(self, edge1, edge2) -> Tuple['List[Vertex]', float]:
+    def get_shortest_path(self,
+                          edges1: Sequence[Edge],
+                          edges2: Sequence[Edge]) -> Tuple[List[Vertex], float]:
         """
-        get the shortest path between two edges
+        get the shortest path between two edges sequences
         :return list of vertices on the path and cost of the path
         """
-        if self.graph_lib == 'Dijkstar':
-            search_tree_result = dijkstar.find_path(self.graph_struct, edge1.start, edge2.start,
-                                                    cost_func=self.cost_function)
-        else:
+        # for each edge sequence we add a virtual node connected with cost 0 to all edges
+        if self.graph_lib != 'Dijkstar':
             raise ValueError('graph library does not exit')
-        path = search_tree_result[0]
+        for edge in edges1:
+            self.graph_struct.add_edge("virtual1", edge.start, {'cost': 0})
+        for edge in edges2:
+            self.graph_struct.add_edge(edge.start, "virtual2", {'cost': 0})
+        search_tree_result = dijkstar.find_path(self.graph_struct, "virtual1", "virtual2",
+                                                cost_func=self.cost_function)
+        path = search_tree_result[0][1:-1]
         cost = search_tree_result[3]
         return path, cost
