@@ -389,7 +389,7 @@ def create_specification_from_data(input_data: dict,
     Creates a specification object from a dict
     The model is in the form:
     {
-      "setup": [
+      "rooms": [
         {
           "type": "entrance",
           "variant": "s",
@@ -409,7 +409,7 @@ def create_specification_from_data(input_data: dict,
     }
     """
     specification = Specification(spec_name)
-    for item in input_data["setup"]:
+    for item in input_data["rooms"]:
         _category = item["type"]
         if _category not in SPACE_CATEGORIES:
             raise ValueError("Space type not present in space categories: {0}".format(_category))
