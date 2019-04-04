@@ -215,7 +215,7 @@ def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
     return new_perimeter
 
 
-def get_json_from_file(file_name: str = 'grenoble_101.json',
+def get_json_from_file(file_name: str = '011.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
