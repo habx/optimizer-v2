@@ -392,7 +392,6 @@ def create_specification_from_data(input_data: dict,
       "rooms": [
         {
           "type": "circulation",
-          "variant": "s",
           "requiredArea": {
             "min": 25000,
             "max": 50000
@@ -416,9 +415,11 @@ def create_specification_from_data(input_data: dict,
         required_area = item["requiredArea"]
         size_min = Size(area=required_area["min"])
         size_max = Size(area=required_area["max"])
-        variant = item["variant"]
+        variant = "m"
         opens_on = []
         linked_to = []
+        if "variant" in list(item.keys()):
+            variant = item["variant"]
         if "opensOn" in list(item.keys()):
             opens_on = item["opensOn"]
         if "linkedTo" in list(item.keys()):
