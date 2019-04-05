@@ -322,23 +322,10 @@ class ConstraintsManager:
         spaces adjacency matrix init
         :return: None
         """
-        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            self.spaces_adjacency_matrix.append([])
-            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if j != i:
-                    self.spaces_adjacency_matrix[i].append(0)
-                else:
-                    self.spaces_adjacency_matrix[i].append(1)
-
-        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if j < i:
-                    if i_space.adjacent_to(j_space):
-                        self.spaces_adjacency_matrix[i][j] = 1
-                        self.spaces_adjacency_matrix[j][i] = 1
-                    else:
-                        self.spaces_adjacency_matrix[i][j] = 0
-                        self.spaces_adjacency_matrix[j][i] = 0
+        self.spaces_adjacency_matrix = [
+            [1 if i == j or i_space.adjacent_to(j_space) else 0 for i, i_space in
+             enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
+            enumerate(self.sp.spec.plan.mutable_spaces())]
 
     def add_spaces_constraints(self) -> None:
         """
