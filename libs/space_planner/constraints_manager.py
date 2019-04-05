@@ -474,9 +474,9 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : find best param
     # TODO : unit tests
     """
-    if item.category.name in ["living", "dining", "livingKitchen"]:
+    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
-    elif item.category.name in ["kitchen", "bedroom", "entrance", "study"]:
+    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = 2
     else:
         param = 1.8
@@ -615,12 +615,12 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
-    if item.category.name in ["living", "dining", "livingKitchen"]:
+    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = min(max(30, int(plan_ratio + 10)), 40)
-    elif item.category.name in ["kitchen", "bedroom"]:
+    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
-        param = 22
+        param = 22 # toilet / bedroom / entrance
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
