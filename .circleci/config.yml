@@ -1,51 +1,38 @@
 version: 2
 jobs:
-  get-requirements:
+  prepare:
     docker:
       - image: circleci/python:3.6
     parallelism: 2
     steps:
       - checkout
-#      - add_ssh_keys:
-#          fingerprints:
-#            - "d4:ac:04:84:82:c6:d5:f2:4c:9e:88:7f:70:54:1d:69"
-      - run:
-          command: |
-            echo 'github.com,192.30.253.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==' >>~/.ssh/known_host
-#      - restore_cache:
-#          keys:
-#            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-#            - v2-dependencies-{{ .Branch }}-
-#            - v2-dependencies-
-      - run: virtualenv .venv
-      - run: source .venv/bin/activate && pip install -q --upgrade pip
-      - run: source .venv/bin/activate && pip install -r requirements.txt
+      - run: sudo chown -R circleci:circleci /usr/local
+      - restore_cache:
+          keys:
+            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+            - v2-dependencies-{{ .Branch }}-
+            - v2-dependencies-
+      - run: ./setup_ci.sh
       - save_cache:
           paths:
-            - .venv
+            - /usr/local/lib/python3.6/site-packages
+            - /usr/local/bin
           key: v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - persist_to_workspace:
-          root: /home/circleci/
+          root: /
           paths:
-            - project
+            - /home/circleci
+            - /usr/local/lib/python3.6/site-packages
+            - /usr/local/bin
 
   tests:
     docker:
       - image: circleci/python:3.6
-    parallelism: 2
+    parallelism: 4
     steps:
-      - checkout
-      - run:
-          command: |
-            echo 'github.com,192.30.253.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==' >>~/.ssh/known_host
-
- #     - add_ssh_keys:
- #         fingerprints:
- #           - "d4:ac:04:84:82:c6:d5:f2:4c:9e:88:7f:70:54:1d:69"
-      # We need to reinstall protobuf because it puts some test data on some system path 
-      - run: sudo pip install -q --upgrade pip
-      - run: sudo pip install -q -r requirements.txt
-      - run: ./run_tests.sh
+    - attach_workspace:
+        at: /
+    - run: ./run_tests.sh
 
   build-container:
     docker:
@@ -105,10 +92,10 @@ workflows:
   version: 2
   ci-process:
     jobs:
-      - get-requirements
+      - prepare
       - tests:
           requires:
-          - get-requirements
+          - prepare
           filters:
             tags:
               only: /^v.*/
@@ -116,7 +103,7 @@ workflows:
       - build-container:
           context: default_env_vars
           requires:
-          - get-requirements
+          - prepare
           filters:
             tags:
               only: /^v.*/
@@ -135,7 +122,6 @@ workflows:
             branches:
               only:
                 - dev
-                - OPT-73-worker-optimizer-v2
 
       - deploy-to-kubernetes-low-priority-worker:
           context: default_env_vars
@@ -148,4 +134,3 @@ workflows:
             branches:
               only:
                 - dev
-                - OPT-73-worker-optimizer-v2
