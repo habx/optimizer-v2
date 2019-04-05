@@ -26,11 +26,11 @@ WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroo
 
 DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
 
-CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
+CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulation"]
 
 DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace",
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulation",
                  "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
@@ -74,7 +74,7 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulationSpace
+        # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulation
         if not self.multilevel:
             self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
                                                   "cells_item[{0}]".format(j_space))
@@ -334,7 +334,7 @@ class ConstraintsManager:
         - Each space has to be associated with an item and one time only :
         special case of stairs:
         they must be in a circulating room, otherwise: they are not allocated,
-        they are created a circulationSpace
+        they are created a circulation
         :return: None
         """
         for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
@@ -443,7 +443,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
 
     if min_max == "max":
-        if ((item.variant in ["l", "xl"] or item.category.name in ["entrance", "circulationSpace"])
+        if ((item.variant in ["l", "xl"] or item.category.name in ["entrance", "circulation"])
                 and item.category.name not in ["living", "livingKitchen", "dining"]):
             max_area = round(item.max_size.area)
         else:

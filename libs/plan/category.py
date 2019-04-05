@@ -21,7 +21,7 @@ CATEGORIES_COLORS = {
     'bedroom': 'mistyrose',
     'toilet': 'cornflowerblue',
     'bathroom': 'lightskyblue',
-    'circulationSpace': 'lightgray',
+    'circulation': 'lightgray',
     'entrance': 'grey',
     'dressing': 'pink',
     'laundry': 'lightsteelblue',
@@ -83,7 +83,7 @@ class SpaceCategory(Category):
 class LinearCategory(Category):
     """
     A category of a linear
-    Examples : window, doorWindow, door, wall, entrance
+    Examples : window, doorWindow, door, wall, frontDoor
     """
 
     def __init__(self,
@@ -137,7 +137,7 @@ SPACE_CATEGORIES = {
     "dressing": SpaceCategory('dressing'),
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "toilet": SpaceCategory('toilet', needed_spaces=[duct_space]),
-    "circulationSpace": SpaceCategory("circulationSpace", circulation=True),
+    "circulation": SpaceCategory("circulation", circulation=True),
     "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
