@@ -89,7 +89,7 @@
         "min": 10000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "s"
     },
     {
@@ -111,7 +111,7 @@
         "min": 20000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "m"
     },
     {

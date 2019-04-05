@@ -79,7 +79,7 @@
         "min": 10000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "s"
     },
     {
@@ -90,7 +90,7 @@
         "min": 80000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "xs"
     }
   ]

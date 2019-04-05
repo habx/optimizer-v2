@@ -100,7 +100,7 @@
         "min": 20000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "xs"
@@ -113,7 +113,7 @@
         "min": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "m"
