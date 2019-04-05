@@ -125,7 +125,7 @@ def solve_complex():
         {"area": 12, "components": {"window": 1}},  # 4. bedroom 3
         {"area": 9, "components": {"duct": 1}},  # 5. bathroom 1
         {"area": 6, "components": {"duct": 1}},  # 6. bathroom 2
-        {"area": 3, "components": {"duct": 1, "window": -1}},  # 7. wc
+        {"area": 3, "components": {"duct": 1, "window": -1}},  # 7. toilet
         {"area": 6, "components": {"frontDoor": 1, "window": -1}},  # 8. entrance
     ]
 

@@ -56,7 +56,7 @@
         "min": 100000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "s"
     },
     {
@@ -78,7 +78,7 @@
         "min": 40000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "s"
