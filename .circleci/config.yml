@@ -9,15 +9,15 @@ jobs:
       - run: sudo chown -R circleci:circleci /usr/local
       - restore_cache:
           keys:
-            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-            - v2-dependencies-{{ .Branch }}-
-            - v2-dependencies-
+            - v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+            - v3-dependencies-{{ .Branch }}-
+            - v3-dependencies-
       - run: .circleci/setup_ci.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
             - /usr/local/bin
-          key: v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - persist_to_workspace:
           root: /
           paths:
