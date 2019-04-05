@@ -1,5 +1,5 @@
 {
-  "setup": [
+  "rooms": [
     {
       "linkedTo": [],
       "opensOn": [],
@@ -67,7 +67,7 @@
         "max": 120000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "xs"
     },
     {
@@ -89,7 +89,7 @@
         "min": 125000.0
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "xl"
@@ -102,7 +102,7 @@
         "min": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "m"

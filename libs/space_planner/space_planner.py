@@ -64,8 +64,8 @@ class SpacePlanner:
                                         size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
-        category_name_list = ["entrance", "wc", "bathroom", "laundry", "dressing", "kitchen",
-                              "living", "livingKitchen", "dining", "bedroom", "office", "misc",
+        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
+                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulationSpace"]
         space_planner_spec.init_id(category_name_list)
 

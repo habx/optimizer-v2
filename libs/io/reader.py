@@ -390,7 +390,7 @@ def create_specification_from_data(input_data: dict,
     Creates a specification object from a dict
     The model is in the form:
     {
-      "setup": [
+      "rooms": [
         {
           "type": "entrance",
           "variant": "s",
@@ -412,7 +412,7 @@ def create_specification_from_data(input_data: dict,
     specification = Specification(spec_name)
     area = 0
     circulation_count = 0
-    for item in input_data["setup"]:
+    for item in input_data["rooms"]:
         _category = item["type"]
         if _category == "bedroom" or _category == "office":
             circulation_count+=1

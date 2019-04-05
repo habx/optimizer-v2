@@ -1,5 +1,5 @@
 {
-  "setup": [
+  "rooms": [
     {
       "linkedTo": [],
       "opensOn": [],
@@ -78,7 +78,7 @@
         "min": 40000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "xl"
     },
     {

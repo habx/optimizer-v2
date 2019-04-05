@@ -1,5 +1,5 @@
 {
-  "setup": [
+  "rooms": [
     {
       "linkedTo": [],
       "opensOn": [],
@@ -44,7 +44,7 @@
         "max": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "s"

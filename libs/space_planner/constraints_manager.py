@@ -22,15 +22,16 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "office", "dining", "bedroom"]
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom"]
 
-DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "wc", "bathroom"]
+DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
 
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 
 DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace", "wc"]
+PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulationSpace",
+                 "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
@@ -322,23 +323,10 @@ class ConstraintsManager:
         spaces adjacency matrix init
         :return: None
         """
-        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            self.spaces_adjacency_matrix.append([])
-            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if j != i:
-                    self.spaces_adjacency_matrix[i].append(0)
-                else:
-                    self.spaces_adjacency_matrix[i].append(1)
-
-        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                if j < i:
-                    if i_space.adjacent_to(j_space):
-                        self.spaces_adjacency_matrix[i][j] = 1
-                        self.spaces_adjacency_matrix[j][i] = 1
-                    else:
-                        self.spaces_adjacency_matrix[i][j] = 0
-                        self.spaces_adjacency_matrix[j][i] = 0
+        self.spaces_adjacency_matrix = [
+            [1 if i == j or i_space.adjacent_to(j_space) else 0 for i, i_space in
+             enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
+            enumerate(self.sp.spec.plan.mutable_spaces())]
 
     def add_spaces_constraints(self) -> None:
         """
@@ -487,9 +475,9 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : find best param
     # TODO : unit tests
     """
-    if item.category.name in ["living", "dining", "livingKitchen"]:
+    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
-    elif item.category.name in ["kitchen", "bedroom", "entrance", "office"]:
+    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = 2
     else:
         param = 1.8
@@ -645,17 +633,17 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
-    if item.category.name in ["living", "dining", "livingKitchen"]:
+    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = min(max(30, int(plan_ratio + 10)), 40)
-    elif item.category.name in ["kitchen", "bedroom"]:
+    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = min(max(25, int(plan_ratio)), 35)
     else:
-        param = 22
+        param = 22 # toilet / bedroom / entrance
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
                                           enumerate(manager.sp.spec.plan.mutable_spaces()))
-    if item.category.name in ["wc", "bathroom"]:
+    if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
                                                     int(space.perimeter_without_duct)
                                                     for j, space in
@@ -1008,7 +996,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ["living", "livingKitchen", "dining", "circulationSpace"], "adj": True,
           "addition_rule": "Or"}]
     ],
-    "wc": [
+    "toilet": [
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1084,7 +1072,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
-    "office": [
+    "study": [
         [area_constraint, {"min_max": "min"}],
         [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
@@ -1137,10 +1125,10 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "all": [
 
     ],
-    "wc": [
+    "toilet": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["wc"], "adj": False}]
+        [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}]
     ],
     "bathroom": [
         [item_adjacency_constraint, {"item_categories": ["bedroom"], "adj": True}],

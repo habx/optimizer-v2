@@ -205,31 +205,30 @@ class Solution:
                 space = self.items_spaces[item]
                 nbr_rooms += 1
                 # Min < SpaceArea < Max
-                if space:
-                    if item.min_size.area <= space.area <= item.max_size.area:
-                        item_area_score = 100
-                    # good overflow
-                    elif (item.max_size.area < space.area and
-                          space.category.name in good_overflow_categories):
-                        item_area_score = 100
-                    # overflow
-                    else:
-                        item_area_score = (100 - abs(item.required_area - space.area) /
-                                           item.required_area * 100)
-                        if space.category.name == "entrance":
-                            if space.area < 20000:
-                                area_penalty += 1
-                        elif space.category.name == "wc":
-                            if space.area < 10000:
-                                area_penalty += 1
-                            elif space.area > item.max_size.area:
-                                area_penalty += 3
-                        elif space.category.name == "bathroom" or space.category.name == "wcBathroom":
-                            if space.area < 20000:
-                                area_penalty += 1
-                        elif space.category.name == "bedroom":
-                            if space.area < 75000:
-                                area_penalty += 1
+                if item.min_size.area <= space.area <= item.max_size.area:
+                    item_area_score = 100
+                # good overflow
+                elif (item.max_size.area < space.area and
+                      space.category.name in good_overflow_categories):
+                    item_area_score = 100
+                # overflow
+                else:
+                    item_area_score = (100 - abs(item.required_area - space.area) /
+                                       item.required_area * 100)
+                    if space.category.name == "entrance":
+                        if space.area < 20000:
+                            area_penalty += 1
+                    elif space.category.name == "toilet":
+                        if space.area < 10000:
+                            area_penalty += 1
+                        elif space.area > item.max_size.area:
+                            area_penalty += 3
+                    elif space.category.name == "bathroom":
+                        if space.area < 20000:
+                            area_penalty += 1
+                    elif space.category.name == "bedroom":
+                        if space.area < 75000:
+                            area_penalty += 1
 
                 # Area score
                 area_score += item_area_score
@@ -254,26 +253,25 @@ class Solution:
         logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
-            if space:
-                if item.category.name in ["wc", "bathroom"]:
-                    logging.debug("room %s: P2/A : %i", item.id,
-                                  int((space.perimeter_without_duct *
-                                       space.perimeter_without_duct)/space.area))
-                else:
-                    logging.debug("room %s: P2/A : %i", item.id,
-                                  int((space.perimeter*space.perimeter)/space.area))
-                sp_space = space.as_sp
-                convex_hull = sp_space.convex_hull
-                if convex_hull.is_valid and sp_space.is_valid:
-                    outside = convex_hull.difference(sp_space)
-                    item_shape_score = min(100, 100 - (
-                            (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
-                    logging.debug(
-                        "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
-                        item.category.name)
-                else:
-                    logging.warning("Solution %i: Invalid shapely space")
-                    item_shape_score = 100
+            if item.category.name in ["toilet", "bathroom"]:
+                logging.debug("room %s: P2/A : %i", item.id,
+                              int((space.perimeter_without_duct *
+                                   space.perimeter_without_duct)/space.area))
+            else:
+                logging.debug("room %s: P2/A : %i", item.id,
+                              int((space.perimeter*space.perimeter)/space.area))
+            sp_space = space.as_sp
+            convex_hull = sp_space.convex_hull
+            if convex_hull.is_valid and sp_space.is_valid:
+                outside = convex_hull.difference(sp_space)
+                item_shape_score = min(100, 100 - (
+                        (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
+                logging.debug(
+                    "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
+                    item.category.name)
+            else:
+                logging.warning("Solution %i: Invalid shapely space")
+                item_shape_score = 100
 
                 shape_score = min(item_shape_score, shape_score)
         logging.debug("Solution %i: Shape score : %f", self._id, shape_score)
@@ -363,8 +361,9 @@ class Solution:
             associated_space = self.items_spaces[item]
             level = associated_space.floor.level
             # Day
-            if (item.category.name in day_list or (item.category.name == "wc" and
-                                                   associated_space == self.get_rooms("wc")[0])):
+            if (item.category.name in day_list
+                    or (item.category.name == "toilet"
+                        and associated_space == self.get_rooms("toilet")[0])):
                 if day_polygon_list[level - first_level] is None:
                     day_polygon_list[level - first_level] = associated_space.as_sp
                 else:
@@ -373,8 +372,8 @@ class Solution:
 
             # Night
             elif (item.category.name in night_list or
-                  (item.category.name == "wc" and
-                   associated_space != self.get_rooms("wc")[0])):
+                  (item.category.name == "toilet" and
+                   associated_space != self.get_rooms("toilet")[0])):
                 if night_polygon_list[level - first_level] is None:
                     night_polygon_list[level - first_level] = associated_space.as_sp
                 else:
@@ -439,16 +438,16 @@ class Solution:
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
             item_position_score = 0
-            if item.category.name == "wc" and space == self.get_rooms("wc")[0]:
+            if item.category.name == "toilet" and space == self.get_rooms("toilet")[0]:
                 nbr_room_position_score += 1
                 # distance from the entrance
                 if self.plan.front_door().floor == space.floor:
                     # distance from the entrance
                     plan_area = self.collector.spec.plan.area
                     criteria = plan_area ** 0.5
-                    distance_wc_fd = space.as_sp.distance(front_door)
-                    if distance_wc_fd < criteria:
-                        item_position_score = (criteria - distance_wc_fd) * 100 / criteria
+                    distance_toilet_fd = space.as_sp.distance(front_door)
+                    if distance_toilet_fd < criteria:
+                        item_position_score = (criteria - distance_toilet_fd) * 100 / criteria
             elif item.category.name == "bedroom":
                 nbr_room_position_score += 1
                 # distance from a bedroom / bathroom
@@ -466,7 +465,7 @@ class Solution:
                         if not connected and polygon_bathroom.distance(space.as_sp) < CORRIDOR_SIZE:
                             item_position_score = 100
                             break
-            if item.category.name == "wc" or item.category.name == "bathroom":
+            if item.category.name == "toilet" or item.category.name == "bathroom":
                 # could be private
                 private = False
                 for circulation_space in self.plan.circulation_spaces():
@@ -493,8 +492,8 @@ class Solution:
             position_score = position_score + item_position_score
 
         position_score = position_score / nbr_room_position_score
-        if len(self.get_rooms("wc")) > 1 and self.plan.floor_count > 1:
-            if self.get_rooms("wc")[0].floor != self.get_rooms("wc")[1]:
+        if len(self.get_rooms("toilet")) > 1 and self.plan.floor_count > 1:
+            if self.get_rooms("toilet")[0].floor != self.get_rooms("toilet")[1]:
                 position_score += 100 / nbr_room_position_score
         logging.debug("Solution %i: Position score : %f", self._id, position_score)
 
@@ -519,7 +518,7 @@ class Solution:
                 continue
             #  isolated room
             list_of_non_concerned_room = ["entrance", "circulationSpace", "dressing", "cellar",
-                                          "office", "laundry"]
+                                          "study", "laundry"]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
             for i_item in self.collector.spec.items:
@@ -568,7 +567,7 @@ class Solution:
         # Day group
         day_list = ["livingKitchen", "living", "kitchen", "dining", "cellar"]
         # Night group
-        night_list = ["bedroom", "bathroom", "wc", "laundry", "dressing", "office", "misc"]
+        night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "study", "misc"]
 
         difference_area = 0
         mesh_area = 0
