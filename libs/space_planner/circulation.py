@@ -182,9 +182,9 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        for i in range(number_of_floors):
-            _ax = ax[i]
-            paths = self.connecting_paths[i]
+        for f in range(number_of_floors):
+            _ax = ax[f]
+            paths = self.connecting_paths[f]
             for path in paths:
                 if len(path) == 1:
                     _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
@@ -209,7 +209,7 @@ class PathCalculator:
     between two spaces independant from the library used to build the graph
     """
 
-    def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'Dijkstar'):
+    def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'networkx'):
         self.plan = plan
         self.graph_lib = graph_lib
         self.graph = None
@@ -231,14 +231,10 @@ class PathCalculator:
         :return:
         """
         self.graph = EdgeGraph(self.graph_lib)
-        graph = self.graph
-        graph.init()
 
         for space in self.plan.spaces:
             if space.mutable:
                 self._update(space)
-
-        graph.set_cost_function()
 
     def _update(self, space: Space):
         """
@@ -261,8 +257,6 @@ class PathCalculator:
                 vert1 = path[v]
                 vert2 = path[v + 1]
                 self.graph.add_edge_by_vert(vert1, vert2, 0)
-
-            self.graph.set_cost_function()
 
     def rule_type(self, edge: Edge, space: Space) -> str:
         """
