@@ -45,7 +45,7 @@
         "min": 20000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "xs"
