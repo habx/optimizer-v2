@@ -8,7 +8,7 @@
         "min": 25000
       },
       "tags": [],
-      "type": "entrance",
+      "type": "circulation",
       "variant": "m"
     },
     {
@@ -74,7 +74,7 @@
         "min": 20000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "m"
     },
     {

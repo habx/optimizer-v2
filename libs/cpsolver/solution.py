@@ -199,7 +199,7 @@ def exec_solver():
             }
         },
         {
-            "category_name": "wc",
+            "category_name": "toilet",
             "min_area": 1.5 * SQM,
             "max_area": 3 * SQM,
             "components": {

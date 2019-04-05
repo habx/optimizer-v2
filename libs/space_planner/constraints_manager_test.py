@@ -29,17 +29,17 @@ def test_t1():
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t1.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
-    entrance_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
-    plan_t1.insert_space_from_boundary(entrance_coords, SPACE_CATEGORIES["seed"], floor_1)
+    circulation_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
+    plan_t1.insert_space_from_boundary(circulation_coords, SPACE_CATEGORIES["seed"], floor_1)
     living_coord = [(40, 150), (400, 150), (400, 600), (0, 600), (0, 200), (40, 200)]
     plan_t1.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t1.remove_null_spaces()
     plan_t1.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
-    entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
+    circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
-    spec = Specification("simple_test", plan_t1, [bathroom, entrance, living])
+    spec = Specification("simple_test", plan_t1, [bathroom, circulation, living])
 
     space_planner_t1 = SpacePlanner("t1", spec)
     best_t1 = space_planner_t1.solution_research()
@@ -64,8 +64,8 @@ def test_t1_bis():
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t1_bis.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
-    entrance_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
-    plan_t1_bis.insert_space_from_boundary(entrance_coords, SPACE_CATEGORIES["seed"], floor_1)
+    circulation_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
+    plan_t1_bis.insert_space_from_boundary(circulation_coords, SPACE_CATEGORIES["seed"], floor_1)
     living_coord = [(40, 150), (200, 150), (200, 400), (0, 400), (0, 200), (40, 200)]
     plan_t1_bis.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     bedroom_coord = [(200, 150), (400, 150), (400, 400), (200, 400)]
@@ -74,11 +74,11 @@ def test_t1_bis():
     plan_t1_bis.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
-    entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
+    circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=40000), Size(area=60000), ["bedroom"])
     bedroom = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=40000), Size(area=60000),
                    ["living"])
-    spec = Specification("simple_test", plan_t1_bis, [bathroom, entrance, living, bedroom])
+    spec = Specification("simple_test", plan_t1_bis, [bathroom, circulation, living, bedroom])
 
     print(spec)
 
@@ -108,8 +108,8 @@ def test_t3():
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t3.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
-    entrance_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
-    plan_t3.insert_space_from_boundary(entrance_coords, SPACE_CATEGORIES["seed"], floor_1)
+    circulation_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
+    plan_t3.insert_space_from_boundary(circulation_coords, SPACE_CATEGORIES["seed"], floor_1)
     living_coord = [(40, 150), (400, 150), (400, 600), (0, 600), (0, 200), (40, 200)]
     plan_t3.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     bedroom_coord = [(400, 150), (800, 150), (800, 600), (400, 600)]
@@ -120,11 +120,11 @@ def test_t3():
     plan_t3.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
-    entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
+    circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "m", Size(area=150000), Size(area=200000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "m", Size(area=150000), Size(area=200000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "m", Size(area=150000), Size(area=200000))
-    spec = Specification("simple_test", plan_t3, [bathroom, entrance, living, bedroom1, bedroom2])
+    spec = Specification("simple_test", plan_t3, [bathroom, circulation, living, bedroom1, bedroom2])
 
     space_planner_t3 = SpacePlanner("t3", spec)
     best_t3 = space_planner_t3.solution_research()
@@ -157,8 +157,8 @@ def test_t3_balcony():
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t3_balcony.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
-    entrance_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
-    plan_t3_balcony.insert_space_from_boundary(entrance_coords, SPACE_CATEGORIES["seed"], floor_1)
+    circulation_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
+    plan_t3_balcony.insert_space_from_boundary(circulation_coords, SPACE_CATEGORIES["seed"], floor_1)
     living_coord = [(40, 150), (400, 150), (400, 600), (0, 600), (0, 200), (40, 200)]
     plan_t3_balcony.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     bedroom_coord = [(400, 150), (700, 150), (700, 600), (400, 600)]
@@ -169,11 +169,11 @@ def test_t3_balcony():
     plan_t3_balcony.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
-    entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
+    circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=100000), Size(area=150000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "m", Size(area=100000), Size(area=150000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=150000), Size(area=200000))
-    spec = Specification("simple_test", plan_t3_balcony, [bathroom, entrance, living, bedroom1,
+    spec = Specification("simple_test", plan_t3_balcony, [bathroom, circulation, living, bedroom1,
                                                           bedroom2])
 
     space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
@@ -201,8 +201,8 @@ def test_t3_bis():
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t3_bis.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
-    entrance_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
-    plan_t3_bis.insert_space_from_boundary(entrance_coords, SPACE_CATEGORIES["seed"], floor_1)
+    circulation_coords = [(200, 0), (400, 0), (400, 150), (200, 150)]
+    plan_t3_bis.insert_space_from_boundary(circulation_coords, SPACE_CATEGORIES["seed"], floor_1)
     living_coord = [(40, 150), (400, 150), (400, 600), (0, 600), (0, 200), (40, 200)]
     plan_t3_bis.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     bedroom_coord = [(400, 150), (700, 150), (700, 600), (400, 600)]
@@ -212,12 +212,12 @@ def test_t3_bis():
     plan_t3_bis.remove_null_spaces()
     plan_t3_bis.plot()
 
-    bathroom = Item(SPACE_CATEGORIES["wc"], "xs", Size(area=25000), Size(area=35000))
-    entrance = Item(SPACE_CATEGORIES["entrance"], "xs", Size(area=25000), Size(area=35000))
+    bathroom = Item(SPACE_CATEGORIES["toilet"], "xs", Size(area=25000), Size(area=35000))
+    circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "m", Size(area=140000), Size(area=200000))
     bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
     bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
-    spec = Specification("simple_test", plan_t3_bis, [bathroom, entrance, living, bedroom1,
+    spec = Specification("simple_test", plan_t3_bis, [bathroom, circulation, living, bedroom1,
                                                       bedroom2])
 
     space_planner_t3_bis = SpacePlanner("t3_bis", spec)

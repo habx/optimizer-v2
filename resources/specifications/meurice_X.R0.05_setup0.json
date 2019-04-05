@@ -8,7 +8,7 @@
         "min": 25000.0
       },
       "tags": [],
-      "type": "entrance",
+      "type": "circulation",
       "variant": "m"
     },
     {
@@ -56,7 +56,7 @@
         "min": 100000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "s"
     },
     {
@@ -89,7 +89,7 @@
         "min": 40000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "xl"
     },
     {
@@ -111,7 +111,7 @@
         "min": 10000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "s"
     },
     {

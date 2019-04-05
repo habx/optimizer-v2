@@ -8,7 +8,7 @@
         "min": 25000.0
       },
       "tags": [],
-      "type": "entrance",
+      "type": "circulation",
       "variant": "m"
     },
     {
@@ -44,7 +44,7 @@
         "max": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "s"
