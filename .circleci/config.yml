@@ -21,9 +21,9 @@ jobs:
       - persist_to_workspace:
           root: /
           paths:
-            - /home/circleci
-            - /usr/local/lib/python3.6/site-packages
-            - /usr/local/bin
+            - home/circleci
+            - usr/local/lib/python3.6/site-packages
+            - usr/local/bin
 
   tests:
     docker:
