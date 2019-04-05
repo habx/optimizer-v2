@@ -391,7 +391,7 @@ def create_specification_from_data(input_data: dict,
     {
       "rooms": [
         {
-          "type": "entrance",
+          "type": "circulation",
           "variant": "s",
           "requiredArea": {
             "min": 25000,

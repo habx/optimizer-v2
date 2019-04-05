@@ -83,7 +83,7 @@ class SpaceCategory(Category):
 class LinearCategory(Category):
     """
     A category of a linear
-    Examples : window, doorWindow, door, wall, entrance
+    Examples : window, doorWindow, door, wall, frontDoor
     """
 
     def __init__(self,
