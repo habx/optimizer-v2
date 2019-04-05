@@ -55,11 +55,9 @@ class ConstraintSolver:
     Encapsulation of the OR-tools solver adapted to our problem
     """
 
-    def __init__(self, items_nbr: int, spaces_nbr: int, spaces_adjacency_matrix: List[List[int]],
-                 multilevel: bool = False):
+    def __init__(self, items_nbr: int, spaces_nbr: int, spaces_adjacency_matrix: List[List[int]]):
         self.items_nbr = items_nbr
         self.spaces_nbr = spaces_nbr
-        self.multilevel = multilevel
         self.spaces_adjacency_matrix = spaces_adjacency_matrix
         # Create the solver
         self.solver = ortools.Solver('SpacePlanner')
@@ -74,15 +72,10 @@ class ConstraintSolver:
         variables initialization
         :return: None
         """
-        # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulation
-        if not self.multilevel:
-            self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
-                                                  "cells_item[{0}]".format(j_space))
-                               for j_space in range(self.spaces_nbr)]
-        else:
-            self.cells_item = [self.solver.IntVar(0, self.items_nbr,
-                                                  "cells_item[{0}]".format(j_space))
-                               for j_space in range(self.spaces_nbr)]
+        # cells in [0, self.items_nbr-1]
+        self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
+                                              "cells_item[{0}]".format(j_space))
+                           for j_space in range(self.spaces_nbr)]
 
         for i_item in range(self.items_nbr):
             for j_space in range(self.spaces_nbr):
@@ -234,14 +227,9 @@ class ConstraintsManager:
 
         self.spaces_adjacency_matrix = []
         self._init_spaces_adjacency()
-        if sp.spec.plan.floor_count < 2:
-            self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces(),
-                                           self.spaces_adjacency_matrix, False)
-        else:
-            self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces(),
-                                           self.spaces_adjacency_matrix, True)
+        self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                       self.sp.spec.plan.count_mutable_spaces(),
+                                       self.spaces_adjacency_matrix)
 
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
@@ -331,17 +319,10 @@ class ConstraintsManager:
     def add_spaces_constraints(self) -> None:
         """
         add spaces constraints
-        - Each space has to be associated with an item and one time only :
-        special case of stairs:
-        they must be in a circulating room, otherwise: they are not allocated,
-        they are created a circulation
         :return: None
         """
         for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            if ("startingStep" not in [component.category.name for component in
-                                       space.immutable_components()]):
-                self.solver.add_constraint(
-                    space_attribution_constraint(self, j_space))
+            self.solver.add_constraint(space_attribution_constraint(self, j_space))
 
     def add_item_constraints(self) -> None:
         """
@@ -892,7 +873,7 @@ def circulation_adjacency_constraint(manager: 'ConstraintsManager',
 
     ct1 = item_adjacency_constraint(manager, item,
                                     ["living", "livingKitchen", "dining", "entrance"], True, "Or")
-    ct2 = item_adjacency_constraint(manager, item, ["circulationSpace"], True)
+    ct2 = item_adjacency_constraint(manager, item, ["circulation"], True)
     ct3 = item_adjacency_constraint(manager, item,
                                     ["living", "livingKitchen", "dining", "entrance"], False, "And")
 
@@ -978,7 +959,6 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
     return ct
 
-CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulationSpace"]
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
@@ -993,7 +973,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
-         {"item_categories": ["living", "livingKitchen", "dining", "circulationSpace"], "adj": True,
+         {"item_categories": ["living", "livingKitchen", "dining", "circulation"], "adj": True,
           "addition_rule": "Or"}]
     ],
     "toilet": [
@@ -1025,7 +1005,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ["entrance", "livingKitchen", "dining", "circulationSpace"], "adj": True,
+         {"item_categories": ["entrance", "livingKitchen", "dining", "circulation"], "adj": True,
           "addition_rule": "Or"}]
 
     ],
@@ -1037,7 +1017,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ["living", "entrance", "dining", "circulationSpace"], "adj": True,
+         {"item_categories": ["living", "entrance", "dining", "circulation"], "adj": True,
           "addition_rule": "Or"}]
     ],
     "dining": [
@@ -1048,7 +1028,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": ["kitchen"]}],
         [item_adjacency_constraint,
-         {"item_categories": ["living", "livingKitchen", "entrance", "circulationSpace"], "adj": True,
+         {"item_categories": ["living", "livingKitchen", "entrance", "circulation"], "adj": True,
           "addition_rule": "Or"}]
     ],
     "kitchen": [
@@ -1102,12 +1082,12 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
-    "circulationSpace": [
+    "circulation": [
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": WINDOW_CATEGORY, "adj": False,
                                            "addition_rule": "And"}],
         [item_adjacency_constraint,
-         {"item_categories": ["living", "livingKitchen", "dining", "circulationSpace", "entrance"], "adj": True,
+         {"item_categories": ["living", "livingKitchen", "dining", "circulation", "entrance"], "adj": True,
           "addition_rule": "Or"}]
     ]
 }

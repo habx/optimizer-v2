@@ -50,14 +50,18 @@ class SpacePlanner:
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
         # entrance
-        size_min = Size(area=2*SQM)
-        size_max = Size(area=5*SQM)
-        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
+        entrance_size_min = Size(area=2*SQM)
+        entrance_size_max = Size(area=5*SQM)
+        new_item = Item(SPACE_CATEGORIES["entrance"], "s", entrance_size_min, entrance_size_max)
         space_planner_spec.add_item(new_item)
 
         for item in spec.items:
             if item.category.name == "circulation":
-                continue
+                size_min = Size(area=(item.min_size.area + entrance_size_min.area))
+                size_max = Size(area=(item.max_size.area + entrance_size_max.area))
+                new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
+                                size_max)
+                space_planner_spec.add_item(new_item)
             elif((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
@@ -115,11 +119,6 @@ class SpacePlanner:
                     item_space.append(space)
             dict_items_spaces[item] = item_space
 
-        # circulation case :
-        for j_space, space in enumerate(plan.mutable_spaces()):
-            if space.category.name == "seed":
-                space.category = SPACE_CATEGORIES["circulation"]
-
         dict_items_space = {}
         for item in self.spec.items:
             item_space = dict_items_spaces[item]
@@ -137,15 +136,11 @@ class SpacePlanner:
                             plan.remove_null_spaces()
                             break
                 dict_items_space[item] = space_ini
-            elif item.category.name != "circulationSpace":
-                dict_items_space[item] = item_space[0]
             else:
-                dict_items_space[item] = []
-                # circulationSpace case :
-                for j_space, space in enumerate(plan.mutable_spaces()):
-                    if space.category.name == "seed":
-                        space.category = SPACE_CATEGORIES["circulationSpace"]
-                        dict_items_space[item].append(space)
+                if item_space:
+                    dict_items_space[item] = item_space[0]
+
+
         # OPT-72: If we really want to enable it, it should be done through some execution context
         # parameters.
         # assert plan.check()
@@ -208,8 +203,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        #input_file = "antony_A33.json"
+        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)

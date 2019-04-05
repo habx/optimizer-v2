@@ -2,8 +2,8 @@
   "rooms": [
     {
       "requiredArea": {
-        "max": 60000,
-        "min": 25000
+        "max": 90000,
+        "min": 70000
       },
       "type": "circulation"
     },

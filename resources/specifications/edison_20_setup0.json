@@ -5,7 +5,7 @@
       "opensOn": [],
       "requiredArea": {
         "max": 60000,
-        "min": 25000
+        "min": 40000
       },
       "tags": [],
       "type": "circulation",

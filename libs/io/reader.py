@@ -21,7 +21,6 @@ from libs.mesh.mesh import COORD_EPSILON
 from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER, DEFAULT_SPECIFICATION_INPUT_FOLDER
 from output import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
 
-SQM = 10000
 LOAD_BEARING_WALL_WIDTH = 15.0
 
 
@@ -409,12 +408,8 @@ def create_specification_from_data(input_data: dict,
     }
     """
     specification = Specification(spec_name)
-    area = 0
-    circulation_count = 0
     for item in input_data["rooms"]:
         _category = item["type"]
-        if _category == "bedroom" or _category == "office":
-            circulation_count+=1
         if _category not in SPACE_CATEGORIES:
             raise ValueError("Space type not present in space categories: {0}".format(_category))
         required_area = item["requiredArea"]
@@ -432,15 +427,6 @@ def create_specification_from_data(input_data: dict,
         new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max, opens_on,
                         linked_to)
         specification.add_item(new_item)
-        area += (size_min.area + size_max.area) / 2
-    # circulationSpace max area : T1, T2 : 0
-    max_area = 0
-    if specification.typology >= 3:
-        max_area = area/10
-    size_min = Size(area=(3 + (3 * circulation_count - 1))*SQM)
-    size_max = Size(area=max_area)
-    new_item = Item(SPACE_CATEGORIES["circulationSpace"], "m", size_min, size_max, [], [])
-    specification.add_item(new_item)
 
     return specification
 

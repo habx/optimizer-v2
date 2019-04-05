@@ -4,8 +4,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 25000
+        "max": 90000,
+        "min": 70000
       },
       "tags": [],
       "type": "circulation",
@@ -13,7 +13,9 @@
     },
     {
       "linkedTo": [],
-      "opensOn": ["kitchen"],
+      "opensOn": [
+        "kitchen"
+      ],
       "requiredArea": {
         "max": 500000,
         "min": 400000
@@ -24,7 +26,9 @@
     },
     {
       "linkedTo": [],
-      "opensOn": ["living"],
+      "opensOn": [
+        "living"
+      ],
       "requiredArea": {
         "max": 120000,
         "min": 80000

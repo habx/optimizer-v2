@@ -4,8 +4,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 25000.0
+        "max": 90000,
+        "min": 70000
       },
       "tags": [],
       "type": "circulation",
@@ -15,10 +15,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "min": 20000,
-        "max": 60000
+        "max": 60000,
+        "min": 20000
       },
-      "tags": ["toilet"],
+      "tags": [
+        "toilet"
+      ],
       "type": "bathroom",
       "variant": "s"
     },
@@ -28,8 +30,8 @@
         "kitchen"
       ],
       "requiredArea": {
-        "min": 120000,
-        "max": 200000
+        "max": 200000,
+        "min": 120000
       },
       "tags": [],
       "type": "living",
@@ -41,8 +43,8 @@
         "living"
       ],
       "requiredArea": {
-        "min": 40000,
-        "max": 80000
+        "max": 80000,
+        "min": 40000
       },
       "tags": [],
       "type": "kitchen",
@@ -52,8 +54,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "min": 80000,
-        "max": 120000
+        "max": 120000,
+        "min": 80000
       },
       "tags": [],
       "type": "bedroom",
@@ -63,8 +65,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "min": 120000,
-        "max": 180000
+        "max": 180000,
+        "min": 120000
       },
       "tags": [],
       "type": "bedroom",
@@ -74,8 +76,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "min": 20000,
-        "max": 40000
+        "max": 40000,
+        "min": 20000
       },
       "tags": [],
       "type": "laundry",
