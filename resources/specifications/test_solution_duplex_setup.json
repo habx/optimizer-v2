@@ -1,7 +1,7 @@
 {
   "rooms": [
     {
-      "type": "entrance",
+      "type": "circulation",
       "requiredArea": {
         "min": 25000,
         "max": 50000

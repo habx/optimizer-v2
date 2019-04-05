@@ -236,7 +236,7 @@ class Solution:
                               item.id)
 
         for space in self.plan.spaces:
-            if space.category.name == "circulationSpace":
+            if space.category.name == "circulation":
                 area_penalty += 1
 
         area_score = round(area_score / nbr_rooms, 2) - area_penalty * 20
@@ -517,7 +517,7 @@ class Solution:
                               self._id, something_inside_score, item.category.name)
                 continue
             #  isolated room
-            list_of_non_concerned_room = ["entrance", "circulationSpace", "dressing", "cellar",
+            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "cellar",
                                           "study", "laundry"]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull

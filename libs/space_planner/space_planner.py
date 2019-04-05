@@ -49,8 +49,16 @@ class SpacePlanner:
         """
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
+        # entrance
+        size_min = Size(area=2*SQM)
+        size_max = Size(area=5*SQM)
+        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
+        space_planner_spec.add_item(new_item)
+
         for item in spec.items:
-            if ((item.category.name != "living" or "kitchen" not in item.opens_on) and
+            if item.category.name == "circulation":
+                continue
+            elif((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
@@ -66,14 +74,17 @@ class SpacePlanner:
 
         category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                              "circulationSpace"]
+                              "circulation"]
         space_planner_spec.init_id(category_name_list)
 
         # area
-        coeff = int(spec.plan.indoor_area) / int(sum(item.required_area for item in spec.items))
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation", "misc"]
+        invariant_area = sum(item.required_area for item in spec.items if item.category.name in invariant_categories)
+        coeff = int(spec.plan.indoor_area - invariant_area) / int(sum(item.required_area for item in spec.items if item.category.name not in invariant_categories))
         for item in spec.items:
-            item.min_size.area = item.min_size.area * coeff
-            item.max_size.area = item.max_size.area * coeff
+            if item.category.name not in invariant_categories:
+                item.min_size.area = item.min_size.area * coeff
+                item.max_size.area = item.max_size.area * coeff
         logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         self.spec = space_planner_spec
@@ -104,10 +115,10 @@ class SpacePlanner:
                     item_space.append(space)
             dict_items_spaces[item] = item_space
 
-        # circulationSpace case :
+        # circulation case :
         for j_space, space in enumerate(plan.mutable_spaces()):
             if space.category.name == "seed":
-                space.category = SPACE_CATEGORIES["circulationSpace"]
+                space.category = SPACE_CATEGORIES["circulation"]
 
         dict_items_space = {}
         for item in self.spec.items:
@@ -175,7 +186,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -190,8 +201,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "antony_A33.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
