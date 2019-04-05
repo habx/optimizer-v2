@@ -253,6 +253,7 @@ class MessageProcessor:
 
             self._process_message_before(msg)
 
+            # We calculate the overall time just in case we face a crash
             before_time = time.time()
 
             try:
