@@ -30,6 +30,8 @@ jobs:
       - image: circleci/python:3.6
     parallelism: 4
     steps:
+    - checkout
+    - run: sudo chown -R circleci:circleci /usr/local
     - attach_workspace:
         at: /
     - run: ./run_tests.sh
