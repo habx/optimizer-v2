@@ -17,7 +17,6 @@ from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
-import networkx as nx
 
 SQM = 10000
 
@@ -34,9 +33,6 @@ class SpacePlanner:
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
-
-        self.spaces_adjacency_matrix = []
-        self._init_spaces_adjacency()
 
         self.solutions_collector = SolutionsCollector(self.spec)
 
@@ -80,7 +76,6 @@ class SpacePlanner:
             item.max_size.area = item.max_size.area * coeff
         logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
-
         self.spec = space_planner_spec
 
     def _plan_cleaner(self, min_area: float = 100) -> None:
@@ -92,72 +87,6 @@ class SpacePlanner:
         for space in self.spec.plan.spaces:
             if space.area < min_area:
                 self.spec.plan.remove(space)
-
-    def _init_spaces_adjacency(self) -> None:
-        """
-        spaces adjacency matrix init
-        :return: None
-        """
-        for i, i_space in enumerate(self.spec.plan.mutable_spaces()):
-            self.spaces_adjacency_matrix.append([])
-            for j, j_space in enumerate(self.spec.plan.mutable_spaces()):
-                if j != i:
-                    self.spaces_adjacency_matrix[i].append(0)
-                else:
-                    self.spaces_adjacency_matrix[i].append(1)
-
-        for i, i_space in enumerate(self.spec.plan.mutable_spaces()):
-            for j, j_space in enumerate(self.spec.plan.mutable_spaces()):
-                if j < i:
-                    if i_space.adjacent_to(j_space):
-                        self.spaces_adjacency_matrix[i][j] = 1
-                        self.spaces_adjacency_matrix[j][i] = 1
-                    else:
-                        self.spaces_adjacency_matrix[i][j] = 0
-                        self.spaces_adjacency_matrix[j][i] = 0
-
-    def _check_adjacency(self, room_positions, connectivity_checker) -> bool:
-        """
-        Experimental function using BFS graph analysis in order to check wether each room is
-        connected.
-        A room is considered a subgraph of the voronoi graph.
-        :param room_positions:
-        :param connectivity_checker:
-        :return: a boolean indicating wether each room is connected
-
-        """
-        # check for the connectivity of each room
-        for i_item, item in enumerate(self.spec.items):
-            # compute the number of fixed item in the room
-            nbr_cells_in_room = sum(room_positions[i_item])
-            # if a room has only one fixed item there is no need to check for adjacency
-            if nbr_cells_in_room <= 1:
-                continue
-            # else check the connectivity of the subgraph composed of the fi inside the given room
-            room_line = room_positions[i_item]
-            fi_in_room = tuple([i for i, e in enumerate(room_line) if e])
-            if not connectivity_checker(fi_in_room) and item.category.name != "circulationSpace":
-                return False
-
-        return True
-
-    def _check_validity(self) -> None:
-        """
-        check_connectivity of constraint programming solutions and remove wrong results of
-        self.manager.solver.solutions
-        :return: None
-        """
-        connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
-
-        sol_to_remove = []
-        for sol in self.manager.solver.solutions:
-            is_a_good_sol = self._check_adjacency(sol, connectivity_checker)
-            if not is_a_good_sol:
-                sol_to_remove.append(sol)
-
-        if sol_to_remove:
-            for sol in sol_to_remove:
-                self.manager.solver.solutions.remove(sol)
 
     def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
         """
@@ -210,8 +139,6 @@ class SpacePlanner:
         # parameters.
         # assert plan.check()
 
-        plan.plot()
-
         return plan, dict_items_space
 
     def solution_research(self, show=False) -> Optional[List['Solution']]:
@@ -225,19 +152,16 @@ class SpacePlanner:
         if len(self.manager.solver.solutions) == 0:
             logging.warning(
                 "SpacePlanner : solution_research : Plan without space planning solution")
-            return []
         else:
-            self._check_validity()
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
-            logging.debug(self.spec.plan)
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    plan_solution.plot()
+                    #  plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -248,63 +172,7 @@ class SpacePlanner:
                         sol.plan.plot(save=True)
                 return best_sol
 
-    def generate_best_solutions_files(self, best_sol: ['Solution']):
-        """
-        Generates the output files of the chosen solutions
-        :return: None
-        """
-
-
-def adjacency_matrix_to_graph(matrix):
-    """
-    Converts adjacency matrix to a networkx graph structure,
-    a value of 1 in the matrix correspond to an edge in the Graph
-    :param matrix: an adjacency_matrix
-    :return: a networkx graph structure
-    """
-
-    nb_cells = len(matrix)  # get the matrix dimensions
-    graph = nx.Graph()
-    edge_list = [(i, j) for i in range(nb_cells) for j in range(nb_cells) if
-                 matrix[i][j] == 1]
-    graph.add_edges_from(edge_list)
-
-    return graph
-
-
-def check_room_connectivity_factory(adjacency_matrix):
-    """
-
-    A factory to enable memoization on the check connectivity room
-
-    :param adjacency_matrix: an adjacency_matrix
-    :return: check_room_connectivity: a memoized function returning the connectivity of a room
-    """
-
-    connectivity_cache = {}
-    # create graph from adjacency_matrix
-    graph = adjacency_matrix_to_graph(adjacency_matrix)
-
-    def check_room_connectivity(fi_in_room):
-        """
-        :param fi_in_room: a tuple indicating the fixed items present in the room
-        :return: a Boolean indicating if the fixed items in the room are connected according to the
-        graph
-        """
-
-        # check if the connectivity of these fixed items has already been checked
-        # if it is the case fetch the result from the cache
-        if fi_in_room in connectivity_cache:
-            return connectivity_cache[fi_in_room]
-
-        # else compute the connectivity and stores the result in the cache
-        is_connected = nx.is_connected(graph.subgraph(fi_in_room))
-        connectivity_cache[fi_in_room] = is_connected
-
-        return is_connected
-
-    # return the memorized function
-    return check_room_connectivity
+        return []
 
 
 if __name__ == '__main__':
@@ -314,7 +182,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -329,8 +197,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "grenoble_114.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "antony_B14.json" #saint-maur-faculte_B112
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -340,19 +208,38 @@ if __name__ == '__main__':
         GRIDS['optimal_grid'].apply_to(plan)
 
         min_cell_area = 1 * SQM
-        if plan.indoor_area > 105 * SQM and plan.floor_count < 2:
+        if plan.indoor_area > 110 * SQM and plan.floor_count < 2:
             min_cell_area = 2 * SQM
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
+        #plan.plot()
+        # new_space_list = []
+        # for space in plan.spaces:
+        #     if space.category.name == "empty":
+        #         for face in space.faces:
+        #             new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
+        #             new_space_list.append(new_space)
+        # has_empty_space = True
+        # while has_empty_space:
+        #     has_empty_space = False
+        #     for space in plan.spaces:
+        #         if space.category.name == "empty":
+        #             plan.remove(space)
+        #             has_empty_space = True
+        #     plan.remove_null_spaces()
+
         seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+        plan.plot()
         (seeder.plant()
-         .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
+         .grow(show=True))
+        plan.plot()
+        (seeder.divide_along_seed_borders(SELECTORS["not_aligned_edges"])
          .from_space_empty_to_seed()
          .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
 
         plan.plot()
+        print(list(space.components_category_associated() for space in plan.mutable_spaces()))
 
         input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -384,8 +271,9 @@ if __name__ == '__main__':
         # Output
         for sol in best_solutions:
             sol.plan.plot()
-            for space in sol.plan.spaces:
-                print(space.category.name, space.area, )
+            print(sol, sol.score())
+            for space in sol.plan.mutable_spaces():
+                print(space.category.name, " : ", space.area)
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
 
@@ -399,8 +287,8 @@ if __name__ == '__main__':
         print("total time :", time.clock() - t00)
 
         # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "wc", "bathroom", "laundry", "kitchen", "living",
-        # "bedroom", "dressing"] #,
+        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen",
+        # "living", "bedroom", "dressing"] #,
         # #"laundry", "dressing"]
         # #spaces_list = list(spec.plan.spaces)
         # best_name_list = None

@@ -205,30 +205,31 @@ class Solution:
                 space = self.items_spaces[item]
                 nbr_rooms += 1
                 # Min < SpaceArea < Max
-                if item.min_size.area <= space.area <= item.max_size.area:
-                    item_area_score = 100
-                # good overflow
-                elif (item.max_size.area < space.area and
-                      space.category.name in good_overflow_categories):
-                    item_area_score = 100
-                # overflow
-                else:
-                    item_area_score = (100 - abs(item.required_area - space.area) /
-                                       item.required_area * 100)
-                    if space.category.name == "entrance":
-                        if space.area < 20000:
-                            area_penalty += 1
-                    elif space.category.name == "wc":
-                        if space.area < 10000:
-                            area_penalty += 1
-                        elif space.area > item.max_size.area:
-                            area_penalty += 3
-                    elif space.category.name == "bathroom" or space.category.name == "wcBathroom":
-                        if space.area < 20000:
-                            area_penalty += 1
-                    elif space.category.name == "bedroom":
-                        if space.area < 75000:
-                            area_penalty += 1
+                if space:
+                    if item.min_size.area <= space.area <= item.max_size.area:
+                        item_area_score = 100
+                    # good overflow
+                    elif (item.max_size.area < space.area and
+                          space.category.name in good_overflow_categories):
+                        item_area_score = 100
+                    # overflow
+                    else:
+                        item_area_score = (100 - abs(item.required_area - space.area) /
+                                           item.required_area * 100)
+                        if space.category.name == "entrance":
+                            if space.area < 20000:
+                                area_penalty += 1
+                        elif space.category.name == "wc":
+                            if space.area < 10000:
+                                area_penalty += 1
+                            elif space.area > item.max_size.area:
+                                area_penalty += 3
+                        elif space.category.name == "bathroom" or space.category.name == "wcBathroom":
+                            if space.area < 20000:
+                                area_penalty += 1
+                        elif space.category.name == "bedroom":
+                            if space.area < 75000:
+                                area_penalty += 1
 
                 # Area score
                 area_score += item_area_score
@@ -253,27 +254,28 @@ class Solution:
         logging.debug("Solution %i: P2/A", self._id)
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
-            if item.category.name in ["wc", "bathroom"]:
-                logging.debug("room %s: P2/A : %i", item.id,
-                              int((space.perimeter_without_duct *
-                                   space.perimeter_without_duct)/space.area))
-            else:
-                logging.debug("room %s: P2/A : %i", item.id,
-                              int((space.perimeter*space.perimeter)/space.area))
-            sp_space = space.as_sp
-            convex_hull = sp_space.convex_hull
-            if convex_hull.is_valid and sp_space.is_valid:
-                outside = convex_hull.difference(sp_space)
-                item_shape_score = min(100, 100 - (
-                        (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
-                logging.debug(
-                    "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
-                    item.category.name)
-            else:
-                logging.warning("Solution %i: Invalid shapely space")
-                item_shape_score = 100
+            if space:
+                if item.category.name in ["wc", "bathroom"]:
+                    logging.debug("room %s: P2/A : %i", item.id,
+                                  int((space.perimeter_without_duct *
+                                       space.perimeter_without_duct)/space.area))
+                else:
+                    logging.debug("room %s: P2/A : %i", item.id,
+                                  int((space.perimeter*space.perimeter)/space.area))
+                sp_space = space.as_sp
+                convex_hull = sp_space.convex_hull
+                if convex_hull.is_valid and sp_space.is_valid:
+                    outside = convex_hull.difference(sp_space)
+                    item_shape_score = min(100, 100 - (
+                            (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
+                    logging.debug(
+                        "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
+                        item.category.name)
+                else:
+                    logging.warning("Solution %i: Invalid shapely space")
+                    item_shape_score = 100
 
-            shape_score = min(item_shape_score, shape_score)
+                shape_score = min(item_shape_score, shape_score)
         logging.debug("Solution %i: Shape score : %f", self._id, shape_score)
 
         return shape_score
@@ -550,9 +552,9 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
-                          + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus()  # - self._circulation_penalty()
+        solution_score = (self._area_score() + self._shape_score())/2 #+ self._night_and_day_score()
+                          #+ self._position_score() + self._something_inside_score()) / 5
+        solution_score = solution_score #+ self._good_size_bonus()  # - self._circulation_penalty()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 
