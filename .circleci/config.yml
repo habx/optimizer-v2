@@ -115,6 +115,7 @@ workflows:
           context: default_env_vars
           requires:
             - get-build-infos
+            - get-requirements
       #          filters:
       #            tags:
       #              only: /^v.*/
