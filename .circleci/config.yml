@@ -28,7 +28,6 @@ jobs:
   get-build-infos:
     docker:
       - image: habx/devops-build-infos
-      parallelism: 4
       steps:
         - checkout
         - run: build/run.sh
