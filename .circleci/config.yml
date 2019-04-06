@@ -58,7 +58,6 @@ jobs:
       - image: plugins/ecr:17.05
     working_directory: /home/circleci
     steps:
-      - run: sudo chown -R circleci:circleci /usr/local
       - attach_workspace:
           at: /
       - setup_remote_docker:
