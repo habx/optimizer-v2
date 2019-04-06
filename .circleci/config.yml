@@ -31,10 +31,10 @@ jobs:
   get-build-infos:
     docker:
       - image: habx/devops-build-infos
+    working_directory: /home/circleci
     steps:
       - checkout
       - run: /build/run.sh
-      - working_directory: /home/circleci
       - persist_to_workspace:
           root: /
           paths:
