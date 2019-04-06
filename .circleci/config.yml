@@ -57,8 +57,10 @@ jobs:
     docker:
       - image: plugins/ecr:17.05
     steps:
+      - checkout
+      - run: sudo chown -R circleci:circleci /usr/local
       - attach_workspace:
-          at: /root
+          at: /
       - setup_remote_docker:
           docker_layer_caching: true
       - run: .circleci/build-container.sh
