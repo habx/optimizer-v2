@@ -3,7 +3,7 @@ version: 2
 # It's because we cannot rely solely on virtualenv as the sole libraries source. Protobuf
 # (which is a current python dependency) installs some files directly in the system.
 jobs:
-  prepare:
+  tests:
     docker:
       - image: circleci/python:3.6
     parallelism: 2
@@ -13,36 +13,29 @@ jobs:
       - restore_cache:
           keys:
             - v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-            - v3-dependencies-{{ .Branch }}-
-            - v3-dependencies-
       - run: .circleci/prepare.sh
+      - run: .circleci/run_tests.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
             - /usr/local/bin
           key: v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-      - persist_to_workspace:
-          root: /
-          paths:
-            - home/circleci
-            - usr/local/lib/python3.6/site-packages
-            - usr/local/bin
 
   get-build-infos:
     docker:
       - image: habx/devops-build-infos
-    working_directory: /home/circleci
+    working_directory: /work
     steps:
       - checkout
       - run: /build/run.sh
       - persist_to_workspace:
-          root: /
+          root: /work
           paths:
-            - home/circleci/version.txt
-            - home/circleci/package.json
-            - home/circleci/build.json
+            - version.txt
+            - package.json
+            - build.json
 
-  tests:
+  tests__deprecated:
     docker:
       - image: circleci/python:3.6
     parallelism: 4
@@ -107,7 +100,6 @@ workflows:
   ci-process:
     jobs:
       - get-build-infos
-      - prepare
       - tests:
           requires:
             - prepare
@@ -118,7 +110,6 @@ workflows:
       - build-container:
           context: default_env_vars
           requires:
-            - prepare
             - get-build-infos
       #          filters:
       #            tags:
