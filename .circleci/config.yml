@@ -3,6 +3,7 @@ version: 2
 # It's because we cannot rely solely on virtualenv as the sole libraries source. Protobuf
 # (which is a current python dependency) installs some files directly in the system.
 jobs:
+  # Tests can benefit from standard caching
   tests:
     docker:
       - image: circleci/python:3.6
@@ -12,39 +13,42 @@ jobs:
       - run: sudo chown -R circleci:circleci /usr/local
       - restore_cache:
           keys:
-            - v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+            - tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run: .circleci/prepare.sh
       - run: ./run_tests.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
             - /usr/local/bin
-          key: v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}
 
+  # We're fetching the build infos
   get-build-infos:
     docker:
       - image: habx/devops-build-infos
-    working_directory: /work
+    working_directory: /work/env
     steps:
       - checkout
       - run: /build/run.sh
       - persist_to_workspace:
-          root: /work
+          root: /work/env
           paths:
             - version.txt
             - package.json
             - build.json
 
-  tests__deprecated:
+  # We're fetching the requirements to prepare the container
+  get-requirements:
     docker:
       - image: circleci/python:3.6
-    parallelism: 4
+    working_directory: /work
     steps:
       - checkout
-      - run: sudo chown -R circleci:circleci /usr/local
-      - attach_workspace:
-          at: /
-      - run: ./run_tests.sh
+      - run: .circleci/get-requirements.sh
+    - persist_to_workspace:
+        root: /work
+        paths:
+          venv
 
   build-container:
     docker:
@@ -54,6 +58,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: /work
+      - run: ls -lh
       - setup_remote_docker:
           docker_layer_caching: true
       - run: .circleci/build-container.sh
