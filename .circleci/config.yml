@@ -52,13 +52,10 @@ jobs:
     working_directory: /work
     steps:
       - checkout
-      - run: ls -lh .circleci
       - attach_workspace:
           at: /work
-      - run: ls -lh .circleci
       - setup_remote_docker:
           docker_layer_caching: true
-      - run: ls -lh .circleci
       - run: .circleci/build-container.sh
 
   deploy-to-kubernetes-standard-worker:
