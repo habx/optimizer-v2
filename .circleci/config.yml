@@ -14,7 +14,7 @@ jobs:
           keys:
             - v3-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run: .circleci/prepare.sh
-      - run: .circleci/run_tests.sh
+      - run: ./run_tests.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
