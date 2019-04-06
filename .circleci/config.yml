@@ -33,8 +33,8 @@ jobs:
       - image: habx/devops-build-infos
     steps:
       - checkout
-      - run: pwd
       - run: /build/run.sh
+      - working_directory: /home/circleci
       - persist_to_workspace:
           root: /
           paths:
