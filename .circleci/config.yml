@@ -102,6 +102,7 @@ workflows:
   version: 2
   ci-process:
     jobs:
+      - get-build-infos
       - prepare
       - tests:
           requires:
