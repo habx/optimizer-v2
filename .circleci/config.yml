@@ -106,6 +106,7 @@ workflows:
   ci-process:
     jobs:
       - get-build-infos
+      - get-requirements
       - tests:
           filters:
             tags:
