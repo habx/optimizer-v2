@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -ex
 virtualenv venv
 source venv/bin/activate
 pip install -q --upgrade pip
