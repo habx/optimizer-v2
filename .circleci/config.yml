@@ -35,9 +35,11 @@ jobs:
       - checkout
       - run: build/run.sh
       - persist_to_workspace:
-          - home/circleci/version.txt
-          - home/circleci/package.json
-          - home/circleci/build.json
+          root: /
+          paths:
+            - home/circleci/version.txt
+            - home/circleci/package.json
+            - home/circleci/build.json
 
   tests:
     docker:
