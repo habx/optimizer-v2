@@ -45,10 +45,10 @@ jobs:
     steps:
       - checkout
       - run: .circleci/get-requirements.sh
-    - persist_to_workspace:
-        root: /work
-        paths:
-          venv
+      - persist_to_workspace:
+          root: /work
+          paths:
+            - venv
 
   build-container:
     docker:
