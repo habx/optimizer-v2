@@ -28,13 +28,13 @@ jobs:
   get-build-infos:
     docker:
       - image: habx/devops-build-infos
-      steps:
-        - checkout
-        - run: build/run.sh
-        - persist_to_workspace:
-            - home/circleci/version.txt
-            - home/circleci/package.json
-            - home/circleci/build.json
+    steps:
+      - checkout
+      - run: build/run.sh
+      - persist_to_workspace:
+          - home/circleci/version.txt
+          - home/circleci/package.json
+          - home/circleci/build.json
 
   tests:
     docker:
