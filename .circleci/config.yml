@@ -41,12 +41,11 @@ jobs:
   get-requirements:
     docker:
       - image: circleci/python:3.6
-    working_directory: /work
     steps:
       - checkout
       - run: .circleci/get-requirements.sh
       - persist_to_workspace:
-          root: /work
+          root: /home/circleci
           paths:
             - venv
 
