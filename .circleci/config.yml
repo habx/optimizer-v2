@@ -56,8 +56,8 @@ jobs:
   build-container:
     docker:
       - image: plugins/ecr:17.05
+    working_directory: /home/circleci
     steps:
-      - checkout
       - run: sudo chown -R circleci:circleci /usr/local
       - attach_workspace:
           at: /
