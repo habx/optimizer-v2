@@ -49,10 +49,11 @@ jobs:
   build-container:
     docker:
       - image: plugins/ecr:17.05
-    working_directory: /home/circleci
+    working_directory: /work
     steps:
+      - checkout
       - attach_workspace:
-          at: /
+          at: /work
       - setup_remote_docker:
           docker_layer_caching: true
       - run: .circleci/build-container.sh
