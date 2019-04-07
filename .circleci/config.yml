@@ -47,7 +47,7 @@ jobs:
       - persist_to_workspace:
           root: /home/circleci
           paths:
-            - venv
+            - project/venv
 
   build-container:
     docker:
