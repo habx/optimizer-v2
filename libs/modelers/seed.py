@@ -440,6 +440,9 @@ class Seed:
         """
         self.max_size.width = max(self.size.width + EPSILON_MAX_SIZE, self.max_size.width or 0)
         self.max_size.depth = max(self.size.depth + EPSILON_MAX_SIZE, self.max_size.depth or 0)
+        self.max_size.area = max(self.max_size.width * self.max_size.depth,
+                                 self.size.area + EPSILON_MAX_SIZE**2,
+                                 self.max_size.area or 0)
 
     def get_growth_methods(self) -> Sequence['GrowthMethod']:
         """
@@ -697,7 +700,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "sartrouville_R1"
+        plan_name = "grenoble_101"
 
         # to not run each time the grid generation
         try:
