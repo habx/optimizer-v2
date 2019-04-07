@@ -313,7 +313,7 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
 
 ELEMENT_CONSTRAINT_SEED = {
     'duct': SpaceConstraint(max_size,
-                            {"max_size": Size(35000, 200, 200),
+                            {"max_size": Size(35000, 250, 250),
                              "category_name": "seed"},
                             "max_size_duct"),
     'frontDoor': SpaceConstraint(max_size,

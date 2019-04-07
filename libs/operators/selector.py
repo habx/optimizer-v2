@@ -302,8 +302,6 @@ def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None
             space_added = space.plan.get_space_of_face(face_added)
             if space_added.category.name != 'empty':
                 continue
-            if space_added.corner_stone(face_added):
-                continue
             shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
             area = space.area + face_added.area
             perimeter = space.perimeter + face_added.perimeter - shared_perimeter
@@ -331,13 +329,11 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
             space_added = space.plan.get_space_of_face(face_added)
             if space_added.category.name != 'empty':
                 continue
-            if space_added.corner_stone(face_added):
-                continue
             shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
             area = space.area + face_added.area
             perimeter = space.perimeter + face_added.perimeter - shared_perimeter
             current_shape_factor = perimeter / area
-            if current_shape_factor < biggest_shape_factor:
+            if current_shape_factor <= biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
 
@@ -460,7 +456,7 @@ def farthest_edges_barycenter(coeff: float = 0) -> EdgeQuery:
     return _query
 
 
-def oriented_edges(direction: str, epsilon: float = 30.0) -> EdgeQuery:
+def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     """
     EdgeQuery factory
     Returns an edge query that yields edges facing the direction or the normal
@@ -488,9 +484,10 @@ def oriented_edges(direction: str, epsilon: float = 30.0) -> EdgeQuery:
             return
 
         if direction == "horizontal":
-            angle = ccw_angle(reference_edge.unit_vector) % 180.0
+            angle = ccw_angle(reference_edge.unit_vector
+                              if go_left.get(space.id, False) else reference_edge.opposite_vector)
             edges_list = [edge for edge in space.siblings(reference_edge)
-                          if pseudo_equal(ccw_angle(edge.normal) % 180.0, angle, epsilon)]
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)]
 
             if not edges_list:
                 return

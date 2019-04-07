@@ -14,7 +14,7 @@ until the space is totally filled
 
 """
 
-from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence
+from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence, Set, Tuple
 import logging
 import copy
 
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from libs.operators.selector import Selector
     from libs.operators.constraint import Constraint
     from libs.modelers.shuffle import Shuffle
+    import uuid
 
 EPSILON_MAX_SIZE = 10.0
 SQM = 10000
@@ -108,7 +109,8 @@ class Seeder:
         if show:
             self._initialize_plot(plot)
 
-        second_pass = False
+        number_of_pass = 0
+        max_pass = 2
         # grow the seeds
         while True:
             all_spaces_modified = []
@@ -120,10 +122,10 @@ class Seeder:
                     self.plot.update(spaces_modified)
             # stop to grow once we cannot grow anymore
             if not all_spaces_modified:
-                if second_pass:
+                if number_of_pass >= max_pass:
                     break
                 else:
-                    second_pass = True
+                    number_of_pass += 1
 
         self.plan.remove_null_spaces()
 
@@ -139,12 +141,29 @@ class Seeder:
         :param show:
         :return:
         """
+        def _get_adjacencies(_space: 'Space',
+                             targeted_spaces: ['Space']) -> Set[Tuple['uuid.UUID', float]]:
+            _adjacencies = set()
+            for _edge in _space.edges:
+                _other = self.plan.get_space_of_edge(_edge.pair)
+                if not _other or _other.category.name != "seed" or _other not in targeted_spaces:
+                    continue
+                # store all adjacencies of each space
+                _angle = truncate(ccw_angle(_edge.unit_vector) % 180.0)
+                _adjacencies.add((_other.id, _angle))
+            return _adjacencies
+
         if show:
             self._initialize_plot()
-        # create new seed space
+
+        seed_spaces = [seed.space for seed in self.seeds]
+
+        # create new seed spaces
         new_spaces = []
-        for seed in self.seeds:
-            for edge in seed.space.edges:
+        initial_spaces = []
+        for seed_space in list(self.plan.get_spaces("seed")):
+            initial_spaces.append(seed_space)
+            for edge in seed_space.edges:
                 other_space = self.plan.get_space_of_edge(edge.pair)
                 if (not other_space
                         or other_space.category.name != "empty"
@@ -153,44 +172,28 @@ class Seeder:
 
                 modified_spaces = other_space.remove_face(edge.pair.face)
                 # create a new seed space
-                new_space = Space(self.plan, other_space.floor, edge.pair,
-                                  SPACE_CATEGORIES["empty"])
+                new_space = Space(self.plan, seed_space.floor, edge.pair, SPACE_CATEGORIES["seed"])
                 new_spaces.append(new_space)
                 if show:
                     self.plot.update(modified_spaces + [new_space])
 
         # merge new seed spaces
-        # measure adjacencies
-        adjacencies = {}
-        for new_space in new_spaces:
-            for edge in new_space.edges:
-                other_space = self.plan.get_space_of_edge(edge.pair)
-                if not other_space or other_space.category.name != "seed":
+        for seed_space in new_spaces:
+            # compute adjacencies
+            adjacencies = _get_adjacencies(seed_space, initial_spaces)
+            for other in seed_space.adjacent_spaces():
+                if other in seed_spaces or other.category.name != "seed":
                     continue
-                # store all adjacencies of each space
-                adjacency = adjacencies.get(new_space.id, set())
-                angle = truncate(ccw_angle(edge.unit_vector) % 180.0)
-                adjacency.add((other_space.id, angle))
-                adjacencies[new_space.id] = adjacency
-
-        # merge spaces with same adjacencies
-        for space in new_spaces:
-            for other in new_spaces:
-                if space.id not in adjacencies or other.id not in adjacencies:
-                    logging.debug("Seeder: Problem with adjacencies cache !")
-                if space is other:
-                    continue
-                if adjacencies[space.id] == adjacencies[other.id] and space.adjacent_to(other):
-                    space.merge(other)
-                    new_spaces.remove(other)
-                    if show:
-                        self.plot.update([space, other])
-        # transform empty spaces in seed spaces
-        for space in new_spaces:
-            new_seed = Seed(self, space.edge, space=space)
-            space.category = SPACE_CATEGORIES["seed"]
-            self.seeds.append(new_seed)
-
+                other_adjacencies = _get_adjacencies(other, initial_spaces)
+                for angle in [a for _, a in adjacencies]:
+                    if (set(filter(lambda t: t[1] == angle, adjacencies)) ==
+                            set(filter(lambda t: t[1] == angle, other_adjacencies)) != set()):
+                        seed_space.merge(other)
+                        if other in new_spaces:
+                            new_spaces.remove(other)
+                        if show:
+                            self.plot.update([seed_space, other])
+                        break
         # remove empty spaces
         self.plan.remove_null_spaces()
 
@@ -203,9 +206,7 @@ class Seeder:
         for space in self.plan.get_spaces("empty"):
             if not space.edge:
                 break
-            new_seed = Seed(self, space.edge, space=space)
             space.category = SPACE_CATEGORIES["seed"]
-            self.seeds.append(new_seed)
 
         return self
 
@@ -382,7 +383,8 @@ class Seed:
         # per convention we apply the growth method corresponding
         # to the first component category name
         self.growth_methods = self.get_growth_methods()
-        self.growth_action_index = 0
+        self._growth_action_index = 0
+        self._number_of_pass = 0
         self.max_size = self.get_components_max_size()
         self.max_size_constraint = self.create_max_size_constraint()
         # initialize first face
@@ -496,9 +498,9 @@ class Seed:
         """
         if not self.growth_methods:
             return None
-        if self.growth_action_index >= len(self.growth_methods[0].actions):
+        if self._growth_action_index >= len(self.growth_methods[0].actions):
             return None
-        return self.growth_methods[0].actions[self.growth_action_index]
+        return self.growth_methods[0].actions[self._growth_action_index]
 
     def _create_seed_space(self) -> ['Space']:
         """
@@ -529,6 +531,7 @@ class Seed:
         :return:
         """
         logging.debug("Seed: Growing %s", self)
+        max_pass = 1
 
         if self.growth_action is None:
             return []
@@ -541,9 +544,13 @@ class Seed:
                                                       [self.max_size_constraint])
 
         if not modified_spaces:
-            self.growth_action_index += 1
-            logging.debug("Seed: Switching to next growth action : %i - %s",
-                          self.growth_action_index, self)
+            if self._number_of_pass >= max_pass:
+                self._number_of_pass = 0
+                self._growth_action_index += 1
+                logging.debug("Seed: Switching to next growth action : %i - %s",
+                              self._growth_action_index, self)
+            else:
+                self._number_of_pass += 1
         else:
             pass
 
@@ -615,44 +622,17 @@ class GrowthMethod:
 
 # Growth Methods
 
-fill_seed_category = GrowthMethod(
-    'default',
-    (CONSTRAINTS['max_size_s_seed'],),
-    (
-        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
-    )
-)
-
-fill_empty_seed_category = GrowthMethod(
-    'empty',
-    (CONSTRAINTS['max_size_s_seed'],),
-    (
-        Action(SELECTORS['homogeneous'], MUTATIONS['swap_face']),
-    )
-)
-
-fill_small_seed_category = GrowthMethod(
-    'empty',
-    (CONSTRAINTS["max_size_seed"],),
-    (
-        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'], True),
-        Action(SELECTORS['boundary_other_empty_space'], MUTATIONS['swap_face'])
-    )
-)
-
-classic_seed_category = GrowthMethod(
-    'default',
-    (CONSTRAINTS["max_size_default_constraint_seed"],),
-    (
-        Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
-        Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-               True),
-        Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
-    )
-)
-
-ELEMENT_SEED_CATEGORIES = {
+GROWTH_METHODS = {
+    "default": GrowthMethod(
+        'default',
+        (CONSTRAINTS["max_size_default_constraint_seed"],),
+        (
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
+            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
+        )
+    ),
     "duct": GrowthMethod(
         'duct',
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
@@ -674,7 +654,8 @@ ELEMENT_SEED_CATEGORIES = {
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
+            # Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
+            #     name="improved_aspect")
         ),
         priority=1
     ),
@@ -685,7 +666,8 @@ ELEMENT_SEED_CATEGORIES = {
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
+                   name="improved_aspect")
         ),
         priority=1
     ),
@@ -698,49 +680,21 @@ ELEMENT_SEED_CATEGORIES = {
     )
 }
 
-GROWTH_METHODS = {
-    "default": classic_seed_category,
-    "startingStep": ELEMENT_SEED_CATEGORIES["startingStep"],
-    "duct": ELEMENT_SEED_CATEGORIES['duct'],
-    "frontDoor": ELEMENT_SEED_CATEGORIES['frontDoor'],
-    "window": ELEMENT_SEED_CATEGORIES['window'],
-    "doorWindow": ELEMENT_SEED_CATEGORIES['doorWindow'],
-}
-
-FILL_METHODS_HOMOGENEOUS = {
-    "empty": fill_seed_category,
-    "default": None
-}
-
-FILL_METHODS = {
-    "empty": classic_seed_category,
-    "default": None
-}
-
 if __name__ == '__main__':
-    from libs.modelers.grid import GRIDS
-    from libs.operators.selector import SELECTORS
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--plan_index", help="choose plan index",
-                        default=0)
-
-    args = parser.parse_args()
-    plan_index = int(args.plan_index)
 
     logging.getLogger().setLevel(logging.DEBUG)
 
-
-    def failed_plan():
+    def try_plan():
         """
         Test
         :return:
         """
+        from libs.modelers.grid import GRIDS
+        from libs.operators.selector import SELECTORS
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "meurice_LT100"
+        plan_name = "grenoble_113"
 
         # to not run each time the grid generation
         try:
@@ -755,9 +709,9 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .fill(show=True)
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         # .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
          )
         plan.plot()
         plan.check()
 
-    failed_plan()
+    try_plan()
