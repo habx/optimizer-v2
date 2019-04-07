@@ -304,7 +304,7 @@ def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None
                 continue
             shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
             area = space.area + face_added.area
-            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
+            perimeter = space.perimeter + face_added.perimeter - 2 * shared_perimeter
             current_shape_factor = perimeter / area
             if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
@@ -320,22 +320,23 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     face is added to space, the ratio perimeter/area is reduced
     """
 
-    biggest_shape_factor = space.perimeter / space.area
+    best_shape_factor = space.perimeter / space.area
     edge_homogeneous_growth = None
 
     for edge in space.edges:
-        if edge.pair.face:
-            face_added = edge.pair.face
-            space_added = space.plan.get_space_of_face(face_added)
-            if space_added.category.name != 'empty':
-                continue
-            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
-            area = space.area + face_added.area
-            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
-            current_shape_factor = perimeter / area
-            if current_shape_factor <= biggest_shape_factor:
-                biggest_shape_factor = current_shape_factor
-                edge_homogeneous_growth = edge
+        if not edge.pair.face:
+            continue
+        face_added = edge.pair.face
+        space_added = space.plan.get_space_of_face(face_added)
+        if space_added.category.name != 'empty':
+            continue
+        shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
+        area = space.area + face_added.area
+        perimeter = space.perimeter + face_added.perimeter - 2 * shared_perimeter
+        current_shape_factor = perimeter / area
+        if current_shape_factor <= best_shape_factor:
+            best_shape_factor = current_shape_factor
+            edge_homogeneous_growth = edge
 
     if edge_homogeneous_growth:
         yield edge_homogeneous_growth

@@ -109,23 +109,15 @@ class Seeder:
         if show:
             self._initialize_plot(plot)
 
-        number_of_pass = 0
-        max_pass = 2
         # grow the seeds
         while True:
-            all_spaces_modified = []
+            all_done = True
             for seed in self.seeds:
-                spaces_modified = seed.grow()
-                all_spaces_modified += spaces_modified
-
-                if spaces_modified and show:
-                    self.plot.update(spaces_modified)
-            # stop to grow once we cannot grow anymore
-            if not all_spaces_modified:
-                if number_of_pass >= max_pass:
-                    break
-                else:
-                    number_of_pass += 1
+                done = seed.grow(show=show)
+                all_done = all_done and done
+            # stop to grow when all growth method are done
+            if all_done:
+                break
 
         self.plan.remove_null_spaces()
 
@@ -143,6 +135,13 @@ class Seeder:
         """
         def _get_adjacencies(_space: 'Space',
                              targeted_spaces: ['Space']) -> Set[Tuple['uuid.UUID', float]]:
+            """
+            Returns a set containing all the id of the spaces adjacent and the angle of the
+            shared edge
+            :param _space:
+            :param targeted_spaces:
+            :return:
+            """
             _adjacencies = set()
             for _edge in _space.edges:
                 _other = self.plan.get_space_of_edge(_edge.pair)
@@ -204,8 +203,6 @@ class Seeder:
         # search for empty spaces not yet converted in seed spaces
         # can happen in weirdly shaped plan
         for space in self.plan.get_spaces("empty"):
-            if not space.edge:
-                break
             space.category = SPACE_CATEGORIES["seed"]
 
         return self
@@ -356,6 +353,7 @@ class Seeder:
         """
         Return the seed corresponding to the space.
         Returns None if the space has no corresponding seed.
+        Used by selector if it needs to retrieve seed information
         :param space:
         :return:
         """
@@ -392,9 +390,9 @@ class Seed:
 
     def __repr__(self):
         if self.space is not None:
-            return ('Seed: {0}, area: {1}, width: {2}, depth: {3} - {4}, ' +
-                    '{5}').format(self.components, str(self.space.area), str(self.size.width),
-                                  str(self.size.depth), self.space, self.edge)
+            return ('Seed: {0} - {1}, area: {2}, width: {3}, depth: {4} - {5}, ' +
+                    '{6}').format(id(self), self.components, str(self.space.area),
+                                  str(self.size.width), str(self.size.depth), self.space, self.edge)
         else:
             return 'Seed: {0} - {1})'.format(self.components, self.edge)
 
@@ -456,6 +454,9 @@ class Seed:
             if method is not None:
                 growth_methods.append(method)
         # we make sure the growth methods are sorted per priority
+        # this is needed in the case of space with several seedable items that each
+        # have a different growth method and we want to control which growth method is
+        # executed in priority
         growth_methods.sort(key=lambda g: g.priority, reverse=True)
         return growth_methods
 
@@ -523,18 +524,20 @@ class Seed:
         self.update_max_size_constraint()
         return [self.space] + modified_spaces
 
-    def grow(self) -> Sequence['Space']:
+    def grow(self, show: bool = False) -> bool:
         """
         Tries to grow the seed space by one face
-        Returns the list of the faces added
+        Returns a boolean to indicate whether the growth is done
+        :param show: whether to plot the growth
         :param self:
         :return:
         """
-        logging.debug("Seed: Growing %s", self)
-        max_pass = 1
 
         if self.growth_action is None:
-            return []
+            logging.debug("Seed: No more growth action %s", self)
+            return True
+
+        logging.debug("Seed: Growing %s", self)
 
         for growth_method in self.growth_methods:
             for action in growth_method.actions:
@@ -542,19 +545,19 @@ class Seed:
 
         modified_spaces = self.growth_action.apply_to(self.space, [self.seeder],
                                                       [self.max_size_constraint])
+        if modified_spaces and show:
+            self.seeder.plot.update(modified_spaces)
 
         if not modified_spaces:
-            if self._number_of_pass >= max_pass:
+            if self._number_of_pass >= self.growth_action.number_of_pass - 1:
                 self._number_of_pass = 0
                 self._growth_action_index += 1
                 logging.debug("Seed: Switching to next growth action : %i - %s",
                               self._growth_action_index, self)
             else:
                 self._number_of_pass += 1
-        else:
-            pass
 
-        return modified_spaces
+        return False
 
     def add_component(self, edge: 'Edge', component: PlanComponent):
         """
@@ -578,7 +581,7 @@ class GrowthMethod:
                  name: str,
                  constraints: Optional[Sequence['Constraint']] = None,
                  actions: Optional[Sequence['Action']] = None,
-                 priority: int = 0, ):
+                 priority: int = 0):
         constraints = constraints or []
         self.name = name
         self.constraints = {constraint.name: constraint for constraint in constraints}
@@ -627,7 +630,7 @@ GROWTH_METHODS = {
         'default',
         (CONSTRAINTS["max_size_default_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
@@ -651,11 +654,11 @@ GROWTH_METHODS = {
         'window',
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            # Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
-            #     name="improved_aspect")
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
+                 name="improved_aspect")
         ),
         priority=1
     ),
@@ -663,7 +666,7 @@ GROWTH_METHODS = {
         'doorWindow',
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -694,7 +697,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "grenoble_113"
+        plan_name = "sartrouville_R1"
 
         # to not run each time the grid generation
         try:
@@ -709,7 +712,7 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .fill(show=True)
-         # .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
          )
         plan.plot()
         plan.check()
