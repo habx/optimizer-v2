@@ -273,7 +273,7 @@ class Solution:
                 logging.warning("Solution %i: Invalid shapely space")
                 item_shape_score = 100
 
-                shape_score = min(item_shape_score, shape_score)
+            shape_score = min(item_shape_score, shape_score)
         logging.debug("Solution %i: Shape score : %f", self._id, shape_score)
 
         return shape_score
@@ -285,8 +285,8 @@ class Solution:
         """
         for item1 in self.collector.spec.items:
             for item2 in self.collector.spec.items:
-                if (item1 != item2 and item1.category.name != "entrance" and
-                        item2.category.name != "entrance"):
+                if (item1 != item2 and item1.category.name not in ["entrance", "circulation"] and
+                        item2.category.name not in ["entrance", "circulation"]):
                     if (item1.required_area < item2.required_area and
                             self.items_spaces[item1].area > self.items_spaces[item2].area):
                         logging.debug("Solution %i: Size bonus : %i", self._id, 0)
@@ -551,9 +551,9 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        solution_score = (self._area_score() + self._shape_score())/2 #+ self._night_and_day_score()
-                          #+ self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score #+ self._good_size_bonus()  # - self._circulation_penalty()
+        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
+                          + self._position_score() + self._something_inside_score()) / 5
+        solution_score = solution_score + self._good_size_bonus()  # - self._circulation_penalty()
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 

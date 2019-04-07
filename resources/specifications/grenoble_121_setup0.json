@@ -4,8 +4,8 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 30000,
-        "min": 10000
+        "max": 10000,
+        "min": -10000
       },
       "tags": [],
       "type": "circulation",

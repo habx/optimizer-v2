@@ -30,6 +30,7 @@ class SpacePlanner:
         self.name = name
         self._init_spec(spec)
         self._plan_cleaner()
+        print(self.spec)
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
@@ -57,11 +58,12 @@ class SpacePlanner:
 
         for item in spec.items:
             if item.category.name == "circulation":
-                size_min = Size(area=(item.min_size.area + entrance_size_min.area))
-                size_max = Size(area=(item.max_size.area + entrance_size_max.area))
-                new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
-                                size_max)
-                space_planner_spec.add_item(new_item)
+                if spec.typology > 2:
+                    size_min = Size(area=(item.min_size.area - entrance_size_min.area))
+                    size_max = Size(area=(item.max_size.area - entrance_size_max.area))
+                    new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
+                                    size_max)
+                    space_planner_spec.add_item(new_item)
             elif((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
@@ -80,17 +82,24 @@ class SpacePlanner:
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulation"]
         space_planner_spec.init_id(category_name_list)
-
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation", "misc"]
-        invariant_area = sum(item.required_area for item in spec.items if item.category.name in invariant_categories)
-        coeff = int(spec.plan.indoor_area - invariant_area) / int(sum(item.required_area for item in spec.items if item.category.name not in invariant_categories))
-        for item in spec.items:
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation",
+                                "misc"]
+        #invariant_categories = ["entrance"]
+        invariant_area = sum(item.required_area for item in space_planner_spec.items
+                             if item.category.name in invariant_categories)
+        coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
+            item.required_area for item in space_planner_spec.items if
+            item.category.name not in invariant_categories)))
+
+        for item in space_planner_spec.items:
             if item.category.name not in invariant_categories:
-                item.min_size.area = item.min_size.area * coeff
-                item.max_size.area = item.max_size.area * coeff
-        logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
-        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+                item.min_size.area = round(item.min_size.area * coeff)
+                item.max_size.area = round(item.max_size.area * coeff)
+        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
+        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
+                                                      for item in space_planner_spec.items)))
+
         self.spec = space_planner_spec
 
     def _plan_cleaner(self, min_area: float = 100) -> None:
@@ -167,7 +176,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    #  plan_solution.plot()
+                    #plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -203,8 +212,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        input_file = "antony_A33.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "nantes-unile_B701.json" # "saint-maur-faculte_B121.json" # "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -219,7 +228,7 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        #plan.plot()
+        # plan.plot()
         # new_space_list = []
         # for space in plan.spaces:
         #     if space.category.name == "empty":
@@ -253,16 +262,16 @@ if __name__ == '__main__':
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
-        logging.debug("number of mutables spaces, %i",
+        print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         # surfaces control
-        logging.debug("PLAN AREA : %i", int(spec.plan.indoor_area))
-        logging.debug("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+        print("PLAN AREA : %i", int(spec.plan.indoor_area))
+        print("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         logging.debug("Setup max AREA : %i", int(sum(item.max_size.area for item in spec.items)))
         logging.debug("Setup min AREA : %i", int(sum(item.min_size.area for item in spec.items)))
         plan_ratio = round(spec.plan.indoor_perimeter ** 2 / spec.plan.indoor_area)
-        logging.debug("PLAN Ratio : %i", plan_ratio)
+        print("PLAN Ratio : %i", plan_ratio)
 
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
@@ -284,10 +293,10 @@ if __name__ == '__main__':
             writer.save_json_solution(solution_dict, sol.get_id)
 
         # shuffle
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-                sol.plan.plot()
+        # if best_solutions:
+        #     for sol in best_solutions:
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+        #         sol.plan.plot()
 
         # logging.info("total time : %f", time.clock() - t00)
         print("total time :", time.clock() - t00)
