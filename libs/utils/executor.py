@@ -74,8 +74,7 @@ class Executor:
         :param params: Execution parameters
         :return: optimizer response
         """
-        lot = reader.get_json_from_file(lot_file_name,
-                                        reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
+        lot = reader.get_json_from_file(lot_file_name)
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
 
@@ -142,7 +141,7 @@ class Executor:
         t0_space_planner = time.process_time()
         logging.info("Space planner")
         space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research(show=False)
+        best_solutions = space_planner.solution_research()
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
