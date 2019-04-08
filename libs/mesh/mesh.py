@@ -61,13 +61,13 @@ class MeshComponent:
     """
     __slots__ = '_id', '_mesh'
 
-    def __init__(self, mesh: 'Mesh', _id: Optional[uuid.UUID] = None):
-        self._id = _id or uuid.uuid4()
+    def __init__(self, mesh: 'Mesh', _id: Optional[int] = None):
+        self._id = _id if _id is not None else mesh.get_id()
         self._mesh = mesh
         mesh.add(self)
 
     @property
-    def id(self) -> uuid.UUID:
+    def id(self) -> int:
         """
         property
         returns the id of the vertex
@@ -76,7 +76,7 @@ class MeshComponent:
         return self._id
 
     @id.setter
-    def id(self, value: 'uuid.UUID'):
+    def id(self, value: int):
         """
         Sets the id
         :param value:
@@ -145,7 +145,7 @@ class Vertex(MeshComponent):
                  y: float = 0,
                  edge: 'Edge' = None,
                  mutable: bool = True,
-                 _id: Optional[uuid.UUID] = None):
+                 _id: Optional[int] = None):
         """
         A simple Vertex class with barycentric capability
         By default sets the vertex to the origin (0, 0)
@@ -524,7 +524,7 @@ class Edge(MeshComponent):
 
     def __init__(self, mesh: 'Mesh', start: Optional[Vertex] = None,
                  next_edge: Optional['Edge'] = None, pair: Optional['Edge'] = None,
-                 face: Optional['Face'] = None, _id: Optional[uuid.UUID] = None):
+                 face: Optional['Face'] = None, _id: Optional[int] = None):
         """
         A half edge data structure implementation.
         By convention our half edge structure is based on a CCW rotation.
@@ -1861,7 +1861,7 @@ class Face(MeshComponent):
     """
     __slots__ = '_edge'
 
-    def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[uuid.UUID] = None):
+    def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[int] = None):
 
         self._edge = edge
         super().__init__(mesh, _id)
@@ -2748,18 +2748,20 @@ class Mesh:
     """
     Mesh Class
     """
-    __slots__ = '_edge', '_faces', '_edges', '_vertices', '_watchers', '_modifications', 'id'
+    __slots__ = ('_edge', '_faces', '_edges', '_vertices',
+                 '_watchers', '_modifications', 'id', '_counter')
 
-    def __init__(self, _id: Optional[uuid.UUID] = None):
+    def __init__(self, _id: Optional[int] = None):
         self._edge = None  # boundary edge of the mesh
         self._faces = {}
         self._edges = {}
         self._vertices = {}
         # Watchers
         self._watchers: [Callable[['MeshComponent', str], None]] = []
-        self._modifications: Dict['uuid.UUID',
+        self._modifications: Dict[int,
                                   Tuple['MeshOps', 'MeshComponent', Optional['MeshComponent']]] = {}
         self.id = _id or uuid.uuid4()
+        self._counter = 0
 
     def __repr__(self):
         output = 'Mesh:\n'
@@ -2779,6 +2781,14 @@ class Mesh:
         self._watchers = []
         self._modifications = {}
 
+    def get_id(self) -> int:
+        """
+        Returns a new incremental id for each component of the mesh
+        :return:
+        """
+        self._counter += 1
+        return self._counter
+
     def serialize(self) -> Dict[str, Union[str, Dict[str, Tuple]]]:
         """
         Stores the mesh geometric data in a json structure
@@ -2790,14 +2800,12 @@ class Mesh:
         the face_id of the empty face is -1 per convention
         :return: a json
         """
-        vertices = {str(vertex.id): vertex.coords for vertex in self.vertices}
-        edges = {str(edge.id): [str(edge.start.id),
-                                str(edge.next.id),
-                                str(edge.pair.id),
-                                str(edge.face.id) if edge.face else ""] for edge in self.edges}
+        vertices = {vertex.id: vertex.coords for vertex in self.vertices}
+        edges = {edge.id: [edge.start.id, edge.next.id, edge.pair.id,
+                           edge.face.id if edge.face else ""] for edge in self.edges}
         output = {
             "id": str(self.id),
-            "edge": str(self._edge.id) if self._edge else "",  # not really needed
+            "edge": self._edge.id if self._edge else "",  # not really needed
             "vertices": vertices,
             "edges": edges
         }
@@ -2820,14 +2828,14 @@ class Mesh:
 
         # create vertex
         for _id, point in vertices.items():
-            _id = uuid.UUID(_id)
+            _id = int(_id)
             Vertex(self, point[0], point[1], _id=_id)
 
         # create edges
         for _id, edge in edges.items():
-            _id = uuid.UUID(_id)
-            start_id = uuid.UUID(edge[0])
-            face_id = uuid.UUID(edge[3]) if edge[3] else None
+            _id = int(_id)
+            start_id = int(edge[0])
+            face_id = int(edge[3]) if edge[3] else None
             start = self.get_vertex(start_id)
             edge = Edge(self, start, _id=_id)
 
@@ -2845,9 +2853,9 @@ class Mesh:
 
         # add pair and next
         for _id, edge in edges.items():
-            edge_id = uuid.UUID(_id)
-            next_id = uuid.UUID(edge[1])
-            pair_id = uuid.UUID(edge[2])
+            edge_id = int(_id)
+            next_id = int(edge[1])
+            pair_id = int(edge[2])
             # We should find every edge
             edge = self.get_edge(edge_id)
             pair = self.get_edge(pair_id)
@@ -2857,7 +2865,7 @@ class Mesh:
 
         # add boundary edge
         if value["edge"]:
-            edge_id = uuid.UUID(value["edge"])
+            edge_id = int(value["edge"])
             self.boundary_edge = self.get_edge(edge_id)
 
         return self
@@ -3031,7 +3039,7 @@ class Mesh:
         """
         del self._faces[face.id]
 
-    def get_face(self, _id: uuid.UUID) -> 'Face':
+    def get_face(self, _id: int) -> 'Face':
         """
         Returns the face with the given id
         :param _id:
@@ -3039,7 +3047,7 @@ class Mesh:
         """
         return self._faces[_id]
 
-    def has_face(self, _id: uuid.UUID) -> bool:
+    def has_face(self, _id: int) -> bool:
         """
         Returns True if the specified face id belongs to the mesh
         :param _id: id of the desired face
@@ -3063,7 +3071,7 @@ class Mesh:
         """
         del self._edges[edge.id]
 
-    def get_edge(self, edge_id: uuid.UUID) -> 'Edge':
+    def get_edge(self, edge_id: int) -> 'Edge':
         """
         Gets the edge of the provided id
         :param edge_id:
@@ -3071,7 +3079,7 @@ class Mesh:
         """
         return self._edges[edge_id]
 
-    def has_edge(self, _id: uuid.UUID) -> bool:
+    def has_edge(self, _id: int) -> bool:
         """
         Returns True if the specified edge id belongs to the mesh
         :param _id: id of the desired edge
@@ -3095,7 +3103,7 @@ class Mesh:
         """
         del self._vertices[vertex.id]
 
-    def get_vertex(self, vertex_id: uuid.UUID) -> Vertex:
+    def get_vertex(self, vertex_id: int) -> Vertex:
         """
         Returns the specified vertex
         :param vertex_id:
@@ -3103,7 +3111,7 @@ class Mesh:
         """
         return self._vertices[vertex_id]
 
-    def has_vertex(self, _id: uuid.UUID) -> bool:
+    def has_vertex(self, _id: int) -> bool:
         """
         Returns True if the specified vertex id belongs to the mesh
         :param _id: id of the desired vertex
