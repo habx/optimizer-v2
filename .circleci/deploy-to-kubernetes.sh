@@ -10,7 +10,8 @@ if [ "${PLUGIN_DEPLOYMENT_POSTFIX}" != "" ]; then
     export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}${PLUGIN_DEPLOYMENT_POSTFIX}
 fi
 
-export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+# export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+export BUILD_REF=$(cat version.txt)
 export DST_NAMESPACE=$(if [ -z "$CIRCLE_TAG" ]; then echo dev; else echo staging; fi)
 export PLUGIN_TAG=${BUILD_REF}
 export PLUGIN_NAMESPACE=${DST_NAMESPACE}

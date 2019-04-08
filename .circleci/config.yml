@@ -52,15 +52,21 @@ jobs:
   deploy-to-kubernetes-standard-worker:
     docker:
       - image: quay.io/honestbee/drone-kubernetes
+    working_directory: /work
     steps:
       - checkout
+      - attach_workspace:
+          at: /work
       - run:
           command: .circleci/deploy-to-kubernetes.sh
   deploy-to-kubernetes-low-priority-worker:
     docker:
       - image: quay.io/honestbee/drone-kubernetes
+    working_directory: /work
     steps:
       - checkout
+      - attach_workspace:
+          at: /work
       - run:
           command: |
             export PLUGIN_DEPLOYMENT_POSTFIX=-low-priority
