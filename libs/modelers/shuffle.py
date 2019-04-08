@@ -35,12 +35,12 @@ class Shuffle:
         self.constraints = constraints
         # pseudo private
         self._action_index = 0
-        self._plot = None
+        self._plot: Optional[Plot] = None
 
     def run(self, plan: 'Plan',
             selector_args: Optional[Sequence[Any]] = None,
             show: bool = False,
-            plot=None):
+            plot: Optional[Plot] = None):
         """
         Runs the shuffle on the provided plan
         :param plan: the plan to modify
@@ -166,7 +166,7 @@ if __name__ == '__main__':
         import libs.io.reader as reader
         import libs.io.writer as writer
         from libs.modelers.grid import GRIDS
-        from libs.modelers.seed import Seeder, GROWTH_METHODS
+        from libs.modelers.seed import SEEDERS
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
@@ -178,14 +178,9 @@ if __name__ == '__main__':
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
             GRIDS['optimal_grid'].apply_to(plan)
-            seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-            (seeder.plant()
-             .grow(show=True)
-             .fill(show=True)
-             .merge_small_cells(min_cell_area=10000, show=True))
+            SEEDERS["simple_seeder"].apply_to(plan)
             spec = reader.create_specification_from_file(plan_name + "_setup0.json")
             spec.plan = plan
-
             space_planner = SpacePlanner("test", spec)
             best_solutions = space_planner.solution_research()
             if best_solutions:

@@ -51,7 +51,8 @@ class Mutation:
         self._store_initial_sate(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
         # update the plan if need be
-        space.plan.update_from_mesh()
+        if output:
+            space.plan.update_from_mesh()
         return output
 
     def reverse(self, modified_spaces: Sequence['Space']):
