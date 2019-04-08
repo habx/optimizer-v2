@@ -80,13 +80,13 @@ workflows:
           context: default_env_vars
           requires:
             - get-build-infos
-              filters:
-                tags:
-                  only: /^v.*/
-                branches:
-                  only:
-                    - dev
-                    - feature/OPT-47-correct
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only:
+                - dev
+                - feature/OPT-47-correct
 
       - deploy-to-kubernetes-standard-worker:
           context: default_env_vars
