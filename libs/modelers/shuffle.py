@@ -37,10 +37,10 @@ class Shuffle:
         self._action_index = 0
         self._plot: Optional[Plot] = None
 
-    def run(self, plan: 'Plan',
-            selector_args: Optional[Sequence[Any]] = None,
-            show: bool = False,
-            plot: Optional[Plot] = None):
+    def apply_to(self, plan: 'Plan',
+                 selector_args: Optional[Sequence[Any]] = None,
+                 show: bool = False,
+                 plot: Optional[Plot] = None):
         """
         Runs the shuffle on the provided plan
         :param plan: the plan to modify
@@ -54,16 +54,7 @@ class Shuffle:
         for action in self.actions:
             action.flush()
 
-        if show:
-            if not plot:
-                self._plot = Plot(plan)
-                plt.ion()
-                self._plot.draw(plan)
-                plt.show()
-                plt.pause(1)
-            else:
-                self._plot = plot
-
+        self._initialize_plot(plan, plot)
         self._action_index = 0
         slct_args = selector_args if selector_args else self.current_selector_args
 
@@ -84,6 +75,24 @@ class Shuffle:
                     break
 
         plan.remove_null_spaces()
+
+    def _initialize_plot(self, plan: 'Plan', plot: Optional['Plot'] = None):
+        """
+        Creates a plot
+        :return:
+        """
+        # if the seeder has already a plot : do nothing
+        if self._plot:
+            return
+
+        if not plot:
+            self._plot = Plot(plan)
+            plt.ion()
+            self._plot.draw(plan)
+            plt.show()
+            plt.pause(0.0001)
+        else:
+            self._plot = plot
 
     @property
     def current_action(self) -> Optional['Action']:
@@ -120,9 +129,13 @@ simple_shuffle_min_size = Shuffle('simple_min_size', [swap_action], (),
 few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS['few_corners']])
 
 bedroom_corner_shuffle = Shuffle("bedroom_corners",
-                                 [Action(SELECTOR_FACTORIES["category"](["bedroom"]),
-                                         MUTATIONS['swap_face'])],
-                                 (), [CONSTRAINTS['few_corners']])
+                                 [
+                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                            MUTATIONS["remove_face"]),
+                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                            MUTATIONS['swap_face']),
+                                  ],
+                                 (), [CONSTRAINTS["few_corners_bedroom"]])
 
 square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAINTS['square_shape'],
                                                                         CONSTRAINTS['few_corners']])
@@ -161,6 +174,7 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
 
+
     def try_plan():
         """Tries to shuffle a plan"""
         import libs.io.reader as reader
@@ -170,10 +184,11 @@ if __name__ == '__main__':
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
-        plan_name = "grenoble_201"
+        plan_name = "saint-maur-raspail_H03"
+        solution_number = 0
 
         try:
-            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution")
+            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_" + str(solution_number))
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
@@ -184,14 +199,16 @@ if __name__ == '__main__':
             space_planner = SpacePlanner("test", spec)
             best_solutions = space_planner.solution_research()
             if best_solutions:
-                solution = best_solutions[0]
+                solution = best_solutions[solution_number]
                 plan = solution.plan
-                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution")
+                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_" + str(solution_number))
             else:
                 logging.info("No solution for this plan")
                 return
 
-        SHUFFLES["bedrooms_corner"].run(plan, show=True)
+        plan.plot()
+        SHUFFLES["bedrooms_corner"].apply_to(plan, show=True)
+        plan.plot()
 
     try_plan()
 

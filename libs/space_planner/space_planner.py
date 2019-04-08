@@ -252,7 +252,7 @@ if __name__ == '__main__':
         # shuffle
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+                SHUFFLES['square_shape_shuffle_rooms'].apply_to(sol.plan, show=True)
                 sol.plan.plot()
 
         logging.info("total time : %f", time.clock() - t00)

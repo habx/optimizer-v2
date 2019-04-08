@@ -215,10 +215,16 @@ def few_corners(params: Dict) -> scoreFunction:
     :param params:
     :return:
     """
-    min_corners = params['min_corners']
+    min_corners = params.get('min_corners', 4)
+    # the name of the categories we want the constraint to apply on
+    category_names = params.get('categories', None)
     corner_min_angle = 20.0
 
     def _score(space: 'Space') -> float:
+        # we only check the score of the space of the specified categories
+        if category_names and space.category.name not in category_names:
+            return 0
+
         number_of_corners = 0
         for edge in space.exterior_edges:
             if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
@@ -407,12 +413,18 @@ few_corners_constraint = SpaceConstraint(few_corners,
                                          "few_corners",
                                          imperative=False)
 
+few_corners_bedroom_constraint = SpaceConstraint(few_corners,
+                                                 {"min_corners": 4,
+                                                  "categories": ["bedroom"]},
+                                                 "few_corners", imperative=False)
+
 alignments_constraint = SpaceConstraint(alignments,
                                         {},
                                         imperative=False)
 
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
+    "few_corners_bedroom": few_corners_bedroom_constraint,
     "min_size": min_size_constraint,
     "max_size": max_size_constraint,
     "max_size_seed": max_size_constraint_seed,
