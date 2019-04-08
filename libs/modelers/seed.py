@@ -715,7 +715,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     :param show:
     :return: the list of modified spaces
     """
-    epsilon_length = 10
+    epsilon_length = 20
     min_cell_area = 10000
     modified_spaces = []
 
