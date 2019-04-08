@@ -768,6 +768,23 @@ def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
     return _filter
 
 
+def specific_category(*category_names: str) -> EdgeQuery:
+    """
+    Returns the boundary edge of th
+    :param category_names:
+    :param _:
+    :return:
+    """
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        plan = space.plan
+        if space and space.category.name in category_names:
+            for e in space.exterior_edges:
+                other = plan.get_space_of_edge(e.pair)
+                if other and other.mutable:
+                    yield e
+    return _query
+
+
 # predicates
 
 
