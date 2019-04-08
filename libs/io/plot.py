@@ -46,7 +46,7 @@ def plot_save(save: bool = True, show: bool = False):
         return
 
     if save:
-        logging.info('Saving plot')
+        logging.info('Plot: Saving plot')
         ax = plt.gca()
         date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = ax.get_title() + '_' + date_time + '.svg'

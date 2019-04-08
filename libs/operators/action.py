@@ -26,13 +26,14 @@ class Action:
     """
 
     def __init__(self, selector: 'Selector', mutation: 'Mutation', multiple_mutations: bool = False,
-                 name: str = ''):
+                 name: str = '', number_of_pass: int = 1):
         self.name = name or '{0} + {1}'.format(selector.name, mutation.name)
         self.selector = selector
         self.mutation = mutation
         self.multiple_mutations = multiple_mutations
         # we store the couple edge and space that we have already tried TODO : improve this
         self._tried = set()
+        self.number_of_pass = number_of_pass
 
     def __repr__(self):
         return 'Operator: {0}, repeat={1}'.format(self.name, self.multiple_mutations)
