@@ -267,14 +267,14 @@ class Solution:
                 item_shape_score = min(100, 100 - (
                         (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
                 logging.debug(
-                    "Solution %i: Shape score : %f, room : %s", self._id, item_shape_score,
+                    "Solution %d: Shape score : %f, room : %s", self._id, item_shape_score,
                     item.category.name)
             else:
-                logging.warning("Solution %i: Invalid shapely space")
+                logging.warning("Solution %d: Invalid shapely space", self._id)
                 item_shape_score = 100
 
             shape_score = min(item_shape_score, shape_score)
-        logging.debug("Solution %i: Shape score : %f", self._id, shape_score)
+        logging.debug("Solution %d: Shape score : %f", self._id, shape_score)
 
         return shape_score
 
