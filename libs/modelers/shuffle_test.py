@@ -47,7 +47,7 @@ def test_seed_square_shape():
 
     plan.plot()
 
-    SHUFFLES["simple_shuffle"].run(plan)
+    SHUFFLES["simple_shuffle"].apply_to(plan)
 
     assert plan.check()
 
@@ -71,7 +71,7 @@ def test_seed_square_shape_min_size():
     MUTATIONS["swap_face"].apply_to(seed.edge, seed)
     plan.empty_space.category = SPACE_CATEGORIES["seed"]
 
-    SHUFFLES["simple_shuffle_min_size"].run(plan)
+    SHUFFLES["simple_shuffle_min_size"].apply_to(plan)
 
     plan.plot()
 
