@@ -42,12 +42,12 @@ class PlanComponent:
     __slots__ = 'id', 'plan', 'category', 'floor'
 
     def __init__(self,
-                 plan: Optional['Plan'],
+                 plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional['uuid.UUID'] = None):
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
-        self.id = _id or uuid.uuid4()
+        self.id = _id if _id is not None else plan.get_id()
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
         self.floor = floor
@@ -117,7 +117,7 @@ class Space(PlanComponent):
                  floor: 'Floor',
                  edge: Optional['Edge'] = None,
                  category: SpaceCategory = SPACE_CATEGORIES['empty'],
-                 _id: Optional[uuid.UUID] = None):
+                 _id: Optional[int] = None):
         super().__init__(plan, floor, _id=_id)
         self._edges_id = [edge.id] if edge else []
         self._faces_id = [edge.face.id] if edge and edge.face else []
@@ -129,10 +129,10 @@ class Space(PlanComponent):
         :return:
         """
         output = {
-            "id": str(self.id),
+            "id": self.id,
             "floor": str(self.floor.id),
-            "edges": list(map(str, self._edges_id)),
-            "faces": list(map(str, self._faces_id)),
+            "edges": self._edges_id,
+            "faces": self._faces_id,
             "category": self.category.name
         }
 
@@ -144,9 +144,9 @@ class Space(PlanComponent):
         The plan and floor data is already filled.
         :return:
         """
-        self.id = uuid.UUID(value["id"])
-        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
-        self._faces_id = list(map(lambda x: uuid.UUID(x), value["faces"]))
+        self.id = int(value["id"])
+        self._edges_id = list(map(lambda x: int(x), value["edges"]))
+        self._faces_id = list(map(lambda x: int(x), value["faces"]))
         self.category = SPACE_CATEGORIES[value["category"]]
         return self
 
@@ -158,7 +158,7 @@ class Space(PlanComponent):
         """
         Creates a clone of the space
         The plan and the category are passed by reference
-        the edges and faces id list are shallow copied (as they only contain immutable uuid).
+        the edges and faces id list are shallow copied (as they only contain id).
         :return:
         """
         new_space = Space(plan, self.floor, category=self.category, _id=self.id)
@@ -1792,7 +1792,7 @@ class Linear(PlanComponent):
                  floor: 'Floor',
                  edge: Optional[Edge] = None,
                  category: Optional[LinearCategory] = None,
-                 _id: Optional[uuid.UUID] = None):
+                 _id: Optional[int] = None):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
@@ -1810,7 +1810,7 @@ class Linear(PlanComponent):
         :return:
         """
         output = {
-            "id": str(self.id),
+            "id": self.id,
             "floor": str(self.floor.id),
             "edges": list(map(str, self._edges_id)),
             "category": self.category.name
@@ -1824,8 +1824,8 @@ class Linear(PlanComponent):
         :param value:
         :return:
         """
-        self.id = uuid.UUID(value["id"])
-        self._edges_id = list(map(lambda x: uuid.UUID(x), value["edges"]))
+        self.id = int(value["id"])
+        self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self.category = LINEAR_CATEGORIES[value["category"]]
         return self
 
@@ -2022,7 +2022,7 @@ class Plan:
     • floors : floors of the plan stored in a dict
     """
 
-    __slots__ = 'name', 'spaces', 'linears', 'floors'
+    __slots__ = 'name', 'spaces', 'linears', 'floors', 'id', '_counter'
 
     def __init__(self,
                  name: str = 'unnamed_plan',
@@ -2031,10 +2031,12 @@ class Plan:
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None):
+        self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
         self.floors = {}
+        self._counter = 0
         # add a floor
         if mesh:
             new_floor = Floor(mesh, floor_level, floor_meta)
@@ -2046,6 +2048,14 @@ class Plan:
         for space in self.spaces:
             output += space.__repr__() + ' | '
         return output
+
+    def get_id(self) -> int:
+        """
+        Returns an incremental id
+        :return:
+        """
+        self._counter += 1
+        return self._counter
 
     def clear(self):
         """
@@ -2281,7 +2291,7 @@ class Plan:
         """
         return self.floors.get(floor_id, None)
 
-    def get_from_id(self, _id: uuid.UUID) -> Optional['PlanComponent']:
+    def get_from_id(self, _id: int) -> Optional['PlanComponent']:
         """
         returns the component of the given id
         :param _id: a uuid
@@ -2298,7 +2308,7 @@ class Plan:
         logging.debug("Plan: component not found for this id %s", _id)
         return None
 
-    def get_space_from_id(self, _id: uuid.UUID) -> Optional['Space']:
+    def get_space_from_id(self, _id: int) -> Optional['Space']:
         """
         returns the component of the given id
         :param _id: a uuid
@@ -2311,7 +2321,7 @@ class Plan:
         logging.debug("Plan: Space not found for this id %s", _id)
         return None
 
-    def get_linear_from_id(self, _id: uuid.UUID) -> Optional['Linear']:
+    def get_linear_from_id(self, _id: int) -> Optional['Linear']:
         """
         returns the component of the given id
         :param _id: a uuid
