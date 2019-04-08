@@ -130,6 +130,13 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -162,6 +169,13 @@ def component_aspect_constraint(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -215,20 +229,11 @@ def few_corners(params: Dict) -> scoreFunction:
     :param params:
     :return:
     """
-    min_corners = params.get('min_corners', 4)
-    # the name of the categories we want the constraint to apply on
-    category_names = params.get('categories', None)
-    corner_min_angle = 20.0
+
+    min_corners = params['min_corners']
 
     def _score(space: 'Space') -> float:
-        # we only check the score of the space of the specified categories
-        if category_names and space.category.name not in category_names:
-            return 0
-
-        number_of_corners = 0
-        for edge in space.exterior_edges:
-            if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
-                number_of_corners += 1
+        number_of_corners = space.number_of_corners()
 
         if number_of_corners == 0:
             return 0

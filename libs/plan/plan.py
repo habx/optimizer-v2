@@ -1618,6 +1618,80 @@ class Space(PlanComponent):
 
         return perimeter ** 2 / area
 
+    def number_of_corners(self, other: Optional[Union['Space', 'Face']] = None) -> int:
+        """
+        Returns the number of corner of the space.
+        If a space or a face is specified, returns the number of corner with the added face
+        or space
+        :param other:
+        :return:
+        """
+        corner_min_angle = 20.0
+        num_corners = 0
+        for edge in self.exterior_edges:
+            angle = ccw_angle(edge.opposite_vector, self.next_edge(edge).vector)
+            if not pseudo_equal(angle, 180.0, corner_min_angle):
+                num_corners += 1
+
+        if not other:
+            return num_corners
+
+        num_corners += other.number_of_corners()
+
+        # find an edge outside
+        for edge in other.edges:
+            if not self.is_boundary(edge.pair):
+                outside_edge = edge
+                break
+        else:
+            raise ValueError("Space: the face or space must be adjacent to the space but not"
+                             "included inside it")
+
+        outside = True
+        entry_edges = []
+        exit_edges = []
+        shared_edges = []
+        previous_edge = outside_edge
+        if isinstance(other, Face):
+            siblings = outside_edge.siblings
+        elif isinstance(other, Space):
+            siblings = other.siblings(outside_edge)
+        else:
+            raise ValueError("Space: other should be a Face or a Space instance")
+
+        for edge in siblings:
+            if self.is_boundary(edge.pair) and outside:
+                entry_edges.append((previous_edge, edge))
+                outside = False
+            elif not self.is_boundary(edge.pair) and not outside:
+                exit_edges.append((previous_edge, edge))
+                outside = True
+            elif not outside:
+                shared_edges.append((previous_edge, edge))
+
+            previous_edge = edge
+
+        # check the initial outside edge
+        if self.is_boundary(previous_edge.pair) and not outside:
+            exit_edges.append((previous_edge, outside_edge))
+
+        for prev, nxt in entry_edges:
+            angle = ccw_angle(prev.opposite_vector, self.next_edge(nxt.pair).vector)
+            if pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        for prev, nxt in exit_edges:
+            angle = ccw_angle(nxt.opposite_vector, self.previous_edge(prev.pair).vector)
+            if pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        for prev, nxt in shared_edges:
+            angle = ccw_angle(prev.opposite_vector, nxt.vector)
+            if not pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        return num_corners
+
     def count_ducts(self) -> float:
         """
         counts the number of ducts the space is adjacent to
