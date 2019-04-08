@@ -339,14 +339,7 @@ class MessageProcessor:
             os.remove(f)
 
     def _logging_to_file_before(self):
-        logger = logging.getLogger("")
-        # Removing the previous handler
-        if self.log_handler:
-            self.log_handler.close()
-            logger.removeHandler(self.log_handler)
-            self.log_handler = None
-
-    def _logging_to_file_after(self):
+        self._logging_to_file_after()
         logger = logging.getLogger("")
         log_file = os.path.join(self.output_dir, 'output.log')
         logging.info("Writing logs to %s", log_file)
@@ -359,6 +352,14 @@ class MessageProcessor:
         # Adding the new handler
         self.log_handler = handler
         logger.addHandler(handler)
+
+    def _logging_to_file_after(self):
+        # Removing the previous handler
+        if self.log_handler:
+            self.log_handler.close()
+            logger = logging.getLogger("")
+            logger.removeHandler(self.log_handler)
+            self.log_handler = None
 
     def _process_message_before(self, msg: Message):
         self._cleanup_output_dir()
