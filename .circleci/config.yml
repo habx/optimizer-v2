@@ -12,7 +12,7 @@ jobs:
           keys:
             - tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run: .circleci/prepare.sh
-      # - run: ./run_tests.sh
+      - run: ./run_tests.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
