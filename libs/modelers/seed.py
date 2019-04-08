@@ -749,11 +749,54 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     return modified_spaces
 
 
+def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
+    """
+    Merges small spaces with neighbor space that will induce a merged space with as few corners
+    as possible. If several candidates are available, will select the space with the longest
+    contact.
+    :param seeder:
+    :param show:
+    :return: the list of modified spaces
+    """
+    min_cell_area = 10000
+    modified_spaces = []
+
+    for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):
+        # adjacent mutable spaces of small_space
+        adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
+        if not adjacent_spaces:
+            continue
+        spaces_with_corners = list(map(lambda s: (s, small_space.number_of_corners(s)),
+                                       adjacent_spaces))
+        min_corner = min(spaces_with_corners, key=lambda t: t[1])[1]
+        candidates = list(map(lambda t: t[0],
+                              filter(lambda t: t[1] == min_corner, spaces_with_corners)))
+
+        # in case there are several spaces with equal contact length,
+        # merge with the smallest one
+        selected = max(candidates, key=lambda s: s.contact_length(small_space))
+
+        # do not merge if the selected space contains a seed as well as the small space
+        if seeder.get_seed_from_space(selected) and seeder.get_seed_from_space(small_space):
+            continue
+
+        selected.merge(small_space)
+        modified_spaces = [selected, small_space]
+        break
+
+    if show:
+        seeder.plot.update(modified_spaces)
+
+    return modified_spaces
+
+
 # CREATE SEEDERS
 
 SEEDERS = {
+    "initial_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+                             [adjacent_faces, empty_to_seed, merge_small_cells]),
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                            [adjacent_faces, empty_to_seed, merge_small_cells])
+                            [adjacent_faces, empty_to_seed, merge_corners])
 }
 
 
@@ -771,7 +814,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "bussy_B104"
+        plan_name = "saint-maur-raspail_H07"
 
         # to not run each time the grid generation
         try:
