@@ -11,10 +11,9 @@ import json
 from libs.io import reader
 from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
-from libs.modelers.seed import Seeder, GROWTH_METHODS
-from libs.operators.selector import SELECTORS
+from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
-from libs.space_planner.space_planner import SpacePlanner, SQM
+from libs.space_planner.space_planner import SpacePlanner
 from libs.version import VERSION as OPTIMIZER_VERSION
 
 
@@ -51,6 +50,7 @@ class ExecParams:
             params = {}
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
+        self.seeder_type = params.get('seeder_type', "simple_seeder")
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'square_shape_shuffle_rooms')
 
@@ -114,13 +114,7 @@ class Executor:
         # seeder
         logging.info("Seeder")
         t0_seeder = time.process_time()
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        if params.do_plot:
-            plan.plot()
-        (seeder.plant()
-         .grow()
-         .fill()
-         .merge_small_cells(min_cell_area=1 * SQM))
+        SEEDERS[params.seeder_type].apply_to(plan)
 
         if params.do_plot:
             plan.plot()

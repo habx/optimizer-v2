@@ -14,7 +14,7 @@ until the space is totally filled
 
 """
 
-from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence, Set, Tuple, Callable
 import logging
 import copy
 
@@ -35,8 +35,9 @@ if TYPE_CHECKING:
     from libs.mesh.mesh import Edge, Face
     from libs.operators.selector import Selector
     from libs.operators.constraint import Constraint
-    from libs.modelers.shuffle import Shuffle
     import uuid
+
+fill_method_type = Callable[['Seeder', bool], List['Space']]
 
 EPSILON_MAX_SIZE = 10.0
 SQM = 10000
@@ -45,16 +46,37 @@ SQM = 10000
 class Seeder:
     """
     Seeder Class
+
+    A seeder needs to be given three lists of methods:
+    • a seed method list : how the seeder must plant seed
+    • a growth method list : how the seeder must grow the seeds
+    • a fill method list : how the seeder must fill the remaining empty spaces with seed spaces
+
+    Note : a space can be of the category "seed" but is not necessarily linked to a Seed instance.
+           Seed instances are only used for the initial seed that correspond to the seedable
+           components of the plan (eg: window, duct etc.)
+
+    The seeder is expected to transform the plan by replacing its empty spaces with seed spaces.
+    No empty space should remain in the plan once the seeder has been applied.
+
+    If a plot is given to the seeder, it will use it to display in real time the changes occurring
+    on the plan. It is useful to chain visualization of different stages in the optimizer pipeline
+    on the same plot. For example : the grid, then the seeder, then the shuffle.
     """
 
     def __init__(self,
-                 plan: Plan,
-                 growth_methods: Dict[str, 'GrowthMethod']):
-        self.plan = plan
-        self.seeds: List['Seed'] = []
-        self.selectors: Dict[str, 'Selector'] = {}
+                 seed_methods: Dict[str, 'Selector'],
+                 growth_methods: Dict[str, 'GrowthMethod'],
+                 fill_methods: List[fill_method_type],
+                 plot: Optional['Plot'] = None):
+        self.seed_methods = seed_methods
         self.growth_methods = growth_methods
-        self.plot: Optional['Plot'] = None
+        self.fill_methods = fill_methods
+
+        self.seeds: List['Seed'] = []
+        self.plan: Plan = None
+
+        self.plot = plot
 
     def __repr__(self):
         output = 'Seeder:\n'
@@ -62,52 +84,62 @@ class Seeder:
             output += '• ' + seed.__repr__() + '\n'
         return output
 
-    def plant(self) -> 'Seeder':
+    def _init(self):
+        self.plan = None
+        self.seeds = []
+
+    def apply_to(self, plan: 'Plan', show: bool = False):
+        """
+        Runs the seeder
+        :param plan:
+        :param show: whether to display a real-time vizualisation of the seeder
+        :return:
+        """
+        self._init()
+        self.plan = plan
+        # Real time plot updates
+        if show:
+            self._initialize_plot()
+
+        self.plant(show).grow(show).fill(show)
+
+    def plant(self, show: bool = False) -> 'Seeder':
         """
         Creates the seeds
         :return:
         """
+        logging.debug("Seeder: Starting to plant")
+
+        # Real time plot updates
+        if show:
+            self._initialize_plot()
+
         for component in self.plan.get_components():
             if ((component.category.seedable and self.growth_methods["default"])
-                    or component.category.name in self.selectors):
+                    or component.category.name in self.seed_methods):
 
                 if isinstance(component, Space):
                     for edge in self._space_seed_edges(component):
                         seed_edge = edge
-                        self._add_seed(seed_edge, component)
+                        self._add_seed(seed_edge, component, show)
 
                 if isinstance(component, Linear):
                     seed_edge = component.edge
-                    self._add_seed(seed_edge, component)
+                    self._add_seed(seed_edge, component, show)
 
         return self
 
-    def _merge(self, edge: 'Edge', component: 'PlanComponent') -> bool:
-        """
-        Checks if a potential seed edge already belongs to a seed space. 
-        If this is the case the component edge is added to the seed space.
-        :param edge:
-        :param component:
-        :return: True if the edge already belongs to a seed space
-        """
-        for seed in self.seeds:
-            if seed.space and seed.space.has_edge(edge):
-                seed.add_component(edge, component)
-                return True
-        return False
-
-    def grow(self, show: bool = False, plot: Optional['Plot'] = None) -> 'Seeder':
+    def grow(self, show: bool = False) -> 'Seeder':
         """
         Creates the space for each seed
         :param show
-        :param plot
         :return: the seeder
         """
         logging.debug("Seeder: Starting to grow")
 
         # Real time plot updates
         if show:
-            self._initialize_plot(plot)
+            self._initialize_plot()
 
         # grow the seeds
         while True:
@@ -125,157 +157,52 @@ class Seeder:
 
     def fill(self, show: bool = False) -> 'Seeder':
         """
-        Fills the rest of the empty spaces :
-        1. transform each face adjacent to the seed spaces of the remaining empty spaces
-        in a seed space
-        2. merge the seed spaces that are adjacent to the same seed space
-        (with the same orientation)
+        Runs the fill methods
         :param show:
         :return:
         """
-        epsilon_aspect = 0.5
-
-        def _get_adjacencies(_space: 'Space',
-                             targeted_spaces: ['Space']) -> Set[Tuple['uuid.UUID', float]]:
-            """
-            Returns a set containing all the id of the spaces adjacent and the angle of the
-            shared edge
-            :param _space:
-            :param targeted_spaces:
-            :return:
-            """
-            _adjacencies = set()
-            for _edge in _space.edges:
-                _other = self.plan.get_space_of_edge(_edge.pair)
-                if not _other or _other.category.name != "seed" or _other not in targeted_spaces:
-                    continue
-                # store all adjacencies of each space
-                _angle = truncate(ccw_angle(_edge.unit_vector) % 180.0)
-                _adjacencies.add((_other.id, _angle))
-            return _adjacencies
-
+        logging.debug("Seeder: Starting to fill")
+        # Real time plot updates
         if show:
             self._initialize_plot()
 
-        seed_spaces = [seed.space for seed in self.seeds]
+        for method in self.fill_methods:
+            self._execute_fill_method(method, show)
 
-        # create new seed spaces
-        new_spaces = []
-        initial_spaces = []
-        for seed_space in list(self.plan.get_spaces("seed")):
-            initial_spaces.append(seed_space)
-            for edge in seed_space.edges:
-                other_space = self.plan.get_space_of_edge(edge.pair)
-                if (not other_space
-                        or other_space.category.name != "empty"
-                        or other_space in new_spaces):
-                    continue
+        return self
 
-                modified_spaces = other_space.remove_face(edge.pair.face)
-                # create a new seed space
-                new_space = Space(self.plan, seed_space.floor, edge.pair, SPACE_CATEGORIES["seed"])
-                new_spaces.append(new_space)
-                if show:
-                    self.plot.update(modified_spaces + [new_space])
+    def _execute_fill_method(self, fill_method: 'fill_method_type', show: bool):
+        """
+        Executes a fill method
+        :param fill_method:
+        :return:
+        """
+        new_spaces = fill_method(self, show)
 
-        # merge new seed spaces
-        for seed_space in new_spaces:
-            # compute adjacencies
-            adjacencies = _get_adjacencies(seed_space, initial_spaces)
-            for other in seed_space.adjacent_spaces():
-                if other in seed_spaces or other.category.name != "seed":
-                    continue
-                other_adjacencies = _get_adjacencies(other, initial_spaces)
-                # extensive merge
-                for angle in [a for _, a in adjacencies]:
-                    if (set(filter(lambda t: t[1] == angle, adjacencies)) ==
-                            set(filter(lambda t: t[1] == angle, other_adjacencies)) != set()):
-                        # check aspect ratio before merge
-                        if (seed_space.aspect_ratio(other.faces)
-                                <= seed_space.aspect_ratio() + epsilon_aspect):
-                            seed_space.merge(other)
-                            if other in new_spaces:
-                                new_spaces.remove(other)
-                            if show:
-                                self.plot.update([seed_space, other])
-                            break
-        # remove empty spaces
-        self.plan.remove_null_spaces()
-
-        # apply recursion to finalize the fill
         if new_spaces:
-            return self.fill(show)
+            self.plan.remove_null_spaces()  # TODO: is this really useful ?
+            self._execute_fill_method(fill_method, show)
 
-        # search for empty spaces not yet converted in seed spaces
-        # can happen in weirdly shaped plan
-        for space in self.plan.get_spaces("empty"):
-            space.category = SPACE_CATEGORIES["seed"]
-
-        return self
-
-    def merge_small_cells(self, show: bool = False,
-                          min_cell_area: float = 1000) -> 'Seeder':
+    def _merge_seeds(self, edge: 'Edge', component: 'PlanComponent') -> bool:
         """
-        Merges small spaces with neighbor space that has highest contact length
-        If several neighbor spaces have same contact length, the smallest one is chosen
-        Do not merge two spaces containing non mutable components, except for those in the list
-        excluded_components
-        :param show:
-        :param min_cell_area: cells with area lower than min_cell_area are considered for merge
-        :param excluded_components:
-        :return:
+        Checks if a potential seed edge already belongs to a seed space.
+        If this is the case the component edge is added to the seed space.
+        :param edge:
+        :param component:
+        :return: True if the edge already belongs to a seed space
         """
-        epsilon_length = 10
+        for seed in self.seeds:
+            if seed.space and seed.space.has_edge(edge):
+                seed.add_component(edge, component)
+                return True
+        return False
 
-        if show:
-            self._initialize_plot()
-
-        continue_merge = True
-        while continue_merge:
-            continue_merge = False
-            for small_space in (s for s in self.plan.get_spaces("seed") if s.area < min_cell_area):
-                # adjacent mutable spaces of small_space
-                adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
-                if not adjacent_spaces:
-                    continue
-                max_contact_length = max(map(lambda s: s.contact_length(small_space),
-                                             adjacent_spaces))
-                # select adjacent mutable spaces with highest contact length
-                candidates = [adj for adj in adjacent_spaces if
-                              adj.contact_length(small_space) > max_contact_length - epsilon_length]
-                if not candidates:
-                    continue
-                # in case there are several spaces with equal contact length,
-                # merge with the smallest one
-                selected = min(candidates, key=lambda s: s.area)
-
-                # do not merge if the selected space contains a seed as well as the small space
-                if self.get_seed_from_space(selected) and self.get_seed_from_space(small_space):
-                    continue
-
-                selected.merge(small_space)
-                continue_merge = True
-                break
-
-        self.plan.remove_null_spaces()
-
-        return self
-
-    def shuffle(self, shuffle: 'Shuffle', show: bool = False) -> 'Seeder':
-        """
-        Runs a shuffle on the plan
-        :param shuffle:
-        :param show: whether to show the plot
-        :return:
-        """
-        shuffle.run(self.plan, [self], show=show, plot=self.plot)
-        return self
-
-    def _add_seed(self, seed_edge: 'Edge', component: PlanComponent):
+    def _add_seed(self, seed_edge: 'Edge', component: PlanComponent, show: bool):
         """
         Adds a seed to the seeder
         :param seed_edge:
         :param component
+        :param show
         :return:
         """
         # check for none space
@@ -289,9 +216,12 @@ class Seeder:
                           "that does not belong to an empty space")
             return
 
-        if not self._merge(seed_edge, component):
+        if not self._merge_seeds(seed_edge, component):
             new_seed = Seed(self, seed_edge, component)
             self.seeds.append(new_seed)
+            if show:
+                self.plot.update([new_seed.space, space])
+                self.plot.draw_seeds_points(self)
 
     def _space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
         """
@@ -303,24 +233,14 @@ class Seeder:
         :return:
         """
         category_name = space.category.name
-        if category_name in self.selectors:  # note the space does not need to be seedable here
-            yield from self.selectors[category_name].yield_from(space)
+        if category_name in self.seed_methods:  # note the space does not need to be seedable here
+            yield from self.seed_methods[category_name].yield_from(space)
         elif space.category.seedable:
             for edge in space.edges:
                 # only seed empty space
                 seed_space = space.plan.get_space_of_edge(edge.pair)
                 if seed_space and seed_space.category.name == "empty":
                     yield edge.pair
-
-    def add_condition(self, selector: 'Selector', category_name: str) -> 'Seeder':
-        """
-        Adds a selector to create a seed from a space component.
-        The selector returns the edges that will receive a seed.
-        :param selector:
-        :param category_name: the name of a category
-        """
-        self.selectors[category_name] = selector
-        return self
 
     def _initialize_plot(self, plot: Optional['Plot'] = None):
         """
@@ -617,6 +537,12 @@ class GrowthMethod:
 
         return self.constraints[constraint_name]
 
+# Seed Methods
+
+
+SEED_METHODS = {
+    "duct": SELECTORS['seed_duct']
+}
 
 # Growth Methods
 
@@ -625,7 +551,8 @@ GROWTH_METHODS = {
         'default',
         (CONSTRAINTS["max_size_default_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
+                   number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
@@ -649,11 +576,12 @@ GROWTH_METHODS = {
         'window',
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
+                   number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
-                 name="improved_aspect")
+                   name="improved_aspect")
         ),
         priority=1
     ),
@@ -661,7 +589,8 @@ GROWTH_METHODS = {
         'doorWindow',
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
-            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
+                   number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -677,6 +606,156 @@ GROWTH_METHODS = {
         )
     )
 }
+
+# FILL METHODS
+
+
+def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
+    """
+    Fill method
+    Transforms each empty space into a seed space
+    :param seeder:
+    :param show:
+    :return:
+    """
+    output = []
+    for space in seeder.plan.get_spaces("empty"):
+        space.category = SPACE_CATEGORIES["seed"]
+        output.append(space)
+        if show:
+            seeder.plot.update(space)
+
+    return output
+
+
+def adjacent_faces(seeder: 'Seeder', show: bool) -> List['Space']:
+    """
+    Fill method
+    Transforms each face adjacent to a seed space into a new seed space.
+    Tries to merge newly created spaces together if adjacent to the same seed space.
+    :param seeder:
+    :param show:
+    :return:
+    """
+
+    epsilon_aspect = 0.5
+
+    def _get_adjacencies(_space: 'Space',
+                         targeted_spaces: ['Space']) -> Set[Tuple['uuid.UUID', float]]:
+        """
+        Returns a set containing all the id of the spaces adjacent and the angle of the
+        shared edge
+        :param _space:
+        :param targeted_spaces:
+        :return:
+        """
+        _adjacencies = set()
+        for _edge in _space.edges:
+            _other = seeder.plan.get_space_of_edge(_edge.pair)
+            if not _other or _other.category.name != "seed" or _other not in targeted_spaces:
+                continue
+            # store all adjacencies of each space
+            _angle = truncate(ccw_angle(_edge.unit_vector) % 180.0)
+            _adjacencies.add((_other.id, _angle))
+        return _adjacencies
+
+    seed_spaces = [seed.space for seed in seeder.seeds]
+
+    # create new seed spaces
+    new_spaces = []
+    initial_spaces = []
+    for seed_space in list(seeder.plan.get_spaces("seed")):
+        initial_spaces.append(seed_space)
+        for edge in seed_space.edges:
+            other_space = seeder.plan.get_space_of_edge(edge.pair)
+            if (not other_space
+                    or other_space.category.name != "empty"
+                    or other_space in new_spaces):
+                continue
+
+            modified_spaces = other_space.remove_face(edge.pair.face)
+            # create a new seed space
+            new_space = Space(seeder.plan, seed_space.floor, edge.pair, SPACE_CATEGORIES["seed"])
+            new_spaces.append(new_space)
+            if show:
+                seeder.plot.update(modified_spaces + [new_space])
+
+    # merge new seed spaces
+    for seed_space in new_spaces:
+        # compute adjacencies
+        adjacencies = _get_adjacencies(seed_space, initial_spaces)
+        for other in seed_space.adjacent_spaces():
+            if other in seed_spaces or other.category.name != "seed":
+                continue
+            other_adjacencies = _get_adjacencies(other, initial_spaces)
+            # extensive merge
+            for angle in [a for _, a in adjacencies]:
+                if (set(filter(lambda t: t[1] == angle, adjacencies)) ==
+                        set(filter(lambda t: t[1] == angle, other_adjacencies)) != set()):
+                    # check aspect ratio before merge
+                    if (seed_space.aspect_ratio(other.faces)
+                            <= seed_space.aspect_ratio() + epsilon_aspect):
+                        seed_space.merge(other)
+                        if other in new_spaces:
+                            new_spaces.remove(other)
+                        if show:
+                            seeder.plot.update([seed_space, other])
+                        break
+
+    return new_spaces
+
+
+def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
+    """
+    Merges small spaces with neighbor space that has highest contact length
+    If several neighbor spaces have same contact length, the smallest one is chosen
+    Do not merge two spaces containing non mutable components, except for those in the list
+    excluded_components
+    :param seeder:
+    :param show:
+    :return: the list of modified spaces
+    """
+    epsilon_length = 10
+    min_cell_area = 10000
+    modified_spaces = []
+
+    for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):
+        # adjacent mutable spaces of small_space
+        adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
+        if not adjacent_spaces:
+            continue
+        max_contact_length = max(map(lambda s: s.contact_length(small_space),
+                                     adjacent_spaces))
+        # select adjacent mutable spaces with highest contact length
+        candidates = [adj for adj in adjacent_spaces if
+                      adj.contact_length(small_space) > max_contact_length - epsilon_length]
+        if not candidates:
+            continue
+        # in case there are several spaces with equal contact length,
+        # merge with the smallest one
+        selected = min(candidates, key=lambda s: s.area)
+
+        # do not merge if the selected space contains a seed as well as the small space
+        if seeder.get_seed_from_space(selected) and seeder.get_seed_from_space(small_space):
+            continue
+
+        selected.merge(small_space)
+        modified_spaces = [selected, small_space]
+        break
+
+    if show:
+        seeder.plot.update(modified_spaces)
+
+    return modified_spaces
+
+
+# CREATE SEEDERS
+
+SEEDERS = {
+    "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+                            [adjacent_faces, empty_to_seed, merge_small_cells])
+}
+
 
 if __name__ == '__main__':
 
@@ -703,12 +782,7 @@ if __name__ == '__main__':
             GRIDS['optimal_grid'].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name)
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        (seeder.plant()
-         .grow(show=True)
-         .fill(show=True)
-         .merge_small_cells(min_cell_area=10000)
-         )
+        SEEDERS["simple_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 

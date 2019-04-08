@@ -5,7 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs.io import reader
-from libs.modelers.seed import Seeder, GROWTH_METHODS
+from libs.modelers.seed import SEEDERS
 
 from libs.modelers.grid import GRIDS
 from libs.io.reader_test import BLUEPRINT_INPUT_FILES
@@ -36,10 +36,7 @@ def test_seed_multiple_floors():
 
     plan.plot()
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow(show=True)
-     .fill())
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
 
@@ -55,11 +52,7 @@ def test_grow_a_plan(input_file):
     plan = reader.create_plan_from_file(input_file)
     GRIDS['optimal_grid'].apply_to(plan)
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow()
-     .fill()
-     .merge_small_cells(min_cell_area=10000))
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
 

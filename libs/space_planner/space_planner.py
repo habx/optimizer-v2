@@ -13,7 +13,6 @@ from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
-from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
@@ -181,12 +180,11 @@ class SpacePlanner:
 
 if __name__ == '__main__':
     import libs.io.reader as reader
-    from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
+    from libs.modelers.seed import SEEDERS
+
     import argparse
     import time
-
-    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -217,12 +215,7 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
-        (seeder.plant()
-         .grow(show=True)
-         .fill(show=True)
-         .merge_small_cells(min_cell_area=min_cell_area))
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
 

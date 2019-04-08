@@ -336,8 +336,7 @@ COST_RULES = {
 
 if __name__ == '__main__':
     import libs.io.reader as reader
-    from libs.modelers.seed import Seeder, GROWTH_METHODS
-    from libs.operators.selector import SELECTORS
+    from libs.modelers.seed import SEEDERS
     from libs.modelers.grid import GRIDS
     from libs.space_planner.space_planner import SpacePlanner
     from libs.plan.category import SPACE_CATEGORIES
@@ -399,11 +398,7 @@ if __name__ == '__main__':
 
         plan.plot()
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        (seeder.plant()
-         .grow()
-         .fill()
-         .merge_small_cells(min_cell_area=10000))
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
 
