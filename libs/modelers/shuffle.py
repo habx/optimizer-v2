@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import logging
 
 from libs.operators.mutation import MUTATIONS
-from libs.operators.selector import SELECTORS
+from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
 from libs.operators.constraint import CONSTRAINTS
 from libs.operators.action import Action
 
@@ -118,6 +118,12 @@ simple_shuffle_min_size = Shuffle('simple_min_size', [swap_action], (),
                                    CONSTRAINTS['few_corners']])
 
 few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS['few_corners']])
+
+bedroom_corner_shuffle = Shuffle("bedroom_corners",
+                                 [Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                         MUTATIONS['swap_face'])],
+                                 (), [CONSTRAINTS['few_corners']])
+
 square_shape_shuffle = Shuffle('square_shape', [swap_seed_action], (), [CONSTRAINTS['square_shape'],
                                                                         CONSTRAINTS['few_corners']])
 
@@ -147,68 +153,50 @@ SHUFFLES = {
     "seed_square_shape_component_aligned": square_shape_shuffle_component_aligned,
     "simple_shuffle": simple_shuffle,
     "simple_shuffle_min_size": simple_shuffle_min_size,
-    "square_shape_shuffle_rooms": square_shape_shuffle_rooms
+    "square_shape_shuffle_rooms": square_shape_shuffle_rooms,
+    "bedrooms_corner": bedroom_corner_shuffle
 }
 
 if __name__ == '__main__':
-    import matplotlib
-
-    from libs.modelers.grid import GRIDS
-    from libs.plan.plan import Plan
-    from libs.plan.category import SPACE_CATEGORIES
-
-    matplotlib.use('TkAgg')
 
     logging.getLogger().setLevel(logging.DEBUG)
 
+    def try_plan():
+        """Tries to shuffle a plan"""
+        import libs.io.reader as reader
+        import libs.io.writer as writer
+        from libs.modelers.grid import GRIDS
+        from libs.modelers.seed import Seeder, GROWTH_METHODS
+        from libs.space_planner.space_planner import SpacePlanner
+        from libs.plan.plan import Plan
 
-    def rectangular_plan(width: float, depth: float) -> Plan:
-        """
-        a simple rectangular plan
+        plan_name = "grenoble_201"
 
-       0, depth   width, depth
-         +------------+
-         |            |
-         |            |
-         |            |
-         +------------+
-        0, 0     width, 0
+        try:
+            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution")
+            plan = Plan(plan_name).deserialize(new_serialized_data)
+        except FileNotFoundError:
+            plan = reader.create_plan_from_file(plan_name + ".json")
+            GRIDS['optimal_grid'].apply_to(plan)
+            seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
+            (seeder.plant()
+             .grow(show=True)
+             .fill(show=True)
+             .merge_small_cells(min_cell_area=10000, show=True))
+            spec = reader.create_specification_from_file(plan_name + "_setup0.json")
+            spec.plan = plan
 
-        :return:
-        """
-        boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
-        plan = Plan("square")
-        plan.add_floor_from_boundary(boundaries)
-        return plan
+            space_planner = SpacePlanner("test", spec)
+            best_solutions = space_planner.solution_research()
+            if best_solutions:
+                solution = best_solutions[0]
+                plan = solution.plan
+                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution")
+            else:
+                logging.info("No solution for this plan")
+                return
 
+        SHUFFLES["bedrooms_corner"].run(plan, show=True)
 
-    def seed_square_shape():
-        """
-        Test
-        :return:
-        """
-        simple_grid = GRIDS["simple_grid"]
-        plan = rectangular_plan(500, 500)
-        plan = simple_grid.apply_to(plan)
+    try_plan()
 
-        plan.plot(save=False)
-        plt.show()
-
-        new_space_boundary = [(62.5, 0), (62.5, 62.5), (0, 62.5), (0, 0)]
-        seed = plan.insert_space_from_boundary(new_space_boundary, SPACE_CATEGORIES["seed"])
-
-        MUTATIONS["swap_face"].apply_to(seed.edge.next, seed)
-        MUTATIONS["swap_face"].apply_to(seed.edge, seed)
-
-        plan.plot()
-        plt.show()
-
-        plan.empty_space.category = SPACE_CATEGORIES["seed"]
-
-        SHUFFLES["simple_shuffle"].run(plan, show=True)
-
-        plan.plot()
-        plan.check()
-
-
-    seed_square_shape()

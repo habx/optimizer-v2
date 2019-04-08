@@ -1845,5 +1845,6 @@ SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
     "edges_length": SelectorFactory(lambda: space_boundary, [edge_length]),
     "min_depth": SelectorFactory(min_depth),
-    "tight_lines": SelectorFactory(tight_lines)
+    "tight_lines": SelectorFactory(tight_lines),
+    "category": SelectorFactory(specific_category)
 }
