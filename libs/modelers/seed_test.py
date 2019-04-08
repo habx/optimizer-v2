@@ -106,6 +106,6 @@ def test_simple_seed_test():
     """
     my_plan = plan_with_duct(300, 300)
     GRIDS['optimal_grid'].apply_to(my_plan)
-    Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
+    SEEDERS["simple_seeder"].apply_to(my_plan)
     my_plan.plot()
     assert my_plan.check()
