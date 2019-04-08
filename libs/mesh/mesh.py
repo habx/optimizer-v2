@@ -2,7 +2,6 @@
 """
 Mesh module
 Half-edge representation
-TODO : remove mesh objects from mesh storage on destruction (currently they stay indefinitely)
 """
 
 import math
@@ -10,13 +9,11 @@ import logging
 import uuid
 from operator import attrgetter, itemgetter
 from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union
-import copy
 import enum
 
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
 import numpy as np
-import matplotlib.pyplot as plt
 
 import libs.mesh.transformation as transformation
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
@@ -62,6 +59,7 @@ class MeshComponent:
     """
     An abstract class for mesh component : vertex, edge or face
     """
+    __slots__ = '_id', '_mesh'
 
     def __init__(self, mesh: 'Mesh', _id: Optional[uuid.UUID] = None):
         self._id = _id or uuid.uuid4()
@@ -139,6 +137,7 @@ class Vertex(MeshComponent):
     """
     Vertex class
     """
+    __slots__ = '_x', '_y', '_edge', 'mutable'
 
     def __init__(self,
                  mesh: 'Mesh',
@@ -521,6 +520,7 @@ class Edge(MeshComponent):
     """
     Half Edge class
     """
+    __slots__ = '_start', '_next', '_face', '_pair'
 
     def __init__(self, mesh: 'Mesh', start: Optional[Vertex] = None,
                  next_edge: Optional['Edge'] = None, pair: Optional['Edge'] = None,
@@ -1859,6 +1859,7 @@ class Face(MeshComponent):
     """
     Face Class
     """
+    __slots__ = '_edge'
 
     def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[uuid.UUID] = None):
 
@@ -2384,7 +2385,7 @@ class Face(MeshComponent):
         face_edges = list(face.edges)
         for edge in face_edges:
             vertex = edge.start
-            vertex.start = edge  # we need to do this to ensure proper snapping direction
+            vertex.edge = edge  # we need to do this to ensure proper snapping direction
             edge_shared = vertex.snap_to_edge(*self_edges)
             if edge_shared is not None:
                 shared_edges.append((edge_shared, edge))
@@ -2734,6 +2735,7 @@ class Mesh:
     """
     Mesh Class
     """
+    __slots__ = '_edge', '_faces', '_edges', '_vertices', '_watchers', '_modifications', 'id'
 
     def __init__(self, _id: Optional[uuid.UUID] = None):
         self._edge = None  # boundary edge of the mesh
@@ -3294,7 +3296,7 @@ class Mesh:
         face_edges = list(face.edges)
         for edge in face_edges:
             vertex = edge.start
-            vertex.start = edge  # we need to do this to ensure proper snapping direction
+            vertex.edge = edge  # we need to do this to ensure proper snapping direction
             edge_shared = vertex.snap_to_edge(*boundary_edges)
             if edge_shared is not None:
                 shared_edges.append((edge_shared, edge))
@@ -3517,111 +3519,3 @@ class Mesh:
         self.boundary_edge = new_face.edge.pair
 
         return self
-
-
-if __name__ == '__main__':
-
-    logging.getLogger().setLevel(logging.DEBUG)
-
-
-    def plot():
-        """
-        Plot a graph
-        :return:
-        """
-        perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
-        mesh = Mesh().from_boundary(perimeter)
-        edges = list(mesh.boundary_edges)
-        for edge in edges:
-            edge.pair.ortho_cut()
-
-        mesh.plot(save=False)
-        plt.show()
-
-
-    # plot()
-
-    def merge_two_faces_edge():
-        """
-        Test
-        :return:
-        """
-
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        mesh = Mesh().from_boundary(perimeter)
-
-        boundary_edge = mesh.boundary_edge.pair
-        new_edge = copy.copy(boundary_edge)
-        new_edge.pair = copy.copy(boundary_edge.pair)
-        boundary_edge.face.edge = new_edge
-        boundary_edge.previous.next = new_edge
-        boundary_edge.next, new_edge.pair.next = new_edge.pair, boundary_edge
-        new_face = Face(mesh, boundary_edge)
-        boundary_edge.face = new_face
-        new_edge.pair.face = new_face
-
-        new_face.clean()
-        mesh.check()
-
-
-    # merge_two_faces_edge()
-
-    def simplify_mesh():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (0.5, 0.5), (500, 0), (500, 500), (499.5, 500), (0, 500)]
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.plot(save=False)
-        plt.show()
-        print(mesh.simplify())
-
-        mesh.plot(save=False)
-        plt.show()
-
-        mesh.check()
-
-
-    # simplify_mesh()
-
-    def insert_complex_face_1():
-        """
-        Test
-        :return:
-        """
-        perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
-        hole = [(200, 200), (300, 200), (300, 300), (200, 300)]
-
-        mesh = Mesh().from_boundary(perimeter)
-        mesh.faces[0].insert_face_from_boundary(hole)
-
-        hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
-        mesh.faces[0].insert_face_from_boundary(hole_2)
-        mesh.plot()
-
-        assert mesh.check()
-
-
-    # insert_complex_face_1()
-
-    def insert_identical_face():
-        """
-
-        :return:
-        """
-        a = [(0, 0), (100, 0), (100, 100), (0, 100)]
-        b = a
-        mesh = Mesh().from_boundary(a)
-
-        face = mesh.faces[0]
-        face.insert_face_from_boundary(b)
-
-        face = mesh.faces[0]
-        face.insert_face_from_boundary(b)
-
-        mesh.plot()
-        assert mesh.check()
-
-
-    insert_identical_face()

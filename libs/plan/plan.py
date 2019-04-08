@@ -39,6 +39,7 @@ class PlanComponent:
     """
     A component of a plan. Can be a linear (1D) or a space (2D)
     """
+    __slots__ = 'id', 'plan', 'category', 'floor'
 
     def __init__(self,
                  plan: Optional['Plan'],
@@ -108,6 +109,8 @@ class Space(PlanComponent):
     • a category
     • a ref to its parent plan
     """
+
+    __slots__ = '_edges_id', '_faces_id'
 
     def __init__(self,
                  plan: 'Plan',
@@ -1708,6 +1711,8 @@ class Linear(PlanComponent):
     of a space object
     """
 
+    __slots__ = '_edges_id'
+
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
@@ -1886,6 +1891,8 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
 
+    __slots__ = 'id', 'mesh', 'level', 'meta'
+
     def __init__(self,
                  mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
@@ -1940,6 +1947,8 @@ class Plan:
     • linears : windows, doors, walls etc.
     • floors : floors of the plan stored in a dict
     """
+
+    __slots__ = 'name', 'spaces', 'linears', 'floors'
 
     def __init__(self,
                  name: str = 'unnamed_plan',
