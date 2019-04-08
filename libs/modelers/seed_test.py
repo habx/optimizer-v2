@@ -5,7 +5,7 @@ Seeder Module Tests
 import pytest
 
 from libs.io import reader
-from libs.modelers.seed import Seeder, GROWTH_METHODS
+from libs.modelers.seed import SEEDERS
 
 from libs.modelers.grid import GRIDS
 from libs.io.reader_test import BLUEPRINT_INPUT_FILES
@@ -36,11 +36,7 @@ def test_seed_multiple_floors():
 
     plan.plot()
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow(show=True)
-     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-     .from_space_empty_to_seed())
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
 
@@ -56,11 +52,7 @@ def test_grow_a_plan(input_file):
     plan = reader.create_plan_from_file(input_file)
     GRIDS['optimal_grid'].apply_to(plan)
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow()
-     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-     .from_space_empty_to_seed())
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
 
@@ -114,6 +106,6 @@ def test_simple_seed_test():
     """
     my_plan = plan_with_duct(300, 300)
     GRIDS['optimal_grid'].apply_to(my_plan)
-    Seeder(my_plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct').plant().grow()
+    SEEDERS["simple_seeder"].apply_to(my_plan)
     my_plan.plot()
     assert my_plan.check()

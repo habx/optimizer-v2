@@ -6,10 +6,8 @@ Circulation Module Tests
 import pytest
 
 from libs.io import reader
-from libs.modelers.seed import Seeder, GROWTH_METHODS
-
+from libs.modelers.seed import SEEDERS
 from libs.modelers.grid import GRIDS
-from libs.operators.selector import SELECTORS
 from libs.space_planner.circulation import Circulator, COST_RULES
 
 from libs.space_planner.space_planner import SpacePlanner
@@ -27,13 +25,7 @@ def test_circulation(input_file, input_setup):
     plan = reader.create_plan_from_file(input_file)
 
     GRIDS["optimal_grid"].apply_to(plan)
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow(show=True)
-     .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-     .from_space_empty_to_seed())
-
-    plan.remove_null_spaces()
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
