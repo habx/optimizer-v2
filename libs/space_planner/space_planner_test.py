@@ -31,7 +31,7 @@ def test_space_planner(input_file, input_setup):
     (seeder.plant()
      .grow()
      .fill()
-     .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+     .merge_small_cells(min_cell_area=10000))
 
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
@@ -81,7 +81,7 @@ def test_duplex():
     (seeder.plant()
      .grow()
      .fill()
-     .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+     .merge_small_cells(min_cell_area=10000))
 
     plan.plot()
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")

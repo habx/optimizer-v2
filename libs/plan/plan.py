@@ -8,7 +8,7 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any
+from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any, Iterable
 import logging
 import uuid
 
@@ -1596,6 +1596,27 @@ class Space(PlanComponent):
             return max(adjacency_length)
         else:
             return 0
+
+    def aspect_ratio(self, added_faces: Optional[Iterable['Face']] = None) -> float:
+        """
+        Returns the aspect ratio of the space, calculated as : perimeter ** 2 / area
+        If a list of added faces is provided: returns the
+        aspect ratio of the space with the added face.
+        :param added_faces:
+        :return:
+        """
+        area = self.area
+        perimeter = self.perimeter
+        added_faces = list(added_faces or [])
+        faces_edges = [e for f in added_faces for e in f.edges]
+        for face in added_faces:
+            shared_edges = [e.length for e in face.edges
+                            if self.is_boundary(e.pair) or e.pair in faces_edges]
+            shared_perimeter = sum(shared_edges)
+            area += face.area
+            perimeter += face.perimeter - 2 * shared_perimeter
+
+        return perimeter ** 2 / area
 
     def count_ducts(self) -> float:
         """

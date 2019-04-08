@@ -338,9 +338,8 @@ if __name__ == '__main__':
         plan.plot()
         (seeder.plant()
          .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
+         .fill(show=True)
+         .merge_small_cells(min_cell_area=min_cell_area))
 
         plan.plot()
 

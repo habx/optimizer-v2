@@ -133,6 +133,8 @@ class Seeder:
         :param show:
         :return:
         """
+        epsilon_aspect = 0.5
+
         def _get_adjacencies(_space: 'Space',
                              targeted_spaces: ['Space']) -> Set[Tuple['uuid.UUID', float]]:
             """
@@ -184,15 +186,19 @@ class Seeder:
                 if other in seed_spaces or other.category.name != "seed":
                     continue
                 other_adjacencies = _get_adjacencies(other, initial_spaces)
+                # extensive merge
                 for angle in [a for _, a in adjacencies]:
                     if (set(filter(lambda t: t[1] == angle, adjacencies)) ==
                             set(filter(lambda t: t[1] == angle, other_adjacencies)) != set()):
-                        seed_space.merge(other)
-                        if other in new_spaces:
-                            new_spaces.remove(other)
-                        if show:
-                            self.plot.update([seed_space, other])
-                        break
+                        # check aspect ratio before merge
+                        if (seed_space.aspect_ratio(other.faces)
+                                <= seed_space.aspect_ratio() + epsilon_aspect):
+                            seed_space.merge(other)
+                            if other in new_spaces:
+                                new_spaces.remove(other)
+                            if show:
+                                self.plot.update([seed_space, other])
+                            break
         # remove empty spaces
         self.plan.remove_null_spaces()
 
@@ -208,8 +214,7 @@ class Seeder:
         return self
 
     def merge_small_cells(self, show: bool = False,
-                          min_cell_area: float = 1000,
-                          excluded_components: List[str] = None) -> 'Seeder':
+                          min_cell_area: float = 1000) -> 'Seeder':
         """
         Merges small spaces with neighbor space that has highest contact length
         If several neighbor spaces have same contact length, the smallest one is chosen
@@ -220,45 +225,32 @@ class Seeder:
         :param excluded_components:
         :return:
         """
-        epsilon_area = 10
+        epsilon_length = 10
 
         if show:
             self._initialize_plot()
 
-        if not excluded_components:
-            excluded_components = []
-
         continue_merge = True
         while continue_merge:
             continue_merge = False
-            small_spaces = [space for space in self.plan.get_spaces("seed") if
-                            space.area < min_cell_area]
-            for small_space in small_spaces:
+            for small_space in (s for s in self.plan.get_spaces("seed") if s.area < min_cell_area):
                 # adjacent mutable spaces of small_space
-                adjacent_spaces = [adj for adj in small_space.adjacent_spaces() if adj.mutable]
+                adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
                 if not adjacent_spaces:
                     continue
-                max_contact_length = max(map(lambda adj_sp: adj_sp.contact_length(small_space),
+                max_contact_length = max(map(lambda s: s.contact_length(small_space),
                                              adjacent_spaces))
                 # select adjacent mutable spaces with highest contact length
                 candidates = [adj for adj in adjacent_spaces if
-                              adj.contact_length(small_space) > max_contact_length - epsilon_area]
+                              adj.contact_length(small_space) > max_contact_length - epsilon_length]
                 if not candidates:
                     continue
                 # in case there are several spaces with equal contact length,
                 # merge with the smallest one
-                min_area = min(map(lambda s: s.area, candidates))
-                selected = [c for c in candidates if c.area <= min_area][0]
+                selected = min(candidates, key=lambda s: s.area)
 
-                # do not merge if both cells contain components other than those in
-                # excluded_components
-                list_components_selected = [c for c in selected.components_category_associated()
-                                            if c not in excluded_components]
-                list_components_small_space = [c for c
-                                               in small_space.components_category_associated()
-                                               if c not in excluded_components]
-
-                if list_components_selected and list_components_small_space:
+                # do not merge if the selected space contains a seed as well as the small space
+                if self.get_seed_from_space(selected) and self.get_seed_from_space(small_space):
                     continue
 
                 selected.merge(small_space)
@@ -636,21 +628,21 @@ GROWTH_METHODS = {
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'], number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face'])
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         )
     ),
     "duct": GrowthMethod(
         'duct',
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "frontDoor": GrowthMethod(
         'frontDoor',
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face']),
         )
     ),
     "window": GrowthMethod(
@@ -681,7 +673,7 @@ GROWTH_METHODS = {
         'startingStep',
         (CONSTRAINTS["max_size_frontdoor_constraint_seed"],),
         (
-            Action(SELECTORS['homogeneous_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face']),
         )
     )
 }
@@ -700,7 +692,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "grenoble_101"
+        plan_name = "meurice_LT01"
 
         # to not run each time the grid generation
         try:
@@ -715,7 +707,7 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow(show=True)
          .fill(show=True)
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+         .merge_small_cells(min_cell_area=10000)
          )
         plan.plot()
         plan.check()

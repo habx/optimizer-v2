@@ -4,7 +4,7 @@ module used to run optimizer
 """
 
 import logging
-from typing import List, Optional, Dict
+from typing import List, Dict
 import time
 import json
 
@@ -119,12 +119,10 @@ class Executor:
         if params.do_plot:
             plan.plot()
         (seeder.plant()
-         .grow(show=params.do_plot)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM,
-                            excluded_components=["loadBearingWall"],
-                            show=params.do_plot))
+         .grow()
+         .fill()
+         .merge_small_cells(min_cell_area=1 * SQM))
+
         if params.do_plot:
             plan.plot()
         elapsed_times["seeder"] = time.process_time() - t0_seeder

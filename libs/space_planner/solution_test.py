@@ -113,7 +113,7 @@ def test_duplex():
     (seeder.plant()
      .grow()
      .fill()
-     .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"])
+     .merge_small_cells(min_cell_area=10000)
      )
 
     plan.plot()

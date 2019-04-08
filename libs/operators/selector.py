@@ -287,7 +287,7 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge_homogeneous_growth
 
 
-def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
     face is added to space, the ratio perimeter/area is smallest
@@ -302,10 +302,7 @@ def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None
             space_added = space.plan.get_space_of_face(face_added)
             if space_added.category.name != 'empty':
                 continue
-            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
-            area = space.area + face_added.area
-            perimeter = space.perimeter + face_added.perimeter - 2 * shared_perimeter
-            current_shape_factor = perimeter / area
+            current_shape_factor = space.aspect_ratio([face_added])
             if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
@@ -320,7 +317,7 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     face is added to space, the ratio perimeter/area is reduced
     """
 
-    best_shape_factor = space.perimeter / space.area
+    best_shape_factor = space.perimeter**2 / space.area
     edge_homogeneous_growth = None
 
     for edge in space.edges:
@@ -330,10 +327,7 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
         space_added = space.plan.get_space_of_face(face_added)
         if space_added.category.name != 'empty':
             continue
-        shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
-        area = space.area + face_added.area
-        perimeter = space.perimeter + face_added.perimeter - 2 * shared_perimeter
-        current_shape_factor = perimeter / area
+        current_shape_factor = space.aspect_ratio([face_added])
         if current_shape_factor <= best_shape_factor:
             best_shape_factor = current_shape_factor
             edge_homogeneous_growth = edge
@@ -1731,7 +1725,7 @@ SELECTORS = {
 
     "homogeneous": Selector(homogeneous, name='homogeneous'),
 
-    "homogeneous_aspect_ratio": Selector(homogeneous_aspect_ratio, name='homogeneous_aspect_ratio'),
+    "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
     "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 

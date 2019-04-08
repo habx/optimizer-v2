@@ -403,7 +403,7 @@ if __name__ == '__main__':
         (seeder.plant()
          .grow()
          .fill()
-         .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+         .merge_small_cells(min_cell_area=10000))
 
         plan.plot()
 

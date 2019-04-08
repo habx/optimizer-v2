@@ -59,7 +59,7 @@ def test_grow_a_plan(input_file):
     (seeder.plant()
      .grow()
      .fill()
-     .merge_small_cells(min_cell_area=10000, excluded_components=["loadBearingWall"]))
+     .merge_small_cells(min_cell_area=10000))
 
     plan.plot()
 
