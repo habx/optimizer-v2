@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -ex
 
 if [ "${PLUGIN_DEPLOYMENT_POSTFIX}" != "" ]; then
     export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}-${PLUGIN_DEPLOYMENT_POSTFIX}
