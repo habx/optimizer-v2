@@ -88,15 +88,18 @@ def test_oriented_selector(weird_plan):
     :param weird_plan:
     :return:
     """
-    empty_space_boundary = [(1000, 400), (1200, 400), (1200, 800), (1000, 800)]
+    empty_space_boundary = [(100, 0), (600, 0), (600, 300), (100, 300)]
     weird_plan.insert_space_from_boundary(empty_space_boundary)
     selector = SELECTOR_FACTORIES["oriented_edges"](["horizontal"])
-    edges = list(selector.yield_from(weird_plan.empty_space))
+    edges = list(selector.yield_from(weird_plan.spaces[1]))
     weird_plan.plot()
     result = [(edge.start.coords, edge.end.coords) for edge in edges]
 
-    assert result == [((1000.0, 800.0), (1200.0, 800.0))]
+    assert result == [((600.0, 0.0), (600.0, 300.0))]
 
+    edges = list(selector.yield_from(weird_plan.spaces[1]))
+    result = [(edge.start.coords, edge.end.coords) for edge in edges]
+    assert result == [((100.0, 300.0), (100.0, 0.0))]
 
 def test_boundary_selector(l_plan):
     """
