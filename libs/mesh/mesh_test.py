@@ -923,3 +923,7 @@ def test_distance_to_other_face():
 def test_face_perimeter():
     mesh = rectangular_mesh(100, 200)
     assert mesh.faces[0].perimeter == (100 + 200)*2
+
+
+def test_number_of_corners(weird_mesh):
+    assert weird_mesh.faces[0].number_of_corners() == 9
