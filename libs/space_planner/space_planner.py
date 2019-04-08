@@ -13,7 +13,6 @@ from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
-from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
 import libs.io.writer as writer
@@ -49,8 +48,16 @@ class SpacePlanner:
         """
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
 
+        # entrance
+        size_min = Size(area=2*SQM)
+        size_max = Size(area=5*SQM)
+        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
+        space_planner_spec.add_item(new_item)
+
         for item in spec.items:
-            if ((item.category.name != "living" or "kitchen" not in item.opens_on) and
+            if item.category.name == "circulation":
+                continue
+            elif((item.category.name != "living" or "kitchen" not in item.opens_on) and
                     (item.category.name != "kitchen" or len(item.opens_on) == 0)):
                 space_planner_spec.add_item(item)
             elif item.category.name == "living" and "kitchen" in item.opens_on:
@@ -66,14 +73,17 @@ class SpacePlanner:
 
         category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                              "circulationSpace"]
+                              "circulation"]
         space_planner_spec.init_id(category_name_list)
 
         # area
-        coeff = int(spec.plan.indoor_area) / int(sum(item.required_area for item in spec.items))
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation", "misc"]
+        invariant_area = sum(item.required_area for item in spec.items if item.category.name in invariant_categories)
+        coeff = int(spec.plan.indoor_area - invariant_area) / int(sum(item.required_area for item in spec.items if item.category.name not in invariant_categories))
         for item in spec.items:
-            item.min_size.area = item.min_size.area * coeff
-            item.max_size.area = item.max_size.area * coeff
+            if item.category.name not in invariant_categories:
+                item.min_size.area = item.min_size.area * coeff
+                item.max_size.area = item.max_size.area * coeff
         logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
         logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
         self.spec = space_planner_spec
@@ -104,10 +114,10 @@ class SpacePlanner:
                     item_space.append(space)
             dict_items_spaces[item] = item_space
 
-        # circulationSpace case :
+        # circulation case :
         for j_space, space in enumerate(plan.mutable_spaces()):
             if space.category.name == "seed":
-                space.category = SPACE_CATEGORIES["circulationSpace"]
+                space.category = SPACE_CATEGORIES["circulation"]
 
         dict_items_space = {}
         for item in self.spec.items:
@@ -170,12 +180,11 @@ class SpacePlanner:
 
 if __name__ == '__main__':
     import libs.io.reader as reader
-    from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
+    from libs.modelers.seed import SEEDERS
+
     import argparse
     import time
-
-    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -190,8 +199,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "011.json"
+        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        #input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -206,13 +215,7 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
-        (seeder.plant()
-         .grow(show=True)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
 
@@ -249,7 +252,7 @@ if __name__ == '__main__':
         # shuffle
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
+                SHUFFLES['square_shape_shuffle_rooms'].apply_to(sol.plan, show=True)
                 sol.plan.plot()
 
         logging.info("total time : %f", time.clock() - t00)

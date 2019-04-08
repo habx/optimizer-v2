@@ -6,11 +6,10 @@ Space planner Module Tests
 import pytest
 
 from libs.io import reader
-from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS, FILL_METHODS_HOMOGENEOUS
+from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
 from libs.operators.selector import SELECTORS
-from libs.modelers.shuffle import SHUFFLES
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.space_planner.space_planner import SpacePlanner
 
@@ -28,14 +27,7 @@ def test_space_planner(input_file, input_setup):
     plan = reader.create_plan_from_file(input_file)
 
     GRIDS["ortho_grid"].apply_to(plan)
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS["seed_duct"], "duct")
-    (seeder.plant()
-     .grow()
-     .shuffle(SHUFFLES["seed_square_shape"])
-     .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"], "empty"))
-     .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES["seed_square_shape"]))
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
@@ -81,18 +73,7 @@ def test_duplex():
 
     plan.plot()
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow(show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                                      "empty"), show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-           show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")

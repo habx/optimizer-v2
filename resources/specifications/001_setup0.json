@@ -1,15 +1,11 @@
 {
   "rooms": [
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 60000,
         "min": 25000
       },
-      "tags": [],
-      "type": "entrance",
-      "variant": "m"
+      "type": "circulation"
     },
     {
       "linkedTo": [],
