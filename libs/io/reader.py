@@ -389,10 +389,9 @@ def create_specification_from_data(input_data: dict,
     Creates a specification object from a dict
     The model is in the form:
     {
-      "setup": [
+      "rooms": [
         {
-          "type": "entrance",
-          "variant": "s",
+          "type": "circulation",
           "requiredArea": {
             "min": 25000,
             "max": 50000
@@ -409,16 +408,18 @@ def create_specification_from_data(input_data: dict,
     }
     """
     specification = Specification(spec_name)
-    for item in input_data["setup"]:
+    for item in input_data["rooms"]:
         _category = item["type"]
         if _category not in SPACE_CATEGORIES:
             raise ValueError("Space type not present in space categories: {0}".format(_category))
         required_area = item["requiredArea"]
         size_min = Size(area=required_area["min"])
         size_max = Size(area=required_area["max"])
-        variant = item["variant"]
+        variant = "m"
         opens_on = []
         linked_to = []
+        if "variant" in list(item.keys()):
+            variant = item["variant"]
         if "opensOn" in list(item.keys()):
             opens_on = item["opensOn"]
         if "linkedTo" in list(item.keys()):

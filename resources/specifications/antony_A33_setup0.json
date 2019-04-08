@@ -1,15 +1,11 @@
 {
-  "setup": [
+  "rooms": [
     {
-      "linkedTo": [],
-      "opensOn": [],
       "requiredArea": {
         "max": 60000,
         "min": 25000
       },
-      "tags": [],
-      "type": "entrance",
-      "variant": "m"
+      "type": "circulation"
     },
     {
       "linkedTo": [],
@@ -67,7 +63,7 @@
         "min": 10000
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "s"
     },
     {

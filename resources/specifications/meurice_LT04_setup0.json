@@ -1,5 +1,5 @@
 {
-  "setup": [
+  "rooms": [
     {
       "linkedTo": [],
       "opensOn": [],
@@ -8,7 +8,7 @@
         "min": 25000.0
       },
       "tags": [],
-      "type": "entrance",
+      "type": "circulation",
       "variant": "m"
     },
     {
@@ -19,7 +19,7 @@
         "max": 20000.0
       },
       "tags": [],
-      "type": "wc",
+      "type": "toilet",
       "variant": "m"
     },
     {
@@ -30,7 +30,7 @@
         "max": 125000.0
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "l"
@@ -43,7 +43,7 @@
         "max": 125000.0
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "l"

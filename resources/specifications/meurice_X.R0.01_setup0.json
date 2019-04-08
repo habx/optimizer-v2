@@ -1,5 +1,5 @@
 {
-  "setup": [
+  "rooms": [
     {
       "linkedTo": [],
       "opensOn": [],
@@ -8,7 +8,7 @@
         "min": 25000.0
       },
       "tags": [],
-      "type": "entrance",
+      "type": "circulation",
       "variant": "m"
     },
     {
@@ -41,7 +41,7 @@
         "min": 100000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "s"
     },
     {
@@ -52,7 +52,7 @@
         "min": 100000
       },
       "tags": [],
-      "type": "office",
+      "type": "study",
       "variant": "s"
     },
     {
@@ -85,7 +85,7 @@
         "min": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "m"
@@ -98,7 +98,7 @@
         "min": 60000
       },
       "tags": [
-        "wc"
+        "toilet"
       ],
       "type": "bathroom",
       "variant": "m"
