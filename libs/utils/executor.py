@@ -64,8 +64,8 @@ class Executor:
     """Current version"""
 
     def run_from_file_names(self,
-                            lot_file_name: str = "grenoble_101.json",
-                            setup_file_name: str = "grenoble_101_setup0.json",
+                            lot_file_name: str = "011.json",
+                            setup_file_name: str = "011_setup0.json",
                             params: dict = None) -> Response:
         """
         Run Optimizer from file names.
@@ -175,8 +175,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
         response = executor.run_from_file_names(
-            "grenoble_102.json",
-            "grenoble_102_setup0.json",
+            "012.json",
+            "012_setup0.json",
             {
                 "grid_type": "optimal_grid",
                 "do_plot": False,

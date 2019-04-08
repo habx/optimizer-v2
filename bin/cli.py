@@ -7,8 +7,8 @@ ln -s $(pwd)/bin/cli.py /usr/local/bin/optimizer
 And then use it freely:
 $ cd resources
 $ optimizer \
-    -l blueprints/paris-mon18_A601.json \
-    -s specifications/paris-mon18_A601_setup0.json \
+    -l blueprints/011.json \
+    -s specifications/011_setup0.json \
     -o /tmp
 """
 
