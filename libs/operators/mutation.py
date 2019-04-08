@@ -190,9 +190,8 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     plan = space.plan
     other_space = plan.get_space_of_edge(edge.pair)
 
-    if other_space.face:
-        assert other_space.adjacent_to(
-            edge.face), "Mutation: The edge face must be adjacent to the second space"
+    assert other_space.adjacent_to(edge.face), ("Mutation: The edge face must "
+                                                "be adjacent to the second space")
 
     # list of aligned edges
     aligned_edges = []
@@ -206,31 +205,20 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         if aligned.face not in list_face_aligned:
             list_face_aligned.append(aligned.face)
 
-    count_exchanged_face = 0
+    for face in list_face_aligned:
+        # no space removal
+        if space.number_of_faces <= 1:
+            break
 
-    face_removed = True
-    while face_removed:
-        face_removed = False
-        for aligned_face in list_face_aligned:
-            # no space removal
-            if space.number_of_faces <= 1:
-                break
+        if space.corner_stone(face):
+            logging.debug("Mutation: aligned edges trying to remove a corner stone")
+            break
 
-            if space.corner_stone(aligned_face):
-                logging.debug("graph not connected CORNER STONE")
-                break
-
-            space.remove_face(aligned_face)
-            list_face_aligned.remove(aligned_face)
-            face_removed = True
-
-            other_space.add_face(aligned_face)
-
-            count_exchanged_face += 1
-
-        if count_exchanged_face == 0:
-            # no operation performed in the process
-            return []
+        space.remove_face(face)
+        list_face_aligned.remove(face)
+        other_space.add_face(face)
+    else:
+        return []
 
     return [space, other_space]
 

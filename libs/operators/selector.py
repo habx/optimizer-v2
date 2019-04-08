@@ -32,7 +32,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
-    from libs.plan.plan import Space
+    from libs.plan.plan import Space, Plan
     from libs.modelers.seed import Seeder
 
 EdgeQuery = Callable[['Space', Any], Generator['Edge', bool, None]]
@@ -287,10 +287,10 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge_homogeneous_growth
 
 
-def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-    face is added to space, the ratio area/perimeter is smallest
+    face is added to space, the ratio perimeter/area is smallest
     """
 
     biggest_shape_factor = math.inf
@@ -302,15 +302,35 @@ def homogeneous_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None
             space_added = space.plan.get_space_of_face(face_added)
             if space_added.category.name != 'empty':
                 continue
-            if space_added.corner_stone(face_added):
-                continue
-            shared_perimeter = sum(e.length for e in face_added.edges if space.is_boundary(e.pair))
-            area = space.area + face_added.area
-            perimeter = space.perimeter + face_added.perimeter - shared_perimeter
-            current_shape_factor = perimeter / area
+            current_shape_factor = space.aspect_ratio([face_added])
             if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
+
+    if edge_homogeneous_growth:
+        yield edge_homogeneous_growth
+
+
+def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns among all edges on the space border the one such as when the pair
+    face is added to space, the ratio perimeter/area is reduced
+    """
+
+    best_shape_factor = space.perimeter**2 / space.area
+    edge_homogeneous_growth = None
+
+    for edge in space.edges:
+        if not edge.pair.face:
+            continue
+        face_added = edge.pair.face
+        space_added = space.plan.get_space_of_face(face_added)
+        if space_added.category.name != 'empty':
+            continue
+        current_shape_factor = space.aspect_ratio([face_added])
+        if current_shape_factor <= best_shape_factor:
+            best_shape_factor = current_shape_factor
+            edge_homogeneous_growth = edge
 
     if edge_homogeneous_growth:
         yield edge_homogeneous_growth
@@ -323,7 +343,6 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if not space.category or space.category.name != 'duct':
         raise ValueError('You should provide a duct to the query seed_duct!')
 
-    # case n°1 : duct is along a boundary, we only set two seed point
     edge_along_plan = None
     for edge in space.edges:
         if edge.pair.face is None:
@@ -442,22 +461,56 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     :param epsilon:
     :return: an EdgeQuery
     """
+    min_edge_length = 40.0  # the minimum length of the edge to be considered
+
     if direction not in ('horizontal', 'vertical'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
-    def _selector(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    go_left = {}
 
-        if not space.edge:
+    def _selector(space: 'Space',
+                  seeder: Optional['Seeder'] = None) -> Generator['Edge', bool, None]:
+
+        reference_edge = (seeder.get_seed_from_space(space).components[0].edge
+                          if seeder else space.edge)
+
+        if not space.is_boundary(reference_edge):
+            raise ValueError("Selector: The edge must be a boundary of the space")
+
+        if not reference_edge:
             return
 
-        vectors = ((space.edge.unit_vector, opposite_vector(space.edge.unit_vector))
-                   if direction == 'horizontal' else (space.edge.normal,))
+        if direction == "horizontal":
+            angle = ccw_angle(reference_edge.unit_vector
+                              if go_left.get(space.id, False) else reference_edge.opposite_vector)
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
 
-        for vector in vectors:
-            edges_list = [edge for edge in space.exterior_edges
-                          if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, epsilon)]
-            for edge in edges_list:
-                yield edge
+            if not edges_list:
+                return
+            # we alternate for each space : left and right to ensure a symmetric propagation
+            # go_left is memoized
+            if go_left.get(space.id, False):
+                edges_list = edges_list[::-1]
+                go_left[space.id] = False
+            else:
+                go_left[space.id] = True
+
+            # we only return the first edge found
+            yield edges_list[0]
+        else:
+            angle = ccw_angle(reference_edge.pair.normal)
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
+            # only yield if all edges pair point to an empty space
+            for e in edges_list:
+                other_space = space.plan.get_space_of_edge(e.pair)
+                if not other_space or other_space.category.name != "empty":
+                    break
+            else:
+                yield from (e for e in edges_list)
 
     return _selector
 
@@ -1233,7 +1286,7 @@ def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 
     """
 
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        plan = space.plan
+        plan: 'Plan' = space.plan
 
         # per convention if an edge is on the apartment boundary it cannot be too close
         if plan.is_external(edge.pair):
@@ -1676,7 +1729,9 @@ SELECTORS = {
 
     "homogeneous": Selector(homogeneous, name='homogeneous'),
 
-    "homogeneous_aspect_ratio": Selector(homogeneous_aspect_ratio, name='homogeneous_aspect_ratio'),
+    "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
+
+    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
