@@ -168,10 +168,10 @@ class Executor:
         logging.info("Output written in %f", elapsed_times["output"])
 
         elapsed_times["total"] = time.process_time() - t0_total
-        elapsed_times["total_real"] = time.time() - t0_total_real
+        elapsed_times["totalReal"] = time.time() - t0_total_real
         logging.info("Run complete in %f (process time), %f (real time)",
                      elapsed_times["total"],
-                     elapsed_times["total_real"])
+                     elapsed_times["totalReal"])
 
         return Response(solutions, elapsed_times)
 
