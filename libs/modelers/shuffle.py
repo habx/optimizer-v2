@@ -184,7 +184,7 @@ if __name__ == '__main__':
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
-        plan_name = "saint-maur-raspail_H03"
+        plan_name = "055"
         solution_number = 0
 
         try:
