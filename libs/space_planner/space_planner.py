@@ -15,6 +15,7 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
+from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 import libs.io.writer as writer
 
 SQM = 10000
@@ -77,15 +78,22 @@ class SpacePlanner:
         space_planner_spec.init_id(category_name_list)
 
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation", "misc"]
-        invariant_area = sum(item.required_area for item in spec.items if item.category.name in invariant_categories)
-        coeff = int(spec.plan.indoor_area - invariant_area) / int(sum(item.required_area for item in spec.items if item.category.name not in invariant_categories))
-        for item in spec.items:
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation",
+                                "misc"]
+        invariant_area = sum(item.required_area for item in space_planner_spec.items
+                             if item.category.name in invariant_categories)
+        coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
+            item.required_area for item in space_planner_spec.items if
+            item.category.name not in invariant_categories)))
+
+        for item in space_planner_spec.items:
             if item.category.name not in invariant_categories:
-                item.min_size.area = item.min_size.area * coeff
-                item.max_size.area = item.max_size.area * coeff
-        logging.debug("SP - PLAN AREA : %i", int(spec.plan.indoor_area))
-        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
+                item.min_size.area = round(item.min_size.area * coeff)
+                item.max_size.area = round(item.max_size.area * coeff)
+        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
+        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
+                                                      for item in space_planner_spec.items)))
+
         self.spec = space_planner_spec
 
     def _plan_cleaner(self, min_area: float = 100) -> None:
@@ -199,7 +207,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         #input_file = "antony_A33.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
