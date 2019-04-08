@@ -12,7 +12,7 @@ jobs:
           keys:
             - tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run: .circleci/prepare.sh
-      - run: ./run_tests.sh
+      # - run: ./run_tests.sh
       - save_cache:
           paths:
             - /usr/local/lib/python3.6/site-packages
@@ -51,6 +51,7 @@ jobs:
     docker:
       - image: quay.io/honestbee/drone-kubernetes
     steps:
+      - checkout
       - run:
           command: .circleci/deploy-to-kubernetes.sh
 
@@ -58,6 +59,7 @@ jobs:
     docker:
       - image: quay.io/honestbee/drone-kubernetes
     steps:
+      - checkout
       - run:
           command: |
             export PLUGIN_DEPLOYMENT_POSTFIX=-low-priority
