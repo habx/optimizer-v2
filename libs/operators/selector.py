@@ -461,6 +461,8 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     :param epsilon:
     :return: an EdgeQuery
     """
+    min_edge_length = 40.0  # the minimum length of the edge to be considered
+
     if direction not in ('horizontal', 'vertical'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
@@ -482,7 +484,8 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
             angle = ccw_angle(reference_edge.unit_vector
                               if go_left.get(space.id, False) else reference_edge.opposite_vector)
             edges_list = [edge for edge in space.siblings(reference_edge)
-                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)]
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
 
             if not edges_list:
                 return
@@ -499,7 +502,8 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
         else:
             angle = ccw_angle(reference_edge.pair.normal)
             edges_list = [edge for edge in space.siblings(reference_edge)
-                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)]
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
             # only yield if all edges pair point to an empty space
             for e in edges_list:
                 other_space = space.plan.get_space_of_edge(e.pair)
