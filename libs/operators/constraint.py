@@ -9,7 +9,7 @@ A constraint computes a score
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
 
-from libs.utils.geometry import ccw_angle, pseudo_equal
+from libs.utils.geometry import ccw_angle
 from libs.specification.size import Size
 
 if TYPE_CHECKING:
@@ -130,6 +130,13 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -162,6 +169,13 @@ def component_aspect_constraint(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -215,10 +229,12 @@ def few_corners(params: Dict) -> scoreFunction:
     :param params:
     :return:
     """
+
     min_corners = params['min_corners']
 
     def _score(space: 'Space') -> float:
         number_of_corners = space.number_of_corners()
+
         if number_of_corners == 0:
             return 0
 
@@ -402,12 +418,18 @@ few_corners_constraint = SpaceConstraint(few_corners,
                                          "few_corners",
                                          imperative=False)
 
+few_corners_bedroom_constraint = SpaceConstraint(few_corners,
+                                                 {"min_corners": 4,
+                                                  "categories": ["bedroom"]},
+                                                 "few_corners", imperative=False)
+
 alignments_constraint = SpaceConstraint(alignments,
                                         {},
                                         imperative=False)
 
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
+    "few_corners_bedroom": few_corners_bedroom_constraint,
     "min_size": min_size_constraint,
     "max_size": max_size_constraint,
     "max_size_seed": max_size_constraint_seed,

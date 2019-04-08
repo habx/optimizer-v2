@@ -52,7 +52,7 @@ class ExecParams:
         self.grid_type = params.get('grid_type', 'optimal_grid')
         self.seeder_type = params.get('seeder_type', "simple_seeder")
         self.do_plot = params.get('do_plot', False)
-        self.shuffle_type = params.get('shuffle_type', 'square_shape_shuffle_rooms')
+        self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
 
 
 class Executor:
@@ -107,7 +107,7 @@ class Executor:
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
-        GRIDS[params.grid_type].apply_to(plan, show=params.do_plot)
+        GRIDS[params.grid_type].apply_to(plan)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -145,7 +145,7 @@ class Executor:
         logging.info("Shuffle")
         if best_solutions:
             for sol in best_solutions:
-                SHUFFLES[params.shuffle_type].run(sol.plan, show=params.do_plot)
+                SHUFFLES[params.shuffle_type].apply_to(sol.plan)
                 if params.do_plot:
                     sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
@@ -159,10 +159,10 @@ class Executor:
         logging.info("Output written in %f", elapsed_times["output"])
 
         elapsed_times["total"] = time.process_time() - t0_total
-        elapsed_times["total_real"] = time.time() - t0_total_real
+        elapsed_times["totalReal"] = time.time() - t0_total_real
         logging.info("Run complete in %f (process time), %f (real time)",
                      elapsed_times["total"],
-                     elapsed_times["total_real"])
+                     elapsed_times["totalReal"])
 
         return Response(solutions, elapsed_times)
 

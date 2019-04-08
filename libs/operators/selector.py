@@ -821,6 +821,23 @@ def _filter_lines(space: 'Space') -> callable([['Edge'], bool]):
     return _filter
 
 
+def specific_category(*category_names: str) -> EdgeQuery:
+    """
+    Returns the boundary edge of th
+    :param category_names:
+    :param _:
+    :return:
+    """
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        plan = space.plan
+        if space and space.category.name in category_names:
+            for e in space.exterior_edges:
+                other = plan.get_space_of_edge(e.pair)
+                if other and other.mutable:
+                    yield e
+    return _query
+
+
 # predicates
 
 
@@ -1883,5 +1900,6 @@ SELECTOR_FACTORIES = {
     "oriented_edges": SelectorFactory(oriented_edges, factorize(adjacent_empty_space)),
     "edges_length": SelectorFactory(lambda: space_boundary, [edge_length]),
     "min_depth": SelectorFactory(min_depth),
-    "tight_lines": SelectorFactory(tight_lines)
+    "tight_lines": SelectorFactory(tight_lines),
+    "category": SelectorFactory(specific_category)
 }
