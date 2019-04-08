@@ -9,7 +9,7 @@ A constraint computes a score
 import math
 from typing import TYPE_CHECKING, Callable, Union, Dict, Optional, Any
 
-from libs.utils.geometry import ccw_angle
+from libs.utils.geometry import ccw_angle, pseudo_equal
 from libs.specification.size import Size
 
 if TYPE_CHECKING:
@@ -216,14 +216,9 @@ def few_corners(params: Dict) -> scoreFunction:
     :return:
     """
     min_corners = params['min_corners']
-    corner_min_angle = 20.0
 
     def _score(space: 'Space') -> float:
-        number_of_corners = 0
-        for edge in space.exterior_edges:
-            if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
-                number_of_corners += 1
-
+        number_of_corners = space.number_of_corners()
         if number_of_corners == 0:
             return 0
 
