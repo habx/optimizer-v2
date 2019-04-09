@@ -27,6 +27,8 @@ class Mutation:
     Will mutate a face and return the modified spaces
     """
 
+    __slots__ = 'name', '_mutation', '_spaces_modified', '_initial_state', 'reversible'
+
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
@@ -125,6 +127,8 @@ class MutationFactory:
     Mutation Factory class
     Returns a Mutation instance when called
     """
+
+    __slots__ = 'name', 'factory', 'reversible'
 
     def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
         self.name = name or factory.__name__

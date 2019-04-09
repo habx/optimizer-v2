@@ -73,15 +73,18 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             "category": room.category.name,
             "geometry": [],
             "id": int("70" + str(room_max_id))}
-        for edge in list(room.edges):
-            vertices_max_id += 1
-            point_dict = {
-                "id": int("50" + str(vertices_max_id)),
-                "x": edge.start.x,
-                "y": edge.start.y
-            }
-            room_dict["geometry"].append(int("50" + str(vertices_max_id)))
-            points.append(point_dict)
+
+        for i_ref, ref_edge in enumerate(room.reference_edges):
+            room_dict["geometry"].append([])
+            for edge in ref_edge.siblings:
+                vertices_max_id += 1
+                point_dict = {
+                    "id": int("50" + str(vertices_max_id)),
+                    "x": edge.start.x,
+                    "y": edge.start.y
+                }
+                room_dict["geometry"][i_ref].append(int("50" + str(vertices_max_id)))
+                points.append(point_dict)
 
         spaces.append(room_dict)
 
