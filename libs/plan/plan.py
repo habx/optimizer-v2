@@ -15,7 +15,7 @@ import uuid
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
-from libs.mesh.mesh import Mesh, Face, Edge, Vertex, MeshOps
+from libs.mesh.mesh import Mesh, Face, Edge, Vertex, MeshOps, MeshComponentType
 from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
@@ -202,10 +202,20 @@ class Space(PlanComponent):
         :return:
         """
 
-        if face is None:
+        if face is None or face.mesh is None:
             return False
 
-        return face.mesh is self.floor.mesh and face.id in self._faces_id
+        return self.has_face_id(face.id, face.mesh.id)
+
+    def has_face_id(self, face_id: int, mesh_id: uuid.UUID) -> bool:
+        """
+        returns True if the face_id belongs to the space
+        :param face_id:
+        :param mesh_id:
+        :return:
+        """
+        return face_id in self._faces_id and mesh_id == self.floor.mesh.id
+
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -239,24 +249,22 @@ class Space(PlanComponent):
         """
         return len(self._faces_id)
 
-    def add_face_id(self, face: 'Face'):
+    def add_face_id(self, face_id: int):
         """
         Adds a face_id if possible
-        :param face:
+        :param face_id:
         :return:
         """
-        assert face.mesh is self.floor.mesh, ("Space: cannot add to the space the id of a face "
-                                              "belonging to the wrong mesh")
-        if face.id not in self._faces_id:
-            self._faces_id.append(face.id)
+        if face_id not in self._faces_id:
+            self._faces_id.append(face_id)
 
-    def remove_face_id(self, face: 'Face'):
+    def remove_face_id(self, face_id: int):
         """
         Removes a face_id
-        :param face:
+        :param face_id:
         :return:
         """
-        self._faces_id.remove(face.id)
+        self._faces_id.remove(face_id)
 
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
@@ -267,13 +275,24 @@ class Space(PlanComponent):
         for edge_id in self._edges_id:
             yield self.mesh.get_edge(edge_id)
 
-    def is_reference(self, edge: 'Edge') -> bool:
+    def has_reference(self, edge: 'Edge') -> bool:
         """
         Checks if an edge is a reference edge of the space
         :param edge:
         :return: True if the edge is a reference, False otherwise
         """
-        return edge.id in self._edges_id
+        if not edge or not edge.mesh:
+            return False
+        return self.has_reference_id(edge.id, edge.mesh.id)
+
+    def has_reference_id(self, edge_id: int, mesh_id: 'uuid.UUID') -> bool:
+        """
+        Checks if an edge is a reference edge of the space
+        :param edge_id:
+        :param mesh_id:
+        :return: True if the edge is a reference, False otherwise
+        """
+        return self.floor.mesh.id == mesh_id and edge_id in self._edges_id
 
     @property
     def edge(self) -> Optional['Edge']:
@@ -764,7 +783,7 @@ class Space(PlanComponent):
         if self.face is None:
             logging.debug('Space: Adding the first face of the Space: %s', self)
             self.edge = face.edge
-            self.add_face_id(face)
+            self.add_face_id(face.id)
             self.set_edges()  # needed in case the face has a hole !
             return
 
@@ -796,7 +815,7 @@ class Space(PlanComponent):
             else:
                 raise Exception("This should never happen !")
 
-            self.add_face_id(face)
+            self.add_face_id(face.id)
 
         # case 3 : standard case
         # sadly we have to check if a hole has been created
@@ -817,7 +836,7 @@ class Space(PlanComponent):
         # preserve edges references
         forbidden_edges = [edge.pair for edge in face.edges]
         self.change_reference_edges(forbidden_edges)
-        self.add_face_id(face)
+        self.add_face_id(face.id)
 
         if check_for_hole:
             self.set_edges()
@@ -900,7 +919,7 @@ class Space(PlanComponent):
                 break
         else:
             logging.debug("Space: Removing a full enclosed face. A hole is created")
-            self.remove_face_id(face)
+            self.remove_face_id(face.id)
             self.add_edge(face.edge.pair)
             self._clean_hole_disappearance()
             return [self]
@@ -934,7 +953,7 @@ class Space(PlanComponent):
                     break
             else:
                 raise Exception("This should never happen!!")
-            self.remove_face_id(face)
+            self.remove_face_id(face.id)
             self._clean_hole_disappearance()
             return [self]
 
@@ -950,7 +969,7 @@ class Space(PlanComponent):
         # no need to check for connectivity
         if len(adjacent_faces) == 1:
             logging.debug("Space: Removing a face with only one adjacent edge")
-            self.remove_face_id(face)
+            self.remove_face_id(face.id)
             self._clean_hole_disappearance()
             return [self]
 
@@ -958,7 +977,7 @@ class Space(PlanComponent):
         space_connected_components = []
         created_spaces = [self]
 
-        self.remove_face_id(face)
+        self.remove_face_id(face.id)
 
         # we must check to see if we split the space by removing the face
         # for each adjacent face inside the space check if they are still connected
@@ -1006,8 +1025,8 @@ class Space(PlanComponent):
             # remove the disconnected faces from the initial space
             # and add them to the new space
             for component_face in component:
-                self.remove_face_id(component_face)
-                new_space.add_face_id(component_face)
+                self.remove_face_id(component_face.id)
+                new_space.add_face_id(component_face.id)
 
             # transfer internal edge reference from self to new spaces
             for internal_reference_edge in self.hole_edges:
@@ -1043,7 +1062,7 @@ class Space(PlanComponent):
         logging.debug("Space: Removing only face left in the Space: %s", self)
 
         self._edges_id = []
-        self.remove_face_id(face)
+        self.remove_face_id(face.id)
         # self.remove()
 
     def set_edges(self):
@@ -1179,7 +1198,7 @@ class Space(PlanComponent):
         remaining_faces = adjacent_faces[:]
 
         # temporarily remove the face_id from the other_space
-        self.remove_face_id(face)
+        self.remove_face_id(face.id)
 
         # we must check to see if we split the other_space by removing the face
         # for each adjacent face inside the other_space check if they are still connected
@@ -1197,12 +1216,12 @@ class Space(PlanComponent):
             remaining_faces.remove(adjacent_face)
 
             if len(remaining_faces) != 0:
-                self.add_face_id(face)
+                self.add_face_id(face.id)
                 return True
             else:
                 break
 
-        self.add_face_id(face)
+        self.add_face_id(face.id)
         return False
 
     def merge(self, *spaces: 'Space') -> 'Space':
@@ -1239,16 +1258,16 @@ class Space(PlanComponent):
         """
         container_face = container_face or self.face
         created_faces = container_face.insert_face(face)
-        self.add_face_id(face)
+        self.add_face_id(face.id)
         # we need to add to the space the new faces eventually created by the insertion
         for face in created_faces:
             if face is container_face:
                 continue
-            self.add_face_id(face)
+            self.add_face_id(face.id)
         # sometimes the container_face can be deleted by the insertion
         # so we need to check this and remove the deleted face from the space if needed
         if container_face not in created_faces:
-            self.remove_face_id(container_face)
+            self.remove_face_id(container_face.id)
         # we must set the boundary in case the reference edge is no longer part of the space
         self.set_edges()
 
@@ -1283,7 +1302,7 @@ class Space(PlanComponent):
         :return: the new space
         """
         face_of_space = self.insert_face_from_boundary(boundary)
-        self.add_face_id(face_of_space)
+        self.add_face_id(face_of_space.id)
         self.remove_face(face_of_space)
         # create the space and add it to the plan
         space = Space(self.plan, self.floor, face_of_space.edge, category=category)
@@ -1335,7 +1354,7 @@ class Space(PlanComponent):
             start_edge, end_edge, new_face = new_edges
             # add the created face to the space
             if new_face is not None:
-                self.add_face_id(new_face)
+                self.add_face_id(new_face.id)
             if self.is_outside(end_edge.pair):
                 return True
             return False
@@ -1388,7 +1407,7 @@ class Space(PlanComponent):
         initial_edge, split_edge, new_face = cut_data
 
         if new_face is not None:
-            self.add_face_id(new_face)
+            self.add_face_id(new_face.id)
             return True
 
         return False
@@ -1405,7 +1424,7 @@ class Space(PlanComponent):
             logging.debug("Space: Cannot remove an immutable edge: %s in space: %s", edge, self)
             return False
         # remove the edge and remove the deleted face from the space
-        self.remove_face_id(edge.face)
+        self.remove_face_id(edge.face.id)
         edge.remove()
 
         # we need to update the plan from the mesh because of cleanups
@@ -1857,23 +1876,23 @@ class Linear(PlanComponent):
         """
         return (self.mesh.get_edge(edge_id) for edge_id in self._edges_id)
 
-    def add_edge_id(self, edge: 'Edge'):
+    def add_edge_id(self, edge_id: int):
         """
         Adds the edge id
-        :param edge:
+        :param edge_id:
         :return:
         """
-        if edge.id in self._edges_id:
+        if edge_id in self._edges_id:
             return
-        self._edges_id.append(edge.id)
+        self._edges_id.append(edge_id)
 
-    def remove_edge_id(self, edge: 'Edge'):
+    def remove_edge_id(self, edge_id: int):
         """
         Adds the edge id
-        :param edge:
+        :param edge_id:
         :return:
         """
-        self._edges_id.remove(edge.id)
+        self._edges_id.remove(edge_id)
 
     def add_edge(self, edge: Edge):
         """
@@ -1884,7 +1903,7 @@ class Linear(PlanComponent):
         if not self.plan.is_space_boundary(edge):
             raise ValueError('cannot add an edge to a linear' +
                              ' that is not on the boundary of a space')
-        self.add_edge_id(edge)
+        self.add_edge_id(edge.id)
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -1892,7 +1911,19 @@ class Linear(PlanComponent):
         :param edge:
         :return:
         """
-        return edge.mesh is self.floor.mesh and edge.id in self._edges_id
+        if not edge or not edge.mesh:
+            return False
+
+        return self.has_edge_id(edge.id, edge.mesh.id)
+
+    def has_edge_id(self, edge_id: int, mesh_id: 'uuid.UUID') -> bool:
+        """
+        Returns True if the edge belongs to the linear
+        :param edge_id:
+        :param mesh_id:
+        :return:
+        """
+        return self.floor.mesh.id == mesh_id and edge_id in self._edges_id
 
     @property
     def as_sp(self) -> Optional[LineString]:
@@ -2053,7 +2084,7 @@ class Plan:
         if mesh:
             new_floor = Floor(self, mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
-            mesh.add_watcher(lambda modifications: self._watcher(modifications))
+            mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -2120,7 +2151,7 @@ class Plan:
 
         return self
 
-    def _watcher(self, modifications):
+    def _watcher(self, modifications, mesh_id: uuid.UUID):
         """
         A watcher for mesh modification. The watcher must be manually called from the plan.
         ex: by calling self.mesh.watch()
@@ -2130,64 +2161,65 @@ class Plan:
         logging.debug("Plan: Updating plan from mesh watcher")
 
         inserted_faces = (modification for _id, modification in modifications.items()
-                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Face)
+                          if modification[0] == MeshOps.INSERT
+                          and modification[1][0] == MeshComponentType.FACE)
 
         removed_edges = (modification for _id, modification in modifications.items()
-                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Edge)
+                         if modification[0] == MeshOps.REMOVE
+                         and modification[1][0] == MeshComponentType.EDGE)
 
         inserted_edges = (modification for _id, modification in modifications.items()
-                          if modification[0] == MeshOps.INSERT and type(modification[1]) == Edge)
+                          if modification[0] == MeshOps.INSERT
+                          and modification[1][0] == MeshComponentType.EDGE)
 
         removed_faces = (modification for _id, modification in modifications.items()
-                         if modification[0] == MeshOps.REMOVE and type(modification[1]) == Face)
+                         if modification[0] == MeshOps.REMOVE
+                         and modification[1][0] == MeshComponentType.FACE)
 
         # add inserted face to the space of the receiving face
         # this must be done before removals
         for face_add in inserted_faces:
-            assert type(face_add[2]) == Face, ("Plan: an insertion op of a face "
-                                               "should indicate the receiving face")
-            face = face_add[1]
+            assert face_add[2][0] == MeshComponentType.FACE, ("Plan: an insertion op of a face "
+                                                              "should indicate the receiving face")
             # check if the face was not already added to the mesh
-            face_space = self.get_space_of_face(face)
+            face_space = self.get_space_from_face_id(face_add[1][1], mesh_id)
             if face_space:
                 logging.debug("Plan: Adding face from mesh "
-                              "update %s buf face is already in a space", face)
+                              "update %s buf face is already in a space", face_space)
                 continue
 
-            space = self.get_space_of_face(face_add[2])
+            space = self.get_space_from_face_id(face_add[2][1], mesh_id)
             if space:
-                logging.debug("Plan: Adding face from mesh update %s", face)
-                space.add_face_id(face)
+                logging.debug("Plan: Adding face from mesh update %s", space)
+                space.add_face_id(face_add[1][1])
 
         # add inserted edge to the linear of the receiving face
         for edge_add in inserted_edges:
-            assert edge_add[2] and type(edge_add[2]) == Edge, ("Plan: an insertion op of an edge "
-                                                               "should indicate the receiving edge")
-            receiving_edge = edge_add[2]
-            linear = self.get_linear(receiving_edge)
+            assert (edge_add[2][0] == MeshComponentType.EDGE), ("Plan: an insertion "
+                                                                 "op of an edge should indicate "
+                                                                 "the receiving edge")
+            linear = self.get_linear_from_edge_id(edge_add[2][1], mesh_id)
             if linear is not None:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
-                linear.add_edge(edge_add[1])
+                linear.add_edge_id(edge_add[1][1])
 
         # remove faces
         for remove_face in removed_faces:
-            face = remove_face[1]
-            space = self.get_space_of_face(face)
+            space = self.get_space_from_face_id(remove_face[1][1], mesh_id)
             if space:
-                logging.debug("Plan: Removing face from space from mesh update %s", face)
-                space.remove_face_id(face)
+                logging.debug("Plan: Removing face from space from mesh update %s", space)
+                space.remove_face_id(remove_face[1][1])
                 space.set_edges()
 
         # remove edges
         for remove_edge in removed_edges:
-            edge = remove_edge[1]
-            space = self.get_space_from_reference(edge)
+            space = self.get_space_from_reference_id(remove_edge[1][1], mesh_id)
             if space:
                 space.set_edges()
-            linear = self.get_linear(edge)
+            linear = self.get_linear_from_edge_id(remove_edge[1][1], mesh_id)
             if linear:
-                logging.debug("Plan: Removing edge from linear from mesh update %s", edge)
-                linear.remove_edge_id(edge)
+                logging.debug("Plan: Removing edge from linear from mesh update %s", linear)
+                linear.remove_edge_id(remove_edge[1][1])
 
     def update_from_mesh(self):
         """
@@ -2349,6 +2381,18 @@ class Plan:
         logging.debug("Plan: Linear not found for this id %s", _id)
         return None
 
+    def get_linear_from_edge_id(self, edge_id: int, mesh_id: uuid.UUID) -> Optional['Linear']:
+        """
+        Returns the linear that owns the edge if found, None otherwise
+        :param edge_id:
+        :param mesh_id:
+        :return:
+        """
+        for linear in self.linears:
+            if linear.has_edge_id(edge_id, mesh_id):
+                return linear
+        return None
+
     def add_floor_from_boundary(self,
                                 boundary: Sequence[Coords2d],
                                 floor_level: Optional[int] = None,
@@ -2363,7 +2407,7 @@ class Plan:
         :return:
         """
         mesh = Mesh().from_boundary(boundary)
-        mesh.add_watcher(lambda modifications: self._watcher(modifications))
+        mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
         new_floor = Floor(self, mesh, floor_level, floor_meta)
         self.add_floor(new_floor)
         Space(self, new_floor, mesh.faces[0].edge)
@@ -2480,6 +2524,18 @@ class Plan:
                 return space
         return None
 
+    def get_space_from_face_id(self, face_id: int, mesh_id: 'uuid.UUID') -> Optional['Space']:
+        """
+        Returns the space that contains the face with the given id and mesh_id
+        :param face_id:
+        :param mesh_id:
+        :return the space
+        """
+        for space in self.spaces:
+            if space.has_face_id(face_id, mesh_id):
+                return space
+        return None
+
     def get_space_of_edge(self, edge: Edge) -> Optional['Space']:
         """
         Retrieves the space to which the face belongs.
@@ -2499,9 +2555,21 @@ class Plan:
         :return:
         """
         for space in self.spaces:
-            if space.is_reference(edge):
+            if space.has_reference(edge):
                 return space
 
+        return None
+
+    def get_space_from_reference_id(self, edge_id: int, mesh_id: 'uuid.UUID') -> Optional['Space']:
+        """
+        Returns the space with the edge of the given id and mesh id in its boundary
+        :param edge_id:
+        :param mesh_id:
+        :return:
+        """
+        for space in self.spaces:
+            if space.has_reference_id(edge_id, mesh_id):
+                return space
         return None
 
     def get_linear(self, edge: Edge) -> Optional['Linear']:

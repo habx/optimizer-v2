@@ -55,10 +55,23 @@ class MeshOps(enum.Enum):
     INSERT = "Insert"
 
 
+class MeshComponentType(enum.Enum):
+    """
+    A simple enum for mesh components
+    """
+    UNDEFINED = "Undefined"
+    VERTEX = "Vertex"
+    EDGE = "Edge"
+    FACE = "Face"
+
+
 class MeshComponent:
     """
     An abstract class for mesh component : vertex, edge or face
     """
+
+    type = MeshComponentType.UNDEFINED
+
     __slots__ = '_id', '_mesh'
 
     def __init__(self, mesh: 'Mesh', _id: Optional[int] = None):
@@ -111,7 +124,8 @@ class MeshComponent:
         :return:
         """
         self._mesh = value
-        value.add(self)
+        if value is not None:
+            value.add(self)
 
     def remove_from_mesh(self):
         """
@@ -122,7 +136,6 @@ class MeshComponent:
             logging.warning('Component has no mesh to remove it from: {0}'.format(self))
             return
         self._mesh.remove(self)
-        self._mesh = None
 
     def add_to_mesh(self, mesh: 'Mesh', _id: Optional[int] = None):
         """
@@ -141,6 +154,9 @@ class Vertex(MeshComponent):
     """
     Vertex class
     """
+
+    type = MeshComponentType.VERTEX
+
     __slots__ = '_x', '_y', '_edge', 'mutable'
 
     def __init__(self,
@@ -524,6 +540,9 @@ class Edge(MeshComponent):
     """
     Half Edge class
     """
+
+    type = MeshComponentType.EDGE
+
     __slots__ = '_start', '_next', '_face', '_pair'
 
     def __init__(self, mesh: 'Mesh', start: Optional[Vertex] = None,
@@ -1863,6 +1882,9 @@ class Face(MeshComponent):
     """
     Face Class
     """
+
+    type = MeshComponentType.FACE
+
     __slots__ = '_edge'
 
     def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[int] = None):
@@ -2763,7 +2785,8 @@ class Mesh:
         # Watchers
         self._watchers: [Callable[['MeshComponent', str], None]] = []
         self._modifications: Dict[int,
-                                  Tuple['MeshOps', 'MeshComponent', Optional['MeshComponent']]] = {}
+                                  Tuple['MeshOps', Tuple['MeshComponentType', int],
+                                        Optional[Tuple['MeshComponentType', int]]]] = {}
         self.id = _id or uuid.uuid4()
         self._counter = 0
 
@@ -2933,7 +2956,9 @@ class Mesh:
                     # we do not want to keep both ops
                     del self._modifications[component.id]
 
-        self._modifications[component.id] = (op, component, other_component)
+        self._modifications[component.id] = (op, (component.type, component.id),
+                                             (other_component.type if other_component else None,
+                                              other_component.id if other_component else None))
 
     def watch(self):
         """
@@ -3055,6 +3080,7 @@ class Mesh:
         :return: self
         """
         del self._faces[face.id]
+        face.mesh = None
 
     def get_face(self, _id: int) -> 'Face':
         """
@@ -3087,6 +3113,7 @@ class Mesh:
         :return:
         """
         del self._edges[edge.id]
+        edge.mesh = None
 
     def get_edge(self, edge_id: int) -> 'Edge':
         """
@@ -3119,6 +3146,7 @@ class Mesh:
         :return:
         """
         del self._vertices[vertex.id]
+        vertex.mesh = None
 
     def get_vertex(self, vertex_id: int) -> Vertex:
         """
