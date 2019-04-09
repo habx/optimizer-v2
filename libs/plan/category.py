@@ -43,6 +43,8 @@ class Category:
     A category of a space or a linear
     """
 
+    __slots__ = 'name', 'mutable', 'seedable', 'external', 'color'
+
     def __init__(self,
                  name: str,
                  mutable: bool = True,
@@ -66,6 +68,8 @@ class SpaceCategory(Category):
     Examples: duct, bedroom, kitchen, toilet, bathroom, entrance
     """
 
+    __slots__ = 'circulation', 'needed_linears', 'needed_spaces'
+
     def __init__(self,
                  name,
                  mutable: bool = True,
@@ -85,6 +89,8 @@ class LinearCategory(Category):
     A category of a linear
     Examples : window, doorWindow, door, wall, frontDoor
     """
+
+    __slots__ = 'aperture', 'width', 'window_type'
 
     def __init__(self,
                  name,
