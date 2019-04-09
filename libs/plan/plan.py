@@ -216,7 +216,6 @@ class Space(PlanComponent):
         """
         return face_id in self._faces_id and mesh_id == self.floor.mesh.id
 
-
     def has_edge(self, edge: 'Edge') -> bool:
         """
         Returns True if the edge belongs to the space
@@ -2196,8 +2195,8 @@ class Plan:
         # add inserted edge to the linear of the receiving face
         for edge_add in inserted_edges:
             assert (edge_add[2][0] == MeshComponentType.EDGE), ("Plan: an insertion "
-                                                                 "op of an edge should indicate "
-                                                                 "the receiving edge")
+                                                                "op of an edge should indicate "
+                                                                "the receiving edge")
             linear = self.get_linear_from_edge_id(edge_add[2][1], mesh_id)
             if linear is not None:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
@@ -2331,7 +2330,7 @@ class Plan:
         """
         return (floor.level for floor in self.floors.values())
 
-    def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
+    def get_mesh(self, floor_id: int) -> Optional['Mesh']:
         """
         Returns the mesh of the floor_id
         :param floor_id:
