@@ -8,7 +8,7 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any
+from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any, Iterable
 import logging
 import uuid
 
@@ -857,7 +857,7 @@ class Space(PlanComponent):
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
 
-    def remove_face(self, face: Face) -> [[Optional['Space']]]:
+    def remove_face(self, face: Face) -> List[Optional['Space']]:
         """
         Remove a face from the space
 
@@ -1596,6 +1596,101 @@ class Space(PlanComponent):
             return max(adjacency_length)
         else:
             return 0
+
+    def aspect_ratio(self, added_faces: Optional[Iterable['Face']] = None) -> float:
+        """
+        Returns the aspect ratio of the space, calculated as : perimeter ** 2 / area
+        If a list of added faces is provided: returns the
+        aspect ratio of the space with the added face.
+        :param added_faces:
+        :return:
+        """
+        area = self.area
+        perimeter = self.perimeter
+        added_faces = list(added_faces or [])
+        faces_edges = [e for f in added_faces for e in f.edges]
+        for face in added_faces:
+            shared_edges = [e.length for e in face.edges
+                            if self.is_boundary(e.pair) or e.pair in faces_edges]
+            shared_perimeter = sum(shared_edges)
+            area += face.area
+            perimeter += face.perimeter - 2 * shared_perimeter
+
+        return perimeter ** 2 / area
+
+    def number_of_corners(self, other: Optional[Union['Space', 'Face']] = None) -> int:
+        """
+        Returns the number of corner of the space.
+        If a space or a face is specified, returns the number of corner with the added face
+        or space
+        :param other:
+        :return:
+        """
+        corner_min_angle = 20.0
+        num_corners = 0
+        for edge in self.exterior_edges:
+            angle = ccw_angle(edge.opposite_vector, self.next_edge(edge).vector)
+            if not pseudo_equal(angle, 180.0, corner_min_angle):
+                num_corners += 1
+
+        if not other:
+            return num_corners
+
+        num_corners += other.number_of_corners()
+
+        # find an edge outside
+        for edge in other.edges:
+            if not self.is_boundary(edge.pair):
+                outside_edge = edge
+                break
+        else:
+            raise ValueError("Space: the face or space must be adjacent to the space but not"
+                             "included inside it")
+
+        outside = True
+        entry_edges = []
+        exit_edges = []
+        shared_edges = []
+        previous_edge = outside_edge
+        if isinstance(other, Face):
+            siblings = outside_edge.siblings
+        elif isinstance(other, Space):
+            siblings = other.siblings(outside_edge)
+        else:
+            raise ValueError("Space: other should be a Face or a Space instance")
+
+        for edge in siblings:
+            if self.is_boundary(edge.pair) and outside:
+                entry_edges.append((previous_edge, edge))
+                outside = False
+            elif not self.is_boundary(edge.pair) and not outside:
+                exit_edges.append((previous_edge, edge))
+                outside = True
+            elif not outside:
+                shared_edges.append((previous_edge, edge))
+
+            previous_edge = edge
+
+        # check the initial outside edge
+        if self.is_boundary(previous_edge.pair) and not outside:
+            exit_edges.append((previous_edge, outside_edge))
+
+        for prev, nxt in entry_edges:
+            angle = ccw_angle(prev.opposite_vector, self.next_edge(nxt.pair).vector)
+            if pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        for prev, nxt in exit_edges:
+            angle = ccw_angle(nxt.opposite_vector, self.previous_edge(prev.pair).vector)
+            if pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        for prev, nxt in shared_edges:
+            angle = ccw_angle(prev.opposite_vector, nxt.vector)
+            if not pseudo_equal(angle, 180, corner_min_angle):
+                num_corners -= 2
+
+        return num_corners
 
     def count_ducts(self) -> float:
         """
@@ -2725,7 +2820,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "grenoble_101.json"
+        input_file = "011.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)

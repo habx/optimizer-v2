@@ -215,7 +215,7 @@ def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
     return new_perimeter
 
 
-def get_json_from_file(file_name: str = 'grenoble_101.json',
+def get_json_from_file(file_name: str = '011.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -232,7 +232,7 @@ def get_json_from_file(file_name: str = 'grenoble_101.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_root: str = 'grenoble_101',
+def get_plan_from_json(file_root: str = '011',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -437,7 +437,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101_setup0.json"
+        input_file = "011_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -447,7 +447,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101.json"
+        input_file = "011.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)

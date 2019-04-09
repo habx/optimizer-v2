@@ -25,6 +25,26 @@ def test_read_floor_plan(input_file):
     assert plan.check()
 
 
+def rectangular_plan(width: float, depth: float) -> Plan:
+    """
+    a simple rectangular plan
+
+   0, depth   width, depth
+     +------------+
+     |            |
+     |            |
+     |            |
+     +------------+
+    0, 0     width, 0
+
+    :return:
+    """
+    boundaries = [(0, 0), (width, 0), (width, depth), (0, depth)]
+    plan = Plan("square")
+    plan.add_floor_from_boundary(boundaries)
+    return plan
+
+
 def test_serialization():
     """
     Test
@@ -984,3 +1004,40 @@ def test_perimeter_without_duct(l_plan):
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["duct"])
     print(plan)
     assert plan.empty_space.perimeter_without_duct == (2000.0 - 100)
+
+
+def test_number_corners(l_plan):
+    """
+    test the number of corners
+    :param l_plan:
+    :return:
+    """
+    assert l_plan.empty_space.number_of_corners() == 9
+
+
+def test_number_corners_with_addition_space(l_plan):
+    """
+    test the number of corners
+    :param l_plan:
+    :return:
+    """
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    weird_space_boundary = [(0, 0), (250, 0), (250, 250), (125, 250), (125, 125), (0, 125)]
+    plan.insert_space_from_boundary(weird_space_boundary)
+    GRIDS["ortho_grid"].apply_to(plan)
+    assert plan.spaces[0].number_of_corners(plan.spaces[1]) == 4
+
+
+def test_number_corners_with_addition_face(l_plan):
+    """
+    test the number of corners
+    :param l_plan:
+    :return:
+    """
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    weird_space_boundary = [(0, 0), (250, 0), (250, 250), (125, 250), (125, 125), (0, 125)]
+    plan.insert_space_from_boundary(weird_space_boundary)
+    GRIDS["ortho_grid"].apply_to(plan)
+    assert plan.spaces[0].number_of_corners(plan.mesh.faces[0]) == 6

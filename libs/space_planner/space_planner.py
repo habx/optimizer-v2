@@ -13,9 +13,9 @@ from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
-from libs.modelers.seed import Seeder, GROWTH_METHODS
 from libs.plan.category import SPACE_CATEGORIES
 from libs.modelers.shuffle import SHUFFLES
+from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 import libs.io.writer as writer
 
 SQM = 10000
@@ -192,12 +192,11 @@ class SpacePlanner:
 
 if __name__ == '__main__':
     import libs.io.reader as reader
-    from libs.operators.selector import SELECTORS
     from libs.modelers.grid import GRIDS
+    from libs.modelers.seed import SEEDERS
+
     import argparse
     import time
-
-    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -212,8 +211,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder("../resources/blueprints")[plan_index]
-        #input_file = "nantes-unile_B701.json" # "saint-maur-faculte_B121.json" # "antony_A33.json"
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = "001.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -228,7 +227,6 @@ if __name__ == '__main__':
         elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
             min_cell_area = 3 * SQM
 
-        # plan.plot()
         # new_space_list = []
         # for space in plan.spaces:
         #     if space.category.name == "empty":
@@ -244,14 +242,7 @@ if __name__ == '__main__':
         #             has_empty_space = True
         #     plan.remove_null_spaces()
 
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        plan.plot()
-        (seeder.plant()
-         .grow(show=True))
-        plan.plot()
-        (seeder.divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=min_cell_area, excluded_components=["loadBearingWall"]))
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))

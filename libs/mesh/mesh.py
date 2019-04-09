@@ -2717,8 +2717,21 @@ class Face(MeshComponent):
 
         return total_modified_edges
 
-    def plot(self,
-             ax=None,
+    def number_of_corners(self) -> int:
+        """
+        returns the number of corners of the face
+        :return:
+        """
+        corner_min_angle = 20.0
+        num_corners = 0
+        for edge in self.edges:
+            angle = ccw_angle(edge.opposite_vector, edge.next.vector)
+            if not pseudo_equal(angle, 180.0, corner_min_angle):
+                num_corners += 1
+
+        return num_corners
+
+    def plot(self, ax=None,
              options=('fill', 'border'),
              color: Optional[str] = None,
              save: Optional[bool] = None):
