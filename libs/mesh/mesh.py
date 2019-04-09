@@ -62,7 +62,7 @@ class MeshComponent:
     __slots__ = '_id', '_mesh'
 
     def __init__(self, mesh: 'Mesh', _id: Optional[int] = None):
-        self._id = _id if _id is not None else mesh.get_id()
+        self._id = _id
         self._mesh = mesh
         mesh.add(self)
 
@@ -129,6 +129,7 @@ class MeshComponent:
         Add the component from the mesh
         :return:
         """
+        self._id = None
         self._mesh = mesh
         self._mesh.add(self)
 
@@ -2930,13 +2931,16 @@ class Mesh:
             watcher(self._modifications)
         self._modifications = {}
 
-    def add(self, component):
+    def add(self, component: Union['MeshComponent', 'Vertex', 'Face', 'Edge']):
         """
         Adds a mesh component to the mesh
         :param component:
         :return:
         """
         self.store_modification(MeshOps.ADD, component)
+
+        if component.id is None:
+            component.id = self.get_id()
 
         if type(component) == Vertex:
             self._add_vertex(component)
