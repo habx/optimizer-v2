@@ -246,11 +246,12 @@ class Solution:
     def _shape_score(self) -> float:
         """
         Shape score
-        Related with difference between a room and its convex hull
+        Related with difference between a room and its boundary box
         :return: score : float
         """
-        shape_score = 100
+        shape_score = 0
         logging.debug("Solution %i: P2/A", self._id)
+        nbr_spaces = 0
         for item in self.items_spaces.keys():
             space = self.items_spaces[item]
             if item.category.name in ["toilet", "bathroom"]:
@@ -261,19 +262,15 @@ class Solution:
                 logging.debug("room %s: P2/A : %i", item.id,
                               int((space.perimeter*space.perimeter)/space.area))
             sp_space = space.as_sp
-            convex_hull = sp_space.convex_hull
-            if convex_hull.is_valid and sp_space.is_valid:
-                outside = convex_hull.difference(sp_space)
-                item_shape_score = min(100, 100 - (
-                        (outside.area - sp_space.area / 7) / (sp_space.area / 4) * 100))
-                logging.debug(
-                    "Solution %d: Shape score : %f, room : %s", self._id, item_shape_score,
-                    item.category.name)
-            else:
-                logging.warning("Solution %d: Invalid shapely space", self._id)
-                item_shape_score = 100
+            box = space.bounding_box()
+            difference = (box[0] * box[1] - space.area)
+            item_shape_score = min(100, 100 - (difference / (2 * sp_space.area)) * 100)
+            logging.debug("Solution %d: Shape score : %f, room : %s", self._id, item_shape_score,
+                          item.category.name)
 
-            shape_score = min(item_shape_score, shape_score)
+            shape_score += item_shape_score
+            nbr_spaces += 1
+        shape_score = shape_score / nbr_spaces
         logging.debug("Solution %d: Shape score : %f", self._id, shape_score)
 
         return shape_score

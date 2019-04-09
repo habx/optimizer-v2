@@ -201,14 +201,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
-
     def space_planning():
         """
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "001.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "006.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -216,12 +215,6 @@ if __name__ == '__main__':
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
-
-        min_cell_area = 1 * SQM
-        if plan.indoor_area > 105 * SQM and plan.floor_count < 2:
-            min_cell_area = 2 * SQM
-        elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
-            min_cell_area = 3 * SQM
 
         SEEDERS["simple_seeder"].apply_to(plan)
 
@@ -256,12 +249,6 @@ if __name__ == '__main__':
         for sol in best_solutions:
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.get_id)
-
-        # shuffle
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES['square_shape_shuffle_rooms'].apply_to(sol.plan, show=True)
-                sol.plan.plot()
 
         logging.info("total time : %f", time.clock() - t00)
         # print("total time :", time.clock() - t00)
