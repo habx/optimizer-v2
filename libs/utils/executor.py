@@ -142,12 +142,12 @@ class Executor:
 
         # shuffle
         t0_shuffle = time.process_time()
-        logging.info("Shuffle")
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES[params.shuffle_type].apply_to(sol.plan)
-                if params.do_plot:
-                    sol.plan.plot()
+        # logging.info("Shuffle")
+        # if best_solutions:
+        #     for sol in best_solutions:
+        #         SHUFFLES[params.shuffle_type].apply_to(sol.plan)
+        #         if params.do_plot:
+        #             sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
 
