@@ -124,12 +124,15 @@ class MeshComponent:
         self._mesh.remove(self)
         self._mesh = None
 
-    def add_to_mesh(self, mesh: 'Mesh'):
+    def add_to_mesh(self, mesh: 'Mesh', _id: Optional[int] = None):
         """
-        Add the component from the mesh
+        Add the component to the mesh. If an id is provided it will be kept.
+        Beware badly used this could induce pb.
         :return:
         """
-        self._id = None
+        if _id is not None:
+            assert _id not in mesh.components_id, "Mesh: Cannot add a component with this id"
+        self._id = _id
         self._mesh = mesh
         self._mesh.add(self)
 
@@ -161,7 +164,7 @@ class Vertex(MeshComponent):
         super().__init__(mesh, _id)
 
     def __repr__(self):
-        return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=id(self))
+        return 'vertex: ({x}, {y}) - {i}'.format(x=self.x, y=self.y, i=self.id)
 
     @property
     def x(self) -> float:
@@ -553,7 +556,7 @@ class Edge(MeshComponent):
                                                                   y1=self.start.y,
                                                                   x2=self.end.x,
                                                                   y2=self.end.y,
-                                                                  i=id(self))
+                                                                  i=self.id)
         return output
 
     @property
@@ -1871,7 +1874,7 @@ class Face(MeshComponent):
         output = 'Face: ['
         for edge in self.edges:
             output += '({0}, {1})'.format(*edge.start.coords)
-        return output + '] - {}'.format(id(self))
+        return output + '] - {}'.format(self.id)
 
     def swap(self, face: Optional['Face'] = None):
         """
@@ -1883,7 +1886,7 @@ class Face(MeshComponent):
         else:
             new_face = face
             new_face.edge = self.edge
-            new_face.add_to_mesh(self.mesh)
+            new_face.add_to_mesh(self.mesh, new_face.id)
 
         # swap edge references
         for edge in self.edges:
@@ -2790,6 +2793,16 @@ class Mesh:
         self._counter += 1
         return self._counter
 
+    @property
+    def components_id(self) -> Generator[int, None, None]:
+        """
+        Returns all the used id
+        :return:
+        """
+        yield from (i for i in self._vertices)
+        yield from (i for i in self._edges)
+        yield from (i for i in self._faces)
+
     def serialize(self) -> Dict[str, Union[str, Dict[str, Tuple]]]:
         """
         Stores the mesh geometric data in a json structure
@@ -2894,10 +2907,10 @@ class Mesh:
         Adds a modification to the modifications list.
         We check for duplicates or reversed modification.
         Example :
-        • add space n°1 + add space n°1 = add space n°1
-        • add space n°1 + remove space n°1 = ø
-        • remove space n°1 + remove space n°1 = raise Error
-        • remove space n°1 + add space n°1 = raise Error
+        • add face n°1 + add face n°1 = add face n°1
+        • add face n°1 + remove face n°1 = ø
+        • remove face n°1 + remove face n°1 = raise Error
+        • remove face n°1 + add face n°1 = raise Error
         :param component:
         :param other_component:
         :param op:

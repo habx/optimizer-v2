@@ -44,10 +44,11 @@ class PlanComponent:
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
-                 _id: Optional['uuid.UUID'] = None):
+                 _id: Optional[int] = None):
+
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
-        self.id = _id if _id is not None else plan.get_id()
+        self.id = _id
         self.plan = plan
         self.category: Union[SpaceCategory, LinearCategory] = None
         self.floor = floor
@@ -144,7 +145,6 @@ class Space(PlanComponent):
         The plan and floor data is already filled.
         :return:
         """
-        self.id = int(value["id"])
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self._faces_id = list(map(lambda x: int(x), value["faces"]))
         self.category = SPACE_CATEGORIES[value["category"]]
@@ -205,7 +205,7 @@ class Space(PlanComponent):
         if face is None:
             return False
 
-        return face.id in self._faces_id
+        return face.mesh is self.floor.mesh and face.id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -245,6 +245,8 @@ class Space(PlanComponent):
         :param face:
         :return:
         """
+        assert face.mesh is self.floor.mesh, ("Space: cannot add to the space the id of a face "
+                                              "belonging to the wrong mesh")
         if face.id not in self._faces_id:
             self._faces_id.append(face.id)
 
@@ -1824,7 +1826,6 @@ class Linear(PlanComponent):
         :param value:
         :return:
         """
-        self.id = int(value["id"])
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self.category = LINEAR_CATEGORIES[value["category"]]
         return self
@@ -1891,7 +1892,7 @@ class Linear(PlanComponent):
         :param edge:
         :return:
         """
-        return edge.id in self._edges_id
+        return edge.mesh is self.floor.mesh and edge.id in self._edges_id
 
     @property
     def as_sp(self) -> Optional[LineString]:
@@ -1965,13 +1966,16 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
 
-    __slots__ = 'id', 'mesh', 'level', 'meta'
+    __slots__ = 'plan', 'id', 'mesh', 'level', 'meta'
 
     def __init__(self,
+                 plan: 'Plan',
                  mesh: Optional['Mesh'] = None,
                  level: Optional[int] = None,
-                 meta: Optional[dict] = None):
-        self.id = uuid.uuid4()
+                 meta: Optional[dict] = None,
+                 _id: Optional[int] = None):
+        self.plan = plan
+        self.id = _id
         self.mesh = mesh
         self.level = level
         self.meta = meta
@@ -1979,13 +1983,22 @@ class Floor:
     def __repr__(self):
         return "Floor: {}".format(self.id)
 
+    def clone(self, new_plan: 'Plan') -> 'Floor':
+        """
+        Creates a copy of the floor
+        :param new_plan:
+        :return:
+        """
+        new_floor = Floor(new_plan, self.mesh, self.level, self.meta, _id=self.id)
+        return new_floor
+
     def serialize(self) -> Dict:
         """
         Returns a serialized version of the floor
         :return:
         """
         output = {
-            "id": str(self.id),
+            "id": self.id,
             "mesh": self.mesh.serialize(),
             "level": self.level,
             "meta": self.meta
@@ -1998,9 +2011,8 @@ class Floor:
         Returns a serialized version of the floor
         :return:
         """
-        self.id = uuid.UUID(value["id"])
         self.mesh = Mesh().deserialize(value["mesh"])
-        self.level = value["level"]
+        self.level = int(value["level"])
         self.meta = value["meta"]
 
         return self
@@ -2039,7 +2051,7 @@ class Plan:
         self._counter = 0
         # add a floor
         if mesh:
-            new_floor = Floor(mesh, floor_level, floor_meta)
+            new_floor = Floor(self, mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
             mesh.add_watcher(lambda modifications: self._watcher(modifications))
 
@@ -2089,20 +2101,22 @@ class Plan:
         """
         self.clear()
         self.name = value["name"]
+
         # add floors
         for floor in value["floors"]:
-            self.add_floor(Floor().deserialize(floor))
+            self.add_floor(Floor(self, _id=floor["id"]).deserialize(floor))
+
         # add spaces
         for space in value["spaces"]:
-            floor_id = uuid.UUID(space["floor"])
+            floor_id = int(space["floor"])
             floor = self.floors[floor_id]
-            Space(self, floor).deserialize(space)
+            Space(self, floor, _id=int(space["id"])).deserialize(space)
 
         # add linears
         for linear in value["linears"]:
-            floor_id = uuid.UUID(linear["floor"])
+            floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
-            Linear(self, floor).deserialize(linear)
+            Linear(self, floor, _id=linear["id"]).deserialize(linear)
 
         return self
 
@@ -2199,9 +2213,8 @@ class Plan:
         """
         name = name or self.name + '_copy'
         new_plan = Plan(name, self.mesh)
-        # make a shallow copy of the floors
-        new_plan.floors = self.floors.copy()
-        # clone spaces and linears
+        # clone floors, spaces and linears
+        new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
         new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
 
@@ -2235,6 +2248,9 @@ class Plan:
         :param new_floor:
         :return:
         """
+        if not new_floor.id:
+            new_floor.id = self.get_id()
+
         self.floors[new_floor.id] = new_floor
 
     @property
@@ -2348,7 +2364,7 @@ class Plan:
         """
         mesh = Mesh().from_boundary(boundary)
         mesh.add_watcher(lambda modifications: self._watcher(modifications))
-        new_floor = Floor(mesh, floor_level, floor_meta)
+        new_floor = Floor(self, mesh, floor_level, floor_meta)
         self.add_floor(new_floor)
         Space(self, new_floor, mesh.faces[0].edge)
         return new_floor
@@ -2383,8 +2399,12 @@ class Plan:
         :param space:
         :return:
         """
+        if space.id is None:
+            space.id = self.get_id()
+
         if space in self.spaces:
             logging.debug("Plan : trying to add a space that is already in the plan %s", space)
+
         self.spaces.append(space)
 
     def _remove_space(self, space: 'Space'):
@@ -2401,8 +2421,12 @@ class Plan:
         :param linear:
         :return:
         """
+        if linear.id is None:
+            linear.id = self.get_id()
+
         if linear in self.linears:
             logging.debug("Plan : trying to add a linear that is already in the plan %s", linear)
+
         self.linears.append(linear)
 
     def _remove_linear(self, linear: 'Linear'):
