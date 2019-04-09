@@ -83,17 +83,21 @@ class SpacePlanner:
                               "circulation"]
         space_planner_spec.init_id(category_name_list)
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",  "circulation",
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",
                                 "misc"]
         #invariant_categories = ["entrance"]
         invariant_area = sum(item.required_area for item in space_planner_spec.items
                              if item.category.name in invariant_categories)
+        circulation_area = sum(item.required_area for item in space_planner_spec.items
+                             if item.category.name == 'circulation')
         coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
             item.required_area for item in space_planner_spec.items if
-            item.category.name not in invariant_categories)))
+            (item.category.name not in invariant_categories
+             and item.category.name != 'circulation'))))
 
         for item in space_planner_spec.items:
-            if item.category.name not in invariant_categories:
+            if (item.category.name not in invariant_categories
+                    and item.category.name != 'circulation'):
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
         logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
@@ -214,7 +218,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        # input_file = "001.json"
+        #input_file = "001.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -252,17 +256,19 @@ if __name__ == '__main__':
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
-        # surfaces control
-        print("PLAN AREA : %i", int(spec.plan.indoor_area))
-        print("Setup AREA : %i", int(sum(item.required_area for item in spec.items)))
-        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area for item in spec.items)))
-        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area for item in spec.items)))
-        plan_ratio = round(spec.plan.indoor_perimeter ** 2 / spec.plan.indoor_area)
-        print("PLAN Ratio : %i", plan_ratio)
-
         t0 = time.clock()
         space_planner = SpacePlanner("test", spec)
         logging.debug("space_planner time : %f", time.clock() - t0)
+        # surfaces control
+        print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        print("Setup AREA : %i", int(sum(item.required_area for item in space_planner.spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
+                                                     for item in space_planner.spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
+                                                     for item in space_planner.spec.items)))
+        plan_ratio = round(space_planner.spec.plan.indoor_perimeter
+                           ** 2 / space_planner.spec.plan.indoor_area)
+        print("PLAN Ratio : %i", plan_ratio)
         print("space_planner time : ", time.clock() - t0)
         t1 = time.clock()
         best_solutions = space_planner.solution_research()
