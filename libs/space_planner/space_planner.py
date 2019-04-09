@@ -211,8 +211,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "001.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "001.json"
         t00 = time.clock()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -220,12 +220,6 @@ if __name__ == '__main__':
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
-
-        min_cell_area = 1 * SQM
-        if plan.indoor_area > 110 * SQM and plan.floor_count < 2:
-            min_cell_area = 2 * SQM
-        elif plan.indoor_area > 130 * SQM and plan.floor_count < 2:
-            min_cell_area = 3 * SQM
 
         # new_space_list = []
         # for space in plan.spaces:
