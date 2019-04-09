@@ -29,6 +29,8 @@ class Constraint:
     according to the constraint score function.
     """
 
+    __slots__ = 'score_factory', 'params', 'name', 'imperative'
+
     def __init__(self,
                  score_factory: scoreFunctionFactory,
                  params: Dict[str, Any], name: str = "",

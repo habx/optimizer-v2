@@ -53,6 +53,7 @@ class ExecParams:
         self.seeder_type = params.get('seeder_type', "simple_seeder")
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
+        self.do_shuffle = params.get('do_shuffle', False)
 
 
 class Executor:
@@ -142,12 +143,13 @@ class Executor:
 
         # shuffle
         t0_shuffle = time.process_time()
-        logging.info("Shuffle")
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES[params.shuffle_type].apply_to(sol.plan)
-                if params.do_plot:
-                    sol.plan.plot()
+        if params.do_shuffle:
+            logging.info("Shuffle")
+            if best_solutions:
+                for sol in best_solutions:
+                    SHUFFLES[params.shuffle_type].apply_to(sol.plan)
+                    if params.do_plot:
+                        sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
 
