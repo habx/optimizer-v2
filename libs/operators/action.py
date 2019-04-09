@@ -25,6 +25,8 @@ class Action:
     been successfully mutated.
     """
 
+    __slots__ = 'name', 'selector', 'mutation', 'multiple_mutations', '_tried', 'number_of_pass'
+
     def __init__(self, selector: 'Selector', mutation: 'Mutation', multiple_mutations: bool = False,
                  name: str = '', number_of_pass: int = 1):
         self.name = name or '{0} + {1}'.format(selector.name, mutation.name)

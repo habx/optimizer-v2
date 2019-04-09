@@ -50,6 +50,8 @@ class Selector:
     Returns an iterator on a given plan space
     """
 
+    __slots__ = 'name', 'query', 'predicates'
+
     def __init__(self,
                  query: EdgeQuery,
                  predicates: Optional[Sequence[Predicate]] = None,
@@ -163,7 +165,7 @@ def boundary_faces_biggest(space: 'Space', *_) -> Generator['Edge', bool, None]:
         if face.edge:
             output = max((e for e in face.edges if space.has_edge(e.pair)),
                          key=lambda e: e.length, default=None)
-            if output:
+            if output is not None:
                 yield output
 
 
@@ -825,7 +827,6 @@ def specific_category(*category_names: str) -> EdgeQuery:
     """
     Returns the boundary edge of th
     :param category_names:
-    :param _:
     :return:
     """
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
