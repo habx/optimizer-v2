@@ -308,7 +308,8 @@ class MessageProcessor:
             logging.info("Uploading some files on S3...")
 
         for src_file in files:
-            dst_file = "{request_id}/{file}".format(
+            # OPT-89: Storing files in a "tasks" directory
+            dst_file = "tasks/{request_id}/{file}".format(
                 request_id=request_id,
                 file=src_file[len(self.output_dir)+1:]
             )
