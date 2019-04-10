@@ -161,7 +161,8 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain id).
         :return:
         """
-        new_space = Space(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_space = Space(plan, new_floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -215,7 +216,6 @@ class Space(PlanComponent):
         :return:
         """
         return face_id in self._faces_id and mesh_id == self.floor.mesh.id
-
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -1854,7 +1854,8 @@ class Linear(PlanComponent):
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_linear = Linear(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -2078,7 +2079,7 @@ class Plan:
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
-        self.floors = {}
+        self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
         # add a floor
         if mesh:
@@ -2196,8 +2197,8 @@ class Plan:
         # add inserted edge to the linear of the receiving face
         for edge_add in inserted_edges:
             assert (edge_add[2][0] == MeshComponentType.EDGE), ("Plan: an insertion "
-                                                                 "op of an edge should indicate "
-                                                                 "the receiving edge")
+                                                                "op of an edge should indicate "
+                                                                "the receiving edge")
             linear = self.get_linear_from_edge_id(edge_add[2][1], mesh_id)
             if linear is not None:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
@@ -2331,7 +2332,7 @@ class Plan:
         """
         return (floor.level for floor in self.floors.values())
 
-    def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
+    def get_mesh(self, floor_id: int) -> Optional['Mesh']:
         """
         Returns the mesh of the floor_id
         :param floor_id:
