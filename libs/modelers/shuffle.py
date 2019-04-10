@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import logging
 
 from libs.operators.mutation import MUTATIONS
-from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
+from libs.operators.selector import SELECTORS
 from libs.operators.constraint import CONSTRAINTS
 from libs.operators.action import Action
 
@@ -130,9 +130,9 @@ few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS
 
 bedroom_corner_shuffle = Shuffle("bedroom_corners",
                                  [
-                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                     Action(SELECTORS["bedroom_small_faces"],
                                             MUTATIONS["remove_face"]),
-                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                     Action(SELECTORS["bedroom_small_faces_pair"],
                                             MUTATIONS['swap_face']),
                                   ],
                                  (), [CONSTRAINTS["few_corners_bedroom"]])
@@ -177,6 +177,7 @@ if __name__ == '__main__':
 
     def try_plan():
         """Tries to shuffle a plan"""
+        import time
         import libs.io.reader as reader
         import libs.io.writer as writer
         from libs.modelers.grid import GRIDS
@@ -184,9 +185,9 @@ if __name__ == '__main__':
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
-        plan_name = "009"
-        specification_number = "1"
-        solution_number = 0
+        plan_name = "001"
+        specification_number = "0"
+        solution_number = 1
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
@@ -213,6 +214,7 @@ if __name__ == '__main__':
                 return
 
         plan.plot()
+        time.sleep(0.5)
         SHUFFLES["bedrooms_corner"].apply_to(plan, show=True)
         plan.plot()
 
