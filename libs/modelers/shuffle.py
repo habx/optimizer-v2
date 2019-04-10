@@ -184,24 +184,30 @@ if __name__ == '__main__':
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
-        plan_name = "055"
+        plan_name = "009"
+        specification_number = "1"
         solution_number = 0
 
         try:
-            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_" + str(solution_number))
+            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
+                                                            + str(solution_number))
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
             GRIDS['optimal_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
-            spec = reader.create_specification_from_file(plan_name + "_setup0.json")
+            plan.plot()
+            spec = reader.create_specification_from_file(plan_name + "_setup"
+                                                         + specification_number +".json")
             spec.plan = plan
             space_planner = SpacePlanner("test", spec)
             best_solutions = space_planner.solution_research()
             if best_solutions:
                 solution = best_solutions[solution_number]
                 plan = solution.plan
-                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_" + str(solution_number))
+                plan.plot()
+                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_"
+                                         + str(solution_number))
             else:
                 logging.info("No solution for this plan")
                 return

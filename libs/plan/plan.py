@@ -161,7 +161,8 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain id).
         :return:
         """
-        new_space = Space(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_space = Space(plan, new_floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -1853,7 +1854,8 @@ class Linear(PlanComponent):
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_linear = Linear(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -2077,7 +2079,7 @@ class Plan:
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
-        self.floors = {}
+        self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
         # add a floor
         if mesh:
