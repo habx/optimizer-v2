@@ -7,4 +7,4 @@ WORKDIR /app
 CMD bin/worker.py
 COPY . /app
 CMD ["bin/worker.py"]
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
