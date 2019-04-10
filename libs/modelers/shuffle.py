@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import logging
 
 from libs.operators.mutation import MUTATIONS
-from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
+from libs.operators.selector import SELECTORS
 from libs.operators.constraint import CONSTRAINTS
 from libs.operators.action import Action
 
@@ -130,9 +130,9 @@ few_corner_shuffle = Shuffle('few_corners', [swap_seed_action], (), [CONSTRAINTS
 
 bedroom_corner_shuffle = Shuffle("bedroom_corners",
                                  [
-                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                     Action(SELECTORS["bedroom_small_faces"],
                                             MUTATIONS["remove_face"]),
-                                     Action(SELECTOR_FACTORIES["category"](["bedroom"]),
+                                     Action(SELECTORS["bedroom_small_faces_pair"],
                                             MUTATIONS['swap_face']),
                                   ],
                                  (), [CONSTRAINTS["few_corners_bedroom"]])
@@ -177,6 +177,7 @@ if __name__ == '__main__':
 
     def try_plan():
         """Tries to shuffle a plan"""
+        import time
         import libs.io.reader as reader
         import libs.io.writer as writer
         from libs.modelers.grid import GRIDS
@@ -184,29 +185,36 @@ if __name__ == '__main__':
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
 
-        plan_name = "055"
-        solution_number = 0
+        plan_name = "001"
+        specification_number = "0"
+        solution_number = 1
 
         try:
-            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_" + str(solution_number))
+            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
+                                                            + str(solution_number))
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
             GRIDS['optimal_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
-            spec = reader.create_specification_from_file(plan_name + "_setup0.json")
+            plan.plot()
+            spec = reader.create_specification_from_file(plan_name + "_setup"
+                                                         + specification_number +".json")
             spec.plan = plan
             space_planner = SpacePlanner("test", spec)
             best_solutions = space_planner.solution_research()
             if best_solutions:
                 solution = best_solutions[solution_number]
                 plan = solution.plan
-                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_" + str(solution_number))
+                plan.plot()
+                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_"
+                                         + str(solution_number))
             else:
                 logging.info("No solution for this plan")
                 return
 
         plan.plot()
+        time.sleep(0.5)
         SHUFFLES["bedrooms_corner"].apply_to(plan, show=True)
         plan.plot()
 
