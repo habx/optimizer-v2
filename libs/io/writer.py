@@ -76,7 +76,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
 
         for i_ref, ref_edge in enumerate(room.reference_edges):
             room_dict["geometry"].append([])
-            for edge in ref_edge.siblings:
+            for edge in room.siblings(ref_edge):
                 vertices_max_id += 1
                 point_dict = {
                     "id": int("50" + str(vertices_max_id)),
