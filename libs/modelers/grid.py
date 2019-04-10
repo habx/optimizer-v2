@@ -361,7 +361,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("001.json")
+        plan = reader.create_plan_from_file("030.json")
         plan.check()
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()

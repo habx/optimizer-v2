@@ -27,6 +27,8 @@ class Mutation:
     Will mutate a face and return the modified spaces
     """
 
+    __slots__ = 'name', '_mutation', '_spaces_modified', '_initial_state', 'reversible'
+
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
@@ -126,6 +128,8 @@ class MutationFactory:
     Returns a Mutation instance when called
     """
 
+    __slots__ = 'name', 'factory', 'reversible'
+
     def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
         self.name = name or factory.__name__
         self.factory = factory
@@ -145,7 +149,7 @@ class MutationFactory:
 
 # Face Mutations
 
-def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+def add_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Swaps the edge pair face: by adding it to the specified space and removing it to the other space
     Eventually merge the second space with all other specified spaces
@@ -550,7 +554,7 @@ MUTATION_FACTORIES = {
 }
 
 MUTATIONS = {
-    "swap_face": Mutation(swap_face),
+    "swap_face": Mutation(add_face),
     "remove_face": Mutation(remove_face),
     "swap_aligned_face": Mutation(swap_aligned_face),
     "add_aligned_face": Mutation(add_aligned_face),
