@@ -104,7 +104,7 @@ def test_duplex():
     plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["sequence_grid"].apply_to(plan)
+    GRIDS["optimal_grid"].apply_to(plan)
 
     plan.plot()
 
@@ -117,3 +117,6 @@ def test_duplex():
 
     space_planner = SpacePlanner("test", spec)
     best_solutions = space_planner.solution_research()
+
+    for solution in best_solutions:
+        solution.plan.plot()
