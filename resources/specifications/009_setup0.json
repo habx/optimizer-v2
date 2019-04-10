@@ -1,70 +1,74 @@
 {
   "rooms": [
     {
-      "type": "bathroom",
-      "variant": "s",
+      "linkedTo": [],
       "opensOn": [],
-      "tags": [
-        "toilet"
-      ],
       "requiredArea": {
-        "min": 30000,
-        "max": 70000
-      }
-    },
-    {
-      "type": "bedroom",
-      "variant": "s",
-      "opensOn": [],
+        "max": 60000,
+        "min": 25000
+      },
       "tags": [],
-      "requiredArea": {
-        "min": 90000,
-        "max": 130000
-      }
-    },
-    {
       "type": "circulation",
-      "variant": "",
-      "opensOn": [],
-      "tags": [],
-      "requiredArea": {
-        "min": 20000,
-        "max": 40000
-      }
+      "variant": "m"
     },
     {
-      "type": "kitchen",
-      "variant": "xs",
-      "opensOn": [
-        "living"
-      ],
-      "tags": [],
-      "requiredArea": {
-        "min": 30000,
-        "max": 70000
-      }
-    },
-    {
-      "type": "living",
-      "variant": "s",
+      "linkedTo": [],
       "opensOn": [
         "kitchen"
       ],
-      "tags": [],
       "requiredArea": {
-        "min": 160000,
-        "max": 200000
-      }
+        "max": 225000,
+        "min": 200000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "m"
     },
     {
-      "type": "study",
-      "variant": "xs",
-      "opensOn": [],
-      "tags": [],
+      "linkedTo": [],
+      "opensOn": [
+        "living"
+      ],
       "requiredArea": {
-        "min": 30000,
-        "max": 70000
-      }
+        "max": 60000,
+        "min": 40000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 100000,
+        "min": 80000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 20000,
+        "min": 10000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "xs"
     }
   ]
 }
