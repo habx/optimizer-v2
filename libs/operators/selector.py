@@ -50,6 +50,8 @@ class Selector:
     Returns an iterator on a given plan space
     """
 
+    __slots__ = 'name', 'query', 'predicates'
+
     def __init__(self,
                  query: EdgeQuery,
                  predicates: Optional[Sequence[Predicate]] = None,
@@ -163,7 +165,7 @@ def boundary_faces_biggest(space: 'Space', *_) -> Generator['Edge', bool, None]:
         if face.edge:
             output = max((e for e in face.edges if space.has_edge(e.pair)),
                          key=lambda e: e.length, default=None)
-            if output:
+            if output is not None:
                 yield output
 
 
@@ -825,7 +827,6 @@ def specific_category(*category_names: str) -> EdgeQuery:
     """
     Returns the boundary edge of th
     :param category_names:
-    :param _:
     :return:
     """
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -855,6 +856,19 @@ def t_edge(edge: 'Edge', space: 'Space') -> bool:
               and not edge.next.pair.next_is_aligned)
 
     return output
+
+
+def only_face(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the face of the edge is the only face of the space
+    :param edge:
+    :param space:
+    :return:
+    """
+    assert space.has_edge(edge), "The edge should belong to the space"
+
+    if space.number_of_faces <= 1:
+        return True
 
 
 def not_space_boundary(edge: 'Edge', space: 'Space') -> bool:
@@ -1051,6 +1065,20 @@ def _or(*predicates: Predicate) -> Predicate:
             if predicate(edge, space):
                 return True
         return False
+
+    return _predicate
+
+
+def pair(predicate: Predicate) -> Predicate:
+    """
+    Applies the predicate to the pair of the edge
+    :param predicate:
+    :return:
+    """
+    def _predicate(edge: 'Edge', space: 'Space') -> bool:
+        pair_edge = edge.pair
+        pair_space = space.plan.get_space_of_edge(pair_edge)
+        return predicate(pair_edge, pair_space)
 
     return _predicate
 
@@ -1387,6 +1415,7 @@ def has_space_pair() -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if a space has a pair through a given edge
+    TODO: using a factory here makes no sense...
     :return:
     """
 
@@ -1405,6 +1434,7 @@ def is_mutable() -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if an edge and its pair belongs to a mutable space
+    TODO: using a factory here makes no sense...
     :return:
     """
 
@@ -1444,6 +1474,7 @@ def face_without_component() -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if edge pair face has non mutable components
+    TODO: using a factory here makes no sense...
     """
 
     from libs.plan.category import SPACE_CATEGORIES
@@ -1469,16 +1500,20 @@ def face_without_component() -> Predicate:
     return _predicate
 
 
-def face_area(min_area: float) -> Predicate:
+def face_area(max_area: Optional[float] = None, min_area: Optional[float] = None) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if the edge face area is superior to a specified minimum
+    and inferior to a specified maximum
+    :param max_area
+    :param min_area
     """
-
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
         if not edge.face:
             return False
-        return edge.face.area <= min_area
+        _max_area = max_area or math.inf
+        _min_area = min_area or 0
+        return _max_area >= edge.face.area >= _min_area
 
     return _predicate
 
@@ -1893,7 +1928,16 @@ SELECTORS = {
         ]
     ),
 
-    "face_min_area": Selector(boundary_faces_biggest, [face_area(1000)])
+    "face_min_area": Selector(boundary_faces_biggest, [face_area(1000)]),
+
+    "bedroom_small_faces": Selector(specific_category("bedroom"), [face_area(max_area=15000),
+                                                                   is_not(only_face),
+                                                                   is_not(corner_stone)]),
+
+    "bedroom_small_faces_pair": Selector(specific_category("bedroom"),
+                                         [pair(face_area(max_area=15000)),
+                                          pair(is_not(only_face)),
+                                          pair(is_not(corner_stone))])
 }
 
 SELECTOR_FACTORIES = {
