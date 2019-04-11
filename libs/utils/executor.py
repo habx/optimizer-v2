@@ -1,5 +1,7 @@
 import logging
 
+import signal
+
 import libs.optimizer as opt
 from typing import List
 
@@ -15,13 +17,13 @@ class ExecWrapper:
         self.next: ExecWrapper = None
 
     def run(self, lot: dict, setup: dict, params: dict = None) -> opt.Response:
-        self._before(params)
+        self._before()
         try:
             return self._exec(lot, setup, params)
         finally:
             self._after()
 
-    def _before(self, params: dict):
+    def _before(self):
         pass
 
     def _after(self):
@@ -49,8 +51,12 @@ class OptimizerRun(ExecWrapper):
 
 
 class Sample(ExecWrapper):
-    def _before(self, params: dict):
-        logging.info("[BEFORE OPTIMIZER] params: %s", params)
+    def __init__(self, params: dict):
+        super().__init__()
+        self.params = params
+
+    def _before(self):
+        logging.info("[BEFORE OPTIMIZER] params: %s", self.params)
 
     def _after(self):
         logging.info("[AFTER OPTIMIZER]")
@@ -59,7 +65,7 @@ class Sample(ExecWrapper):
     def instantiate(params: dict):
         if params.get("skip_optimizer", False):
             return None
-        return Sample()
+        return Sample(params)
 
 
 class Crasher(ExecWrapper):
@@ -73,10 +79,42 @@ class Crasher(ExecWrapper):
         raise Exception("Crashing !")
 
 
+class Timeout(ExecWrapper):
+    class TimeoutException(Exception):
+        pass
+
+    def throw_timeout(self, signum, frame):
+        raise self.TimeoutException()
+
+    def __init__(self, timeout: int):
+        super().__init__()
+        self.timeout = timeout
+
+    def _before(self):
+        signal.signal(signal.SIGALRM, self.throw_timeout)
+        signal.alarm(self.timeout)
+
+    def _after(self):
+        signal.alarm(0)
+        pass
+
+    def _exec(self, lot: dict, setup: dict, params: dict = None):
+        # try:
+        super()._exec(lot, setup, params)
+        # Intercepting the TimeoutException makes things more confusing:
+        # except self.TimeoutException:
+        #    return None
+
+    @staticmethod
+    def instantiate(params: dict):
+        timeout = int(params.get('timeout', '0'))
+        return Timeout(timeout) if timeout > 0 else None
+
+
 class Executor:
     VERSION = opt.OPTIMIZER_VERSION
 
-    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Sample, Crasher]
+    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Sample, Timeout]
 
     def __init__(self):
         pass
