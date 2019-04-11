@@ -1,9 +1,9 @@
-import cProfile
-import logging
+import cProfile  # for CpuProfile
+import logging  # for LoggingLevel and LoggingToFile
 import os
-import pstats
+import pstats  # for CpuProfile
 import signal  # for Timeout
-import tracemalloc
+import tracemalloc  # for TraceMalloc
 from typing import List
 
 import libs.optimizer as opt
@@ -52,14 +52,14 @@ class OptimizerRun(ExecWrapper):
 
     def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
             -> opt.Response:
-        output_path = local_params.get('outputDir')
+        output_path = local_params.get('output_dir')
         if output_path:
             plt.output_path = output_path
         return self.OPTIMIZER.run(lot, setup, params, local_params)
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
-        if params.get("skipOptimizer", False):
+        if params.get('skip_optimizer', False):
             return None
         return OptimizerRun()
 
@@ -132,8 +132,8 @@ class CpuProfile(ExecWrapper):
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
-        if params.get('cpuProfile', False):
-            return CpuProfile(local_params['outputDir'])
+        if params.get('cpu_profile', False):
+            return CpuProfile(local_params['output_dir'])
         return None
 
 
@@ -160,7 +160,7 @@ class TraceMalloc(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
         if params.get('tracemalloc', False):
-            return TraceMalloc(local_params['outputDir'])
+            return TraceMalloc(local_params['output_dir'])
         return None
 
 
@@ -197,14 +197,14 @@ class LoggingToFile(ExecWrapper):
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
-        if not params.get('skipFileLogging', False):
-            return LoggingToFile(local_params['outputDir'])
+        if not params.get('skip_file_logging', False):
+            return LoggingToFile(local_params['output_dir'])
         return None
 
 
 class LoggingLevel(ExecWrapper):
     """
-    Changing the logging level when a "loggingLevel" is specified
+    Changing the logging level when a "logging_level" is specified
     """
     LOGGING_LEVEL_CONV = {
         "debug": logging.DEBUG,
@@ -229,8 +229,8 @@ class LoggingLevel(ExecWrapper):
 
     @staticmethod
     def instantiate(params: dict, local_params: dict):
-        if params.get('loggingLevel'):
-            return LoggingLevel(LoggingLevel.LOGGING_LEVEL_CONV[params['loggingLevel']])
+        if params.get('logging_level'):
+            return LoggingLevel(LoggingLevel.LOGGING_LEVEL_CONV[params['logging_level']])
         return None
 
 

@@ -372,7 +372,7 @@ class MessageProcessor:
             return None
 
         local_params = {
-            'outputDir': self.output_dir,
+            'output_dir': self.output_dir,
         }
 
         # Processing it
