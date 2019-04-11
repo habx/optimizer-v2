@@ -80,7 +80,12 @@ def _cli():
     if args.plot:
         params['do_plot'] = True
 
-    response = executor.run(lot, setup, params)
+    local_params = {}
+
+    # if output_dir:
+    #    local_params['outputDir'] = output_dir
+
+    response = executor.run(lot, setup, params, local_params)
 
     meta = {
         "times": response.elapsed_times

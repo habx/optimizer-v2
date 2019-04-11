@@ -11,8 +11,6 @@ import traceback
 import uuid
 import tempfile
 import time
-import cProfile
-import tracemalloc
 from typing import Optional, List
 
 import boto3
@@ -339,63 +337,10 @@ class MessageProcessor:
             logging.info("Deleting file \"%s\"", f)
             os.remove(f)
 
-    def _logging_to_file_before(self):
-        self._logging_to_file_after()
-        logger = logging.getLogger("")
-        log_file = os.path.join(self.output_dir, 'output.log')
-        logging.info("Writing logs to %s", log_file)
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter(
-            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
-        )
-        handler.setFormatter(formatter)
-
-        # Adding the new handler
-        self.log_handler = handler
-        logger.addHandler(handler)
-
-    def _logging_to_file_after(self):
-        # Removing the previous handler
-        if self.log_handler:
-            self.log_handler.close()
-            logger = logging.getLogger("")
-            logger.removeHandler(self.log_handler)
-            self.log_handler = None
-
     def _process_message_before(self, msg: Message):
         self._cleanup_output_dir()
-        self._logging_to_file_before()
-
-        params = msg.content.get('data', {}).get('params')
-
-        # CPU Profiling start
-        if params.get('cpu_profile'):
-            self.cpu_prof = cProfile.Profile()
-            self.cpu_prof.enable()
-
-        # Memory analysis start
-        if params.get('tracemalloc'):
-            tracemalloc.start()
 
     def _process_message_after(self, msg: Message):
-        params = msg.content.get('data', {}).get('params')
-
-        # CPU profiling stop
-        if params.get('cpu_profile'):
-            self.cpu_prof.disable()
-            self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
-            self.cpu_prof = None
-
-        if params.get('tracemalloc'):
-            snapshot = tracemalloc.take_snapshot()
-            top_stats = snapshot.statistics('lineno')
-
-            with open(os.path.join(self.output_dir, 'mem_stats.txt'), 'w') as f:
-                for stat in top_stats[:40]:
-                    f.write("%s\n" % stat)
-
-        self._logging_to_file_after()
-
         self._save_output_files(msg.content.get('requestId'))
 
     def _process_message(self, msg: Message) -> Optional[dict]:
@@ -425,12 +370,12 @@ class MessageProcessor:
             )
             return None
 
-        # We can get an explicit crash request
-        if params.get('crash', False):
-            raise Exception('You asked me to crash !')
+        local_params = {
+            'outputDir': self.output_dir,
+        }
 
         # Processing it
-        executor_result = self.executor.run(lot, setup, params)
+        executor_result = self.executor.run(lot, setup, params, local_params)
         result = {
             'type': 'optimizer-processing-result',
             'data': {

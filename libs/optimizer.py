@@ -81,7 +81,8 @@ class Optimizer:
 
         return self.run(lot, setup, params)
 
-    def run(self, lot: dict, setup: dict, params_dict: dict = None) -> Response:
+    def run(self, lot: dict, setup: dict, params_dict: dict = None, local_params: dict = None) \
+            -> Response:
         """
         Run Optimizer
         :param lot: lot data
