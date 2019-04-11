@@ -154,8 +154,10 @@ class EdgeGraph:
             # for each edges sequence add a virtual node connected with cost 0 to all edges
             for edge in edges1:
                 self.graph_struct.add_edge("virtual1", edge.start, cost=0)
+                self.graph_struct.add_edge("virtual1", edge.end, cost=0)
             for edge in edges2:
                 self.graph_struct.add_edge(edge.start, "virtual2", cost=0)
+                self.graph_struct.add_edge(edge.end, "virtual2", cost=0)
             # compute shortest path between virtual nodes
             path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
             # remove virtual nodes
