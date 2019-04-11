@@ -48,7 +48,8 @@ class Config:
             topic=topic_requests_base,
         )
 
-        if env_ns:
+        # OPT-92: The env_ns shall only be used if it's not the same as the env
+        if env_ns and env_ns != env:
             self.requests_queue_name += '-' + env_ns
 
         self.results_topic_name = '{env}-{topic}'.format(
