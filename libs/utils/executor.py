@@ -63,6 +63,7 @@ class Crasher(ExecWrapper):
     """
     Crashing the execution if a "crash" parameter is specified
     """
+
     def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
         raise Exception("Crashing !")
 
@@ -77,11 +78,9 @@ class Timeout(ExecWrapper):
     """
     Enabling a timeout timer if a "timeout" is specified
     """
-    class TimeoutException(Exception):
-        pass
 
     def throw_timeout(self, signum, frame):
-        raise self.TimeoutException()
+        raise TimeoutError("Processing timeout reached")
 
     def __init__(self, timeout: int):
         super().__init__()
@@ -93,14 +92,9 @@ class Timeout(ExecWrapper):
 
     def _after(self):
         signal.alarm(0)
-        pass
 
     def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
-        # try:
         super()._exec(lot, setup, params, local_params)
-        # Intercepting the TimeoutException makes things more confusing:
-        # except self.TimeoutException:
-        #    return None
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
@@ -112,6 +106,7 @@ class CpuProfile(ExecWrapper):
     """
     Enabling CPU profiling if the "cpuProfile" parameter is specified
     """
+
     def __init__(self, output_dir):
         super().__init__()
         self.output_dir = output_dir
@@ -122,7 +117,7 @@ class CpuProfile(ExecWrapper):
 
     def _after(self):
         self.cpu_prof.disable()
-        self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
+        self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cpu_profile.prof"))
         self.cpu_prof = None
 
     @staticmethod
@@ -136,6 +131,7 @@ class TraceMalloc(ExecWrapper):
     """
     Enabling malloc monitoring if "traceMalloc" is specified
     """
+
     def __init__(self, output_dir):
         super().__init__()
         self.output_dir = output_dir
@@ -162,6 +158,7 @@ class LoggingToFile(ExecWrapper):
     """
     Saving logs to files
     """
+
     def __init__(self, output_dir: str):
         super().__init__()
         self.output_dir = output_dir
@@ -176,6 +173,7 @@ class LoggingToFile(ExecWrapper):
             "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
         )
         handler.setFormatter(formatter)
+        handler.setLevel(logger.level)
 
         # Adding the new handler
         self.log_handler = handler
@@ -209,9 +207,15 @@ class LoggingLevel(ExecWrapper):
     def __init__(self, level: int):
         super().__init__()
         self.logging_level = level
+        self.previous_level: int = 0
 
     def _before(self):
-        logging.getLogger('').setLevel(self.logging_level)
+        logger = logging.getLogger('')
+        self.previous_level = logger.level
+        logger.setLevel(self.logging_level)
+
+    def _after(self):
+        logging.getLogger('').setLevel(self.previous_level)
 
     @staticmethod
     def instantiate(params: dict, local_params: dict):
@@ -223,13 +227,11 @@ class LoggingLevel(ExecWrapper):
 class Executor:
     VERSION = opt.OPTIMIZER_VERSION
 
-    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CpuProfile,
-                                        LoggingLevel, LoggingToFile]
+    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CpuProfile, TraceMalloc,
+                                        LoggingToFile, LoggingLevel, ]
 
-    def __init__(self):
-        pass
-
-    def run(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) -> opt.Response:
+    def run(self, lot: dict, setup: dict, params: dict = None,
+            local_params: dict = None) -> opt.Response:
         if local_params is None:
             local_params = {}
         first_exec = self.create_exec_wrappers(params, local_params)
