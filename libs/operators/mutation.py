@@ -27,6 +27,8 @@ class Mutation:
     Will mutate a face and return the modified spaces
     """
 
+    __slots__ = 'name', '_mutation', '_spaces_modified', '_initial_state', 'reversible'
+
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
@@ -51,7 +53,8 @@ class Mutation:
         self._store_initial_sate(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
         # update the plan if need be
-        space.plan.update_from_mesh()
+        if output:
+            space.plan.update_from_mesh()
         return output
 
     def reverse(self, modified_spaces: Sequence['Space']):
@@ -125,6 +128,8 @@ class MutationFactory:
     Returns a Mutation instance when called
     """
 
+    __slots__ = 'name', 'factory', 'reversible'
+
     def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
         self.name = name or factory.__name__
         self.factory = factory
@@ -144,9 +149,9 @@ class MutationFactory:
 
 # Face Mutations
 
-def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+def add_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
-    Swaps the edge pair face: by adding it from the specified space and adding it to the other space
+    Swaps the edge pair face: by adding it to the specified space and removing it to the other space
     Eventually merge the second space with all other specified spaces
     Returns a list of space :
     • the merged space
@@ -176,6 +181,35 @@ def swap_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     return [space] + list(created_spaces)
 
 
+def remove_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    """
+    remove the edge face: by removing to the specified space and adding it to the other space
+    Eventually merge the second space with all other specified spaces
+    Returns a list of space :
+    • the merged space
+    • the newly created spaces by the removal of the face
+    The mutation is reversible : swap_face(edge.pair, swap_face(edge, spaces))
+    :param edge:
+    :param space:
+    :return: a list of space
+    """
+    assert space.has_edge(edge), "Mutation: The edge must belong to the space"
+
+    plan = space.plan
+    face = edge.face
+    other_space = plan.get_space_of_edge(edge.pair)
+    if not other_space:
+        return []
+
+    logging.debug("Mutation: Swapping face %s of space %s to space %s", face, space, other_space)
+
+    # only remove the face if it belongs to a space
+    created_spaces = space.remove_face(face)
+    other_space.add_face(face)
+
+    return [other_space] + list(created_spaces)
+
+
 def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     """
     Removes all the faces of the aligned edges
@@ -190,9 +224,8 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     plan = space.plan
     other_space = plan.get_space_of_edge(edge.pair)
 
-    if other_space.face:
-        assert other_space.adjacent_to(
-            edge.face), "Mutation: The edge face must be adjacent to the second space"
+    assert other_space.adjacent_to(edge.face), ("Mutation: The edge face must "
+                                                "be adjacent to the second space")
 
     # list of aligned edges
     aligned_edges = []
@@ -206,31 +239,20 @@ def swap_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         if aligned.face not in list_face_aligned:
             list_face_aligned.append(aligned.face)
 
-    count_exchanged_face = 0
+    for face in list_face_aligned:
+        # no space removal
+        if space.number_of_faces <= 1:
+            break
 
-    face_removed = True
-    while face_removed:
-        face_removed = False
-        for aligned_face in list_face_aligned:
-            # no space removal
-            if space.number_of_faces <= 1:
-                break
+        if space.corner_stone(face):
+            logging.debug("Mutation: aligned edges trying to remove a corner stone")
+            break
 
-            if space.corner_stone(aligned_face):
-                logging.debug("graph not connected CORNER STONE")
-                break
-
-            space.remove_face(aligned_face)
-            list_face_aligned.remove(aligned_face)
-            face_removed = True
-
-            other_space.add_face(aligned_face)
-
-            count_exchanged_face += 1
-
-        if count_exchanged_face == 0:
-            # no operation performed in the process
-            return []
+        space.remove_face(face)
+        list_face_aligned.remove(face)
+        other_space.add_face(face)
+    else:
+        return []
 
     return [space, other_space]
 
@@ -490,8 +512,7 @@ def insert_aligned_rectangle(height: float,
     return _action
 
 
-def slice_cut(offset: float,
-              padding: float = 20) -> EdgeMutation:
+def slice_cut(offset: float, padding: float = 0) -> EdgeMutation:
     """
     Cuts the face with a slice
     :param offset:
@@ -501,9 +522,18 @@ def slice_cut(offset: float,
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         # check depth of the face, if the face is not deep enough do not slice
+        # try recursively to slice the next adjacent face
+        # note:  we're making the assumption that the mesh is a quad grid
+        # we're also limiting the recursion to three times only to prevent possible infinite loops
+        max_iteration = 3
         deep_enough = (edge.depth - padding) >= offset
         if not deep_enough:
-            return []
+            new_edge = edge.next.next.pair
+            if max_iteration == 0 or space.plan.get_space_of_edge(new_edge) is not space:
+                return []
+            else:
+                max_iteration -= 1
+                return _action(new_edge, space)
         # note we need to select the opposite vector of the edge vector because
         # of the order in which shapely will return the vertices of the
         # slice intersection (see the edge slice method)
@@ -524,7 +554,8 @@ MUTATION_FACTORIES = {
 }
 
 MUTATIONS = {
-    "swap_face": Mutation(swap_face),
+    "swap_face": Mutation(add_face),
+    "remove_face": Mutation(remove_face),
     "swap_aligned_face": Mutation(swap_aligned_face),
     "add_aligned_face": Mutation(add_aligned_face),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),

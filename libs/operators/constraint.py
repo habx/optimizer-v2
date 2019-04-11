@@ -29,6 +29,8 @@ class Constraint:
     according to the constraint score function.
     """
 
+    __slots__ = 'score_factory', 'params', 'name', 'imperative'
+
     def __init__(self,
                  score_factory: scoreFunctionFactory,
                  params: Dict[str, Any], name: str = "",
@@ -130,6 +132,13 @@ def component_surface_objective(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -162,6 +171,13 @@ def component_aspect_constraint(params: Dict) -> scoreFunction:
     """
 
     def shift_from_interval(val_min: float, val_max: float, val: float) -> float:
+        """
+        bidouillage
+        :param val_min:
+        :param val_max:
+        :param val:
+        :return:
+        """
         return max((val - val_max) / val_max, (val_min - val) / val, 0.0)
 
     def _score(space: 'Space') -> float:
@@ -215,14 +231,11 @@ def few_corners(params: Dict) -> scoreFunction:
     :param params:
     :return:
     """
+
     min_corners = params['min_corners']
-    corner_min_angle = 20.0
 
     def _score(space: 'Space') -> float:
-        number_of_corners = 0
-        for edge in space.exterior_edges:
-            if ccw_angle(edge.vector, space.next_edge(edge).vector) >= corner_min_angle:
-                number_of_corners += 1
+        number_of_corners = space.number_of_corners()
 
         if number_of_corners == 0:
             return 0
@@ -313,25 +326,25 @@ max_size_xs_constraint_seed = SpaceConstraint(max_size,
 
 ELEMENT_CONSTRAINT_SEED = {
     'duct': SpaceConstraint(max_size,
-                            {"max_size": Size(35000, 200, 200),
+                            {"max_size": Size(30000, 150, 200),
                              "category_name": "seed"},
                             "max_size_duct"),
     'frontDoor': SpaceConstraint(max_size,
-                                 {"max_size": Size(50000, 200, 200),
+                                 {"max_size": Size(40000, 200, 200),
                                   "category_name": "seed"},
                                  "max_size_frontDoor"),
     'window': SpaceConstraint(max_size,
-                              {"max_size": Size(120000, 400, 400),
+                              {"max_size": Size(12000, 300, 400),
                                "category_name": "seed"},
                               "max_size_window"),
     'doorWindow': SpaceConstraint(max_size,
-                                  {"max_size": Size(120000, 400, 400),
+                                  {"max_size": Size(16000, 400, 400),
                                    "category_name": "seed"},
                                   "max_size_doorWindow")
 }
 
 max_size_default_constraint_seed = SpaceConstraint(max_size,
-                                                   {"max_size": Size(60000, 300, 300),
+                                                   {"max_size": Size(90000, 300, 300),
                                                     "category_name": "seed"},
                                                    "max_size_xs")
 
@@ -407,12 +420,18 @@ few_corners_constraint = SpaceConstraint(few_corners,
                                          "few_corners",
                                          imperative=False)
 
+few_corners_bedroom_constraint = SpaceConstraint(few_corners,
+                                                 {"min_corners": 4,
+                                                  "categories": ["bedroom"]},
+                                                 "few_corners", imperative=False)
+
 alignments_constraint = SpaceConstraint(alignments,
                                         {},
                                         imperative=False)
 
 CONSTRAINTS = {
     "few_corners": few_corners_constraint,
+    "few_corners_bedroom": few_corners_bedroom_constraint,
     "min_size": min_size_constraint,
     "max_size": max_size_constraint,
     "max_size_seed": max_size_constraint_seed,

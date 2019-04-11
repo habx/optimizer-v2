@@ -29,7 +29,7 @@ MAX_SIZE_RATIO = 1.6
 SQM = 10000
 
 
-def import_test_plan(input_file: str = "grenoble_101.json") -> 'Plan':
+def import_test_plan(input_file: str = "011.json") -> 'Plan':
     """
     Imports and add grid to a plan
     :return:
@@ -199,7 +199,7 @@ def exec_solver():
             }
         },
         {
-            "category_name": "wc",
+            "category_name": "toilet",
             "min_area": 1.5 * SQM,
             "max_area": 3 * SQM,
             "components": {

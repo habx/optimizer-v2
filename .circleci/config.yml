@@ -1,101 +1,87 @@
 version: 2
 jobs:
-  get-requirements:
-    docker:
-      - image: circleci/python:3.6
-    parallelism: 2
-    steps:
-      - checkout
-#      - restore_cache:
-#          keys:
-#            - v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-#            - v2-dependencies-{{ .Branch }}-
-#            - v2-dependencies-
-      - run: virtualenv .venv
-      - run: source .venv/bin/activate && pip install -q --upgrade pip
-      - run: source .venv/bin/activate && pip install -q -r requirements.txt
-      - save_cache:
-          paths:
-            - .venv
-          key: v2-dependencies-{{ .Branch }}-{{ checksum "requirements.txt" }}
-      - persist_to_workspace:
-          root: /home/circleci/
-          paths:
-            - project
-
+  # Executing tests (by benefiting from caching)
   tests:
     docker:
-      - image: circleci/python:3.6
+      - image: circleci/python:3.7
     parallelism: 2
     steps:
       - checkout
-      # We need to reinstall protobuf because it puts some test data on some system path 
-      - run: sudo pip install -q --upgrade pip
-      - run: sudo pip install -q -r requirements.txt
+      - run: sudo chown -R circleci:circleci /usr/local
+      - restore_cache:
+          keys:
+            - tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}-{{ checksum ".circleci/config.yml" }}
+      - run: .circleci/prepare.sh
       - run: ./run_tests.sh
+      - save_cache:
+          paths:
+            - /usr/local/lib/python3.7/site-packages
+            - /usr/local/bin
+          key: tests-v1-{{ .Branch }}-{{ checksum "requirements.txt" }}-{{ checksum ".circleci/config.yml" }}
 
+  # Fetching the build infos to prepare the container build
+  get-build-infos:
+    docker:
+      - image: habx/devops-build-infos
+    working_directory: /work
+    steps:
+      - checkout
+      - run: /build/run.sh
+      - persist_to_workspace:
+          root: /work
+          paths:
+            - version.txt
+            - package.json
+            - build.json
+
+  # Building the container and uploading it
   build-container:
     docker:
       - image: plugins/ecr:17.05
+    working_directory: /work
     steps:
+      - checkout
       - attach_workspace:
-          at: /root/
+          at: /work
+      - run: ls -lh
       - setup_remote_docker:
           docker_layer_caching: true
-      - run:
-          command: |
-            export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+      - run: .circleci/build-container.sh
 
-            export PLUGIN_TAGS=${BUILD_REF}
-            export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/worker-optimizer-v2
-            /usr/local/bin/dockerd-entrypoint.sh /bin/drone-docker-ecr
-
+  # Publishing the the tasks
   deploy-to-kubernetes-standard-worker:
     docker:
-    - image: quay.io/honestbee/drone-kubernetes
+      - image: quay.io/honestbee/drone-kubernetes
+    working_directory: /work
     steps:
-    - run:
-        command: |
-          export CIRCLE_PROJECT_REPONAME=worker-optimizer-v2
-          export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
-          export DST_NAMESPACE=$(if [ -z "$CIRCLE_TAG" ]; then echo dev; else echo staging; fi)
-
-          export PLUGIN_TAG=${BUILD_REF}
-          export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/${CIRCLE_PROJECT_REPONAME}
-          export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}
-          export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}
-          export PLUGIN_NAMESPACE=${DST_NAMESPACE}
-          export PLUGIN_KUBERNETES_SERVER=${KUBERNETES_SERVER_DEV}
-          export PLUGIN_KUBERNETES_TOKEN=${KUBERNETES_TOKEN_DEV}
-          /bin/update.sh
-
+      - checkout
+      - attach_workspace:
+          at: /work
+      - run:
+          command: .circleci/deploy-to-kubernetes.sh
   deploy-to-kubernetes-low-priority-worker:
     docker:
-    - image: quay.io/honestbee/drone-kubernetes
+      - image: quay.io/honestbee/drone-kubernetes
+    working_directory: /work
     steps:
-    - run:
-        command: |
-          export CIRCLE_PROJECT_REPONAME=worker-optimizer-v2
-          export BUILD_REF=$(if [ -z "$CIRCLE_TAG" ]; then echo ${CIRCLE_BRANCH/\//-}-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
-          export DST_NAMESPACE=$(if [ -z "$CIRCLE_TAG" ]; then echo dev; else echo staging; fi)
-
-          export PLUGIN_TAG=${BUILD_REF}
-          export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/${CIRCLE_PROJECT_REPONAME}
-          export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}-low-priority
-          export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}-low-priority
-          export PLUGIN_NAMESPACE=${DST_NAMESPACE}
-          export PLUGIN_KUBERNETES_SERVER=${KUBERNETES_SERVER_DEV}
-          export PLUGIN_KUBERNETES_TOKEN=${KUBERNETES_TOKEN_DEV}
-          /bin/update.sh
+      - checkout
+      - attach_workspace:
+          at: /work
+      - run:
+          command: |
+            export PLUGIN_DEPLOYMENT_POSTFIX=-low-priority
+            .circleci/deploy-to-kubernetes.sh
 
 workflows:
   version: 2
   ci-process:
     jobs:
-      - get-requirements
+      - get-build-infos:
+          filters:
+            tags:
+              only: /^v.*/
+
       - tests:
-          requires:
-          - get-requirements
           filters:
             tags:
               only: /^v.*/
@@ -103,37 +89,37 @@ workflows:
       - build-container:
           context: default_env_vars
           requires:
-          - get-requirements
+            - get-build-infos
           filters:
             tags:
               only: /^v.*/
             branches:
               only:
                 - dev
-                - OPT-73-worker-optimizer-v2
+                - feature/OPT-47-correct
 
       - deploy-to-kubernetes-standard-worker:
           context: default_env_vars
           requires:
-          - build-container
-          - tests
+            - build-container
+            - tests
           filters:
             tags:
               only: /^v.*/
             branches:
               only:
                 - dev
-                - OPT-73-worker-optimizer-v2
+                - feature/OPT-47-correct
 
       - deploy-to-kubernetes-low-priority-worker:
           context: default_env_vars
           requires:
-          - build-container
-          - tests
+            - build-container
+            - tests
           filters:
             tags:
               only: /^v.*/
             branches:
               only:
                 - dev
-                - OPT-73-worker-optimizer-v2
+                - feature/OPT-47-correct

@@ -8,11 +8,9 @@ from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.specification.specification import Specification
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
-from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS_HOMOGENEOUS
-from libs.operators.selector import SELECTORS
+from libs.modelers.seed import SEEDERS
 from libs.io import reader
 from libs.space_planner.space_planner import SpacePlanner
-from libs.modelers.shuffle import SHUFFLES
 
 
 def test_solution_distance():
@@ -106,22 +104,11 @@ def test_duplex():
     plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["sequence_grid"].apply_to(plan)
+    GRIDS["optimal_grid"].apply_to(plan)
 
     plan.plot()
 
-    seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-    (seeder.plant()
-     .grow(show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
-                                      "empty"), show=True)
-     .fill(FILL_METHODS_HOMOGENEOUS, (SELECTORS["single_edge"], "empty"), recursive=True,
-           show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True)
-     .simplify(SELECTORS["fuse_small_cell_without_components"], show=True)
-     .shuffle(SHUFFLES['seed_square_shape_component_aligned'], show=True))
+    SEEDERS["simple_seeder"].apply_to(plan)
 
     plan.plot()
 
@@ -130,3 +117,6 @@ def test_duplex():
 
     space_planner = SpacePlanner("test", spec)
     best_solutions = space_planner.solution_research()
+
+    for solution in best_solutions:
+        solution.plan.plot()

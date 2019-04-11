@@ -18,10 +18,10 @@ from libs.utils.geometry import (
 )
 from libs.utils.custom_types import Coords2d, FourCoords2d
 from libs.mesh.mesh import COORD_EPSILON
-
-LOAD_BEARING_WALL_WIDTH = 15.0
 from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER, DEFAULT_SPECIFICATION_INPUT_FOLDER
 from output import DEFAULT_PLANS_OUTPUT_FOLDER, DEFAULT_MESHES_OUTPUT_FOLDER
+
+LOAD_BEARING_WALL_WIDTH = 15.0
 
 
 def get_list_from_folder(path: str = DEFAULT_BLUEPRINT_INPUT_FOLDER):
@@ -215,7 +215,7 @@ def _clean_perimeter(perimeter: Sequence[Coords2d]) -> List[Coords2d]:
     return new_perimeter
 
 
-def get_json_from_file(file_name: str = 'grenoble_101.json',
+def get_json_from_file(file_name: str = '011.json',
                        input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -232,7 +232,7 @@ def get_json_from_file(file_name: str = 'grenoble_101.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_root: str = 'grenoble_101',
+def get_plan_from_json(file_root: str = '011',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
@@ -259,24 +259,34 @@ def create_plan_from_file(input_file_name: str) -> plan.Plan:
     :return: a plan object
     """
     floor_plan_dict = get_json_from_file(input_file_name)
-    file_name = os.path.splitext(os.path.basename(input_file_name))[0]
+    return create_plan_from_data(floor_plan_dict)
 
+
+def create_plan_from_data(floor_plan_dict: Dict, name: Optional[str] = None) -> plan.Plan:
+    """
+    Create a plan object from data as found in blueprint files
+    :return: a plan object
+    """
     if "v2" in floor_plan_dict.keys():
-        return create_plan_from_v2_data(floor_plan_dict["v2"], file_name)
+        lot_slug = floor_plan_dict["meta"]["slug"]
+        project_slug = floor_plan_dict["meta"]["projectSlug"]
+        plan_name = "_".join((project_slug, lot_slug)) if name is None else name
+        return create_plan_from_v2_data(floor_plan_dict["v2"], plan_name)
     elif "v1" in floor_plan_dict.keys():
-        return create_plan_from_v1_data(floor_plan_dict["v1"], file_name)
+        plan_name = floor_plan_dict["v1"]["apartment"]["id"] if name is None else name
+        return create_plan_from_v1_data(floor_plan_dict["v1"], plan_name)
     else:
-        return create_plan_from_v1_data(floor_plan_dict, file_name)
+        plan_name = floor_plan_dict["apartment"]["id"] if name is None else name
+        return create_plan_from_v1_data(floor_plan_dict, plan_name)
 
 
-def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.Plan:
+def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 2 of the blueprint data format.
     """
 
-    plan_name = v2_data["aptInfos"]["name"] if name is None else name
-    my_plan = plan.Plan(plan_name)
+    my_plan = plan.Plan(name)
 
     # get vertices data
     vertices_by_id: Dict[int, Coords2d] = {}
@@ -326,16 +336,16 @@ def create_plan_from_v2_data(v2_data: Dict, name: Optional[str] = None) -> plan.
     return my_plan
 
 
-def create_plan_from_v1_data(v1_data: Dict, file_name: str) -> plan.Plan:
+def create_plan_from_v1_data(v1_data: Dict, name: str) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the specified dictionary
     The function uses the version 1 of the blueprint data format.
     Note: only 1 floor per apartment
-    :param file_name:
+    :param name: name for the plan
     :param v1_data:
     :return:
     """
-    my_plan = plan.Plan(file_name)
+    my_plan = plan.Plan(name)
 
     apartment = v1_data["apartment"]
 
@@ -379,10 +389,9 @@ def create_specification_from_data(input_data: dict,
     Creates a specification object from a dict
     The model is in the form:
     {
-      "setup": [
+      "rooms": [
         {
-          "type": "entrance",
-          "variant": "s",
+          "type": "circulation",
           "requiredArea": {
             "min": 25000,
             "max": 50000
@@ -399,16 +408,18 @@ def create_specification_from_data(input_data: dict,
     }
     """
     specification = Specification(spec_name)
-    for item in input_data["setup"]:
+    for item in input_data["rooms"]:
         _category = item["type"]
         if _category not in SPACE_CATEGORIES:
             raise ValueError("Space type not present in space categories: {0}".format(_category))
         required_area = item["requiredArea"]
         size_min = Size(area=required_area["min"])
         size_max = Size(area=required_area["max"])
-        variant = item["variant"]
+        variant = "m"
         opens_on = []
         linked_to = []
+        if "variant" in list(item.keys()):
+            variant = item["variant"]
         if "opensOn" in list(item.keys()):
             opens_on = item["opensOn"]
         if "linkedTo" in list(item.keys()):
@@ -426,7 +437,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101_setup0.json"
+        input_file = "011_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -436,7 +447,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "grenoble_101.json"
+        input_file = "011.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)

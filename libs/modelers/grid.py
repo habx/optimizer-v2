@@ -297,8 +297,8 @@ window_grid = Grid("window", [
 ])
 
 duct_grid = Grid("duct", [
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180, padding=60), True),
-    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100, padding=60), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100), True),
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
     (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
@@ -361,7 +361,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("Levallois_A3-006.json")
+        plan = reader.create_plan_from_file("030.json")
         plan.check()
         new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
         new_plan.check()

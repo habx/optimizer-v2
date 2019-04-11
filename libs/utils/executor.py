@@ -4,17 +4,16 @@ module used to run optimizer
 """
 
 import logging
-from typing import List, Optional, Dict
+from typing import List, Dict
 import time
 import json
 
 from libs.io import reader
 from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
-from libs.modelers.seed import Seeder, GROWTH_METHODS
-from libs.operators.selector import SELECTORS
+from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
-from libs.space_planner.space_planner import SpacePlanner, SQM
+from libs.space_planner.space_planner import SpacePlanner
 from libs.version import VERSION as OPTIMIZER_VERSION
 
 
@@ -51,8 +50,10 @@ class ExecParams:
             params = {}
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
+        self.seeder_type = params.get('seeder_type', "simple_seeder")
         self.do_plot = params.get('do_plot', False)
-        self.shuffle_type = params.get('shuffle_type', 'square_shape_shuffle_rooms')
+        self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
+        self.do_shuffle = params.get('do_shuffle', False)
 
 
 class Executor:
@@ -64,8 +65,8 @@ class Executor:
     """Current version"""
 
     def run_from_file_names(self,
-                            lot_file_name: str = "grenoble_101.json",
-                            setup_file_name: str = "grenoble_101_setup0.json",
+                            lot_file_name: str = "011.json",
+                            setup_file_name: str = "011_setup0.json",
                             params: dict = None) -> Response:
         """
         Run Optimizer from file names.
@@ -74,8 +75,7 @@ class Executor:
         :param params: Execution parameters
         :return: optimizer response
         """
-        lot = reader.get_json_from_file(lot_file_name,
-                                        reader.DEFAULT_BLUEPRINT_INPUT_FOLDER)
+        lot = reader.get_json_from_file(lot_file_name)
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
 
@@ -101,30 +101,22 @@ class Executor:
         # reading lot
         logging.info("Read lot")
         t0_reader = time.process_time()
-        plan = reader.create_plan_from_v2_data(lot["v2"])
+        plan = reader.create_plan_from_data(lot)
         elapsed_times["reader"] = time.process_time() - t0_reader
         logging.info("Lot read in %f", elapsed_times["reader"])
 
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
-        GRIDS[params.grid_type].apply_to(plan, show=params.do_plot)
+        GRIDS[params.grid_type].apply_to(plan)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
         # seeder
         logging.info("Seeder")
         t0_seeder = time.process_time()
-        seeder = Seeder(plan, GROWTH_METHODS).add_condition(SELECTORS['seed_duct'], 'duct')
-        if params.do_plot:
-            plan.plot()
-        (seeder.plant()
-         .grow(show=params.do_plot)
-         .divide_along_seed_borders(SELECTORS["not_aligned_edges"])
-         .from_space_empty_to_seed()
-         .merge_small_cells(min_cell_area=1 * SQM,
-                            excluded_components=["loadBearingWall"],
-                            show=params.do_plot))
+        SEEDERS[params.seeder_type].apply_to(plan)
+
         if params.do_plot:
             plan.plot()
         elapsed_times["seeder"] = time.process_time() - t0_seeder
@@ -144,34 +136,35 @@ class Executor:
         t0_space_planner = time.process_time()
         logging.info("Space planner")
         space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research(show=False)
+        best_solutions = space_planner.solution_research()
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
         # shuffle
         t0_shuffle = time.process_time()
-        logging.info("Shuffle")
-        if best_solutions:
-            for sol in best_solutions:
-                SHUFFLES[params.shuffle_type].run(sol.plan, show=params.do_plot)
-                if params.do_plot:
-                    sol.plan.plot()
+        if params.do_shuffle:
+            logging.info("Shuffle")
+            if best_solutions:
+                for sol in best_solutions:
+                    SHUFFLES[params.shuffle_type].apply_to(sol.plan)
+                    if params.do_plot:
+                        sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
 
         # output
         t0_output = time.process_time()
         logging.info("Output")
-        solutions = [generate_output_dict(lot["v2"], sol) for sol in best_solutions]
+        solutions = [generate_output_dict(lot, sol) for sol in best_solutions]
         elapsed_times["output"] = time.process_time() - t0_output
         logging.info("Output written in %f", elapsed_times["output"])
 
         elapsed_times["total"] = time.process_time() - t0_total
-        elapsed_times["total_real"] = time.time() - t0_total_real
+        elapsed_times["totalReal"] = time.time() - t0_total_real
         logging.info("Run complete in %f (process time), %f (real time)",
                      elapsed_times["total"],
-                     elapsed_times["total_real"])
+                     elapsed_times["totalReal"])
 
         return Response(solutions, elapsed_times)
 
@@ -184,8 +177,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Executor()
         response = executor.run_from_file_names(
-            "grenoble_102.json",
-            "grenoble_102_setup0.json",
+            "012.json",
+            "012_setup0.json",
             {
                 "grid_type": "optimal_grid",
                 "do_plot": False,

@@ -67,7 +67,7 @@ class Specification:
         """
         apartment_type = 1
         for item in self.items:
-            if item.category.name in ['bedroom', 'office']:
+            if item.category.name in ['bedroom', 'study']:
                 apartment_type += 1
         return apartment_type
 
@@ -99,7 +99,7 @@ class Item:
 
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
-                 opens_on: Optional[List['str']] = None, linked_to: Optional[List['str']] = None):
+                 opens_on: Optional[List['str']] = [], linked_to: Optional[List['str']] = []):
         self.category = category
         self.variant = variant
         self.min_size = min_size

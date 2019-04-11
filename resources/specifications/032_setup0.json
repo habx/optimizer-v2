@@ -1,0 +1,118 @@
+{
+  "rooms": [
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 60000,
+        "min": 25000.0
+      },
+      "tags": [],
+      "type": "circulation",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 225000.0,
+        "min": 200000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 80000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "study",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "study",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 150000,
+        "min": 120000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 150000,
+        "min": 120000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000.0,
+        "min": 60000
+      },
+      "tags": [
+        "toilet"
+      ],
+      "type": "bathroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000.0,
+        "min": 60000
+      },
+      "tags": [
+        "toilet"
+      ],
+      "type": "bathroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "tags": [],
+      "type": "laundry",
+      "variant": "s"
+    }
+  ]
+}
