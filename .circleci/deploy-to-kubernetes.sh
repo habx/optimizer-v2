@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-export CIRCLE_PROJECT_REPONAME=worker-optimizer-v2
+export CIRCLE_PROJECT_REPONAME=worker-optimizer
 export PLUGIN_REPO=724009402066.dkr.ecr.eu-west-1.amazonaws.com/${CIRCLE_PROJECT_REPONAME}
 export PLUGIN_CONTAINER=${CIRCLE_PROJECT_REPONAME}
 export PLUGIN_DEPLOYMENT=${CIRCLE_PROJECT_REPONAME}
