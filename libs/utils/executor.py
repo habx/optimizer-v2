@@ -1,11 +1,13 @@
 import cProfile
 import logging
 import os
+import pstats
 import signal  # for Timeout
 import tracemalloc
 from typing import List
 
 import libs.optimizer as opt
+import libs.io.plot as plt
 
 """
 The (new) Executor allows to chain execution wrappers directly in the execution stack so that each
@@ -50,6 +52,9 @@ class OptimizerRun(ExecWrapper):
 
     def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
             -> opt.Response:
+        output_path = local_params.get('outputDir')
+        if output_path:
+            plt.output_path = output_path
         return self.OPTIMIZER.run(lot, setup, params, local_params)
 
     @staticmethod
@@ -118,6 +123,11 @@ class CpuProfile(ExecWrapper):
     def _after(self):
         self.cpu_prof.disable()
         self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cpu_profile.prof"))
+        with open(os.path.join(self.output_dir, 'cpu_profile.txt'), 'w') as fp:
+            stats = pstats.Stats(self.cpu_prof, stream=fp)
+            stats.strip_dirs()
+            stats.sort_stats('cumulative')
+            stats.print_stats()
         self.cpu_prof = None
 
     @staticmethod
