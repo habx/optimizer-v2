@@ -76,7 +76,11 @@ workflows:
   version: 2
   ci-process:
     jobs:
-      - get-build-infos
+      - get-build-infos:
+          filters:
+            tags:
+              only: /^v.*/
+
       - tests:
           filters:
             tags:
