@@ -2816,6 +2816,16 @@ class Mesh:
         self._counter += 1
         return self._counter
 
+    def _reset_counter(self):
+        """
+        Reset the id counter to a proper value. Needed when deserializing a mesh.
+        :return:
+        """
+        vertices_id = set(self._vertices.keys())
+        faces_id = set(self._faces.keys())
+        edges_id = set(self._edges.keys())
+        self._counter = max(vertices_id | faces_id | edges_id)
+
     @property
     def components_id(self) -> Generator[int, None, None]:
         """
@@ -2904,6 +2914,8 @@ class Mesh:
         if value["edge"]:
             edge_id = int(value["edge"])
             self.boundary_edge = self.get_edge(edge_id)
+
+        self._reset_counter()
 
         return self
 
