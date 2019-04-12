@@ -4,7 +4,7 @@ import os
 import pstats  # for CProfile
 import signal  # for Timeout
 import tracemalloc  # for TraceMalloc
-from typing import List
+from typing import List, Optional
 
 import pprofile  # for PProfile
 import pyinstrument
@@ -22,10 +22,9 @@ class ExecWrapper:
     """Base class that defines how an ExecWrapper works."""
 
     def __init__(self):
-        self.next: ExecWrapper = None
+        self.next: Optional[ExecWrapper] = None
 
-    def run(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
-            -> opt.Response:
+    def run(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
         """
         Execution method
         :param lot: Blueprint to work one
@@ -47,8 +46,7 @@ class ExecWrapper:
     def _after(self):
         pass
 
-    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
-            -> opt.Response:
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
         return self.next.run(lot, setup, params, local_params) if self.next else None
 
     @staticmethod
@@ -62,8 +60,7 @@ class OptimizerRun(ExecWrapper):
     """
     OPTIMIZER = opt.Optimizer()
 
-    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
-            -> opt.Response:
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
         output_path = local_params.get('output_dir')
         if output_path:
             plt.output_path = output_path
@@ -81,7 +78,7 @@ class Crasher(ExecWrapper):
     Crashing the execution if a "crash" parameter is specified
     """
 
-    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
         raise Exception("Crashing !")
 
     @staticmethod
@@ -110,7 +107,7 @@ class Timeout(ExecWrapper):
     def _after(self):
         signal.alarm(0)
 
-    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
         super()._exec(lot, setup, params, local_params)
 
     @staticmethod
@@ -124,7 +121,7 @@ class PProfile(ExecWrapper):
         super().__init__()
         self.output_dir = output_dir
 
-    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
         prof = pprofile.Profile()
         with prof:
             res = super()._exec(lot, setup, params, local_params)
@@ -294,8 +291,7 @@ class Executor:
     EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, PProfile,
                                         PyInstrument, TraceMalloc, LoggingToFile, LoggingLevel, ]
 
-    def run(self, lot: dict, setup: dict, params: dict = None,
-            local_params: dict = None) -> opt.Response:
+    def run(self, lot: dict, setup: dict, params: dict, local_params: Optional[dict] = None) -> opt.Response:
         if local_params is None:
             local_params = {}
         first_exec = self.create_exec_wrappers(params, local_params)
