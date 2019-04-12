@@ -151,7 +151,7 @@ class Space(PlanComponent):
         return self
 
     def __repr__(self):
-        output = 'Space: ' + self.category.name + ' - ' + str(id(self))
+        output = 'Space: {} - id:{}'.format(self.category.name, self.id)
         return output
 
     def clone(self, plan: 'Plan') -> 'Space':
@@ -2101,6 +2101,16 @@ class Plan:
         self._counter += 1
         return self._counter
 
+    def _reset_counter(self):
+        """
+        Reset the id counter to a proper value. Needed when deserializing a plan.
+        :return:
+        """
+        spaces_id = set(map(lambda s: s.id, self.spaces))
+        linears_id = set(map(lambda l: l.id, self.linears))
+        floors_id = set(map(lambda f: f.id, self.floors.values()))
+        self._counter = max(spaces_id | linears_id | floors_id)
+
     def clear(self):
         """
         Clears the data of the plan
@@ -2149,6 +2159,8 @@ class Plan:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             Linear(self, floor, _id=linear["id"]).deserialize(linear)
+
+        self._reset_counter()
 
         return self
 
@@ -2250,6 +2262,7 @@ class Plan:
         new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
         new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
+        new_plan._counter = self._counter
 
         return new_plan
 
@@ -2285,6 +2298,14 @@ class Plan:
             new_floor.id = self.get_id()
 
         self.floors[new_floor.id] = new_floor
+
+    def get_floor_from_id(self, _id: int) -> Optional['Floor']:
+        """
+        Returns the floor with the specified id. Returns None if no floor is found.
+        :param _id:
+        :return:
+        """
+        return self.floors.get(_id, None)
 
     @property
     def floor_count(self) -> int:
