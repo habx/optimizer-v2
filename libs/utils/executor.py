@@ -107,9 +107,9 @@ class Timeout(ExecWrapper):
         return Timeout(timeout) if timeout > 0 else None
 
 
-class CpuProfile(ExecWrapper):
+class CProfile(ExecWrapper):
     """
-    Enabling CPU profiling if the "cpuProfile" parameter is specified
+    Enabling CPU profiling if the "c_profile" parameter is specified
     """
 
     def __init__(self, output_dir):
@@ -122,8 +122,8 @@ class CpuProfile(ExecWrapper):
 
     def _after(self):
         self.cpu_prof.disable()
-        self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cpu_profile.prof"))
-        with open(os.path.join(self.output_dir, 'cpu_profile.txt'), 'w') as fp:
+        self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cProfile.prof"))
+        with open(os.path.join(self.output_dir, 'cProfile.txt'), 'w') as fp:
             stats = pstats.Stats(self.cpu_prof, stream=fp)
             stats.strip_dirs()
             stats.sort_stats('cumulative')
@@ -132,8 +132,8 @@ class CpuProfile(ExecWrapper):
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
-        if params.get('cpu_profile', False):
-            return CpuProfile(local_params['output_dir'])
+        if params.get('c_profile', False):
+            return CProfile(local_params['output_dir'])
         return None
 
 
@@ -237,7 +237,7 @@ class LoggingLevel(ExecWrapper):
 class Executor:
     VERSION = opt.OPTIMIZER_VERSION
 
-    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CpuProfile, TraceMalloc,
+    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, TraceMalloc,
                                         LoggingToFile, LoggingLevel, ]
 
     def run(self, lot: dict, setup: dict, params: dict = None,
