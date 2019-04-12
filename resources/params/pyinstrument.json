@@ -1,0 +1,4 @@
+{
+  "pyinstrument": true,
+  "logging_level": "debug"
+}

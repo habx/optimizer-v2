@@ -1,13 +1,16 @@
-import cProfile  # for CpuProfile
+import cProfile  # for CProfile
 import logging  # for LoggingLevel and LoggingToFile
 import os
-import pstats  # for CpuProfile
+import pstats  # for CProfile
 import signal  # for Timeout
 import tracemalloc  # for TraceMalloc
 from typing import List
 
-import libs.optimizer as opt
+import pprofile  # for PProfile
+import pyinstrument
+
 import libs.io.plot as plt
+import libs.optimizer as opt
 
 """
 The (new) Executor allows to chain execution wrappers directly in the execution stack so that each
@@ -23,6 +26,15 @@ class ExecWrapper:
 
     def run(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None) \
             -> opt.Response:
+        """
+        Execution method
+        :param lot: Blueprint to work one
+        :param setup: Setup to use
+        :param params: Parameters that will define how optimizer behave
+        :param local_params: Parameters that are specific to the local environment (and don't change
+                             the optimizer behavior)
+        :return: The optimizer response
+        """
         self._before()
         try:
             return self._exec(lot, setup, params, local_params)
@@ -104,7 +116,49 @@ class Timeout(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
         timeout = int(params.get('timeout', '0'))
-        return Timeout(timeout) if timeout > 0 else None
+        return __class__(timeout) if timeout > 0 else None
+
+
+class PProfile(ExecWrapper):
+    def __init__(self, output_dir):
+        super().__init__()
+        self.output_dir = output_dir
+
+    def _exec(self, lot: dict, setup: dict, params: dict = None, local_params: dict = None):
+        prof = pprofile.Profile()
+        with prof:
+            res = super()._exec(lot, setup, params, local_params)
+        prof.dump_stats(os.path.join(self.output_dir, 'pprofile_stats.out'))
+        return res
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('pprofile', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class PyInstrument(ExecWrapper):
+    def __init__(self, output_dir: str):
+        super().__init__()
+        self.output_dir = output_dir
+        self.profiler = pyinstrument.Profiler()
+
+    def _before(self):
+        self.profiler.start()
+
+    def _after(self):
+        self.profiler.stop()
+        with open(os.path.join(self.output_dir, 'pyinstrument.html'), 'w') as fp:
+            fp.write(self.profiler.output_html())
+        with open(os.path.join(self.output_dir, 'pyinstrument.txt'), 'w') as fp:
+            fp.write(self.profiler.output_text())
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('pyinstrument', False):
+            return __class__(local_params['output_dir'])
+        return None
 
 
 class CProfile(ExecWrapper):
@@ -133,7 +187,7 @@ class CProfile(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
         if params.get('c_profile', False):
-            return CProfile(local_params['output_dir'])
+            return __class__(local_params['output_dir'])
         return None
 
 
@@ -160,7 +214,7 @@ class TraceMalloc(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
         if params.get('tracemalloc', False):
-            return TraceMalloc(local_params['output_dir'])
+            return __class__(local_params['output_dir'])
         return None
 
 
@@ -198,7 +252,7 @@ class LoggingToFile(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
         if not params.get('skip_file_logging', False):
-            return LoggingToFile(local_params['output_dir'])
+            return __class__(local_params['output_dir'])
         return None
 
 
@@ -230,15 +284,15 @@ class LoggingLevel(ExecWrapper):
     @staticmethod
     def instantiate(params: dict, local_params: dict):
         if params.get('logging_level'):
-            return LoggingLevel(LoggingLevel.LOGGING_LEVEL_CONV[params['logging_level']])
+            return __class__(LoggingLevel.LOGGING_LEVEL_CONV[params['logging_level']])
         return None
 
 
 class Executor:
     VERSION = opt.OPTIMIZER_VERSION
 
-    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, TraceMalloc,
-                                        LoggingToFile, LoggingLevel, ]
+    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, PProfile,
+                                        PyInstrument, TraceMalloc, LoggingToFile, LoggingLevel, ]
 
     def run(self, lot: dict, setup: dict, params: dict = None,
             local_params: dict = None) -> opt.Response:
@@ -252,7 +306,7 @@ class Executor:
         Prepare the chain of ExecWrappers
         :param params: Params to use
         :param local_params Local parameters to use
-        :return: Chain of ExecWrappers
+        :return: First element of the chain of ExecWrappers
         """
 
         # We create instances of ExecWrappers
