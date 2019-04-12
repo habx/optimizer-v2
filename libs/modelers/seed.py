@@ -219,9 +219,11 @@ class Seeder:
         if not self._merge_seeds(seed_edge, component):
             new_seed = Seed(self, seed_edge, component)
             self.seeds.append(new_seed)
+            # initialize first face
+            modified_spaces = new_seed.create_seed_space()
             if show:
-                self.plot.update([new_seed.space, space])
                 self.plot.draw_seeds_points(self)
+                self.plot.update(modified_spaces)
 
     def _space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
         """
@@ -297,8 +299,6 @@ class Seed:
         self._number_of_pass = 0
         self.max_size = self.get_components_max_size()
         self.max_size_constraint = self.create_max_size_constraint()
-        # initialize first face
-        self._create_seed_space()
 
     def __repr__(self):
         if self.space is not None:
@@ -418,7 +418,7 @@ class Seed:
             return None
         return self.growth_methods[0].actions[self._growth_action_index]
 
-    def _create_seed_space(self) -> ['Space']:
+    def create_seed_space(self) -> ['Space']:
         """
         Creates the initial seed space
         Returns the modified spaces
