@@ -46,7 +46,6 @@ def _cli():
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input params file path")
     parser.add_argument("-o", dest="output", required=True,
-                        type=lambda x: _exists_path(parser, x, False),
                         help="the output solutions dir")
     parser.add_argument("-g", dest="grid", required=False,
                         help="grid type", default="optimal_grid")
@@ -60,6 +59,9 @@ def _cli():
     setup_path = args.setup
     params_path = args.params
     output_dir = args.output
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # run
     logging.getLogger().setLevel(logging.INFO)
@@ -80,7 +82,12 @@ def _cli():
     if args.plot:
         params['do_plot'] = True
 
-    response = executor.run(lot, setup, params)
+    local_params = {}
+
+    if output_dir:
+        local_params['output_dir'] = output_dir
+
+    response = executor.run(lot, setup, params, local_params)
 
     meta = {
         "times": response.elapsed_times

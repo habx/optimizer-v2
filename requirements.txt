@@ -10,6 +10,10 @@ networkx==2.2
 #          mostly because protobuf install doesn't respect the virtualenv.
 git+https://habxtech:57cd73fc9c2e8535cf897e45538a13eb4bc9017b@github.com/habx/lib-py-logger.git@v1.0.0#egg=habx_logger
 
+# For code analysis:
+pprofile
+pyinstrument
+
 # For the worker:
 boto3
 
