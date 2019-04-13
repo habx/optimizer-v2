@@ -47,6 +47,8 @@ LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 40
+SEARCH_TIME_LIMIT = 1800000  # millisecond
+SEARCH_SOLUTIONS_LIMIT = 1000
 
 
 class ConstraintSolver:
@@ -127,17 +129,15 @@ class ConstraintSolver:
         search and solution
         :return: None
         """
-        t0 = time.clock()
-        # Decision builder
-        db = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
+        t0 = time.process_time()
+        decision_builder = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
                                self.solver.ASSIGN_MIN_VALUE)
-        self.solver.NewSearch(db)
+        time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
+        solution_limit = self.solver.SolutionsLimit(SEARCH_SOLUTIONS_LIMIT)
+        self.solver.NewSearch(decision_builder, time_limit, solution_limit)
 
         connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
 
-        # Maximum number of solutions
-        max_num_sol = 1000
-        nbr_solutions = 0
         # noinspection PyArgumentList
         while self.solver.NextSolution():
             sol_positions = []
@@ -150,21 +150,22 @@ class ConstraintSolver:
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)
-
-                # Number of solutions
-                nbr_solutions += 1
-                if nbr_solutions >= max_num_sol or (time.clock() - t0 - 600) >= 0:
+                if (time.clock() - t0 - 600) >= 0:
+                    logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
                     break
 
         # noinspection PyArgumentList
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        logging.debug("ConstraintSolver: num_solutions: %i", nbr_solutions)
-        logging.debug("ConstraintSolver: failures: %i", self.solver.Failures())
-        logging.debug("ConstraintSolver: branches:  %i", self.solver.Branches())
-        # logging.debug("ConstraintSolver: WallTime:  %i", self.solver.WallTime())
-        logging.debug("ConstraintSolver: Process time : %f", time.clock() - t0)
+        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
+        logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
+        logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
+        if len(self.solutions) == SEARCH_SOLUTIONS_LIMIT:
+            logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d", len(self.solutions))
+        if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
+            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
 
 
 def adjacency_matrix_to_graph(matrix):
