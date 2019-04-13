@@ -187,7 +187,6 @@ class Exchanger:
         )
         messages = sqs_response.get('Messages')
         if not messages:
-            logging.info("   ...no result")
             return
         # Fetching the first (and sole) SQS message
         sqs_message = messages[0]
@@ -277,8 +276,9 @@ class MessageProcessor:
                     },
                 }
 
-                # Timeout is a special kind of result
-                if type(e) == TimeoutError:
+                # Timeout is a special kind of error, we still want the stacktrace like any other
+                # error.
+                if isinstance(e, TimeoutError):
                     result['data']['status'] = 'timeout'
 
             if result:
