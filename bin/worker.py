@@ -256,7 +256,7 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
-            self._process_message_before(msg)
+            self._process_message_before()
 
             # We calculate the overall time just in case we face a crash
             before_time = time.time()
@@ -349,7 +349,7 @@ class MessageProcessor:
             logging.info("Deleting file \"%s\"", f)
             os.remove(f)
 
-    def _process_message_before(self, msg: Message):
+    def _process_message_before(self):
         self._cleanup_output_dir()
 
     def _process_message_after(self, msg: Message):
