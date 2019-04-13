@@ -11,8 +11,7 @@ import traceback
 import uuid
 import tempfile
 import time
-import cProfile
-import tracemalloc
+import sentry_sdk
 from typing import Optional, List
 
 import boto3
@@ -20,6 +19,12 @@ import boto3
 import libpath
 
 from libs.utils.executor import Executor
+
+# Initializing sentry at the earliest stage to detect any issue that might happen later
+sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
+    'environment': os.getenv('HABX_ENV', 'local'),
+    'release': Executor.VERSION,
+})
 
 
 class Config:
@@ -182,7 +187,6 @@ class Exchanger:
         )
         messages = sqs_response.get('Messages')
         if not messages:
-            logging.info("   ...no result")
             return
         # Fetching the first (and sole) SQS message
         sqs_message = messages[0]
@@ -252,15 +256,15 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
-            self._process_message_before(msg)
+            self._process_message_before()
 
             # We calculate the overall time just in case we face a crash
             before_time = time.time()
 
             try:
                 result = self._process_message(msg)
-            except Exception:
-                logging.exception("Problem handing message: %s", msg.content)
+            except Exception as e:
+                logging.exception("Problem handing message", msg.content)
                 result = {
                     'type': 'optimizer-processing-result',
                     'data': {
@@ -271,6 +275,11 @@ class MessageProcessor:
                         },
                     },
                 }
+
+                # Timeout is a special kind of error, we still want the stacktrace like any other
+                # error.
+                if isinstance(e, TimeoutError):
+                    result['data']['status'] = 'timeout'
 
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
@@ -340,63 +349,10 @@ class MessageProcessor:
             logging.info("Deleting file \"%s\"", f)
             os.remove(f)
 
-    def _logging_to_file_before(self):
-        self._logging_to_file_after()
-        logger = logging.getLogger("")
-        log_file = os.path.join(self.output_dir, 'output.log')
-        logging.info("Writing logs to %s", log_file)
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter(
-            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
-        )
-        handler.setFormatter(formatter)
-
-        # Adding the new handler
-        self.log_handler = handler
-        logger.addHandler(handler)
-
-    def _logging_to_file_after(self):
-        # Removing the previous handler
-        if self.log_handler:
-            self.log_handler.close()
-            logger = logging.getLogger("")
-            logger.removeHandler(self.log_handler)
-            self.log_handler = None
-
-    def _process_message_before(self, msg: Message):
+    def _process_message_before(self):
         self._cleanup_output_dir()
-        self._logging_to_file_before()
-
-        params = msg.content.get('data', {}).get('params')
-
-        # CPU Profiling start
-        if params.get('cpu_profile'):
-            self.cpu_prof = cProfile.Profile()
-            self.cpu_prof.enable()
-
-        # Memory analysis start
-        if params.get('tracemalloc'):
-            tracemalloc.start()
 
     def _process_message_after(self, msg: Message):
-        params = msg.content.get('data', {}).get('params')
-
-        # CPU profiling stop
-        if params.get('cpu_profile'):
-            self.cpu_prof.disable()
-            self.cpu_prof.dump_stats(os.path.join(self.output_dir, "profile.prof"))
-            self.cpu_prof = None
-
-        if params.get('tracemalloc'):
-            snapshot = tracemalloc.take_snapshot()
-            top_stats = snapshot.statistics('lineno')
-
-            with open(os.path.join(self.output_dir, 'mem_stats.txt'), 'w') as f:
-                for stat in top_stats[:40]:
-                    f.write("%s\n" % stat)
-
-        self._logging_to_file_after()
-
         self._save_output_files(msg.content.get('requestId'))
 
     def _process_message(self, msg: Message) -> Optional[dict]:
@@ -426,12 +382,12 @@ class MessageProcessor:
             )
             return None
 
-        # We can get an explicit crash request
-        if params.get('crash', False):
-            raise Exception('You asked me to crash !')
+        local_params = {
+            'output_dir': self.output_dir,
+        }
 
         # Processing it
-        executor_result = self.executor.run(lot, setup, params)
+        executor_result = self.executor.run(lot, setup, params, local_params)
         result = {
             'type': 'optimizer-processing-result',
             'data': {
