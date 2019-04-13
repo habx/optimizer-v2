@@ -11,6 +11,7 @@ import traceback
 import uuid
 import tempfile
 import time
+import sentry_sdk
 from typing import Optional, List
 
 import boto3
@@ -18,6 +19,12 @@ import boto3
 import libpath
 
 from libs.utils.executor import Executor
+
+# Initializing sentry at the earliest stage to detect any issue that might happen later
+sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
+    'environment': os.getenv('HABX_ENV', 'local'),
+    'release': Executor.VERSION,
+})
 
 
 class Config:
@@ -257,8 +264,8 @@ class MessageProcessor:
 
             try:
                 result = self._process_message(msg)
-            except Exception:
-                logging.exception("Problem handing message: %s", msg.content)
+            except Exception as e:
+                logging.exception("Problem handing message", msg.content)
                 result = {
                     'type': 'optimizer-processing-result',
                     'data': {
@@ -269,6 +276,10 @@ class MessageProcessor:
                         },
                     },
                 }
+
+                # Timeout is a special kind of result
+                if type(e) == TimeoutError:
+                    result['data']['status'] = 'timeout'
 
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
