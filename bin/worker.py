@@ -11,6 +11,7 @@ import traceback
 import uuid
 import tempfile
 import time
+import sentry_sdk
 from typing import Optional, List
 
 import boto3
@@ -18,6 +19,12 @@ import boto3
 import libpath
 
 from libs.utils.executor import Executor
+
+# Initializing sentry at the earliest stage to detect any issue that might happen later
+sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
+    'environment': os.getenv('HABX_ENV', 'local'),
+    'release': Executor.VERSION,
+})
 
 
 class Config:
@@ -180,7 +187,6 @@ class Exchanger:
         )
         messages = sqs_response.get('Messages')
         if not messages:
-            logging.info("   ...no result")
             return
         # Fetching the first (and sole) SQS message
         sqs_message = messages[0]
@@ -250,15 +256,15 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
-            self._process_message_before(msg)
+            self._process_message_before()
 
             # We calculate the overall time just in case we face a crash
             before_time = time.time()
 
             try:
                 result = self._process_message(msg)
-            except Exception:
-                logging.exception("Problem handing message: %s", msg.content)
+            except Exception as e:
+                logging.exception("Problem handing message", msg.content)
                 result = {
                     'type': 'optimizer-processing-result',
                     'data': {
@@ -269,6 +275,11 @@ class MessageProcessor:
                         },
                     },
                 }
+
+                # Timeout is a special kind of error, we still want the stacktrace like any other
+                # error.
+                if isinstance(e, TimeoutError):
+                    result['data']['status'] = 'timeout'
 
             if result:
                 # OPT-74: The fields coming from the request are always added to the result
@@ -338,7 +349,7 @@ class MessageProcessor:
             logging.info("Deleting file \"%s\"", f)
             os.remove(f)
 
-    def _process_message_before(self, msg: Message):
+    def _process_message_before(self):
         self._cleanup_output_dir()
 
     def _process_message_after(self, msg: Message):
