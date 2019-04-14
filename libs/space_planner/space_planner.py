@@ -14,8 +14,6 @@ from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
-from libs.modelers.shuffle import SHUFFLES
-from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 import libs.io.writer as writer
 
 SQM = 10000
@@ -211,15 +209,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
-
     def space_planning():
         """
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "001.json"
-        t00 = time.clock()
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "001.json"
+        t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
         print("input_file", input_file, " - area : ", plan.indoor_area)
@@ -256,9 +253,9 @@ if __name__ == '__main__':
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
-        t0 = time.clock()
+        t0 = time.process_time()
         space_planner = SpacePlanner("test", spec)
-        logging.debug("space_planner time : %f", time.clock() - t0)
+        logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
         print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
         print("Setup AREA : %i", int(sum(item.required_area for item in space_planner.spec.items)))
@@ -269,11 +266,11 @@ if __name__ == '__main__':
         plan_ratio = round(space_planner.spec.plan.indoor_perimeter
                            ** 2 / space_planner.spec.plan.indoor_area)
         print("PLAN Ratio : %i", plan_ratio)
-        print("space_planner time : ", time.clock() - t0)
-        t1 = time.clock()
+        print("space_planner time : ", time.process_time() - t0)
+        t1 = time.process_time()
         best_solutions = space_planner.solution_research()
-        print("solution_research time : ", time.clock() - t1)
-        logging.debug("solution_research time: %f", time.clock() - t1)
+        print("solution_research time : ", time.process_time() - t1)
+        logging.debug("solution_research time: %f", time.process_time() - t1)
         logging.debug(best_solutions)
 
         # Output
@@ -283,7 +280,7 @@ if __name__ == '__main__':
             for space in sol.plan.mutable_spaces():
                 print(space.category.name, " : ", space.area)
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-            writer.save_json_solution(solution_dict, sol.get_id)
+            writer.save_json_solution(solution_dict, sol.id)
 
         # shuffle
         # if best_solutions:
@@ -291,49 +288,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        # logging.info("total time : %f", time.clock() - t00)
-        print("total time :", time.clock() - t00)
-
-        # Tests ordre des variables de prog par contraintes
-        # category_name_list_test = ["entrance", "toilet", "bathroom", "laundry", "kitchen",
-        # "living", "bedroom", "dressing"] #,
-        # #"laundry", "dressing"]
-        # #spaces_list = list(spec.plan.spaces)
-        # best_name_list = None
-        # best_failures = 10e15
-        # best_branches = 10e15
-        # worst_name_list = None
-        # worst_failures = 0
-        # worst_branches = 0
-        # best_spaces_list = []
-        # import itertools
-        # perm_cat = list(itertools.permutations(category_name_list_test))
-        # #perm_spaces = list(itertools.permutations(spaces_list))
-        # print("nombre perm : ", len(perm_cat))
-        # for cat_list in perm_cat:
-        #     #spec.plan.spaces = spaces
-        #     spec.init_id(cat_list)
-        #     t0 = time.clock()
-        #     space_planner = SpacePlanner("test", spec)
-        #     print("space_planner time :", time.clock() - t0)
-        #     t1 = time.clock()
-        #     best_solutions = space_planner.solution_research()
-        #     print("solution_research time:", time.clock() - t1)
-        #     if space_planner.manager.solver.solver.Branches() < best_branches:
-        #         best_branches = space_planner.manager.solver.solver.Branches()
-        #         best_failures = space_planner.manager.solver.solver.Failures()
-        #         best_name_list = cat_list
-        #     if space_planner.manager.solver.solver.Branches() > worst_branches:
-        #         worst_branches = space_planner.manager.solver.solver.Branches()
-        #         worst_failures = space_planner.manager.solver.solver.Failures()
-        #         worst_name_list = cat_list
-        # print("BEST SOLUTION")
-        # print("best_name_list", best_name_list)
-        # print("best_failures", best_failures)
-        # print("best_branches", best_branches)
-        # print("worst_name_list", worst_name_list)
-        # print("worst_failures", worst_failures)
-        # print("worst_branches", worst_branches)
-
+        # logging.info("total time : %f", time.process_time() - t00)
+        print("total time :", time.process_time() - t00)
 
     space_planning()

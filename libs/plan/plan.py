@@ -151,7 +151,7 @@ class Space(PlanComponent):
         return self
 
     def __repr__(self):
-        output = 'Space: ' + self.category.name + ' - ' + str(id(self))
+        output = 'Space: {} - id:{}'.format(self.category.name, self.id)
         return output
 
     def clone(self, plan: 'Plan') -> 'Space':
@@ -161,7 +161,8 @@ class Space(PlanComponent):
         the edges and faces id list are shallow copied (as they only contain id).
         :return:
         """
-        new_space = Space(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_space = Space(plan, new_floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -215,7 +216,6 @@ class Space(PlanComponent):
         :return:
         """
         return face_id in self._faces_id and mesh_id == self.floor.mesh.id
-
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -1854,7 +1854,8 @@ class Linear(PlanComponent):
         Returns a copy of the linear
         :return:
         """
-        new_linear = Linear(plan, self.floor, category=self.category, _id=self.id)
+        new_floor = plan.floors[self.floor.id]
+        new_linear = Linear(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -2078,7 +2079,7 @@ class Plan:
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
-        self.floors = {}
+        self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
         # add a floor
         if mesh:
@@ -2099,6 +2100,16 @@ class Plan:
         """
         self._counter += 1
         return self._counter
+
+    def _reset_counter(self):
+        """
+        Reset the id counter to a proper value. Needed when deserializing a plan.
+        :return:
+        """
+        spaces_id = set(map(lambda s: s.id, self.spaces))
+        linears_id = set(map(lambda l: l.id, self.linears))
+        floors_id = set(map(lambda f: f.id, self.floors.values()))
+        self._counter = max(spaces_id | linears_id | floors_id)
 
     def clear(self):
         """
@@ -2149,6 +2160,8 @@ class Plan:
             floor = self.floors[floor_id]
             Linear(self, floor, _id=linear["id"]).deserialize(linear)
 
+        self._reset_counter()
+
         return self
 
     def _watcher(self, modifications, mesh_id: uuid.UUID):
@@ -2196,8 +2209,8 @@ class Plan:
         # add inserted edge to the linear of the receiving face
         for edge_add in inserted_edges:
             assert (edge_add[2][0] == MeshComponentType.EDGE), ("Plan: an insertion "
-                                                                 "op of an edge should indicate "
-                                                                 "the receiving edge")
+                                                                "op of an edge should indicate "
+                                                                "the receiving edge")
             linear = self.get_linear_from_edge_id(edge_add[2][1], mesh_id)
             if linear is not None:
                 logging.debug("Plan: Adding Edge to linear from mesh update %s", edge_add[1])
@@ -2249,6 +2262,7 @@ class Plan:
         new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
         new_plan.linears = [linear.clone(new_plan) for linear in self.linears]
+        new_plan._counter = self._counter
 
         return new_plan
 
@@ -2284,6 +2298,14 @@ class Plan:
             new_floor.id = self.get_id()
 
         self.floors[new_floor.id] = new_floor
+
+    def get_floor_from_id(self, _id: int) -> Optional['Floor']:
+        """
+        Returns the floor with the specified id. Returns None if no floor is found.
+        :param _id:
+        :return:
+        """
+        return self.floors.get(_id, None)
 
     @property
     def floor_count(self) -> int:
@@ -2331,7 +2353,7 @@ class Plan:
         """
         return (floor.level for floor in self.floors.values())
 
-    def get_mesh(self, floor_id: uuid.UUID) -> Optional['Mesh']:
+    def get_mesh(self, floor_id: int) -> Optional['Mesh']:
         """
         Returns the mesh of the floor_id
         :param floor_id:

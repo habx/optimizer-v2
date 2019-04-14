@@ -1,191 +1,321 @@
-# coding=utf-8
+import cProfile  # for CProfile
+import logging  # for LoggingLevel and LoggingToFile
+import os
+import pstats  # for CProfile
+import signal  # for Timeout
+import tracemalloc  # for TraceMalloc
+from typing import List, Optional
+
+import pprofile  # for PProfile
+import pyinstrument
+
+import libs.io.plot as plt
+import libs.optimizer as opt
+
 """
-module used to run optimizer
+The (new) Executor allows to chain execution wrappers directly in the execution stack so that each
+ExecWrapper can, if he wants to, apply treatments before and after the processing.
 """
 
-import logging
-from typing import List, Dict
-import time
-import json
 
-from libs.io import reader
-from libs.io.writer import generate_output_dict
-from libs.modelers.grid import GRIDS
-from libs.modelers.seed import SEEDERS
-from libs.modelers.shuffle import SHUFFLES
-from libs.space_planner.space_planner import SpacePlanner
-from libs.version import VERSION as OPTIMIZER_VERSION
+class ExecWrapper:
+    """Base class that defines how an ExecWrapper works."""
+
+    def __init__(self):
+        self.next: Optional[ExecWrapper] = None
+
+    def run(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
+        """
+        Execution method
+        :param lot: Blueprint to work one
+        :param setup: Setup to use
+        :param params: Parameters that will define how optimizer behave
+        :param local_params: Parameters that are specific to the local environment (and don't change
+                             the optimizer behavior)
+        :return: The optimizer response
+        """
+        self._before()
+        try:
+            return self._exec(lot, setup, params, local_params)
+        finally:
+            self._after()
+
+    def _before(self):
+        pass
+
+    def _after(self):
+        pass
+
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
+        return self.next.run(lot, setup, params, local_params) if self.next else None
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict):
+        return None
 
 
-class Response:
+class OptimizerRun(ExecWrapper):
     """
-    Response of an optimizer run. Contains solutions and all run data.
+    Running optimizer unless "skipOptimizer" is specified
+    """
+    OPTIMIZER = opt.Optimizer()
+
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
+        output_path = local_params.get('output_dir')
+        if output_path:
+            plt.output_path = output_path
+        return self.OPTIMIZER.run(lot, setup, params, local_params)
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('skip_optimizer', False):
+            return None
+        return OptimizerRun()
+
+
+class Crasher(ExecWrapper):
+    """
+    Crashing the execution if a "crash" parameter is specified
     """
 
-    def __init__(self,
-                 solutions: List[dict],
-                 elapsed_times: Dict[str, float]):
-        self.solutions = solutions
-        self.elapsed_times = elapsed_times
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
+        raise Exception("Crashing !")
 
-    @property
-    def as_dict(self) -> dict:
-        """
-        return all response data in a dict
-        """
-        return self.__dict__
-
-    def to_json_file(self, filepath) -> None:
-        """
-        save all response data in a json file
-        """
-        with open(filepath, "w") as output_file:
-            json.dump(self.as_dict, output_file, sort_keys=True, indent=2)
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get("crash", False):
+            return Crasher()
+        return None
 
 
-class ExecParams:
-    """Dict wrapper, mostly useful for auto-completion"""
-    def __init__(self, params):
-        if not params:
-            params = {}
+class Timeout(ExecWrapper):
+    """
+    Enabling a timeout timer if a "timeout" is specified
+    """
 
-        self.grid_type = params.get('grid_type', 'optimal_grid')
-        self.seeder_type = params.get('seeder_type', "simple_seeder")
-        self.do_plot = params.get('do_plot', False)
-        self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
-        self.do_shuffle = params.get('do_shuffle', False)
+    def throw_timeout(self, signum, frame):
+        raise TimeoutError("Processing timeout reached")
+
+    def __init__(self, timeout: int):
+        super().__init__()
+        self.timeout = timeout
+
+    def _before(self):
+        signal.signal(signal.SIGALRM, self.throw_timeout)
+        signal.alarm(self.timeout)
+
+    def _after(self):
+        signal.alarm(0)
+
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
+        super()._exec(lot, setup, params, local_params)
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        timeout = int(params.get('timeout', '0'))
+        return __class__(timeout) if timeout > 0 else None
+
+
+class PProfile(ExecWrapper):
+    def __init__(self, output_dir):
+        super().__init__()
+        self.output_dir = output_dir
+
+    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
+        prof = pprofile.Profile()
+        with prof:
+            res = super()._exec(lot, setup, params, local_params)
+        prof.dump_stats(os.path.join(self.output_dir, 'pprofile_stats.out'))
+        return res
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('pprofile', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class PyInstrument(ExecWrapper):
+    def __init__(self, output_dir: str):
+        super().__init__()
+        self.output_dir = output_dir
+        self.profiler = pyinstrument.Profiler()
+
+    def _before(self):
+        self.profiler.start()
+
+    def _after(self):
+        self.profiler.stop()
+        with open(os.path.join(self.output_dir, 'pyinstrument.html'), 'w') as fp:
+            fp.write(self.profiler.output_html())
+        with open(os.path.join(self.output_dir, 'pyinstrument.txt'), 'w') as fp:
+            fp.write(self.profiler.output_text())
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('pyinstrument', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class CProfile(ExecWrapper):
+    """
+    Enabling CPU profiling if the "c_profile" parameter is specified
+    """
+
+    def __init__(self, output_dir):
+        super().__init__()
+        self.output_dir = output_dir
+
+    def _before(self):
+        self.cpu_prof = cProfile.Profile()
+        self.cpu_prof.enable()
+
+    def _after(self):
+        self.cpu_prof.disable()
+        self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cProfile.prof"))
+        with open(os.path.join(self.output_dir, 'cProfile.txt'), 'w') as fp:
+            stats = pstats.Stats(self.cpu_prof, stream=fp)
+            stats.strip_dirs()
+            stats.sort_stats('cumulative')
+            stats.print_stats()
+        self.cpu_prof = None
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('c_profile', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class TraceMalloc(ExecWrapper):
+    """
+    Enabling malloc monitoring if "traceMalloc" is specified
+    """
+
+    def __init__(self, output_dir):
+        super().__init__()
+        self.output_dir = output_dir
+
+    def _before(self):
+        tracemalloc.start()
+
+    def _after(self):
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
+
+        with open(os.path.join(self.output_dir, 'mem_stats.txt'), 'w') as f:
+            for stat in top_stats[:40]:
+                f.write("%s\n" % stat)
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if params.get('tracemalloc', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class LoggingToFile(ExecWrapper):
+    """
+    Saving logs to files
+    """
+
+    def __init__(self, output_dir: str):
+        super().__init__()
+        self.output_dir = output_dir
+        self.log_handler: logging.FileHandler = None
+
+    def _before(self):
+        logger = logging.getLogger('')
+        log_file = os.path.join(self.output_dir, 'output.log')
+        logging.info("Writing logs to %s", log_file)
+        handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter(
+            "%(asctime)-15s | %(filename)15.15s:%(lineno)-4d | %(levelname).4s | %(message)s"
+        )
+        handler.setFormatter(formatter)
+        handler.setLevel(logger.level)
+
+        # Adding the new handler
+        self.log_handler = handler
+        logger.addHandler(handler)
+
+    def _after(self):
+        if self.log_handler:
+            self.log_handler.close()
+            logging.getLogger('').removeHandler(self.log_handler)
+            self.log_handler = None
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict = None):
+        if not params.get('skip_file_logging', False):
+            return __class__(local_params['output_dir'])
+        return None
+
+
+class LoggingLevel(ExecWrapper):
+    """
+    Changing the logging level when a "logging_level" is specified
+    """
+    LOGGING_LEVEL_CONV = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL,
+    }
+
+    def __init__(self, level: int):
+        super().__init__()
+        self.logging_level = level
+        self.previous_level: int = 0
+
+    def _before(self):
+        logger = logging.getLogger('')
+        self.previous_level = logger.level
+        logger.setLevel(self.logging_level)
+
+    def _after(self):
+        logging.getLogger('').setLevel(self.previous_level)
+
+    @staticmethod
+    def instantiate(params: dict, local_params: dict):
+        if params.get('logging_level'):
+            return __class__(LoggingLevel.LOGGING_LEVEL_CONV[params['logging_level']])
+        return None
 
 
 class Executor:
-    """
-    Class used to run Optimizer with defined parameters.
-    """
+    VERSION = opt.OPTIMIZER_VERSION
 
-    VERSION = OPTIMIZER_VERSION
-    """Current version"""
+    EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, PProfile,
+                                        PyInstrument, TraceMalloc, LoggingToFile, LoggingLevel, ]
 
-    def run_from_file_names(self,
-                            lot_file_name: str = "011.json",
-                            setup_file_name: str = "011_setup0.json",
-                            params: dict = None) -> Response:
+    def run(self, lot: dict, setup: dict, params: dict, local_params: Optional[dict] = None) -> opt.Response:
+        if local_params is None:
+            local_params = {}
+        first_exec = self.create_exec_wrappers(params, local_params)
+        return first_exec.run(lot, setup, params, local_params)
+
+    def create_exec_wrappers(self, params: dict = None, local_params: dict = None) -> ExecWrapper:
         """
-        Run Optimizer from file names.
-        :param lot_file_name: name of lot file, file has to be in resources/blueprints
-        :param setup_file_name: name of setup file, file has to be in resources/specifications
-        :param params: Execution parameters
-        :return: optimizer response
+        Prepare the chain of ExecWrappers
+        :param params: Params to use
+        :param local_params Local parameters to use
+        :return: First element of the chain of ExecWrappers
         """
-        lot = reader.get_json_from_file(lot_file_name)
-        setup = reader.get_json_from_file(setup_file_name,
-                                          reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
 
-        return self.run(lot, setup, params)
+        # We create instances of ExecWrappers
+        execs: List[ExecWrapper] = []
+        for eb in self.EXEC_BUILDERS:
+            e = eb.instantiate(params, local_params)
+            if e:
+                execs.append(e)
 
-    def run(self, lot: dict, setup: dict, params_dict: dict = None) -> Response:
-        """
-        Run Optimizer
-        :param lot: lot data
-        :param setup: setup data
-        :param params_dict: execution parameters
-        :return: optimizer response
-        """
-        assert "v2" in lot.keys(), "lot must contain v2 data"
+        # We chain them
+        previous = None
+        for e in execs:
+            e.next = previous
+            previous = e
 
-        params = ExecParams(params_dict)
-
-        # times
-        elapsed_times = {}
-        t0_total = time.process_time()
-        t0_total_real = time.time()
-
-        # reading lot
-        logging.info("Read lot")
-        t0_reader = time.process_time()
-        plan = reader.create_plan_from_data(lot)
-        elapsed_times["reader"] = time.process_time() - t0_reader
-        logging.info("Lot read in %f", elapsed_times["reader"])
-
-        # grid
-        logging.info("Grid")
-        t0_grid = time.process_time()
-        GRIDS[params.grid_type].apply_to(plan)
-        elapsed_times["grid"] = time.process_time() - t0_grid
-        logging.info("Grid achieved in %f", elapsed_times["grid"])
-
-        # seeder
-        logging.info("Seeder")
-        t0_seeder = time.process_time()
-        SEEDERS[params.seeder_type].apply_to(plan)
-
-        if params.do_plot:
-            plan.plot()
-        elapsed_times["seeder"] = time.process_time() - t0_seeder
-        logging.info("Seeder achieved in %f", elapsed_times["seeder"])
-
-        # reading setup
-        logging.info("Read setup")
-        t0_setup = time.process_time()
-        spec = reader.create_specification_from_data(setup)
-        logging.debug(spec)
-        spec.plan = plan
-        spec.plan.remove_null_spaces()
-        elapsed_times["setup"] = time.process_time() - t0_setup
-        logging.info("Setup read in %f", elapsed_times["setup"])
-
-        # space planner
-        t0_space_planner = time.process_time()
-        logging.info("Space planner")
-        space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
-        logging.debug(best_solutions)
-        elapsed_times["space planner"] = time.process_time() - t0_space_planner
-        logging.info("Space planner achieved in %f", elapsed_times["space planner"])
-
-        # shuffle
-        t0_shuffle = time.process_time()
-        if params.do_shuffle:
-            logging.info("Shuffle")
-            if best_solutions:
-                for sol in best_solutions:
-                    SHUFFLES[params.shuffle_type].apply_to(sol.plan)
-                    if params.do_plot:
-                        sol.plan.plot()
-        elapsed_times["shuffle"] = time.process_time() - t0_shuffle
-        logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
-
-        # output
-        t0_output = time.process_time()
-        logging.info("Output")
-        solutions = [generate_output_dict(lot, sol) for sol in best_solutions]
-        elapsed_times["output"] = time.process_time() - t0_output
-        logging.info("Output written in %f", elapsed_times["output"])
-
-        elapsed_times["total"] = time.process_time() - t0_total
-        elapsed_times["totalReal"] = time.time() - t0_total_real
-        logging.info("Run complete in %f (process time), %f (real time)",
-                     elapsed_times["total"],
-                     elapsed_times["totalReal"])
-
-        return Response(solutions, elapsed_times)
-
-
-if __name__ == '__main__':
-    def main():
-        """
-        Useful simple main
-        """
-        logging.getLogger().setLevel(logging.INFO)
-        executor = Executor()
-        response = executor.run_from_file_names(
-            "012.json",
-            "012_setup0.json",
-            {
-                "grid_type": "optimal_grid",
-                "do_plot": False,
-            }
-        )
-        logging.info("Time: %i", int(response.elapsed_times["total"]))
-        logging.info("Nb solutions: %i", len(response.solutions))
-
-
-    main()
+        return execs[len(execs) - 1]

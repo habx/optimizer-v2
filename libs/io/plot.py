@@ -236,7 +236,7 @@ class Plot:
         xy = space.as_sp.exterior.coords
         new_patch = Polygon(np.array(xy), color=color, alpha=0.3, ls='-', lw=2.0)
         ax.add_patch(new_patch)
-        self.space_figs[space.id] = new_patch
+        self.space_figs[(space.id, space.floor.id)] = new_patch
 
     def _draw_face(self, face, space: 'Space'):
         if face.edge is None:
@@ -245,7 +245,7 @@ class Plot:
         ax = self.get_ax(space.floor)
         xy = face.as_sp.exterior.xy
         new_line, = ax.plot(*xy, color=color, ls=':', lw=0.5)
-        self.face_figs[face.id] = new_line
+        self.face_figs[(face.id, space.floor.id)] = new_line
 
     def update_faces(self, spaces: List['Space']):
         """
@@ -260,7 +260,7 @@ class Plot:
 
         for space in spaces:
             for face in space.faces:
-                _id = face.id
+                _id = (face.id, space.floor.id)
                 xy = face.as_sp.exterior.xy if face.edge is not None else None
                 if _id not in self.face_figs:
                     if xy is None:
@@ -273,9 +273,10 @@ class Plot:
                         self.face_figs[_id].set_data(np.array(xy))
                         self.face_figs[_id].set_visible(True)
 
-        for face_id in self.face_figs:
-            if all(not floor.mesh.has_face(face_id) for floor in plan.floors.values()):
-                self.face_figs[face_id].set_visible(False)
+        for face_id, floor_id in self.face_figs:
+            floor = plan.get_floor_from_id(floor_id)
+            if not floor.mesh.has_face(face_id):
+                self.face_figs[(face_id, floor_id)].set_visible(False)
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
@@ -289,7 +290,7 @@ class Plot:
         for space in spaces:
             if space is None:
                 continue
-            _id = space.id
+            _id = space.id, space.floor.id
             xy = space.as_sp.exterior.coords if space.edge is not None else None
             if _id not in self.space_figs:
                 if xy is None:

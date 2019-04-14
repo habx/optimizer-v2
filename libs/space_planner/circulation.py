@@ -37,18 +37,8 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        path_min = None
-        cost_min = None
-        # tests all possible connections between both spaces
-        # TODO : that's brutal, any more clever way to connect two sub graphs
-        for edge1 in space1.edges:
-            for edge2 in space2.edges:
-                path, cost = graph.get_shortest_path(edge1, edge2)
-                if cost_min is None or cost < cost_min:
-                    cost_min = cost
-                    path_min = path
-
-        return path_min, cost_min
+        path, cost = graph.get_shortest_path(space1.edges, space2.edges)
+        return path, cost
 
     def multilevel_connection(self):
         """
@@ -192,9 +182,9 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        for i in range(number_of_floors):
-            _ax = ax[i]
-            paths = self.connecting_paths[i]
+        for f in range(number_of_floors):
+            _ax = ax[f]
+            paths = self.connecting_paths[f]
             for path in paths:
                 if len(path) == 1:
                     _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
@@ -219,7 +209,7 @@ class PathCalculator:
     between two spaces independant from the library used to build the graph
     """
 
-    def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'Dijkstar'):
+    def __init__(self, plan: Plan, cost_rules: Dict = None, graph_lib: str = 'networkx'):
         self.plan = plan
         self.graph_lib = graph_lib
         self.graph = None
@@ -241,14 +231,10 @@ class PathCalculator:
         :return:
         """
         self.graph = EdgeGraph(self.graph_lib)
-        graph = self.graph
-        graph.init()
 
         for space in self.plan.spaces:
             if space.mutable:
                 self._update(space)
-
-        graph.set_cost_function()
 
     def _update(self, space: Space):
         """
@@ -271,8 +257,6 @@ class PathCalculator:
                 vert1 = path[v]
                 vert2 = path[v + 1]
                 self.graph.add_edge_by_vert(vert1, vert2, 0)
-
-            self.graph.set_cost_function()
 
     def rule_type(self, edge: Edge, space: Space) -> str:
         """
@@ -316,14 +300,6 @@ class PathCalculator:
         cost += self.cost_rules[rule]
 
         return cost
-
-    def get_shortest_path(self, edge1: Edge, edge2: Edge) -> Tuple['List[Vertex]', float]:
-        """
-        get the shortest path between two edges
-        :return list of vertices on the path and cost of the path
-        """
-        graph = self.graph
-        return graph.get_shortest_path(self, edge1, edge2)
 
 
 COST_RULES = {
