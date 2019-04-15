@@ -74,12 +74,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 80000,
-        "min": 40000
+        "max": 20000,
+        "min": 10000
       },
       "tags": [],
       "type": "toilet",
-      "variant": "xl"
+      "variant": "s"
     },
     {
       "linkedTo": [],

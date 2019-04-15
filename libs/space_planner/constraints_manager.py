@@ -126,8 +126,7 @@ class ConstraintSolver:
         decision_builder = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
                                self.solver.ASSIGN_MIN_VALUE)
         time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
-        solution_limit = self.solver.SolutionsLimit(SEARCH_SOLUTIONS_LIMIT)
-        self.solver.NewSearch(decision_builder, time_limit, solution_limit)
+        self.solver.NewSearch(decision_builder, time_limit)
 
         connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
 
@@ -143,6 +142,8 @@ class ConstraintSolver:
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)
+                if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
+                    break
                 if (time.clock() - t0 - 600) >= 0:
                     logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
                     break
@@ -151,7 +152,7 @@ class ConstraintSolver:
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        print("ConstraintSolver: num_solutions: %d", len(self.solutions))
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
