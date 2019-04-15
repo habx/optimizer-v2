@@ -163,6 +163,8 @@ class EdgeGraph:
             try:
                 path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
             except nx.exception.NetworkXNoPath:
+                # TODO : for now, the only case where this exception is thrown is when a floor is
+                # cut into several parts by a load bearing wall.
                 logging.warning('Graph_nx-no path found')
                 return [], 0
             finally:
