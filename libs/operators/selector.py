@@ -1029,6 +1029,35 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
     return False
 
 
+def is_mutable(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns a predicate indicating if an edge and its pair belongs to a mutable space
+
+    :param edge:
+    :param space:
+    :return:
+    """
+    if not edge.pair or not space.plan.get_space_of_edge(edge.pair):
+        return False
+    else:
+        other = space.plan.get_space_of_edge(edge.pair)
+        if space.mutable and other.mutable and other.number_of_faces > 1:
+            return True
+
+
+def has_immutable_linear(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge belongs to an immutable component
+    :param edge:
+    :param space:
+    :return:
+    """
+    linear = space.plan.get_linear_from_edge(edge)
+    if linear and not linear.category.mutable:
+        return True
+    return False
+
+
 # predicate factories
 
 
@@ -1430,24 +1459,6 @@ def has_space_pair() -> Predicate:
     return _predicate
 
 
-def is_mutable() -> Predicate:
-    """
-    Predicate factory
-    Returns a predicate indicating if an edge and its pair belongs to a mutable space
-    TODO: using a factory here makes no sense...
-    :return:
-    """
-
-    def _predicate(edge: 'Edge', space: 'Space') -> bool:
-        if not edge.pair or not space.plan.get_space_of_edge(edge.pair):
-            return False
-        else:
-            if space.mutable and space.plan.get_space_of_edge(edge.pair).mutable:
-                return True
-
-    return _predicate
-
-
 def face_proportion(max_proportion: float = 0.1) -> Predicate:
     """
     Predicate factory
@@ -1526,7 +1537,7 @@ SELECTORS = {
     "polish": Selector(
         space_boundary,
         [
-            is_mutable(),
+            is_mutable,
             face_proportion(0.3),
             face_without_component(),
             is_not(corner_stone)
@@ -1937,7 +1948,10 @@ SELECTORS = {
     "bedroom_small_faces_pair": Selector(specific_category("bedroom"),
                                          [pair(face_area(max_area=15000)),
                                           pair(is_not(only_face)),
-                                          pair(is_not(corner_stone))])
+                                          pair(is_not(corner_stone))]),
+
+    "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear),
+                                            pair(is_not(corner_stone))])
 }
 
 SELECTOR_FACTORIES = {

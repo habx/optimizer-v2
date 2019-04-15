@@ -1885,12 +1885,15 @@ class Face(MeshComponent):
 
     type = MeshComponentType.FACE
 
-    __slots__ = '_edge'
+    __slots__ = '_edge', 'cached_area'
 
     def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[int] = None):
 
         self._edge = edge
         super().__init__(mesh, _id)
+
+        # for performance purposes
+        self.cached_area = None
 
     def __repr__(self):
         output = 'Face: ['
@@ -2079,9 +2082,7 @@ class Face(MeshComponent):
         generator = self.edges
         for edge in generator:
             if edge.pair.face is not None and edge.pair.face not in seen:
-                new_edge = (yield edge.pair.face)
-                if new_edge:
-                    generator.send(new_edge)
+                yield edge.pair.face
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
@@ -2775,7 +2776,7 @@ class Mesh:
     Mesh Class
     """
     __slots__ = ('_edge', '_faces', '_edges', '_vertices',
-                 '_watchers', '_modifications', 'id', '_counter')
+                 '_watchers', '_modifications', 'id', '_counter', '_cached_area')
 
     def __init__(self, _id: Optional[int] = None):
         self._edge = None  # boundary edge of the mesh
@@ -2788,7 +2789,10 @@ class Mesh:
                                   Tuple['MeshOps', Tuple['MeshComponentType', int],
                                         Optional[Tuple['MeshComponentType', int]]]] = {}
         self.id = _id or uuid.uuid4()
-        self._counter = 0
+        self._counter: int = 0
+
+        # for caching purpose
+        self._cached_area: Optional[float] = None
 
     def __repr__(self):
         output = 'Mesh:\n'
@@ -2825,6 +2829,14 @@ class Mesh:
         faces_id = set(self._faces.keys())
         edges_id = set(self._edges.keys())
         self._counter = max(vertices_id | faces_id | edges_id)
+
+    def compute_cache(self):
+        """
+        Computes the cached values for area / length of the mesh elements
+        :return:
+        """
+        for face in self.faces:
+            face.cached_area = face.area
 
     @property
     def components_id(self) -> Generator[int, None, None]:
@@ -3309,6 +3321,17 @@ class Mesh:
         :return:
         """
         return Polygon(self.boundary_as_sp)
+
+    def area(self, cache: bool = False):
+        """
+        Returns the area of the mesh
+        :return:
+        """
+        if cache and self._cached_area is not None:
+            return self._cached_area
+        else:
+            self._cached_area = self.as_sp.area
+            return self._cached_area
 
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:

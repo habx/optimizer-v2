@@ -50,7 +50,7 @@ class Mutation:
         :param space:
         :return: the list of modified spaces
         """
-        self._store_initial_sate(self.spaces_modified(edge, space))
+        self._store_initial_state(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
         # update the plan if need be
         if output:
@@ -84,7 +84,7 @@ class Mutation:
         # remove all the spaces from the storage plan
         self._initial_state.clear()
 
-    def _store_initial_sate(self, spaces_modified: Sequence['Space']):
+    def _store_initial_state(self, spaces_modified: Sequence['Space']):
         """
         Keeps an initial state of the modified spaces
         :param spaces_modified: the spaces that will be modified by the mutation
