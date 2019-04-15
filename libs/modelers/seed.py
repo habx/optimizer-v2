@@ -796,7 +796,9 @@ SEEDERS = {
     "initial_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                              [adjacent_faces, empty_to_seed, merge_small_cells]),
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                            [adjacent_faces, empty_to_seed, merge_corners])
+                            [adjacent_faces, empty_to_seed, merge_corners]),
+    "circulation_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+                            [adjacent_faces, empty_to_seed]),
 }
 
 
@@ -814,7 +816,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "007"
+        plan_name = "023"
 
         # to not run each time the grid generation
         try:
@@ -825,7 +827,7 @@ if __name__ == '__main__':
             GRIDS['optimal_grid'].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name)
 
-        SEEDERS["simple_seeder"].apply_to(plan, show=True)
+        SEEDERS["circulation_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 

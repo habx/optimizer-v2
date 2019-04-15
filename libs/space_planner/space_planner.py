@@ -179,7 +179,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    #plan_solution.plot()
+                    plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    # logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -215,8 +215,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "059.json"
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = "004.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -224,6 +224,8 @@ if __name__ == '__main__':
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
+
+        SEEDERS["circulation_seeder"].apply_to(plan)
 
         # new_space_list = []
         # for space in plan.spaces:
@@ -239,8 +241,6 @@ if __name__ == '__main__':
         #             plan.remove(space)
         #             has_empty_space = True
         #     plan.remove_null_spaces()
-
-        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))
