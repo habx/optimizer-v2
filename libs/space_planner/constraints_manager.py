@@ -143,6 +143,8 @@ class ConstraintSolver:
             if validity:
                 self.solutions.append(sol_positions)
                 if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
+                    logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
+                                    len(self.solutions))
                     break
                 if (time.clock() - t0 - 600) >= 0:
                     logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
@@ -156,8 +158,6 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
-        if len(self.solutions) == SEARCH_SOLUTIONS_LIMIT:
-            logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d", len(self.solutions))
         if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
             logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
 
