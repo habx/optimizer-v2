@@ -929,7 +929,7 @@ def adjacent_empty_space(edge: 'Edge', space: 'Space') -> bool:
     return space_pair and space_pair.category.name == 'empty'
 
 
-def corner_stone(edge: 'Edge', space: 'Space') -> bool:
+def pair_corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
     will cut it in several spaces or is the only face
@@ -945,6 +945,19 @@ def corner_stone(edge: 'Edge', space: 'Space') -> bool:
         return False
 
     return other_space.corner_stone(face)
+
+
+def corner_stone(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the removal of the edge's face from the space
+    will cut it in several spaces or is the only face
+    """
+    face = edge.face
+
+    if not face or not space:
+        return False
+
+    return space.corner_stone(face)
 
 
 def not_aligned_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -1047,14 +1060,18 @@ def is_mutable(edge: 'Edge', space: 'Space') -> bool:
 
 def has_immutable_linear(edge: 'Edge', space: 'Space') -> bool:
     """
-    Returns True if the edge belongs to an immutable component
+    Returns True if the edge face has an immutable component
     :param edge:
     :param space:
     :return:
     """
-    linear = space.plan.get_linear_from_edge(edge)
-    if linear and not linear.category.mutable:
-        return True
+    if edge.face is None:
+        return False
+
+    for _edge in edge.face.edges:
+        linear = space.plan.get_linear_from_edge(_edge)
+        if linear and not linear.category.mutable:
+            return True
     return False
 
 
@@ -1540,7 +1557,7 @@ SELECTORS = {
             is_mutable,
             face_proportion(0.3),
             face_without_component(),
-            is_not(corner_stone)
+            is_not(pair_corner_stone)
 
         ]
     ),
@@ -1815,14 +1832,14 @@ SELECTORS = {
         other_seed_space_edge,
         [
             adjacent_to_other_space,
-            is_not(corner_stone)
+            is_not(pair_corner_stone)
         ]
     ),
 
     "corner_stone": Selector(
         space_boundary,
         [
-            corner_stone
+            pair_corner_stone
         ]
     ),
     "single_edge": Selector(boundary_unique),
@@ -1833,7 +1850,7 @@ SELECTORS = {
         [
             adjacent_to_other_space,
             is_not_aligned,
-            is_not(corner_stone)
+            is_not(pair_corner_stone)
         ]
     ),
 
@@ -1943,15 +1960,14 @@ SELECTORS = {
 
     "bedroom_small_faces": Selector(specific_category("bedroom"), [face_area(max_area=15000),
                                                                    is_not(only_face),
-                                                                   is_not(corner_stone)]),
+                                                                   is_not(pair_corner_stone)]),
 
     "bedroom_small_faces_pair": Selector(specific_category("bedroom"),
                                          [pair(face_area(max_area=15000)),
                                           pair(is_not(only_face)),
-                                          pair(is_not(corner_stone))]),
+                                          pair(is_not(pair_corner_stone))]),
 
-    "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear),
-                                            pair(is_not(corner_stone))])
+    "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear), is_not(only_face), is_not(corner_stone)])
 }
 
 SELECTOR_FACTORIES = {

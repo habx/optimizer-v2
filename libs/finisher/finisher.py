@@ -30,19 +30,17 @@ def simple_ga(plan: 'Plan', spec: 'Specification'):
     """
     A simple implementation of a genetic algorithm.
     :param plan:
-    :param num_gen:
-    :param cxrate:
-    :param mutrate:
+    :param spec:
     :return: the best plan
     """
     for floor in plan.floors.values():
         floor.mesh.compute_cache()
 
-    NGEN = 250
-    MU = 100
+    NGEN = 100
+    MU = 20
     CXPB = 0.9
 
-    creator.create("Fitness", base.Fitness, weights=(1.0, 1.0))
+    creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))
     creator.create("Individual", Plan, fitness=creator.Fitness)
     toolbox = base.Toolbox()
     toolbox.unregister("clone")
@@ -125,7 +123,6 @@ def mutate_aligned(ind: 'Plan'):
 
 def mutate_simple(ind: 'Plan'):
     """
-    TODO : we are removing corner stone !!
     Mutates the plan.
     1. select a random space
     2. select a random mutable edge
@@ -133,16 +130,12 @@ def mutate_simple(ind: 'Plan'):
     :param ind:
     :return: a single element tuple containing the mutated individual
     """
-    while True:
-        space = random_space(ind)
-        if space and space.number_of_faces > 1:
-            break
+    space = random_space(ind)
     edge = random_edge(space)
-    other = ind.get_space_from_face_id(edge.pair.face.id, edge.pair.mesh.id)
-    if other.corner_stone(edge.pair.face):
-        return ind,
     if edge:
-        MUTATIONS["swap_face"].apply_to(edge, space)
+        if space.corner_stone(edge.face) or ind.get_space_of_edge(edge) is not space:
+            return ind,
+        MUTATIONS["remove_face"].apply_to(edge, space)
     return ind,
 
 
@@ -300,7 +293,7 @@ if __name__ == '__main__':
         from libs.modelers.seed import SEEDERS
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
-        logging.getLogger().setLevel(logging.DEBUG)
+        # logging.getLogger().setLevel(logging.DEBUG)
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
@@ -331,7 +324,8 @@ if __name__ == '__main__':
                 logging.info("No solution for this plan")
                 return spec, None
 
-    spec, plan = get_plan()
+    spec, plan = get_plan("003")
     if plan:
         pop = simple_ga(plan, spec)
-        print(pop)
+        for ind in pop:
+            ind.plot()
