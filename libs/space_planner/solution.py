@@ -333,8 +333,8 @@ class Solution:
             circulation_penalty += 50
         elif cost > COST_RULES["water_room_default"]:
             circulation_penalty += 30
-        elif cost - (self.collector.spec.typology - 1) * 200 > 0:
-            circulation_penalty += 15
+        elif cost - (self.collector.spec.typology - 1) * 300 > 0:
+            circulation_penalty += 5
         logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
         logging.info("Circulation penalty: %i", circulation_penalty)
         return circulation_penalty
