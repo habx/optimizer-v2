@@ -2266,6 +2266,16 @@ class Plan:
 
         return new_plan
 
+    def __deepcopy__(self, memo) -> 'Plan':
+        """
+        We overload deepcopy in order to be able to clone a plan using the
+        following copy.deepcopy(plan). This is needed for proper interface with
+        other libraries such as deap.
+        :param memo: needed for the deepcopy overloading (useless in our case)
+        :return: a clone of the plan
+        """
+        return self.clone()
+
     @property
     def mesh(self) -> Optional['Mesh']:
         """

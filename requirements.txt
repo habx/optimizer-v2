@@ -5,6 +5,9 @@ ortools==6.10.6025
 Dijkstar==2.4.0
 networkx==2.2
 
+# For genetic programming
+deap==1.2.2
+
 # WARNING: This should not be shared externally. We're using a token because fetching private
 #          dependencies using the SSH key prior to building the container is a lot more difficult,
 #          mostly because protobuf install doesn't respect the virtualenv.
