@@ -10,6 +10,14 @@ implements a simple version of the NSGA-II algorithm:
     [Deb2002] Deb, Pratab, Agarwal, and Meyarivan, "A fast elitist
     non-dominated sorting genetic algorithm for multi-objective
     optimization: NSGA-II", 2002.
+
+TODO :
+    • better match between specifications and plan via an item <-> space dictionary
+    • refine grid prior to genetic search
+    • guide mutation to refine choices and speed-up search
+    • improve evaluation method : create the method from separate functions corresponding
+    to each objective
+    • forbid the swap of a face close to a needed component (eg. duct for a bathroom)
 """
 import random
 import math
@@ -37,10 +45,10 @@ def simple_ga(plan: 'Plan', spec: 'Specification'):
         floor.mesh.compute_cache()
 
     NGEN = 100
-    MU = 20
-    CXPB = 0.9
+    MU = 4 * 10  # Must be a multiple of 4 for tournament selection of NSGA-II
+    CXPB = 0.2
 
-    creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))
+    creator.create("Fitness", base.Fitness, weights=(-1.0, -10.0, -8.0))
     creator.create("Individual", Plan, fitness=creator.Fitness)
     toolbox = base.Toolbox()
     toolbox.unregister("clone")
@@ -78,7 +86,6 @@ def simple_ga(plan: 'Plan', spec: 'Specification'):
         for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
             if random.random() <= CXPB:
                 toolbox.mate(ind1, ind2)
-
             toolbox.mutate(ind1)
             toolbox.mutate(ind2)
             del ind1.fitness.values, ind2.fitness.values
@@ -256,16 +263,24 @@ def evaluate(ind, spec: Optional['Specification'] = None) -> Tuple[float, float,
     min_corners = 4
     corner_score = 0.0
     for space in ind.spaces:
+        if not space.category.mutable or space.category.name == "living":
+            continue
         corner_score += (space.number_of_corners() - min_corners)/min_corners
 
     # aspect ratio score
     aspect_score = 0.0
     min_aspect_ratio = 16
     for space in ind.spaces:
-        if space.cached_area() == 0:
-            aspect_score += 100
+        if not space.category.mutable or space.category.name == "living":
             continue
-        aspect_score += math.fabs(space.perimeter**2/space.cached_area()/min_aspect_ratio - 1.0)
+        if space.cached_area() == 0:
+            aspect_score += 1000
+            continue
+        box = space.bounding_box()
+        box_area = box[0]*box[1]
+        space_score = math.fabs((space.cached_area() - box_area)/box_area)
+        # space_score = math.fabs(space.perimeter**2/space.cached_area()/min_aspect_ratio - 1.0)
+        aspect_score += space_score
 
     return area_score, corner_score, aspect_score
 
@@ -278,6 +293,7 @@ if __name__ == '__main__':
     4. define fitness functions
     5. run algorithm
     """
+    from libs.modelers.shuffle import SHUFFLES
 
     def get_plan(plan_name: str = "001",
                  spec_name: str = "0",
@@ -324,8 +340,10 @@ if __name__ == '__main__':
                 logging.info("No solution for this plan")
                 return spec, None
 
-    spec, plan = get_plan("003")
+    spec, plan = get_plan("004")
     if plan:
+        SHUFFLES["bedrooms_corner"].apply_to(plan)
+        plan.plot()
         pop = simple_ga(plan, spec)
-        for ind in pop:
-            ind.plot()
+        best = max(pop, key=lambda i: i.fitness)
+        best.plot()

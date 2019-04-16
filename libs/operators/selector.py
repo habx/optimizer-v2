@@ -1960,12 +1960,12 @@ SELECTORS = {
 
     "bedroom_small_faces": Selector(specific_category("bedroom"), [face_area(max_area=15000),
                                                                    is_not(only_face),
-                                                                   is_not(pair_corner_stone)]),
+                                                                   is_not(corner_stone)]),
 
     "bedroom_small_faces_pair": Selector(specific_category("bedroom"),
                                          [pair(face_area(max_area=15000)),
                                           pair(is_not(only_face)),
-                                          pair(is_not(pair_corner_stone))]),
+                                          pair(is_not(corner_stone))]),
 
     "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear), is_not(only_face), is_not(corner_stone)])
 }
