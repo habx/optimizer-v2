@@ -2266,7 +2266,7 @@ class Plan:
         :param name: the name of the cloned plan
         :return:
         """
-        name = name or self.name + '_copy'
+        name = name or self.name
         new_plan = Plan(name)
         # clone floors, spaces and linears
         new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
