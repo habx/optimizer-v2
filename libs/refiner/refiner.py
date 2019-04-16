@@ -207,7 +207,7 @@ if __name__ == '__main__':
 
     def main():
         """ test function """
-        spec, plan = get_plan("005", "0", 1)
+        spec, plan = get_plan("006", "0", 1)
         if plan:
             SHUFFLES["bedrooms_corner"].apply_to(plan)
             best = REFINERS["simple"].apply_to(plan, spec)
