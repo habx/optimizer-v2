@@ -28,9 +28,9 @@ DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
 
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulation"]
 
-DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar"]
+DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar", "study"]
 
-PRIVATE_ROOMS = ["bedroom", "bathroom", "laundry", "dressing", "entrance", "circulation",
+PRIVATE_ROOMS = ["bedroom", "study", "bathroom", "laundry", "dressing", "entrance", "circulation",
                  "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
@@ -140,6 +140,7 @@ class ConstraintSolver:
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
                     sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
             validity = self._check_adjacency(sol_positions, connectivity_checker)
+
             if validity:
                 self.solutions.append(sol_positions)
                 if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
@@ -440,12 +441,11 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = None
 
     if min_max == "max":
-        if ((item.variant in ["l", "xl"] or item.category.name in ["entrance", "circulation"])
-                and item.category.name not in ["living", "livingKitchen", "dining"]):
+        if (item.variant in ["l", "xl"]
+             and item.category.name not in ["living", "livingKitchen", "dining"]):
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-        max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
@@ -455,6 +455,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
+        print(item.category.name, min_area)
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -496,7 +497,9 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
         param = 2
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
         param = 2
-    elif item.category.name in "circulation":
+    elif item.category.name in ["entrance"]:
+        param = 2.5
+    elif item.category.name in ["circulation", "entrance"]:
         param = 3
     else:
         param = 1.8
@@ -540,7 +543,6 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
         max_area = round(item.max_size.area)
     else:
         max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-    max_area = round(item.max_size.area)
 
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
@@ -641,12 +643,22 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
-    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-        param = 35#min(max(30, int(plan_ratio + 10)), 40)
-    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
-        param = 25#min(max(25, int(plan_ratio)), 35)
+    if manager.sp.spec.typology <= 2:
+        if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+            param = min(max(30, int(plan_ratio + 10)), 40)
+        elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+            param = min(max(25, int(plan_ratio)), 35)
+        else:
+            param = 20 # toilet / bedroom / entrance
     else:
-        param = 20 # toilet / bedroom / entrance
+        if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+            param = 26# min(max(30, int(plan_ratio + 10)), 40)
+        elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+            param = 25#min(max(25, int(plan_ratio)), 35)
+        elif item.category.name in ["circulation", "entrance"]:
+            param = 40
+        else:
+            param = 22 # toilet / bedroom / entrance
 
     item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
                                           for j, space in
@@ -915,7 +927,7 @@ def circulation_bedroom_adjacency_constraint(manager: 'ConstraintsManager',
     bedroom_adjacency_sum = 0
     bedroom_count = 0
     for num, num_item in enumerate(manager.sp.spec.items):
-        if num_item != item and num_item.category.name in ["bedroom"]:
+        if num_item != item and num_item.category.name in ["bedroom", "office"]:
             bedroom_count += 1
             bedroom_adjacency_sum += manager.solver.solver.Sum(
                 manager.solver.solver.Sum(
@@ -1013,8 +1025,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [shape_constraint, {}],
     ],
     "entrance": [
-        [area_constraint, {"min_max": "min"}],
-        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
+        [item_attribution_constraint, {}],
+        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
@@ -1153,7 +1165,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
-        [item_adjacency_constraint, {"item_categories": ["bedroom"], "adj": True}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],

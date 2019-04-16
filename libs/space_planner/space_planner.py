@@ -58,8 +58,8 @@ class SpacePlanner:
         for item in spec.items:
             if item.category.name == "circulation":
                 if spec.typology > 2:
-                    size_min = Size(area=(item.min_size.area - entrance_size_min.area))
-                    size_max = Size(area=(item.max_size.area - entrance_size_max.area))
+                    size_min = Size(area=(max(item.min_size.area, 0)))
+                    size_max = Size(area=(max(item.max_size.area, 0)))
                     new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
                                     size_max)
                     space_planner_spec.add_item(new_item)
@@ -81,10 +81,13 @@ class SpacePlanner:
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulation"]
         space_planner_spec.init_id(category_name_list)
-        # area
+
+
         invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing",
                                 "misc"]
         #invariant_categories = ["entrance"]
+
+        # area - without circulation
         invariant_area = sum(item.required_area for item in space_planner_spec.items
                              if item.category.name in invariant_categories)
         circulation_area = sum(item.required_area for item in space_planner_spec.items
@@ -99,9 +102,22 @@ class SpacePlanner:
                     and item.category.name != 'circulation'):
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
-        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
-        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
-                                                      for item in space_planner_spec.items)))
+
+        # area - with circulation
+        # invariant_area = sum(item.required_area for item in space_planner_spec.items
+        #                      if item.category.name in invariant_categories)
+        # coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
+        #     item.required_area for item in space_planner_spec.items if
+        #     item.category.name not in invariant_categories)))
+        #
+        # for item in space_planner_spec.items:
+        #     if item.category.name not in invariant_categories:
+        #         item.min_size.area = round(item.min_size.area * coeff)
+        #         item.max_size.area = round(item.max_size.area * coeff)
+        #
+        # logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
+        # logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
+        #                                               for item in space_planner_spec.items)))
 
         self.spec = space_planner_spec
 
@@ -179,7 +195,7 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-                    plan_solution.plot()
+                    #plan_solution.plot()
                     if show:
                         plan_solution.plot()
 
@@ -201,7 +217,7 @@ if __name__ == '__main__':
     import argparse
     import time
 
-    #logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -215,8 +231,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "004.json"
+        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "003.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
