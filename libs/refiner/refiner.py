@@ -6,18 +6,20 @@ Applies a genetic algorithm to improve the plan according to several constraints
 • rooms shapes
 • circulation [TO DO]
 
-The module is inspired by the deap library (global toolbox for genetic algorithms) and
-implements a simple version of the NSGA-II algorithm:
+The module is inspired by the DEAP library (global toolbox for genetic algorithms :
+https://github.com/deap/deap)
+
+It implements a simple version of the NSGA-II algorithm:
+
     [Deb2002] Deb, Pratab, Agarwal, and Meyarivan, "A fast elitist
     non-dominated sorting genetic algorithm for multi-objective
     optimization: NSGA-II", 2002.
 
-TODO :
-    • better match between specifications and plan via an item <-> space dictionary
+TODO LIST:
     • refine grid prior to genetic search
     • guide mutation to refine choices and speed-up search
     • forbid the swap of a face close to a needed component (eg. duct for a bathroom)
-    • create a refiner class (with structure similar to the Grid / Seeder / Shuffle)
+
 """
 import random
 import logging
