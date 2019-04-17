@@ -2084,6 +2084,17 @@ class Face(MeshComponent):
             if edge.pair.face is not None and edge.pair.face not in seen:
                 yield edge.pair.face
 
+    def is_adjacent(self, other: 'Face') -> bool:
+        """
+        Returns True if the face *self* is adjacent to the face *other*
+        :param other:
+        :return:
+        """
+        for edge in self.edges:
+            if edge.pair.face is other:
+                return True
+        return False
+
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
         Returns the bounding rectangular box of the face according to the direction vector

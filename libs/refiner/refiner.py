@@ -20,6 +20,7 @@ TODO :
     • create a refiner class (with structure similar to the Grid / Seeder / Shuffle)
 """
 import random
+import logging
 
 from typing import TYPE_CHECKING, Optional, Tuple, Callable, List
 from libs.plan.plan import Plan
@@ -108,9 +109,9 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 100
-    mu = 4 * 10  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.2
+    ngen = 30
+    mu = 4 * 30  # Must be a multiple of 4 for tournament selection of NSGA-II
+    cxpb = 0.8
 
     pop = toolbox.population(initial_ind, mu)
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
@@ -124,6 +125,7 @@ def simple_ga(toolbox: 'core.Toolbox',
 
     # Begin the generational process
     for gen in range(1, ngen):
+        logging.info("Refiner: generation %i : %f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
@@ -207,10 +209,13 @@ if __name__ == '__main__':
 
     def main():
         """ test function """
-        spec, plan = get_plan("006", "0", 1)
+        logging.getLogger().setLevel(logging.INFO)
+
+        spec, plan = get_plan("007", "0", 1)
         if plan:
+            plan.plot()
             SHUFFLES["bedrooms_corner"].apply_to(plan)
             best = REFINERS["simple"].apply_to(plan, spec)
-            best.plot()
+            best.plot(show=True)
 
     main()

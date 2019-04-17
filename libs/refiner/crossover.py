@@ -17,8 +17,9 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
     Blends the two plans.
     For each floor :
     1. Finds every face that is different between the two individuals.
-    2. Clusters faces in adjacent groups
-    3. Pick randomly a cluster and swap the corresponding faces from each plan
+    2. Pick a random face amongst them
+    3. Select all connected different faces
+    4. Swaps their corresponding spaces between the two plans
     :param ind_1:
     :param ind_2:
     :return: a tuple of the blended individual
@@ -26,7 +27,6 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
     if not ind_1 or not ind_2:
         return ind_1, ind_2
     for floor in ind_1.floors.values():
-        clusters = []
         differences = [f for f in floor.mesh.faces
                        if ind_1.get_space_of_face(f).id != ind_2.get_space_of_face(f).id]
 
@@ -34,29 +34,20 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
             # nothing to do
             continue
 
-        clusters.append([differences[0]])
-        for face in differences[1::]:
-            found = False
-            for cluster in clusters:
-                for other in cluster:
-                    if face in other.siblings:
-                        cluster.append(face)
-                        found = True
-                        break
-                if found:
-                    break
-            else:
-                clusters.append([face])
-
-        if len(clusters) == 1:
-            # do nothing
-            continue
-
-        swap_cluster = random.choice(clusters)
+        # pick a random face and find all different faces connected to it
+        seed_face = random.choice(differences)
+        connected_faces = [seed_face]
+        differences.remove(seed_face)
+        while True:
+            connections = set([f for f in differences for o in connected_faces if o.is_adjacent(f)])
+            for f in connections:
+                differences.remove(f)
+                connected_faces.append(f)
+            if not connections:
+                break
 
         modified_spaces = []
-
-        for face in swap_cluster:
+        for face in connected_faces:
             space_1 = ind_1.get_space_of_face(face)
             space_2 = ind_2.get_space_of_face(face)
             other_1 = ind_1.get_space_from_id(space_2.id)
