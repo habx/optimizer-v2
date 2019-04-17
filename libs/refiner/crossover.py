@@ -20,6 +20,8 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
     2. Pick a random face amongst them
     3. Select all connected different faces
     4. Swaps their corresponding spaces between the two plans
+    NOTE : we must check for "corner stone" situation where the removal of the faces will
+    split the spaces in half...
     :param ind_1:
     :param ind_2:
     :return: a tuple of the blended individual

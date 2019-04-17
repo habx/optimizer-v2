@@ -1205,31 +1205,24 @@ class Space(PlanComponent):
         if len(adjacent_faces) == 1:
             return False
 
-        remaining_faces = adjacent_faces[:]
-
         # temporarily remove the face_id from the other_space
         self.remove_face_id(face.id)
 
         # we must check to see if we split the other_space by removing the face
         # for each adjacent face inside the other_space check if they are still connected
-        while remaining_faces:
 
-            adjacent_face = remaining_faces[0]
-            connected_faces = [adjacent_face]
+        adjacent_face = adjacent_faces[0]
 
-            for connected_face in self.connected_faces(adjacent_face):
-                # try to reach the other adjacent faces
-                if connected_face in remaining_faces:
-                    remaining_faces.remove(connected_face)
-                connected_faces.append(connected_face)
+        for connected_face in self.connected_faces(adjacent_face):
+            # try to reach the other adjacent faces
+            if connected_face in adjacent_faces:
+                adjacent_faces.remove(connected_face)
 
-            remaining_faces.remove(adjacent_face)
+        adjacent_faces.remove(adjacent_face)
 
-            if len(remaining_faces) != 0:
-                self.add_face_id(face.id)
-                return True
-            else:
-                break
+        if len(adjacent_faces) != 0:
+            self.add_face_id(face.id)
+            return True
 
         self.add_face_id(face.id)
         return False
