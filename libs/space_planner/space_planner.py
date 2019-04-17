@@ -58,8 +58,8 @@ class SpacePlanner:
         for item in spec.items:
             if item.category.name == "circulation":
                 if spec.typology > 2:
-                    size_min = Size(area=(max(item.min_size.area, 0)))
-                    size_max = Size(area=(max(item.max_size.area, 0)))
+                    size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
+                    size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
                     new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
                                     size_max)
                     space_planner_spec.add_item(new_item)
@@ -231,8 +231,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        # input_file = "003.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "007.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -242,6 +242,7 @@ if __name__ == '__main__':
         GRIDS['optimal_grid'].apply_to(plan)
 
         SEEDERS["circulation_seeder"].apply_to(plan)
+        #SEEDERS["simple_seeder"].apply_to(plan)
 
         # new_space_list = []
         # for space in plan.spaces:
@@ -257,6 +258,8 @@ if __name__ == '__main__':
         #             plan.remove(space)
         #             has_empty_space = True
         #     plan.remove_null_spaces()
+
+
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))

@@ -199,7 +199,7 @@ class Solution:
         Area score
         :return: score : float
         """
-        good_overflow_categories = ["living", "dining"]
+        good_overflow_categories = ["living", "livingKitchen", "dining"]
 
         area_score = 0
         area_penalty = 0
@@ -218,28 +218,27 @@ class Solution:
                 item_area_score = (100 - abs(item.required_area - space.area) /
                                    item.required_area * 100)
                 if space.category.name == "entrance":
-                    if space.area < 20000:
-                        area_penalty += 1
+                    if space.area < 15000:
+                        area_penalty += 2
                 elif space.category.name == "toilet":
                     if space.area < 10000:
-                        area_penalty += 1
+                        area_penalty += 2
                     elif space.area > item.max_size.area:
                         area_penalty += 3
                 elif space.category.name == "bathroom":
                     if space.area < 20000:
-                        area_penalty += 1
+                        area_penalty += 2
                 elif space.category.name == "bedroom":
-                    if space.area < 75000:
+                    if space.area < 90000:
+                        area_penalty += 2
+                elif space.category.name == "circulation":
+                    if space.area > item.max_size.area:
                         area_penalty += 1
 
             # Area score
             area_score += item_area_score
             logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
                           item.id)
-
-        for space in self.plan.spaces:
-            if space.category.name == "circulation":
-                area_penalty += 1
 
         area_score = round(area_score / nbr_rooms, 2) - area_penalty * 20
         logging.debug("Solution %i: Area score : %f", self._id, area_score)

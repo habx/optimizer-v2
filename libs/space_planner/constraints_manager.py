@@ -446,6 +446,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
@@ -455,7 +456,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
-        print(item.category.name, min_area)
+
         ct = (manager.solver.solver
               .Sum(manager.solver.positions[item.id, j] * round(space.area)
                    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
@@ -655,8 +656,10 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
             param = 26# min(max(30, int(plan_ratio + 10)), 40)
         elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
             param = 25#min(max(25, int(plan_ratio)), 35)
-        elif item.category.name in ["circulation", "entrance"]:
+        elif item.category.name in ["circulation"]:
             param = 40
+        elif item.category.name in ["entrance"]:
+            param = 30
         else:
             param = 22 # toilet / bedroom / entrance
 
