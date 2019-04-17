@@ -5,6 +5,7 @@ Contains utility for graph
 using networkx library
 """
 
+import logging
 import networkx as nx
 import dijkstar
 from typing import Any, Generator, Tuple, List, Sequence, Union
@@ -159,10 +160,20 @@ class EdgeGraph:
                 self.graph_struct.add_edge(edge.start, "virtual2", cost=0)
                 self.graph_struct.add_edge(edge.end, "virtual2", cost=0)
             # compute shortest path between virtual nodes
-            path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
-            # remove virtual nodes
-            self.graph_struct.remove_node("virtual1")
-            self.graph_struct.remove_node("virtual2")
+            try:
+                path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
+            except nx.exception.NetworkXNoPath:
+                # TODO : for now, the only case where this exception is thrown should be when
+                # a floor is cut into several parts by a load bearing wall.
+                # This problem must be treated
+                # possible treatment : by putting holes in the load bearing walls at location where
+                # they can be crossed
+                logging.warning('Graph_nx-no path found')
+                return [], 0
+            finally:
+                # remove virtual nodes
+                self.graph_struct.remove_node("virtual1")
+                self.graph_struct.remove_node("virtual2")
             # compute cost
             if len(path) == 1:
                 return path, 0
