@@ -320,3 +320,15 @@ class Toolbox:
         """
         assert self._populate, "Toolbox: the populate function has not been implemented"
         return self._populate(ind, size)
+
+    def evaluate_pop(self, pop: Sequence['Individual'], refresh: bool = False) -> None:
+        """
+        Evaluates the fitness of a specified population
+        :param pop: a list of individuals
+        :param refresh: whether to refresh the fitness if it is still valid
+        :return:
+        """
+        for ind in pop:
+            if ind.fitness.valid and not refresh:
+                continue
+            ind.fitness.values = self._evaluate(ind)

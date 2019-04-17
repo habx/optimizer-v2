@@ -85,7 +85,10 @@ class Refiner:
         # 3. run the algorithm
         initial_ind = toolbox.individual(plan)
         results = self._algorithm(toolbox, initial_ind, _hof)
-        return results if not with_hof else _hof
+
+        output = results if not with_hof else _hof
+        toolbox.evaluate_pop(output)  # evaluate fitnesses for analysis
+        return output
 
 
 # Toolbox factories
@@ -124,7 +127,7 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 20
+    ngen = 100
     mu = 4 * 20  # Must be a multiple of 4 for tournament selection of NSGA-II
     cxpb = 0.8
 
@@ -179,8 +182,6 @@ if __name__ == '__main__':
     2. get some specifications
     3. run algorithm
     """
-    from libs.modelers.shuffle import SHUFFLES
-
     def get_plan(plan_name: str = "001",
                  spec_name: str = "0",
                  solution_number: int = 0) -> Tuple['Specification', Optional['Plan']]:
@@ -235,14 +236,19 @@ if __name__ == '__main__':
 
     def main():
         """ test function """
+        import time
+
         logging.getLogger().setLevel(logging.INFO)
 
         spec, plan = get_plan("052")
         if plan:
             plan.plot()
-            SHUFFLES["bedrooms_corner"].apply_to(plan)
+            start = time.time()
             hof = REFINERS["simple"].run(plan, spec, True)
+            end = time.time()
             for i in hof:
                 i.plot()
+                print(i.fitness.values)
+            print("Time elapsed: {}".format(end - start))
 
     main()

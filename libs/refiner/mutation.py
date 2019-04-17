@@ -4,6 +4,7 @@ Genetic Algorithm Mutation module
 A mutation is a function that takes an individual as input and modifies it in place
 """
 import random
+import logging
 from typing import TYPE_CHECKING, Optional
 
 from libs.operators.mutation import MUTATIONS
@@ -42,9 +43,9 @@ def mutate_simple(ind: 'Individual') -> 'Individual':
     space = _random_space(ind)
     edge = _random_edge(space)
     if edge:
-        if space.corner_stone(edge.face) or ind.get_space_of_edge(edge) is not space:
-            return ind
-        MUTATIONS["remove_face"].apply_to(edge, space)
+        modified_spaces = MUTATIONS["remove_face"].apply_to(edge, space)
+        if len(modified_spaces) > 2:
+            logging.warning("Refiner: Mutation: A space was split !! %s", modified_spaces[2])
     return ind
 
 
@@ -56,6 +57,7 @@ def _random_space(plan: 'Plan') -> Optional['Space']:
     """
     mutable_spaces = list(plan.mutable_spaces())
     if not mutable_spaces:
+        logging.warning("Mutation: Random space, no mutable space was found !!")
         return None
     return random.choice(mutable_spaces)
 
@@ -68,6 +70,7 @@ def _random_edge(space: 'Space') -> Optional['Edge']:
     """
     mutable_edges = list(SELECTORS["is_mutable"].yield_from(space))
     if not mutable_edges:
+        logging.warning("Mutation: Random edge, no edge was found !! %s", space)
         return None
     return random.choice(mutable_edges)
 
