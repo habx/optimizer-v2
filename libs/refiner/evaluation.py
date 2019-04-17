@@ -10,7 +10,7 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 
 """
 import math
-from typing import TYPE_CHECKING, Optional, Sequence, List, Callable, Dict
+from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
 from libs.refiner.core import evaluateFunc
 
 if TYPE_CHECKING:
@@ -39,7 +39,6 @@ def fc_score_area(spec: 'Specification') -> scoreFunc:
     instance
     Note: The dictionary matching spaces to specification items is memoized in the factory
     :param spec:
-    :param seed: initial individual to create space_to_item dict
     :return:
     """
 
