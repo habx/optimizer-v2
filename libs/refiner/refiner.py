@@ -193,14 +193,18 @@ if __name__ == '__main__':
         from libs.modelers.seed import SEEDERS
         from libs.space_planner.space_planner import SpacePlanner
         from libs.plan.plan import Plan
+        from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
         # logging.getLogger().setLevel(logging.DEBUG)
 
+        spec_file_name = plan_name + "_setup" + spec_name + ".json"
+        plan_file_name = plan_name + "_solution_" + str(solution_number)
+        folder = DEFAULT_PLANS_OUTPUT_FOLDER
+
         try:
-            new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
-                                                            + str(solution_number))
+            new_serialized_data = reader.get_plan_from_json(plan_file_name)
             plan = Plan(plan_name).deserialize(new_serialized_data)
-            spec = reader.create_specification_from_file(plan_name + "_setup"
-                                                         + spec_name + ".json")
+            spec_dict = reader.get_json_from_file(spec_file_name, DEFAULT_PLANS_OUTPUT_FOLDER)
+            spec = reader.create_specification_from_data(spec_dict, "new")
             spec.plan = plan
             return spec, plan
 
@@ -213,13 +217,15 @@ if __name__ == '__main__':
             spec.plan = plan
             space_planner = SpacePlanner("test", spec)
             best_solutions = space_planner.solution_research()
+            new_spec = space_planner.spec
 
             if best_solutions:
                 solution = best_solutions[solution_number]
                 plan = solution.plan
-                writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_"
-                                         + str(solution_number))
-                return spec, plan
+                new_spec.plan = plan
+                writer.save_plan_as_json(plan.serialize(), plan_file_name)
+                writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
+                return new_spec, plan
             else:
                 logging.info("No solution for this plan")
                 return spec, None
@@ -228,7 +234,7 @@ if __name__ == '__main__':
         """ test function """
         logging.getLogger().setLevel(logging.INFO)
 
-        spec, plan = get_plan("007", "0", 1)
+        spec, plan = get_plan("008", "0", 0)
         if plan:
             plan.plot()
             SHUFFLES["bedrooms_corner"].apply_to(plan)

@@ -10,11 +10,11 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 
 """
 import math
-from typing import TYPE_CHECKING, Optional, Sequence, List, Callable
+from typing import TYPE_CHECKING, Optional, Sequence, List, Callable, Dict
 from libs.refiner.core import evaluateFunc
 
 if TYPE_CHECKING:
-    from libs.specification.specification import Specification
+    from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
 
 scoreFunc = Callable[['Individual'], float]
@@ -32,29 +32,51 @@ def compose(funcs: List[scoreFunc]) -> evaluateFunc:
     return _evaluate_func
 
 
-def fc_score_area(spec: Optional['Specification'] = None) -> scoreFunc:
+def fc_score_area(spec: 'Specification') -> scoreFunc:
     """
     Score function factory
     Returns a score function that evaluates the proximity of the individual to a specification
     instance
+    Note: The dictionary matching spaces to specification items is memoized in the factory
     :param spec:
+    :param seed: initial individual to create space_to_item dict
     :return:
     """
+
+    def _create_dict(_spec: 'Specification') -> Dict[int, 'Item']:
+        output = {}
+        spec_items = _spec.items[:]
+        for sp in _spec.plan.spaces:
+            if not sp.category.mutable:
+                continue
+            corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
+            best_item = min(corresponding_items,
+                            key=lambda i: math.fabs(i.required_area - sp.cached_area()))
+            assert best_item, "Score: Each space should have a corresponding item in the spec"
+            output[sp.id] = best_item
+            spec_items.remove(best_item)
+        return output
+
     def _score(ind: 'Individual') -> float:
+        # create the item_to_space dict
         area_score = 0.0
         if spec is not None:
             for space in ind.spaces:
                 if not space.category.mutable:
                     continue
-                corresponding_items = (item for item in spec.items
-                                       if item.category is space.category)
-                space_score = min((math.fabs((item.required_area - space.cached_area())
-                                             / item.required_area)
-                                  for item in corresponding_items), default=100)
+                item = space_to_item[space.id]
+                space_area = space.cached_area()
+                if space_area < item.min_size.area:
+                    space_score = ((space_area - item.min_size.area)/space_area)**2
+                elif space_area > item.max_size.area:
+                    space_score = ((space_area - item.max_size.area)/space_area)**2
+                else:
+                    space_score = 0
                 area_score += space_score
 
         return area_score
 
+    space_to_item = _create_dict(spec)
     return _score
 
 

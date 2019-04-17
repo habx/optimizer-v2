@@ -1885,7 +1885,7 @@ class Face(MeshComponent):
 
     type = MeshComponentType.FACE
 
-    __slots__ = '_edge', 'cached_area'
+    __slots__ = '_edge', '_cached_area'
 
     def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[int] = None):
 
@@ -1893,7 +1893,7 @@ class Face(MeshComponent):
         super().__init__(mesh, _id)
 
         # for performance purposes
-        self.cached_area = None
+        self._cached_area = None
 
     def __repr__(self):
         output = 'Face: ['
@@ -2017,6 +2017,26 @@ class Face(MeshComponent):
         :return: float
         """
         return self.as_sp.area
+
+    @property
+    def cached_area(self) -> float:
+        """
+        property
+        Returns the cached area of the face
+        :return:
+        """
+        if self._cached_area is None:
+            self._cached_area = self.area
+        return self._cached_area
+
+    @cached_area.setter
+    def cached_area(self, value: float):
+        """
+        Computes the cache
+        :param value:
+        :return:
+        """
+        self._cached_area = value
 
     @property
     def length(self) -> float:
