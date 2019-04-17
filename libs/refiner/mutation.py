@@ -12,9 +12,10 @@ from libs.operators.selector import SELECTORS
 if TYPE_CHECKING:
     from libs.plan.plan import Plan, Space
     from libs.mesh.mesh import Edge
+    from libs.refiner.core import Individual
 
 
-def mutate_aligned(ind: 'Plan'):
+def mutate_aligned(ind: 'Individual') -> 'Individual':
     """
     Mutates the plan.
     1. select a random space
@@ -26,10 +27,10 @@ def mutate_aligned(ind: 'Plan'):
     space = _random_space(ind)
     edge = _random_edge(space)
     MUTATIONS["swap_aligned_face"].apply_to(edge, space)
-    return ind,
+    return ind
 
 
-def mutate_simple(ind: 'Plan'):
+def mutate_simple(ind: 'Individual') -> 'Individual':
     """
     Mutates the plan.
     1. select a random space
@@ -42,9 +43,9 @@ def mutate_simple(ind: 'Plan'):
     edge = _random_edge(space)
     if edge:
         if space.corner_stone(edge.face) or ind.get_space_of_edge(edge) is not space:
-            return ind,
+            return ind
         MUTATIONS["remove_face"].apply_to(edge, space)
-    return ind,
+    return ind
 
 
 def _random_space(plan: 'Plan') -> Optional['Space']:

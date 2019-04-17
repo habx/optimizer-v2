@@ -22,13 +22,17 @@ TODO :
 import random
 import logging
 
-from typing import TYPE_CHECKING, Optional, Tuple, Callable, List
+from typing import TYPE_CHECKING, Optional, Tuple, Callable, List, Union
 from libs.plan.plan import Plan
 
-from libs.refiner import core, crossover, evaluation, mutation, nsga
+from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
+
+# The type of an algorithm function
+algorithmFunc = Callable[['core.Toolbox', Plan, Optional['support.HallOfFame']],
+                         List['core.Individual']]
 
 
 class Refiner:
@@ -42,7 +46,7 @@ class Refiner:
     """
     def __init__(self,
                  fc_toolbox: Callable[['Specification'], 'core.Toolbox'],
-                 algorithm: Callable[['core.Toolbox', Plan], List['core.Individual']]):
+                 algorithm: algorithmFunc):
         self._toolbox_factory = fc_toolbox
         self._algorithm = algorithm
 
@@ -56,14 +60,19 @@ class Refiner:
         results = self.run(plan, spec)
         return max(results, key=lambda i: i.fitness)
 
-    def run(self, plan: 'Plan', spec: 'Specification') -> List['core.Individual']:
+    def run(self,
+            plan: 'Plan',
+            spec: 'Specification',
+            with_hof: bool = False) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
         :param plan:
         :param spec:
+        :param with_hof: whether to return the results or a hall of fame
         :return:
         """
         toolbox = self._toolbox_factory(spec)
+        _hof = support.HallOfFame(3) if with_hof else None
         # 1. refine mesh of the plan
         # TODO : implement this
 
@@ -73,7 +82,8 @@ class Refiner:
 
         # 3. run the algorithm
         initial_ind = toolbox.individual(plan)
-        return self._algorithm(toolbox, initial_ind)
+        results = self._algorithm(toolbox, initial_ind, _hof)
+        return results if not with_hof else _hof
 
 
 # Toolbox factories
@@ -94,6 +104,7 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("select", nsga.select_nsga)
+    toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
     return toolbox
 
@@ -101,19 +112,21 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
 # Algorithm functions
 
 def simple_ga(toolbox: 'core.Toolbox',
-              initial_ind: 'core.Individual') -> List['core.Individual']:
+              initial_ind: 'core.Individual',
+              hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
     A simple implementation of a genetic algorithm.
     :param toolbox: a refiner toolbox
     :param initial_ind: an initial individual
+    :param hof: an optional hall of fame to store best individuals
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 30
-    mu = 4 * 30  # Must be a multiple of 4 for tournament selection of NSGA-II
+    ngen = 20
+    mu = 4 * 20  # Must be a multiple of 4 for tournament selection of NSGA-II
     cxpb = 0.8
 
-    pop = toolbox.population(initial_ind, mu)
+    pop = toolbox.populate(initial_ind, mu)
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
     fitnesses = map(toolbox.evaluate, invalid_ind)
     for ind, fit in zip(invalid_ind, fitnesses):
@@ -146,6 +159,10 @@ def simple_ga(toolbox: 'core.Toolbox',
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
+
+        # store best individuals in hof
+        if hof is not None:
+            hof.update(pop)
 
     return pop
 
@@ -215,7 +232,8 @@ if __name__ == '__main__':
         if plan:
             plan.plot()
             SHUFFLES["bedrooms_corner"].apply_to(plan)
-            best = REFINERS["simple"].apply_to(plan, spec)
-            best.plot(show=True)
+            hof = REFINERS["simple"].run(plan, spec, True)
+            for i in hof:
+                i.plot()
 
     main()

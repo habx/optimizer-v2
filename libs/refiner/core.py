@@ -186,7 +186,7 @@ selectFunc = Callable[[List['Individual']], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 evaluateFunc = Callable[['Individual'], Sequence[float]]
 mutateFunc = Callable[['Individual'], 'Individual']
-populationFunc = Callable[[Optional['Individual'], int], List['Individual']]
+populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
 
 
 class Toolbox:
@@ -196,7 +196,7 @@ class Toolbox:
     • mutate
     • etc.
     """
-    __slots__ = ("_clone", "_mate", "_select", "_evaluate", "_mutate", "_population",
+    __slots__ = ("_clone", "_mate", "_select", "_evaluate", "_mutate", "_populate",
                  "_individual_class", "_fitness_class")
 
     classes = {"fitness": Fitness, "individual": Individual}
@@ -208,7 +208,7 @@ class Toolbox:
         self._select: Optional[selectFunc] = None
         self._evaluate: Optional[evaluateFunc] = None
         self._mutate: Optional[mutateFunc] = None
-        self._population: Optional[populationFunc] = lambda ind, n: [ind.clone() for _ in range(n)]
+        self._populate: Optional[populateFunc] = None
 
         # base class
         self._individual_class: Optional[Type['Individual']] = None
@@ -217,8 +217,8 @@ class Toolbox:
     def configure(self, class_name: str, *args, **kwargs):
         """
         Creates the customized subclass and stores it in the toolbox
-            ex. :   toolbox.configure("fitness", (-1.0, -2.0, -3.0))
-                    toolbox.configure("individual", toolbox.fitness)
+            ex.: toolbox.configure("fitness", (-1.0, -2.0, -3.0))
+                 toolbox.configure("individual", toolbox.fitness)
         :param class_name:
         :param args:
         :param kwargs:
@@ -258,7 +258,7 @@ class Toolbox:
             "mate": "_mate",
             "select": "_select",
             "mutate": "_mutate",
-            "population": "_population",
+            "populate": "_populate",
             "evaluate": "_evaluate"
         }
 
@@ -273,6 +273,7 @@ class Toolbox:
         :param ind:
         :return:
         """
+        assert self._clone, "Toolbox: the clone function has not been implemented"
         return self._clone(ind)
 
     def select(self, pop: List['Individual'], *args, **kwargs) -> List['Individual']:
@@ -281,6 +282,7 @@ class Toolbox:
         :param pop:
         :return: the selected population
         """
+        assert self._select, "Toolbox: the select function has not been implemented"
         return self._select(pop, *args, **kwargs)
 
     def mate(self, ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual', 'Individual']:
@@ -290,6 +292,7 @@ class Toolbox:
         :param ind_2:
         :return:
         """
+        assert self._mate, "Toolbox: the crossover function has not been implemented"
         return self._mate(ind_1, ind_2)
 
     def mutate(self, ind: 'Individual') -> 'Individual':
@@ -298,6 +301,7 @@ class Toolbox:
         :param ind:
         :return:
         """
+        assert self._mutate, "Toolbox: the mutation function has not been implemented"
         return self._mutate(ind)
 
     def evaluate(self, ind: 'Individual') -> Sequence[float]:
@@ -306,11 +310,13 @@ class Toolbox:
         :param ind:
         :return:
         """
+        assert self._evaluate, "Toolbox: the evaluate function has not been implemented"
         return self._evaluate(ind)
 
-    def population(self, ind: Optional['Individual'], size: int) -> List['Individual']:
+    def populate(self, ind: Optional['Individual'], size: int) -> List['Individual']:
         """
         Creates a population of individual
         :return:
         """
-        return self._population(ind, size)
+        assert self._populate, "Toolbox: the populate function has not been implemented"
+        return self._populate(ind, size)
