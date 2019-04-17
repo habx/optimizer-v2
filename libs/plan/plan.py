@@ -612,6 +612,13 @@ class Space(PlanComponent):
         """
         return sum(map(lambda f: f.area, self.faces))
 
+    def cached_area(self) -> float:
+        """
+        Returns the cached area of the space
+        :return:
+        """
+        return sum(map(lambda f: f.cached_area, self.faces))
+
     @property
     def perimeter(self) -> float:
         """
@@ -1072,6 +1079,8 @@ class Space(PlanComponent):
         NOTE : Per convention the edge of the exterior is stored as the first element of the
         _edges_id array.
         """
+        if not self.number_of_faces:
+            return
         space_edges = []
         self._edges_id = []
         max_perimeter = 0.0
@@ -1089,7 +1098,8 @@ class Space(PlanComponent):
 
                     space_edges = list(self.edges)
 
-        assert len(self._edges_id), "The space is badly shaped: {}".format(self)
+        if not len(self._edges_id):
+            raise ValueError("The space is badly shaped: {}".format(self))
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
                                boundary_edge: Optional['Edge'] = None):
@@ -2256,8 +2266,8 @@ class Plan:
         :param name: the name of the cloned plan
         :return:
         """
-        name = name or self.name + '_copy'
-        new_plan = Plan(name, self.mesh)
+        name = name or self.name
+        new_plan = Plan(name)
         # clone floors, spaces and linears
         new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
@@ -2265,6 +2275,29 @@ class Plan:
         new_plan._counter = self._counter
 
         return new_plan
+
+    def copy(self, plan: 'Plan') -> 'Plan':
+        """
+        Copies the data from an another plan
+        :param plan:
+        :return:
+        """
+        self.name = plan.name
+        self.floors = {floor.id: floor.clone(self) for floor in plan.floors.values()}
+        self.spaces = [space.clone(self) for space in plan.spaces]
+        self.linears = [linear.clone(self) for linear in plan.linears]
+        self._counter = plan._counter
+        return self
+
+    def __deepcopy__(self, memo) -> 'Plan':
+        """
+        We overload deepcopy in order to be able to clone a plan using the
+        following copy.deepcopy(plan). This is needed for proper interface with
+        other libraries such as deap.
+        :param memo: needed for the deepcopy overloading (useless in our case)
+        :return: a clone of the plan
+        """
+        return self.clone()
 
     @property
     def mesh(self) -> Optional['Mesh']:
@@ -2414,6 +2447,17 @@ class Plan:
             if linear.has_edge_id(edge_id, mesh_id):
                 return linear
         return None
+
+    def get_linear_from_edge(self, edge: 'Edge') -> Optional['Linear']:
+        """
+        Returns the linear that owns the edge if found, None otherwise
+        :param edge:
+        :return:
+        """
+        if not edge or not edge.mesh:
+            return None
+
+        return self.get_linear_from_edge_id(edge.id, edge.mesh.id)
 
     def add_floor_from_boundary(self,
                                 boundary: Sequence[Coords2d],

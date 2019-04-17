@@ -377,7 +377,7 @@ def create_plan_from_v1_data(v1_data: Dict, name: str) -> plan.Plan:
 
 def create_specification_from_file(input_file: str) -> Specification:
     """
-    Creates a specification object from a json file name/
+    Creates a specification object from a json file name
     """
     spec_dict = get_json_from_file(input_file, DEFAULT_SPECIFICATION_INPUT_FOLDER)
     return create_specification_from_data(spec_dict, input_file)
@@ -415,23 +415,19 @@ def create_specification_from_data(input_data: dict,
         required_area = item["requiredArea"]
         size_min = Size(area=required_area["min"])
         size_max = Size(area=required_area["max"])
-        variant = "m"
-        opens_on = []
-        linked_to = []
-        if "variant" in list(item.keys()):
-            variant = item["variant"]
-        if "opensOn" in list(item.keys()):
-            opens_on = item["opensOn"]
-        if "linkedTo" in list(item.keys()):
-            linked_to = item["linkedTo"]
+        variant = item.get("variant", "m")
+        opens_on = item.get("opensOn", [])
+        linked_to = item.get("linkedTo", [])
+        tags = item.get("tags", [])
         new_item = Item(SPACE_CATEGORIES[_category], variant, size_min, size_max, opens_on,
-                        linked_to)
+                        linked_to, tags)
         specification.add_item(new_item)
 
     return specification
 
 
 if __name__ == '__main__':
+
     def specification_read():
         """
         Test
@@ -440,6 +436,9 @@ if __name__ == '__main__':
         input_file = "011_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
+
+        spec_dict = spec.serialize()
+        print(spec_dict)
 
 
     def plan_read():

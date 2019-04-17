@@ -686,6 +686,31 @@ def test_clone_change_plan():
     assert plan.spaces[0].id == plan_2.spaces[0].id
 
 
+def test_deepcopy_change_plan():
+    """
+
+    :return:
+    """
+    from libs.modelers.grid import GRIDS
+    import copy
+
+    perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
+    duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+    duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
+    plan = Plan()
+    plan.add_floor_from_boundary(perimeter)
+    plan_2 = copy.deepcopy(plan)
+    plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+    plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
+    GRIDS["finer_ortho_grid"].apply_to(plan_2)
+    plan.plot()
+    plan_2.plot()
+    space = plan.get_space_from_id(plan.spaces[0].id)
+    assert space is plan.empty_space
+    assert plan.spaces[0].id == plan_2.spaces[0].id
+
+
 def test_insert_external_space():
     """
     Add a face outside the mesh. The face must be adjacent.

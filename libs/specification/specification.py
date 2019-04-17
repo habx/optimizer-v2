@@ -8,7 +8,7 @@ from libs.plan.category import SpaceCategory
 from libs.plan.plan import Plan
 from libs.specification.size import Size
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class Specification:
@@ -91,6 +91,13 @@ class Specification:
         value.id = len(self.items)
         self.items.append(value)
 
+    def serialize(self) -> Dict:
+        """
+        Serialize the specification
+        :return:
+        """
+        return {"rooms": [i.serialize() for i in self.items]}
+
 
 class Item:
     """
@@ -99,13 +106,15 @@ class Item:
 
     def __init__(self, category: SpaceCategory,
                  variant: str, min_size: 'Size', max_size: 'Size',
-                 opens_on: Optional[List['str']] = [], linked_to: Optional[List['str']] = []):
+                 opens_on: Optional[List['str']] = None, linked_to: Optional[List['str']] = None,
+                 tags: Optional[List['str']] = None):
         self.category = category
         self.variant = variant
         self.min_size = min_size
         self.max_size = max_size
-        self.opens_on = opens_on
-        self.linked_to = linked_to
+        self.opens_on = opens_on or []
+        self.linked_to = linked_to or []
+        self.tags = tags or []
         self.id = 0
 
     def __repr__(self):
@@ -119,3 +128,33 @@ class Item:
         :return:
         """
         return (self.min_size.area + self.max_size.area)/2
+
+    def serialize(self) -> Dict:
+        """
+        Returns the dictionary format to save as json
+        format :    {
+                      "linkedTo": [],
+                      "opensOn": [],
+                      "requiredArea": {
+                        "max": 100000,
+                        "min": 80000
+                      },
+                      "tags": [],
+                      "type": "bedroom",
+                      "variant": "xs"
+                    },
+        :return:
+        """
+        output = {
+            "linkedTo": self.linked_to,
+            "opensOn": self.opens_on,
+            "requiredArea": {
+                "max": self.max_size.area,
+                "min": self.min_size.area
+            },
+            "tags": self.tags,
+            "type": self.category.name,
+            "variant": self.variant
+        }
+
+        return output
