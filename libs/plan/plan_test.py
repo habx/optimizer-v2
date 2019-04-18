@@ -1066,3 +1066,24 @@ def test_number_corners_with_addition_face(l_plan):
     plan.insert_space_from_boundary(weird_space_boundary)
     GRIDS["ortho_grid"].apply_to(plan)
     assert plan.spaces[0].number_of_corners(plan.mesh.faces[0]) == 6
+
+
+def test_corner_stone():
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    weird_space_boundary = [(0, 0), (250, 0), (250, 250), (125, 250), (125, 125), (0, 125)]
+    plan.insert_space_from_boundary(weird_space_boundary)
+
+    GRIDS["simple_grid"].apply_to(plan)
+    plan.plot()
+
+    faces_id = [365, 389]
+    faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
+    space = plan.spaces[1]
+
+    assert space.corner_stone(*faces)
+
+    faces_id += [383, 16]
+    faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
+
+    assert not space.corner_stone(*faces)
