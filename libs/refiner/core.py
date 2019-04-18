@@ -9,7 +9,7 @@ Individual.new(
 
 
 """
-from typing import Optional, Tuple, List, Callable, Sequence, Type
+from typing import Optional, Tuple, List, Callable, Sequence, Type, Any
 from libs.plan.plan import Plan
 
 
@@ -45,6 +45,12 @@ class Fitness:
 
     def __init__(self):
         self._wvalues = ()
+
+    @property
+    def value(self) -> float:
+        """ property : returns the arithmetic sum of the values
+        """
+        return sum(self._wvalues)
 
     @property
     def weights(self):
@@ -181,6 +187,7 @@ class Individual(Plan):
         return self.clone()
 
 
+mapFunc = Callable[[Callable[['Individual'], Any], Sequence['Individual']], Sequence[Any]]
 cloneFunc = Callable[['Individual'], 'Individual']
 selectFunc = Callable[[List['Individual']], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
@@ -196,13 +203,14 @@ class Toolbox:
     • mutate
     • etc.
     """
-    __slots__ = ("_clone", "_mate", "_select", "_evaluate", "_mutate", "_populate",
+    __slots__ = ("_map", "_clone", "_mate", "_select", "_evaluate", "_mutate", "_populate",
                  "_individual_class", "_fitness_class")
 
     classes = {"fitness": Fitness, "individual": Individual}
 
     def __init__(self):
         # operators
+        self._map = map
         self._clone: cloneFunc = lambda i: i.clone()
         self._mate:  Optional[mateFunc] = None
         self._select: Optional[selectFunc] = None
@@ -254,6 +262,7 @@ class Toolbox:
         :return:
         """
         op_dict = {
+            "map": "_map",
             "clone": "_clone",
             "mate": "_mate",
             "select": "_select",
@@ -266,6 +275,16 @@ class Toolbox:
                                           "{}".format(operator_name))
 
         setattr(self, op_dict[operator_name], func)
+
+    def map(self, func: Callable[['Individual'], Any], pop: Sequence['Individual']) -> Any:
+        """
+        Clones an individual
+        :param func:
+        :param pop:
+        :return:
+        """
+        assert self._map, "Toolbox: the map function has not been implemented"
+        return self._map(func, pop)
 
     def clone(self, ind: 'Individual') -> 'Individual':
         """
@@ -328,7 +347,7 @@ class Toolbox:
         :param refresh: whether to refresh the fitness if it is still valid
         :return:
         """
-        for ind in pop:
-            if ind.fitness.valid and not refresh:
-                continue
-            ind.fitness.values = self._evaluate(ind)
+        invalid_fit = [ind for ind in pop if not ind.fitness.valid and not refresh]
+        fitnesses = self.map(self.evaluate, invalid_fit)
+        for ind, fit in zip(invalid_fit, fitnesses):
+            ind.fitness.values = fit

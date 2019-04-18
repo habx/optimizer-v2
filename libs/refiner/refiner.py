@@ -17,8 +17,10 @@ It implements a simple version of the NSGA-II algorithm:
 
 TODO LIST:
     • refine grid prior to genetic search
-    • guide mutation to refine choices and speed-up search
-    • forbid the swap of a face close to a needed component (eg. duct for a bathroom)
+    • create efficient all aligned edges mutation
+    • check edge selector to make sure we are not eliminating needed scenarios
+    • add similar function to create diversity in the hof
+    • enable multiprocessing by achieving to separate the mesh from the plan... (hard)
 
 """
 import random
@@ -74,7 +76,7 @@ class Refiner:
         :return:
         """
         toolbox = self._toolbox_factory(spec)
-        _hof = support.HallOfFame(3) if with_hof else None
+        _hof = support.HallOfFame(4) if with_hof else None
         # 1. refine mesh of the plan
         # TODO : implement this
 
@@ -100,11 +102,12 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     :return:
     """
     toolbox = core.Toolbox()
-    toolbox.configure("fitness", (-1.0, -10.0, -8.0))
+    toolbox.configure("fitness", (-3.0, -1.0, -5.0))
     toolbox.configure("individual", toolbox.fitness)
-    scores_fc = [evaluation.fc_score_area(spec),
-                 evaluation.score_corner,
-                 evaluation.score_bounding_box]
+    # Note : order is very important as tuples are evaluated lexicographically in python
+    scores_fc = [evaluation.score_corner,
+                 evaluation.score_bounding_box,
+                 evaluation.fc_score_area(spec)]
     toolbox.register("evaluate", evaluation.compose(scores_fc))
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
@@ -128,14 +131,11 @@ def simple_ga(toolbox: 'core.Toolbox',
     """
     # algorithm parameters
     ngen = 100
-    mu = 4 * 20  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.8
+    mu = 4 * 25  # Must be a multiple of 4 for tournament selection of NSGA-II
+    cxpb = 0.5
 
     pop = toolbox.populate(initial_ind, mu)
-    invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    fitnesses = map(toolbox.evaluate, invalid_ind)
-    for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit
+    toolbox.evaluate_pop(pop)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -157,10 +157,7 @@ def simple_ga(toolbox: 'core.Toolbox',
             ind2.fitness.clear()
 
         # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+        toolbox.evaluate_pop(offspring)
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
@@ -240,15 +237,26 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        spec, plan = get_plan("052")
+        spec, plan = get_plan("037") #052
         if plan:
+            plan.name = "original"
             plan.plot()
             start = time.time()
             hof = REFINERS["simple"].run(plan, spec, True)
+            sols = sorted(hof, key=lambda i: i.fitness.value, reverse=True)
             end = time.time()
-            for i in hof:
-                i.plot()
-                print(i.fitness.values)
+            for n, ind in enumerate(sols):
+                ind.name = str(n)
+                ind.plot()
+                print("Fitness: {} - {}".format(ind.fitness.value, ind.fitness.values))
             print("Time elapsed: {}".format(end - start))
+            best = sols[0]
+            item_dict = evaluation.create_item_dict(spec)
+            for space in best.mutable_spaces():
+                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
+                                                          round(space.cached_area()),
+                                                          item_dict[space.id].min_size.area,
+                                                          item_dict[space.id].max_size.area))
+
 
     main()

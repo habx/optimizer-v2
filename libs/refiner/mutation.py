@@ -70,7 +70,7 @@ def _random_edge(space: 'Space') -> Optional['Edge']:
     """
     mutable_edges = list(SELECTORS["is_mutable"].yield_from(space))
     if not mutable_edges:
-        logging.warning("Mutation: Random edge, no edge was found !! %s", space)
+        logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
     return random.choice(mutable_edges)
 
