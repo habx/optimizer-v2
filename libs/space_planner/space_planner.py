@@ -88,36 +88,36 @@ class SpacePlanner:
         #invariant_categories = ["entrance"]
 
         # area - without circulation
+        # invariant_area = sum(item.required_area for item in space_planner_spec.items
+        #                      if item.category.name in invariant_categories)
+        # circulation_area = sum(item.required_area for item in space_planner_spec.items
+        #                      if item.category.name == 'circulation')
+        # coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
+        #     item.required_area for item in space_planner_spec.items if
+        #     (item.category.name not in invariant_categories
+        #      and item.category.name != 'circulation'))))
+        #
+        # for item in space_planner_spec.items:
+        #     if (item.category.name not in invariant_categories
+        #             and item.category.name != 'circulation'):
+        #         item.min_size.area = round(item.min_size.area * coeff)
+        #         item.max_size.area = round(item.max_size.area * coeff)
+
+        # area - with circulation
         invariant_area = sum(item.required_area for item in space_planner_spec.items
                              if item.category.name in invariant_categories)
-        circulation_area = sum(item.required_area for item in space_planner_spec.items
-                             if item.category.name == 'circulation')
         coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
             item.required_area for item in space_planner_spec.items if
-            (item.category.name not in invariant_categories
-             and item.category.name != 'circulation'))))
+            item.category.name not in invariant_categories)))
 
         for item in space_planner_spec.items:
-            if (item.category.name not in invariant_categories
-                    and item.category.name != 'circulation'):
+            if item.category.name not in invariant_categories:
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
 
-        # area - with circulation
-        # invariant_area = sum(item.required_area for item in space_planner_spec.items
-        #                      if item.category.name in invariant_categories)
-        # coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
-        #     item.required_area for item in space_planner_spec.items if
-        #     item.category.name not in invariant_categories)))
-        #
-        # for item in space_planner_spec.items:
-        #     if item.category.name not in invariant_categories:
-        #         item.min_size.area = round(item.min_size.area * coeff)
-        #         item.max_size.area = round(item.max_size.area * coeff)
-        #
-        # logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
-        # logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
-        #                                               for item in space_planner_spec.items)))
+        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
+        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
+                                                      for item in space_planner_spec.items)))
 
         self.spec = space_planner_spec
 
@@ -231,8 +231,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "007.json"
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = "007.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
