@@ -265,13 +265,21 @@ class ConstraintsManager:
         self.add_item_constraints()
 
     def _init_item_area(self) -> None:
+        """
+        Initialize item area
+        :return:
+        """
         for item in self.sp.spec.items:
-            self.item_area[str(item.id)] = self.solver.solver.Sum(
+            self.item_area[item.id] = self.solver.solver.Sum(
                 self.solver.positions[item.id, j] * round(space.area)
                 for j, space in
                 enumerate(self.sp.spec.plan.mutable_spaces()))
 
     def _init_item_windows_area(self) -> None:
+        """
+        Initialize item window area
+        :return:
+        """
         for item in self.sp.spec.items:
             area = 0
             for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
@@ -282,7 +290,7 @@ class ConstraintsManager:
                     elif component.category.name == "doorWindow":
                         area += (self.solver.positions[item.id, j]
                                    * int(round(component.length * 200)))
-            self.item_windows_area[str(item.id)] = area
+            self.item_windows_area[item.id] = area
 
     def _init_windows_length(self) -> None:
         """
@@ -297,7 +305,7 @@ class ConstraintsManager:
                             or component.category.name == "doorWindow"):
                         length += (self.solver.positions[item.id, j]
                                    * int(round(component.length / 10)))
-            self.windows_length[str(item.id)] = length
+            self.windows_length[item.id] = length
 
     def _init_spaces_distance(self) -> None:
         """
@@ -488,14 +496,14 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
-        ct = manager.item_area[str(item.id)] <= max_area
+        ct = manager.item_area[item.id] <= max_area
 
     elif min_max == "min":
         if item.variant in ["xs", "s"]:
             min_area = round(item.min_size.area)
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
-        ct = manager.item_area[str(item.id)] >= min_area
+        ct = manager.item_area[item.id] >= min_area
     else:
         ValueError("AreaConstraint")
 
@@ -654,9 +662,9 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
-    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+    if item.category.name in ["living", "dining", "livingKitchen"]:
         param = min(max(30, plan_ratio + 10), 40)
-    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance"]
+    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing", "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
         param = min(max(25, plan_ratio), 35)
     elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
@@ -685,7 +693,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 enumerate(manager.sp.spec.plan.mutable_spaces())
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
-    ct = (item_perimeter * item_perimeter <= int(param) * manager.item_area[str(item.id)])
+    ct = (item_perimeter * item_perimeter <= int(param) * manager.item_area[item.id])
 
     return ct
 
@@ -702,11 +710,11 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
         if (item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS
                 and item.required_area < j_item.required_area):
             if ct is None:
-                ct = (manager.windows_length[str(item.id)] <=
-                      manager.windows_length[str(j_item.id)])
+                ct = (manager.windows_length[item.id] <=
+                      manager.windows_length[j_item.id])
             else:
-                new_ct = (manager.windows_length[str(item.id)] <=
-                          manager.windows_length[str(j_item.id)])
+                new_ct = (manager.windows_length[item.id] <=
+                          manager.windows_length[j_item.id])
                 ct = manager.solver.solver.Min(ct, new_ct)
     if ct is None:
         return ct
@@ -722,8 +730,8 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
     :param ratio : minimum ratio between item area and windows area
     :return: ct: ortools.Constraint
     """
-    ct = (manager.item_area[str(item.id)] * ratio) <= (
-                manager.item_windows_area[str(item.id)] * 100)
+    ct = (manager.item_area[item.id] * ratio) <= (
+                manager.item_windows_area[item.id] * 100)
     return ct
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
@@ -767,7 +775,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     """
     ct = None
     item_sym_id = str(item.category.name + item.variant)
-    if item_sym_id in manager.symmetry_breaker_memo.keys():
+    if item_sym_id in manager.symmetry_breaker_memo:
         memo = manager.solver.solver.Sum(
             2 ** j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j]
             for j in range(manager.solver.spaces_nbr))
@@ -954,7 +962,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_graph_constraint, {}],
         [distance_constraint, {}],
         [shape_constraint, {}],
-        #[windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [

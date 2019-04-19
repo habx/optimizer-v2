@@ -11,6 +11,7 @@ from typing import List, Dict, Optional
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, COST_RULES
+from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
 
 CORRIDOR_SIZE = 120
@@ -291,6 +292,32 @@ class Solution:
         logging.debug("Solution %i: Size bonus : %i", self._id, 10)
         return 10
 
+    def _windows_good_distribution_bonus(self) -> float:
+        """
+        Good ordering windows area bonus
+        :return: score : float
+        """
+        item_windows_area = {}
+        for item in self.collector.spec.items:
+            area = 0
+            for component in self.items_spaces[item].immutable_components():
+                if component.category.name == "window":
+                    area += component.length * 100
+                elif component.category.name == "doorWindow":
+                    area += component.length * 200
+            item_windows_area[item.id] = area
+
+        for item1 in self.collector.spec.items:
+            for item2 in self.collector.spec.items:
+                if (item1.required_area < item2.required_area
+                        and item1.category.name in WINDOW_ROOMS
+                        and item2.category.name in WINDOW_ROOMS):
+                    if item_windows_area[item1.id] > item_windows_area[item2.id]:
+                        logging.debug("Solution %i: Windows bonus : %i", self._id, 0)
+                        return 0
+        logging.debug("Solution %i: Windows bonus : %i", self._id, 10)
+        return 10
+
     def _externals_spaces_bonus(self) -> float:
         """
         Good ordering externals spaces size bonus
@@ -355,7 +382,7 @@ class Solution:
             day_polygon_list.append(None)
             night_polygon_list.append(None)
 
-        for item in self.items_spaces.keys():
+        for item in self.items_spaces:
             associated_space = self.items_spaces[item]
             level = associated_space.floor.level
             # Day
@@ -433,7 +460,7 @@ class Solution:
         nbr_room_position_score = 0
         front_door = self.plan.front_door().as_sp
         corridor_poly = None  # TODO
-        for item in self.items_spaces.keys():
+        for item in self.items_spaces:
             space = self.items_spaces[item]
             item_position_score = 0
             if item.category.name == "toilet" and space == self.get_rooms("toilet")[0]:
@@ -550,7 +577,8 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus() #- self._circulation_penalty()
+        solution_score = (solution_score + self._good_size_bonus() +
+                          self._windows_good_distribution_bonus()) #- self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
         return solution_score
 
