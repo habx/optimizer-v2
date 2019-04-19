@@ -2123,6 +2123,28 @@ class Plan:
         self.linears = []
         self.floors = {}
 
+    def is_similar(self, other: 'Plan') -> bool:
+        """
+        Returns True if two plans are considered similar.
+        The plans are expected to have the same mesh for each of their floors, and to
+        :param other:
+        :return:
+        """
+        min_difference = 1000
+        # check that both plan have the same meshes
+        for _id, floor in self.floors.items():
+            other_floor = other.get_floor_from_id(_id)
+            if floor.mesh is not other_floor.mesh:
+                return False
+        # compare the id of the space for each face
+        self_spaces_faces = ((space, f) for space in self.mutable_spaces() for f in space.faces)
+        difference = 0
+        for self_space, f in self_spaces_faces:
+            other_space = other.get_space_of_face(f)
+            difference += f.cached_area if other_space.id != self_space.id else 0
+
+        return difference < min_difference
+
     def serialize(self) -> Dict[str, Any]:
         """
         Returns a serialize version of the plan

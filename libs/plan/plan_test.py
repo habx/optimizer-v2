@@ -60,7 +60,7 @@ def test_serialization():
         serialized_data = plan.serialize()
         writer.save_plan_as_json(serialized_data)
 
-        new_serialized_data = reader.get_plan_from_json(serialized_data["name"])
+        new_serialized_data = reader.get_plan_from_json(serialized_data["name"] + ".json")
         new_plan = Plan("from_saved_data").deserialize(new_serialized_data)
 
     new_plan.plot()
