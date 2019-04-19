@@ -119,7 +119,7 @@ def unit_vector(angle: float) -> Vector2d:
     angle %= 360
     angle = angle - 360 * np.sign(angle) if np.abs(angle) > 180 else angle
     rad = angle * np.pi / 180
-    return np.cos(rad), np.sin(rad)
+    return truncate(np.cos(rad), COORD_DECIMAL), truncate(np.sin(rad), COORD_DECIMAL)
 
 
 def normal_vector(vector: Vector2d) -> Vector2d:
