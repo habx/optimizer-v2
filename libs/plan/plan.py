@@ -2831,10 +2831,8 @@ class Plan:
                 if face_to_insert:
                     floor.mesh.remove_face_and_children(face_to_insert)
 
-        # TODO: this should probably raise an exception but too many input blueprints are
-        # incorrect due to wrong load bearing walls geometry, it would fail too many tests
-        logging.error('Plan: Could not insert the space in the plan because '
-                      'it overlaps other non empty spaces: %s, %s', boundary, category)
+        raise ValueError('Plan: Could not insert the space in the plan because '
+                         'it overlaps the receiving space: {}, {}'.format(boundary, category))
 
     def insert_linear(self,
                       point_1: Coords2d,
@@ -2997,7 +2995,7 @@ if __name__ == '__main__':
         Test the creation of a specific blueprint
         :return:
         """
-        input_file = "011.json"
+        input_file = "018.json"
         plan = reader.create_plan_from_file(input_file)
 
         plan.plot(save=False)
@@ -3007,29 +3005,3 @@ if __name__ == '__main__':
 
 
     floor_plan()
-
-
-    def clone_and_change_plan():
-        """
-        :return:
-        """
-        from libs.modelers.grid import GRIDS
-
-        perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
-        duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
-        duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
-        plan = Plan()
-        plan.add_floor_from_boundary(perimeter)
-        plan_2 = plan.clone()
-        plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
-        plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
-        GRIDS["finer_ortho_grid"].apply_to(plan_2)
-
-        plan.mesh.check()
-        plan.plot()
-        plan_2.plot()
-        space = plan.get_space_from_id(plan.spaces[0].id)
-        assert space is plan.empty_space
-        assert plan.spaces[0].id == plan_2.spaces[0].id
-
-    # clone_and_change_plan()
