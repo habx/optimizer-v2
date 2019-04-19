@@ -208,8 +208,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "049.json"
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        # input_file = "049.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)

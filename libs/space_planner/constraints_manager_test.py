@@ -195,8 +195,8 @@ def test_t3_bis():
     plan_t3_bis.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
     plan_t3_bis.insert_linear((210, 0), (290, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
     plan_t3_bis.insert_linear((350, 600), (50, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t3_bis.insert_linear((600, 600), (500, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t3_bis.insert_linear((900, 600), (800, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t3_bis.insert_linear((650, 600), (500, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t3_bis.insert_linear((950, 600), (800, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_bis.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
@@ -211,12 +211,11 @@ def test_t3_bis():
     plan_t3_bis.insert_space_from_boundary(bedroom1_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t3_bis.remove_null_spaces()
     plan_t3_bis.plot()
-
-    bathroom = Item(SPACE_CATEGORIES["toilet"], "xs", Size(area=25000), Size(area=35000))
+    bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "m", Size(area=140000), Size(area=200000))
-    bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
-    bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=100000), Size(area=140000))
+    bedroom1 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=90000), Size(area=110000))
+    bedroom2 = Item(SPACE_CATEGORIES["bedroom"], "s", Size(area=90000), Size(area=110000))
     spec = Specification("simple_test", plan_t3_bis, [bathroom, circulation, living, bedroom1,
                                                       bedroom2])
 

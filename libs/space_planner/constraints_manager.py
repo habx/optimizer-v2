@@ -1005,7 +1005,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["kitchen", "livingKitchen"]}]
+        [item_adjacency_constraint,
+         {"item_categories": ["kitchen", "livingKitchen"], "adj": True, "addition_rule": "Or"}]
     ],
     "kitchen": [
         [area_constraint, {"min_max": "min"}],
@@ -1065,7 +1066,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}]
     ],
     "bathroom": [
-        [item_adjacency_constraint, {"item_categories": PRIVATE_ROOMS, "adj": True}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "living": [
         [externals_connection_constraint, {}]
