@@ -712,6 +712,24 @@ def test_deepcopy_change_plan():
     assert plan.spaces[0].id == plan_2.spaces[0].id
 
 
+def test_pickling():
+    from libs.modelers.grid import GRIDS
+    import pickle
+
+    plan = rectangular_plan(1000, 800)
+    duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+    plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+
+    data = pickle.dumps(plan)
+    new_plan = pickle.loads(data)
+
+    new_plan.plot()
+
+    assert new_plan.check()
+
+
 def test_insert_external_space():
     """
     Add a face outside the mesh. The face must be adjacent.

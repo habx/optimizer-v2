@@ -2021,7 +2021,7 @@ class Floor:
     def __init__(self,
                  plan: 'Plan',
                  mesh: Optional['Mesh'] = None,
-                 level: Optional[int] = None,
+                 level: Optional[int] = 0,
                  meta: Optional[dict] = None,
                  _id: Optional[int] = None):
         self.plan = plan
@@ -2061,7 +2061,7 @@ class Floor:
 
     def deserialize(self, value: Dict) -> 'Floor':
         """
-        Returns a serialized version of the floor
+        Creates a floor from serialized data
         :return:
         """
         # add new deserialized mesh and corresponding watcher
@@ -2186,6 +2186,18 @@ class Plan:
         self._reset_counter()
 
         return self
+
+    def __getstate__(self) -> Dict:
+        """
+        Used to replace pickling method.
+        This is needed due to the circular references in the mesh that makes it inefficient
+        for the standard pickle protocol.
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """ Used to replace pickling method. """
+        self.deserialize(state)
 
     def watcher(self, modifications: Dict[int, 'MeshModification'], mesh_id: uuid.UUID):
         """
@@ -2476,7 +2488,7 @@ class Plan:
 
     def add_floor_from_boundary(self,
                                 boundary: Sequence[Coords2d],
-                                floor_level: Optional[int] = None,
+                                floor_level: Optional[int] = 0,
                                 floor_meta: Optional[dict] = None) -> 'Floor':
         """
         Creates a plan from a list of points
