@@ -1066,3 +1066,17 @@ def test_number_corners_with_addition_face(l_plan):
     plan.insert_space_from_boundary(weird_space_boundary)
     GRIDS["ortho_grid"].apply_to(plan)
     assert plan.spaces[0].number_of_corners(plan.mesh.faces[0]) == 6
+
+
+def test_maximum_distance():
+    import math
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+    space_1 = plan.insert_space_from_boundary([(0, 0), (125, 0), (125, 125), (0, 125)])
+    space_2 = plan.insert_space_from_boundary([(375, 375), (500, 375), (500, 500), (375, 500)])
+    plan.plot()
+    assert space_1.distance_to(space_2) == 500*math.sqrt(2)
+    space_3 = plan.insert_space_from_boundary([(0, 375), (125, 375), (125, 500), (0, 500)])
+    assert space_1.distance_to(space_3) == math.sqrt(500.0**2 + 125**2)
+

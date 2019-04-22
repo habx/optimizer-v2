@@ -1798,14 +1798,8 @@ class Space(PlanComponent):
         Returns the maximum distance with an other space or face
         :return: float : length
         """
-        max_distance = 0
-        for edge in self.edges:
-            vertex = edge.start
-            for other_edge in other.edges:
-                other_vertex = other_edge.start
-                if vertex.distance_to(other_vertex) > max_distance:
-                    max_distance = vertex.distance_to(other_vertex)
-
+        max_distance = max(e.start.distance_to(o.start)
+                           for e in self.exterior_edges for o in other.exterior_edges)
         return max_distance
 
 
@@ -2173,6 +2167,8 @@ class Plan:
         self._reset_counter()
 
         return self
+
+
 
     def _watcher(self, modifications, mesh_id: uuid.UUID):
         """
