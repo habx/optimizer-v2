@@ -1,0 +1,81 @@
+{
+  "rooms": [
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "kitchen"
+      ],
+      "requiredArea": {
+        "max": 200000,
+        "min": 165000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "living"
+      ],
+      "requiredArea": {
+        "max": 80000,
+        "min": 60000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "study",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 150000,
+        "min": 120000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "l"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000,
+        "min": 60000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "m"
+    },
+    {
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "type": "circulation"
+    }
+  ]
+}

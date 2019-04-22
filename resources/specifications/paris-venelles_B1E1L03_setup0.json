@@ -1,0 +1,46 @@
+{
+  "rooms": [
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 165000,
+        "min": 120000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 60000,
+        "min": 40000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 60000,
+        "min": 40000
+      },
+      "tags": [
+        "toilet"
+      ],
+      "type": "bathroom",
+      "variant": "s"
+    },
+    {
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "type": "circulation"
+    }
+  ]
+}

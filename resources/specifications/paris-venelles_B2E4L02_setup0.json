@@ -1,0 +1,72 @@
+{
+  "rooms": [
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "kitchen"
+      ],
+      "requiredArea": {
+        "max": 225000,
+        "min": 200000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "living"
+      ],
+      "requiredArea": {
+        "max": 80000,
+        "min": 60000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 85000,
+        "min": 60000
+      },
+      "tags": [
+        "toilet"
+      ],
+      "type": "bathroom",
+      "variant": "m"
+    },
+    {
+      "requiredArea": {
+        "max": 70000,
+        "min": 50000
+      },
+      "type": "circulation"
+    }
+  ]
+}
