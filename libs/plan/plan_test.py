@@ -721,10 +721,8 @@ def test_pickling():
     plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan)
-
     data = pickle.dumps(plan)
     new_plan = pickle.loads(data)
-
     new_plan.plot()
 
     assert new_plan.check()

@@ -2045,31 +2045,63 @@ class Floor:
         new_floor = Floor(new_plan, self.mesh, self.level, self.meta, _id=self.id)
         return new_floor
 
-    def serialize(self) -> Dict:
+    def store_mesh_globally(self):
+        """
+        Stores the mesh in a global variable named MESHES
+        :return:
+        """
+        if "MESHES" not in globals():
+            globals().setdefault("MESHES", {self.mesh.id: self.mesh})
+        else:
+            globals()["MESHES"][self.mesh.id] = self.mesh
+
+    def get_mesh_from_global(self, mesh_id: uuid.UUID):
+        """
+        Sets the mesh of the floor by retrieving it from the global MESHES
+        according to the specified mesh id
+        :return:
+        """
+        self.mesh = globals().get("MESHES")[mesh_id]
+
+    def serialize(self, embedded_mesh: bool = True) -> Dict:
         """
         Returns a serialized version of the floor
+        :param embedded_mesh: whether to serialize or not the linked mesh. If the mesh is not
+        serialized, it is expected that the mesh will be found in a global variables named
+        meshes which contains a dict : { mesh_id: mesh_object }.
+        The global variable will then be used when deserializing the mesh.
         :return:
         """
         output = {
             "id": self.id,
-            "mesh": self.mesh.serialize(),
+            "mesh": self.mesh.serialize() if embedded_mesh else str(self.mesh.id),
             "level": self.level,
             "meta": self.meta
         }
 
+        if not embedded_mesh:
+            # make sure the mesh is stored in a global variable
+            self.store_mesh_globally()
+
         return output
 
-    def deserialize(self, value: Dict) -> 'Floor':
+    def deserialize(self, data: Dict, embedded_mesh: bool = False) -> 'Floor':
         """
         Creates a floor from serialized data
+        :param data: the dictionary containing the serialized data
+        :param embedded_mesh: whether the mesh is embedded or not inside the serialize data
         :return:
         """
         # add new deserialized mesh and corresponding watcher
-        self.mesh = Mesh().deserialize(value["mesh"])
+        if embedded_mesh:
+            self.mesh = Mesh().deserialize(data["mesh"])
+        else:
+            self.get_mesh_from_global(uuid.UUID(data["mesh"]))
+
         self.mesh.add_watcher(self.plan.watcher)
 
-        self.level = int(value["level"])
-        self.meta = value["meta"]
+        self.level = int(data["level"])
+        self.meta = data["meta"]
         return self
 
     @property
@@ -2144,41 +2176,52 @@ class Plan:
         self.linears = []
         self.floors = {}
 
-    def serialize(self) -> Dict[str, Any]:
+    def store_meshes(self):
+        """
+        Store the meshes of the plan in a global variable named MESHES.
+        This is needed for multiprocessing.
+        :return:
+        """
+        for floor in self.floors.values():
+            floor.store_mesh_globally()
+
+    def serialize(self, embedded_mesh: bool = True) -> Dict[str, Any]:
         """
         Returns a serialize version of the plan
+        :param embedded_mesh: whether to embed the mesh in the serialized data
         :return:
         """
         output = {
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
-            "floors": [floor.serialize() for floor in self.floors.values()]
+            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()]
         }
 
         return output
 
-    def deserialize(self, value: Dict) -> 'Plan':
+    def deserialize(self, data: Dict, embedded_mesh: bool = True) -> 'Plan':
         """
         Adds plan data from serialized input value
-        :param value:
+        :param data: the serialized data
+        :param embedded_mesh: whether to expect the mesh to be embedded in the data
         :return: a plan
         """
         self.clear()
-        self.name = value["name"]
+        self.name = data["name"]
 
         # add floors
-        for floor in value["floors"]:
-            self.add_floor(Floor(self, _id=floor["id"]).deserialize(floor))
+        for floor in data["floors"]:
+            self.add_floor(Floor(self, _id=floor["id"]).deserialize(floor, embedded_mesh))
 
         # add spaces
-        for space in value["spaces"]:
+        for space in data["spaces"]:
             floor_id = int(space["floor"])
             floor = self.floors[floor_id]
             Space(self, floor, _id=int(space["id"])).deserialize(space)
 
         # add linears
-        for linear in value["linears"]:
+        for linear in data["linears"]:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             Linear(self, floor, _id=linear["id"]).deserialize(linear)
@@ -2192,12 +2235,13 @@ class Plan:
         Used to replace pickling method.
         This is needed due to the circular references in the mesh that makes it inefficient
         for the standard pickle protocol.
+        For performance purposes : we do not pickle the mesh
         """
-        return self.serialize()
+        return self.serialize(embedded_mesh=False)
 
     def __setstate__(self, state: Dict):
         """ Used to replace pickling method. """
-        self.deserialize(state)
+        self.deserialize(state, embedded_mesh=False)
 
     def watcher(self, modifications: Dict[int, 'MeshModification'], mesh_id: uuid.UUID):
         """
