@@ -199,7 +199,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 

@@ -59,7 +59,7 @@ def test_t1_bis():
     duct_coords = [(0, 150), (40, 150), (40, 200), (0, 200)]
     plan_t1_bis.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
     plan_t1_bis.insert_linear((210, 0), (290, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
-    plan_t1_bis.insert_linear((150, 400), (50, 400), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t1_bis.insert_linear((175, 400), (25, 400), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t1_bis.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
@@ -148,9 +148,9 @@ def test_t3_balcony():
     duct_coords = [(0, 150), (40, 150), (40, 200), (0, 200)]
     plan_t3_balcony.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
     plan_t3_balcony.insert_linear((210, 0), (290, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
-    plan_t3_balcony.insert_linear((250, 600), (50, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t3_balcony.insert_linear((650, 600), (450, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t3_balcony.insert_linear((950, 600), (750, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t3_balcony.insert_linear((275, 600), (25, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t3_balcony.insert_linear((675, 600), (425, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan_t3_balcony.insert_linear((975, 600), (725, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     balcony_coords = [(400, 600), (700, 600), (700, 800), (400, 800)]
     plan_t3_balcony.insert_space_from_boundary(balcony_coords, SPACE_CATEGORIES["balcony"], floor_1)
     plan_t3_balcony.plot()
