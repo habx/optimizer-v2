@@ -47,7 +47,7 @@ class Refiner:
     • the algorithm function that will be applied to the plan
     """
     def __init__(self,
-                 fc_toolbox: Callable[['Specification'], 'core.Toolbox'],
+                 fc_toolbox: Callable[['Specification', Callable], 'core.Toolbox'],
                  algorithm: algorithmFunc):
         self._toolbox_factory = fc_toolbox
         self._algorithm = algorithm
@@ -59,21 +59,24 @@ class Refiner:
         :param spec:
         :return:
         """
+        plan.store_meshes_globally()  # needed for multiprocessing
         results = self.run(plan, spec)
         return max(results, key=lambda i: i.fitness)
 
     def run(self,
             plan: 'Plan',
             spec: 'Specification',
+            map_func: Callable = map,
             with_hof: bool = False) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
         :param plan:
         :param spec:
+        :param map_func: a map function
         :param with_hof: whether to return the results or a hall of fame
         :return:
         """
-        toolbox = self._toolbox_factory(spec)
+        toolbox = self._toolbox_factory(spec, map_func)
         _hof = support.HallOfFame(3) if with_hof else None
         # 1. refine mesh of the plan
         # TODO : implement this
@@ -90,10 +93,11 @@ class Refiner:
 
 # Toolbox factories
 
-def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
+def fc_nsga_toolbox(spec: 'Specification', map_func: Optional[Callable] = map) -> 'core.Toolbox':
     """
     Returns a toolbox
     :param spec: The specification to follow
+    :param map_func: A map function, default to built-in map, useful for multiprocessing
     :return:
     """
     toolbox = core.Toolbox()
@@ -102,6 +106,7 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     scores_fc = [evaluation.fc_score_area(spec),
                  evaluation.score_corner,
                  evaluation.score_bounding_box]
+    toolbox.register("map", map_func)
     toolbox.register("evaluate", evaluation.compose(scores_fc))
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
@@ -130,7 +135,7 @@ def simple_ga(toolbox: 'core.Toolbox',
 
     pop = toolbox.populate(initial_ind, mu)
     invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    fitnesses = map(toolbox.evaluate, invalid_ind)
+    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
 
@@ -155,7 +160,7 @@ def simple_ga(toolbox: 'core.Toolbox',
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = map(toolbox.evaluate, invalid_ind)
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
 
@@ -180,6 +185,9 @@ if __name__ == '__main__':
     3. run algorithm
     """
     from libs.modelers.shuffle import SHUFFLES
+    import multiprocessing
+
+    pool = multiprocessing.Pool()
 
     def get_plan(plan_name: str = "001",
                  spec_name: str = "0",
@@ -241,7 +249,7 @@ if __name__ == '__main__':
         if plan:
             plan.plot()
             SHUFFLES["bedrooms_corner"].apply_to(plan)
-            hof = REFINERS["simple"].run(plan, spec, True)
+            hof = REFINERS["simple"].run(plan, spec, pool.map, True)
             for i in hof:
                 i.plot()
 

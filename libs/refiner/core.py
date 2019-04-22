@@ -9,7 +9,7 @@ Individual.new(
 
 
 """
-from typing import Optional, Tuple, List, Callable, Sequence, Type
+from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator
 from libs.plan.plan import Plan
 
 
@@ -182,11 +182,21 @@ class Individual(Plan):
 
 
 cloneFunc = Callable[['Individual'], 'Individual']
+mapFunc = Callable[[Callable[['Individual'], Any], Sequence['Individual']], Iterator[Any]]
 selectFunc = Callable[[List['Individual']], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 evaluateFunc = Callable[['Individual'], Sequence[float]]
 mutateFunc = Callable[['Individual'], 'Individual']
 populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
+
+
+def _standard_clone(i: Individual) -> Individual:
+    """
+    Clones and individual
+    :param i:
+    :return:
+    """
+    return i.clone()
 
 
 class Toolbox:
@@ -196,14 +206,15 @@ class Toolbox:
     • mutate
     • etc.
     """
-    __slots__ = ("_clone", "_mate", "_select", "_evaluate", "_mutate", "_populate",
+    __slots__ = ("_clone", "_map", "_mate", "_select", "_evaluate", "_mutate", "_populate",
                  "_individual_class", "_fitness_class")
 
     classes = {"fitness": Fitness, "individual": Individual}
 
     def __init__(self):
         # operators
-        self._clone: cloneFunc = lambda i: i.clone()
+        self._clone: cloneFunc = _standard_clone
+        self._map: mapFunc = map
         self._mate:  Optional[mateFunc] = None
         self._select: Optional[selectFunc] = None
         self._evaluate: Optional[evaluateFunc] = None
@@ -255,6 +266,7 @@ class Toolbox:
         """
         op_dict = {
             "clone": "_clone",
+            "map": "_map",
             "mate": "_mate",
             "select": "_select",
             "mutate": "_mutate",
@@ -266,6 +278,16 @@ class Toolbox:
                                           "{}".format(operator_name))
 
         setattr(self, op_dict[operator_name], func)
+
+    def map(self, func: Callable, pop: Sequence['Individual']) -> Iterator['Any']:
+        """
+        Clones an individual
+        :param func:
+        :param pop:
+        :return:
+        """
+        assert self._map, "Toolbox: the map function has not been implemented"
+        return self._map(func, pop)
 
     def clone(self, ind: 'Individual') -> 'Individual':
         """

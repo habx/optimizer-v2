@@ -2176,7 +2176,7 @@ class Plan:
         self.linears = []
         self.floors = {}
 
-    def store_meshes(self):
+    def store_meshes_globally(self):
         """
         Store the meshes of the plan in a global variable named MESHES.
         This is needed for multiprocessing.
