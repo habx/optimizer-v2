@@ -24,7 +24,6 @@ from libs.utils.geometry import (
     unit,
     barycenter,
     move_point,
-    same_half_plane,
     opposite_vector,
     pseudo_equal,
     dot_product,
@@ -1250,7 +1249,7 @@ class Edge(MeshComponent):
         self.remove_from_mesh()
         self.pair.remove_from_mesh()
 
-    def remove(self) -> 'Face':
+    def remove(self, clean_vertex: bool = True) -> 'Face':
         """
         Removes the edge from the face. The corresponding faces are merged
         1. remove the face of the edge from the mesh (except if the face is None, in which case
@@ -1301,8 +1300,9 @@ class Edge(MeshComponent):
             self.previous.next = self.pair.next
 
             # clean useless vertices
-            self.start.clean()
-            self.end.clean()
+            if clean_vertex:
+                self.start.clean()
+                self.end.clean()
 
         # remove isolated edges
         for edge in remaining_face.edges:
@@ -1794,7 +1794,7 @@ class Edge(MeshComponent):
             |                         |
             |       New face          |
             |                         |
-            |       Line cut          |
+            |       Line cut          | vector ->
         +---*-----------+-------------*---+
             |           ^             |
             |           | offset      |
@@ -1803,8 +1803,8 @@ class Edge(MeshComponent):
             +-----------+-------------+
             +---------+EDGE+---------->
 
-        :param offset:
-        :param vector:
+        :param offset: the distance along the edge normal
+        :param vector: the direction of the created edge
         :return: a list of the created faces including the initial face
         """
         logging.debug("Edge: Slicing a face from edge %s with offset %s and vector %s",
@@ -2281,31 +2281,36 @@ class Face(MeshComponent):
         best_vertex = None
         best_near_vertex = None
         best_shared_edge = None
-        for vertex in face.vertices:
+        for edge in face.edges:
             for vector in vectors:
-                edge = vertex.edge.pair.next
-                _correct_orientation = same_half_plane(vector, edge.normal)
-                _vector = vector if _correct_orientation else opposite_vector(vector)
-                intersection_data = vertex.project_point(self, _vector)
-                if intersection_data is None:
-                    continue
-                near_vertex, shared_edge, distance_to_vertex = intersection_data
-                projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
-                if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
-                        and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
-                    # do not forget to clean unused vertex
-                    near_vertex.remove_from_mesh()
-                    continue
-                if min_distance is None or distance_to_vertex < min_distance:
-                    best_vertex = vertex
-                    # do not forget to clean unused vertex
-                    if best_near_vertex:
-                        best_near_vertex.remove_from_mesh()
-                    best_near_vertex = near_vertex
-                    best_shared_edge = shared_edge
-                    min_distance = distance_to_vertex
-                else:
-                    near_vertex.remove_from_mesh()
+                for vertex in (edge.pair.start, edge.pair.end):
+                    angle = ccw_angle(edge.pair.normal, vector)
+                    if angle <= 90.0 - MIN_ANGLE or angle >= 270.0 + MIN_ANGLE:
+                        _vector = vector
+                    elif 90 + MIN_ANGLE <= angle <= 270.0 - MIN_ANGLE:
+                        _vector = opposite_vector(vector)
+                    else:
+                        continue
+                    intersection_data = vertex.project_point(self, _vector)
+                    if intersection_data is None:
+                        continue
+                    near_vertex, shared_edge, distance_to_vertex = intersection_data
+                    projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
+                    if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
+                            and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
+                        # do not forget to clean unused vertex
+                        near_vertex.remove_from_mesh()
+                        continue
+                    if min_distance is None or distance_to_vertex < min_distance:
+                        best_vertex = vertex
+                        # do not forget to clean unused vertex
+                        if best_near_vertex:
+                            best_near_vertex.remove_from_mesh()
+                        best_near_vertex = near_vertex
+                        best_shared_edge = shared_edge
+                        min_distance = distance_to_vertex
+                    else:
+                        near_vertex.remove_from_mesh()
 
         if min_distance is None:
             raise Exception('Cannot find and intersection point to insert face !:{0}'.format(face))
@@ -2539,8 +2544,13 @@ class Face(MeshComponent):
         for new_face in new_faces:
             for edge in new_face.edges:
                 if edge.pair.face in new_faces:
-                    remaining_face = edge.remove()
+                    # we must not clean vertices to prevent the deletion of an edge on
+                    # which we are currently iterating thus creating an infinite loop
+                    remaining_face = edge.remove(clean_vertex=False)
 
+        # we clean the vertices afterwards
+        for vertex in list(remaining_face.vertices):
+            vertex.clean()
         # attribute the references to the initial face
         # to preserve the face references
         remaining_face.swap(face)
