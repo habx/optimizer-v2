@@ -8,7 +8,18 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any, Iterable
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    List,
+    Tuple,
+    Sequence,
+    Generator,
+    Union,
+    Dict,
+    Any,
+    Iterable
+)
 import logging
 import uuid
 
@@ -31,6 +42,9 @@ from libs.utils.geometry import (
     pseudo_equal,
     unit_vector
 )
+
+if TYPE_CHECKING:
+    from libs.mesh.mesh import MeshModification
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -2016,6 +2030,9 @@ class Floor:
         self.level = level
         self.meta = meta
 
+        if self.mesh:
+            self.mesh.add_watcher(self.plan.watcher)
+
     def __repr__(self):
         return "Floor: {}".format(self.id)
 
@@ -2047,10 +2064,12 @@ class Floor:
         Returns a serialized version of the floor
         :return:
         """
+        # add new deserialized mesh and corresponding watcher
         self.mesh = Mesh().deserialize(value["mesh"])
+        self.mesh.add_watcher(self.plan.watcher)
+
         self.level = int(value["level"])
         self.meta = value["meta"]
-
         return self
 
     @property
@@ -2085,11 +2104,11 @@ class Plan:
         self.linears = linears or []
         self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
-        # add a floor
+
+        # add a floor if a mesh is specified in the init (per convenience)
         if mesh:
             new_floor = Floor(self, mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
-            mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -2168,13 +2187,13 @@ class Plan:
 
         return self
 
-
-
-    def _watcher(self, modifications, mesh_id: uuid.UUID):
+    def watcher(self, modifications: Dict[int, 'MeshModification'], mesh_id: uuid.UUID):
         """
         A watcher for mesh modification. The watcher must be manually called from the plan.
         ex: by calling self.mesh.watch()
-        :param modifications
+        :param modifications: a dictionary containing the mesh modification
+        :param mesh_id: the id of the corresponding mesh (a plan can have several meshes,
+        one for each floor)
         :return:
         """
         logging.debug("Plan: Updating plan from mesh watcher")
@@ -2469,7 +2488,7 @@ class Plan:
         :return:
         """
         mesh = Mesh().from_boundary(boundary)
-        mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
+        mesh.add_watcher(self.watcher)
         new_floor = Floor(self, mesh, floor_level, floor_meta)
         self.add_floor(new_floor)
         Space(self, new_floor, mesh.faces[0].edge)

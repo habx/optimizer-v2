@@ -672,23 +672,23 @@ def test_clone_change_plan():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
     duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
-    plan = Plan()
+    plan = Plan("first")
     plan.add_floor_from_boundary(perimeter)
-    plan_2 = plan.clone()
+    plan_2 = plan.clone("second")
     plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan_2)
-    plan.plot()
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
+    assert not plan_2.empty_space.has_holes
     assert plan.spaces[0].id == plan_2.spaces[0].id
+    plan.plot()
 
 
 def test_deepcopy_change_plan():
     """
-
     :return:
     """
     from libs.modelers.grid import GRIDS
@@ -708,6 +708,7 @@ def test_deepcopy_change_plan():
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
+    assert not plan_2.empty_space.has_holes
     assert plan.spaces[0].id == plan_2.spaces[0].id
 
 
@@ -1003,6 +1004,19 @@ def test_maximum_distance_to():
     assert plan.spaces[1].maximum_distance_to(plan.spaces[2]) == 700*2**0.5
 
 
+def test_maximum_distance_to_2():
+    import math
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+    space_1 = plan.insert_space_from_boundary([(0, 0), (125, 0), (125, 125), (0, 125)])
+    space_2 = plan.insert_space_from_boundary([(375, 375), (500, 375), (500, 500), (375, 500)])
+    plan.plot()
+    assert space_1.distance_to(space_2) == 500*math.sqrt(2)
+    space_3 = plan.insert_space_from_boundary([(0, 375), (125, 375), (125, 500), (0, 500)])
+    assert space_1.distance_to(space_3) == math.sqrt(500.0**2 + 125**2)
+
+
 def test_space_area(l_plan):
     assert l_plan.empty_space.area == 915000.0
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
@@ -1066,17 +1080,3 @@ def test_number_corners_with_addition_face(l_plan):
     plan.insert_space_from_boundary(weird_space_boundary)
     GRIDS["ortho_grid"].apply_to(plan)
     assert plan.spaces[0].number_of_corners(plan.mesh.faces[0]) == 6
-
-
-def test_maximum_distance():
-    import math
-    from libs.modelers.grid import GRIDS
-    plan = rectangular_plan(500, 500)
-    GRIDS["finer_ortho_grid"].apply_to(plan)
-    space_1 = plan.insert_space_from_boundary([(0, 0), (125, 0), (125, 125), (0, 125)])
-    space_2 = plan.insert_space_from_boundary([(375, 375), (500, 375), (500, 500), (375, 500)])
-    plan.plot()
-    assert space_1.distance_to(space_2) == 500*math.sqrt(2)
-    space_3 = plan.insert_space_from_boundary([(0, 375), (125, 375), (125, 500), (0, 500)])
-    assert space_1.distance_to(space_3) == math.sqrt(500.0**2 + 125**2)
-

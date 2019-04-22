@@ -149,6 +149,12 @@ class MeshComponent:
         self._mesh = mesh
         self._mesh.add(self)
 
+# Types for typing
+
+
+MeshComponentIdTuple = Tuple[MeshComponentType, int]
+MeshModification = Tuple[MeshOps, MeshComponentIdTuple, Optional[MeshComponentIdTuple]]
+
 
 class Vertex(MeshComponent):
     """
@@ -2962,7 +2968,7 @@ class Mesh:
 
         return self
 
-    def add_watcher(self, watcher: Callable[['MeshComponent', MeshOps], None]):
+    def add_watcher(self, watcher: Callable[[Dict[int, MeshModification]], None]):
         """
         Adds a watcher to the mesh.
         Each time a mesh component is added or removed, a call to the watcher is triggered.
@@ -3021,7 +3027,7 @@ class Mesh:
         :return:
         """
         for watcher in self._watchers:
-            watcher(self._modifications)
+            watcher(self._modifications, self.id)
         self._modifications = {}
 
     def add(self, component: Union['MeshComponent', 'Vertex', 'Face', 'Edge']):
@@ -3030,10 +3036,10 @@ class Mesh:
         :param component:
         :return:
         """
-        self.store_modification(MeshOps.ADD, component)
-
         if component.id is None:
             component.id = self.get_id()
+
+        self.store_modification(MeshOps.ADD, component)
 
         if type(component) == Vertex:
             self._add_vertex(component)
