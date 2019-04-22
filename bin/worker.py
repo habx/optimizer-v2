@@ -4,24 +4,15 @@ import json
 import logging
 import logging.handlers
 import os
-import glob
 import socket
-import sys
-import traceback
 import uuid
-import tempfile
-import time
 import sentry_sdk
-import copy
-from typing import Optional, List
-
-import boto3
 
 import libpath
 
 from libs.utils.executor import Executor
 from libs.worker.config import Config
-from libs.worker.core import TaskDefinition
+from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.dev import local_dev_hack
 from libs.worker.mq import Exchanger, Message
 
@@ -32,189 +23,42 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
 })
 
 
-class MessageProcessor:
-    """Message processing class"""
-
-    def __init__(self, config: Config, exchanger: Exchanger, my_name: str = None):
-        self.exchanger = exchanger
-        self.config = config
-        self.executor = Executor()
-        self.my_name = my_name
-        self.output_dir = None
-        self.log_handler = None
-        self.s3_client = boto3.client('s3')
-
-    def start(self):
-        """Start the message processor"""
-        self.output_dir = tempfile.mkdtemp('worker-optimizer')
-
-    def run(self):
-        """Make it run. Once called it never stops."""
-        while True:
-            msg = self.exchanger.get_request()
-            if not msg:  # No message received (queue is empty)
-                continue
-
-            # OPT-99: We shall NOT modify the source data
-            td = TaskDefinition.from_json(msg.content.get('data'))
-
-            result = self._process_task(td)
-
-            result['requestId'] = msg.content.get('requestId')
-
-            # End of processing code
-            self._process_message_after(msg)
-
-            # Always acknowledging messages
-            self.exchanger.acknowledge_msg(msg)
-
-    def _process_task(self, td: TaskDefinition) -> dict:
-        self._process_message_before()
-
-        logging.info("Processing %s", td)
-
-        # We calculate the overall time just in case we face a crash
-        before_time = time.time()
-
-        try:
-            result = self._process_task_core(td)
-        except Exception as e:
-            logging.exception("Problem handing message")
-            result = {
-                'type': 'optimizer-processing-result',
-                'data': {
-                    'status': 'error',
-                    'error': traceback.format_exception(*sys.exc_info()),
-                    'times': {
-                        'totalReal': (time.time() - before_time)
-                    },
-                },
-            }
-
-            # Timeout is a special kind of error, we still want the stacktrace like any other
-            # error.
-            if isinstance(e, TimeoutError):
-                result['data']['status'] = 'timeout'
-
-        if result:
-            # OPT-74: The fields coming from the request are always added to the result
-
-            # If we don't have a data sub-structure, we create one
-            data = result.get('data')
-            if not data:
-                data = {'status': 'unknown'}
-                result['data'] = data
-            data['version'] = Executor.VERSION
-
-            # OPT-99: All the feedback shall only be done from the source data except for the
-            #         context which is allowed to be modified by the processing.
-            data['lot'] = td.blueprint
-            data['setup'] = td.setup
-            data['params'] = td.params
-            data['context'] = td.context
-            self.exchanger.send_result(result)
-
-            if data.get('status') != 'ok':
-                # If we had an issue, we save the output
-                for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
-                    if k in data:
-                        with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
-                            json.dump(data[k], f)
-
-        return result
-
-    def _save_output_files(self, request_id: str):
-        files = self._output_files()
-
-        if files:
-            logging.info("Uploading some files on S3...")
-
-        for src_file in files:
-            # OPT-89: Storing files in a "tasks" directory
-            dst_file = "tasks/{request_id}/{file}".format(
-                request_id=request_id,
-                file=src_file[len(self.output_dir)+1:]
-            )
-            logging.info(
-                "Uploading \"%s\" to s3://%s/%s",
-                src_file,
-                self.config.s3_repository,
-                dst_file
-            )
-            self.s3_client.upload_file(
-                src_file,
-                self.config.s3_repository,
-                dst_file,
-                ExtraArgs={
-                    'ACL': 'public-read'
-                }
-            )
-
-        if files:
-            logging.info("Upload done...")
-
-    def _output_files(self) -> List[str]:
-        return glob.glob(os.path.join(self.output_dir, '*'))
-
-    def _cleanup_output_dir(self):
-        for f in self._output_files():
-            logging.info("Deleting file \"%s\"", f)
-            os.remove(f)
-
-    def _process_message_before(self):
-        self._cleanup_output_dir()
-
-    def _process_message_after(self, msg: Message):
-        self._save_output_files(msg.content.get('requestId'))
-
-    def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
-        """
-        Actual message processing (without any error handling on purpose)
-        :param msg: Message to process
-        :return: Message to return
-        """
-        logging.info("Processing message: %s", td)
-
-        # If we're having a personal identify, we only accept message to ourself
-        target_worker = td.params.get('target_worker')
-        if (self.my_name is not None and target_worker != self.my_name) or (
-                self.my_name is None and target_worker):
-            logging.info(
-                "   ... message is not for me: target=\"%s\", myself=\"%s\"",
-                target_worker,
-                self.my_name,
-            )
-            return None
-
-        td.local_params = {
-            'output_dir': self.output_dir,
-        }
-
-        # Processing it
-        executor_result = self.executor.run(td.blueprint, td.setup, td.params, td.local_params)
-        result = {
-            'type': 'optimizer-processing-result',
-            'data': {
-                'status': 'ok',
-                'solutions': executor_result.solutions,
-                'times': executor_result.elapsed_times,
-            },
-        }
-
-        return result
-
-
 def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
-    """Core processing message method"""
+    """Make it run. Once called it never stops."""
+
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
 
-    processing = MessageProcessor(config, exchanger, args.target)
-    processing.start()
-    processing.run()
+    # We need to both consume and produce
+    exchanger.prepare()
+
+    processor = TaskProcessor(config, args.target)
+    processor.prepare()
+
+    while True:
+        msg = exchanger.get_request()
+        if not msg:  # No message received (queue is empty)
+            continue
+
+        # OPT-99: We shall NOT modify the source data
+        td = TaskDefinition.from_json(msg.content.get('data'))
+        td.context['taskId'] = msg.content.get('requestId')
+
+        result = processor.process_task(td)
+
+        result['requestId'] = msg.content.get('requestId')
+
+        exchanger.send_result(result)
+
+        # Always acknowledging messages
+        exchanger.acknowledge_msg(msg)
 
 
 def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     """Core sending message function"""
+
+    # We only need a producer, not a consumer
+    exchanger.prepare(consumer=False)
+
     # Reading the input files
     with open(args.lot) as lot_fp:
         lot = json.load(lot_fp)
@@ -283,10 +127,8 @@ def _cli():
         args.target = socket.gethostname()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
-        exchanger.prepare(consumer=False)
         _send_message(args, exchanger)
     else:
-        exchanger.prepare()
         _process_messages(args, config, exchanger)
 
 
