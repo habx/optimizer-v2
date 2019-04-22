@@ -21,6 +21,7 @@ import libpath
 
 from libs.utils.executor import Executor
 from libs.worker.config import Config
+from libs.worker.core import TaskDefinition
 from libs.worker.dev import local_dev_hack
 from libs.worker.mq import Exchanger, Message
 
@@ -32,7 +33,7 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
 
 
 class MessageProcessor:
-    """Message processing"""
+    """Message processing class"""
 
     def __init__(self, config: Config, exchanger: Exchanger, my_name: str = None):
         self.exchanger = exchanger
@@ -56,67 +57,70 @@ class MessageProcessor:
                 continue
 
             # OPT-99: We shall NOT modify the source data
-            src_data = msg.content.get('data')
-            src_lot = copy.deepcopy(src_data.get('lot'))
-            src_setup = copy.deepcopy(src_data.get('setup'))
-            src_params = copy.deepcopy(src_data.get('params'))
+            td = TaskDefinition.from_json(msg.content.get('data'))
 
-            self._process_message_before()
+            result = self._process_task(td)
 
-            # We calculate the overall time just in case we face a crash
-            before_time = time.time()
-
-            try:
-                result = self._process_message(msg)
-            except Exception as e:
-                logging.exception("Problem handing message", msg.content)
-                result = {
-                    'type': 'optimizer-processing-result',
-                    'data': {
-                        'status': 'error',
-                        'error': traceback.format_exception(*sys.exc_info()),
-                        'times': {
-                            'totalReal': (time.time() - before_time)
-                        },
-                    },
-                }
-
-                # Timeout is a special kind of error, we still want the stacktrace like any other
-                # error.
-                if isinstance(e, TimeoutError):
-                    result['data']['status'] = 'timeout'
-
-            if result:
-                # OPT-74: The fields coming from the request are always added to the result
-                result['requestId'] = msg.content.get('requestId')
-
-                # If we don't have a data sub-structure, we create one
-                data = result.get('data')
-                if not data:
-                    data = {'status': 'unknown'}
-                    result['data'] = data
-                data['version'] = Executor.VERSION
-
-                # OPT-99: All the feedback shall only be done from the source data except for the
-                #         context which is allowed to be modified by the processing.
-                data['lot'] = src_lot
-                data['setup'] = src_setup
-                data['params'] = src_params
-                data['context'] = src_data.get('context')
-                self.exchanger.send_result(result)
-
-                if data.get('status') != 'ok':
-                    # If we had an issue, we save the output
-                    for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
-                        if k in data:
-                            with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
-                                json.dump(data[k], f)
+            result['requestId'] = msg.content.get('requestId')
 
             # End of processing code
             self._process_message_after(msg)
 
             # Always acknowledging messages
             self.exchanger.acknowledge_msg(msg)
+
+    def _process_task(self, td: TaskDefinition) -> dict:
+        self._process_message_before()
+
+        # We calculate the overall time just in case we face a crash
+        before_time = time.time()
+
+        try:
+            result = self._process_task_core(td)
+        except Exception as e:
+            logging.exception("Problem handing message", td)
+            result = {
+                'type': 'optimizer-processing-result',
+                'data': {
+                    'status': 'error',
+                    'error': traceback.format_exception(*sys.exc_info()),
+                    'times': {
+                        'totalReal': (time.time() - before_time)
+                    },
+                },
+            }
+
+            # Timeout is a special kind of error, we still want the stacktrace like any other
+            # error.
+            if isinstance(e, TimeoutError):
+                result['data']['status'] = 'timeout'
+
+        if result:
+            # OPT-74: The fields coming from the request are always added to the result
+
+            # If we don't have a data sub-structure, we create one
+            data = result.get('data')
+            if not data:
+                data = {'status': 'unknown'}
+                result['data'] = data
+            data['version'] = Executor.VERSION
+
+            # OPT-99: All the feedback shall only be done from the source data except for the
+            #         context which is allowed to be modified by the processing.
+            data['lot'] = td.blueprint
+            data['setup'] = td.setup
+            data['params'] = td.params
+            data['context'] = td.context
+            self.exchanger.send_result(result)
+
+            if data.get('status') != 'ok':
+                # If we had an issue, we save the output
+                for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
+                    if k in data:
+                        with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
+                            json.dump(data[k], f)
+
+        return result
 
     def _save_output_files(self, request_id: str):
         files = self._output_files()
@@ -162,24 +166,16 @@ class MessageProcessor:
     def _process_message_after(self, msg: Message):
         self._save_output_files(msg.content.get('requestId'))
 
-    def _process_message(self, msg: Message) -> Optional[dict]:
+    def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
         """
         Actual message processing (without any error handling on purpose)
         :param msg: Message to process
         :return: Message to return
         """
-        logging.info("Processing message: %s", msg.content)
-
-        # Parsing the message
-        data = msg.content['data']
-
-        # These are mandatory parameters and as such have to exist
-        lot = data['lot']
-        setup = data['setup']
-        params = data['params']
+        logging.info("Processing message: %s", td)
 
         # If we're having a personal identify, we only accept message to ourself
-        target_worker = params.get('target_worker')
+        target_worker = td.params.get('target_worker')
         if (self.my_name is not None and target_worker != self.my_name) or (
                 self.my_name is None and target_worker):
             logging.info(
@@ -189,12 +185,12 @@ class MessageProcessor:
             )
             return None
 
-        local_params = {
+        td.local_params = {
             'output_dir': self.output_dir,
         }
 
         # Processing it
-        executor_result = self.executor.run(lot, setup, params, local_params)
+        executor_result = self.executor.run(td.blueprint, td.setup, td.params, td.local_params)
         result = {
             'type': 'optimizer-processing-result',
             'data': {

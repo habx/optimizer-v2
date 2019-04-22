@@ -1,7 +1,8 @@
 import json
-import boto3
 import logging
 import uuid
+
+import boto3
 
 from libs.worker.config import Config
 
@@ -101,7 +102,7 @@ class Exchanger:
             logging.exception("Couldn't create queue: %s", queue_name)
             raise
 
-    def start(self, consumer: True, producer: False) -> None:
+    def start(self, consumer=True, producer=True) -> None:
         """Start the worker by performing some setup operations"""
 
         # Creating the consuming (requests) queue and registering it to a topic
