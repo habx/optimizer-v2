@@ -2968,6 +2968,22 @@ class Mesh:
 
         return self
 
+    def __getstate__(self) -> Dict:
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :return: the data used for pickling
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :param state: the data used to unpickle
+        """
+        self.deserialize(state)
+
     def add_watcher(self, watcher: Callable[[Dict[int, MeshModification]], None]):
         """
         Adds a watcher to the mesh.
