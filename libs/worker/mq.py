@@ -102,7 +102,7 @@ class Exchanger:
             logging.exception("Couldn't create queue: %s", queue_name)
             raise
 
-    def start(self, consumer=True, producer=True) -> None:
+    def prepare(self, consumer=True, producer=True) -> None:
         """Start the worker by performing some setup operations"""
 
         # Creating the consuming (requests) queue and registering it to a topic

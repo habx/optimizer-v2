@@ -46,7 +46,6 @@ class MessageProcessor:
 
     def start(self):
         """Start the message processor"""
-        self.exchanger.start()
         self.output_dir = tempfile.mkdtemp('worker-optimizer')
 
     def run(self):
@@ -72,13 +71,15 @@ class MessageProcessor:
     def _process_task(self, td: TaskDefinition) -> dict:
         self._process_message_before()
 
+        logging.info("Processing %s", td)
+
         # We calculate the overall time just in case we face a crash
         before_time = time.time()
 
         try:
             result = self._process_task_core(td)
         except Exception as e:
-            logging.exception("Problem handing message", td)
+            logging.exception("Problem handing message")
             result = {
                 'type': 'optimizer-processing-result',
                 'data': {
@@ -282,8 +283,10 @@ def _cli():
         args.target = socket.gethostname()
 
     if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
+        exchanger.prepare(consumer=False)
         _send_message(args, exchanger)
     else:
+        exchanger.prepare()
         _process_messages(args, config, exchanger)
 
 
