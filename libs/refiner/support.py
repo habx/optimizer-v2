@@ -112,15 +112,15 @@ class History:
         individuals with their history parameters modified according to the
         update function.
         """
-        def decFunc(func):
-            def wrapFunc(*args, **kargs):
+        def _dec_func(func):
+            def _wrap_func(*args, **kargs):
                 individuals = func(*args, **kargs)
                 self.update(individuals)
                 return individuals
-            return wrapFunc
-        return decFunc
+            return _wrap_func
+        return _dec_func
 
-    def getGenealogy(self, individual, max_depth=float("inf")):
+    def get_genealogy(self, individual, max_depth=float("inf")):
         """Provide the genealogy tree of an *individual*. The individual must
         have an attribute :attr:`history_index` as defined by
         :func:`~deap.tools.History.update` in order to retrieve its associated
@@ -136,7 +136,8 @@ class History:
         """
         gtree = {}
         visited = set()     # Adds memory to the breadth first search
-        def genealogy(index, depth):
+
+        def _genealogy(index, depth):
             if index not in self.genealogy_tree:
                 return
             depth += 1
@@ -146,9 +147,9 @@ class History:
             gtree[index] = parent_indices
             for ind in parent_indices:
                 if ind not in visited:
-                    genealogy(ind, depth)
+                    _genealogy(ind, depth)
                 visited.add(ind)
-        genealogy(individual.history_index, 0)
+        _genealogy(individual.history_index, 0)
         return gtree
 
 
@@ -176,10 +177,10 @@ class Statistics:
         time :meth:`record` is called.
 
         :param name: The name of the statistics function as it would appear
-                     in the dictionnary of the statistics object.
+                     in the dictionary of the statistics object.
         :param function: A function that will compute the desired statistics
                          on the data as preprocessed by the key.
-        :param argument: One or more argument (and keyword argument) to pass
+        :param args: One or more argument (and keyword argument) to pass
                          automatically to the registered function when called,
                          optional.
         """
@@ -222,6 +223,7 @@ class MultiStatistics(dict):
 
     @property
     def fields(self):
+        """ property """
         return sorted(self.keys())
 
     def register(self, name, function, *args, **kargs):

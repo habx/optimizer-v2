@@ -75,8 +75,8 @@ class Grid:
         :param show:
         :return:
         """
-        for empty_space in plan.empty_spaces:
-            mesh_has_changed = self._select_and_slice(empty_space, operator, show)
+        for space in plan.mutable_spaces():
+            mesh_has_changed = self._select_and_slice(space, operator, show)
             if mesh_has_changed:
                 return self._apply_operator(plan, operator, show)
         return
@@ -370,4 +370,14 @@ if __name__ == '__main__':
         print(len(new_plan.mesh.faces))
 
 
-    create_a_grid()
+    # create_a_grid()
+
+    def refine_grid():
+        """
+        Test
+        :return:
+        """
+        import tools
+        spec, plan = tools.cache.get_plan("030")
+
+

@@ -20,6 +20,7 @@ from typing import (
     Any,
     Iterable
 )
+from functools import reduce
 import logging
 import uuid
 
@@ -1189,64 +1190,55 @@ class Space(PlanComponent):
             return True
         return False
 
-    def corner_stone(self, face: 'Face') -> bool:
+    def corner_stone(self, *faces: 'Face') -> bool:
         """
-        Returns True if the removal of this face will split the space
-        into several disconnected parts
+        Checks if the removal of a list of connected faces will split the space.
+        NOTE : it is expected that the faces are all connected
+        :param faces:
         :return:
         """
-        if not face:
-            return False
-
-        # case 1 : the only face of the space
-        if len(self._faces_id) == 1:
+        # case 1 : the space has only one face (we return true per convention)
+        if self.number_of_faces == 1:
             return True
 
-        # case 2 : fully enclosing face
-        face_edges = list(face.edges)
+        faces = list(set(faces))
+        faces_edges = reduce(lambda a, b: a + b, [list(face.edges) for face in faces])
+
+        # remove internal edges of the face cluster
+        internal_edges = [e for e in faces_edges if e.pair in faces_edges]
+        for e in internal_edges:
+            faces_edges.remove(e)
+
+        # case 2 : fully enclosing face cluster
         for edge in self.exterior_edges:
-            if edge not in face_edges:
+            if edge not in faces_edges:
                 break
-            face_edges.remove(edge)
         else:
             return False
 
-        # case 4 : standard case
-        forbidden_edges = list(face.edges)
-        self.change_reference_edges(forbidden_edges)
-        adjacent_faces = list(self.adjacent_faces(face))
-
+        # case 3 : standard case
+        # find all the faces adjacent to the removed faces
+        adjacent_faces = [e.pair.face for e in faces_edges if self.has_face(e.pair.face)]
         if len(adjacent_faces) == 1:
             return False
 
-        remaining_faces = adjacent_faces[:]
+        # temporarily remove the faces from the self
+        list(map(lambda f: self.remove_face_id(f.id), faces))
 
-        # temporarily remove the face_id from the other_space
-        self.remove_face_id(face.id)
+        # we must check to see if we split the other_self by removing the face
+        # for each adjacent face inside the other_self check if they are still connected
+        adjacent_face = adjacent_faces[0]
 
-        # we must check to see if we split the other_space by removing the face
-        # for each adjacent face inside the other_space check if they are still connected
-        while remaining_faces:
+        for connected_face in self.connected_faces(adjacent_face):
+            # try to reach the other adjacent faces
+            if connected_face in adjacent_faces:
+                adjacent_faces.remove(connected_face)
 
-            adjacent_face = remaining_faces[0]
-            connected_faces = [adjacent_face]
+        adjacent_faces.remove(adjacent_face)
 
-            for connected_face in self.connected_faces(adjacent_face):
-                # try to reach the other adjacent faces
-                if connected_face in remaining_faces:
-                    remaining_faces.remove(connected_face)
-                connected_faces.append(connected_face)
+        list(map(lambda f: self.add_face_id(f.id), faces))
 
-            remaining_faces.remove(adjacent_face)
-
-            if len(remaining_faces) != 0:
-                self.add_face_id(face.id)
-                return True
-            else:
-                break
-
-        self.add_face_id(face.id)
-        return False
+        return len(adjacent_faces) != 0
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
@@ -2175,6 +2167,28 @@ class Plan:
         self.spaces = []
         self.linears = []
         self.floors = {}
+
+    def is_similar(self, other: 'Plan') -> bool:
+        """
+        Returns True if two plans are considered similar.
+        The plans are expected to have the same mesh for each of their floors, and to
+        :param other:
+        :return:
+        """
+        min_difference = 1000
+        # check that both plan have the same meshes
+        for _id, floor in self.floors.items():
+            other_floor = other.get_floor_from_id(_id)
+            if floor.mesh is not other_floor.mesh:
+                return False
+        # compare the id of the space for each face
+        self_spaces_faces = ((space, f) for space in self.mutable_spaces() for f in space.faces)
+        difference = 0
+        for self_space, f in self_spaces_faces:
+            other_space = other.get_space_of_face(f)
+            difference += f.cached_area if other_space.id != self_space.id else 0
+
+        return difference < min_difference
 
     def store_meshes_globally(self):
         """

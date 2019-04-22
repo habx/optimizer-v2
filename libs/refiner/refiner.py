@@ -17,14 +17,16 @@ It implements a simple version of the NSGA-II algorithm:
 
 TODO LIST:
     • refine grid prior to genetic search
-    • guide mutation to refine choices and speed-up search
-    • forbid the swap of a face close to a needed component (eg. duct for a bathroom)
+    • create efficient all aligned edges mutation
+    • check edge selector to make sure we are not eliminating needed scenarios
+    • add similar function to create diversity in the hof
+    • enable multiprocessing by achieving to separate the mesh from the plan... (hard)
 
 """
 import random
 import logging
 
-from typing import TYPE_CHECKING, Optional, Tuple, Callable, List, Union
+from typing import TYPE_CHECKING, Optional, Callable, List, Union
 from libs.plan.plan import Plan
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
@@ -77,7 +79,7 @@ class Refiner:
         :return:
         """
         toolbox = self._toolbox_factory(spec, map_func)
-        _hof = support.HallOfFame(3) if with_hof else None
+        _hof = support.HallOfFame(4, lambda a, b: a.is_similar(b)) if with_hof else None
         # 1. refine mesh of the plan
         # TODO : implement this
 
@@ -88,7 +90,10 @@ class Refiner:
         # 3. run the algorithm
         initial_ind = toolbox.individual(plan)
         results = self._algorithm(toolbox, initial_ind, _hof)
-        return results if not with_hof else _hof
+
+        output = results if not with_hof else _hof
+        toolbox.evaluate_pop(output)  # evaluate fitnesses for analysis
+        return output
 
 
 # Toolbox factories
@@ -101,12 +106,13 @@ def fc_nsga_toolbox(spec: 'Specification', map_func: Optional[Callable] = map) -
     :return:
     """
     toolbox = core.Toolbox()
-    toolbox.configure("fitness", (-1.0, -10.0, -8.0))
+    toolbox.configure("fitness", (-3.0, -1.0, -5.0))
     toolbox.configure("individual", toolbox.fitness)
-    scores_fc = [evaluation.fc_score_area(spec),
-                 evaluation.score_corner,
-                 evaluation.score_bounding_box]
     toolbox.register("map", map_func)
+    # Note : order is very important as tuples are evaluated lexicographically in python
+    scores_fc = [evaluation.score_corner,
+                 evaluation.score_bounding_box,
+                 evaluation.fc_score_area(spec)]
     toolbox.register("evaluate", evaluation.compose(scores_fc))
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
@@ -129,15 +135,12 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 20
-    mu = 4 * 20  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.8
+    ngen = 100
+    mu = 4 * 25  # Must be a multiple of 4 for tournament selection of NSGA-II
+    cxpb = 0.5
 
     pop = toolbox.populate(initial_ind, mu)
-    invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-    for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit
+    toolbox.evaluate_pop(pop)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -159,10 +162,7 @@ def simple_ga(toolbox: 'core.Toolbox',
             ind2.fitness.clear()
 
         # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+        toolbox.evaluate_pop(offspring)
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
@@ -179,78 +179,37 @@ REFINERS = {
 }
 
 if __name__ == '__main__':
-    """
-    1. get a plan
-    2. get some specifications
-    3. run algorithm
-    """
-    from libs.modelers.shuffle import SHUFFLES
+
     import multiprocessing
-
     pool = multiprocessing.Pool()
-
-    def get_plan(plan_name: str = "001",
-                 spec_name: str = "0",
-                 solution_number: int = 0) -> Tuple['Specification', Optional['Plan']]:
-        """
-        Returns a solution plan
-        """
-        import logging
-
-        import libs.io.reader as reader
-        import libs.io.writer as writer
-        from libs.modelers.grid import GRIDS
-        from libs.modelers.seed import SEEDERS
-        from libs.space_planner.space_planner import SpacePlanner
-        from libs.plan.plan import Plan
-        from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
-        # logging.getLogger().setLevel(logging.DEBUG)
-
-        spec_file_name = plan_name + "_setup" + spec_name
-        plan_file_name = plan_name + "_solution_" + str(solution_number)
-        folder = DEFAULT_PLANS_OUTPUT_FOLDER
-
-        try:
-            new_serialized_data = reader.get_plan_from_json(plan_file_name)
-            plan = Plan(plan_name).deserialize(new_serialized_data)
-            spec_dict = reader.get_json_from_file(spec_file_name + ".json",
-                                                  DEFAULT_PLANS_OUTPUT_FOLDER)
-            spec = reader.create_specification_from_data(spec_dict, "new")
-            spec.plan = plan
-            return spec, plan
-
-        except FileNotFoundError:
-            plan = reader.create_plan_from_file(plan_name + ".json")
-            spec = reader.create_specification_from_file(spec_file_name + ".json")
-
-            GRIDS['optimal_grid'].apply_to(plan)
-            SEEDERS["simple_seeder"].apply_to(plan)
-            spec.plan = plan
-            space_planner = SpacePlanner("test", spec)
-            best_solutions = space_planner.solution_research()
-            new_spec = space_planner.spec
-
-            if best_solutions:
-                solution = best_solutions[solution_number]
-                plan = solution.plan
-                new_spec.plan = plan
-                writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
-                return new_spec, plan
-            else:
-                logging.info("No solution for this plan")
-                return spec, None
 
     def main():
         """ test function """
+        import time
+        import tools.cache
+
         logging.getLogger().setLevel(logging.INFO)
 
-        spec, plan = get_plan("052")
+        spec, plan = tools.cache.get_plan("029")  # 052
         if plan:
+            plan.name = "original"
             plan.plot()
-            SHUFFLES["bedrooms_corner"].apply_to(plan)
+
+            start = time.time()
             hof = REFINERS["simple"].run(plan, spec, pool.map, True)
-            for i in hof:
-                i.plot()
+            sols = sorted(hof, key=lambda i: i.fitness.value, reverse=True)
+            end = time.time()
+            for n, ind in enumerate(sols):
+                ind.name = str(n)
+                ind.plot()
+                print("Fitness: {} - {}".format(ind.fitness.value, ind.fitness.values))
+            print("Time elapsed: {}".format(end - start))
+            best = sols[0]
+            item_dict = evaluation.create_item_dict(spec)
+            for space in best.mutable_spaces():
+                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
+                                                          round(space.cached_area()),
+                                                          item_dict[space.id].min_size.area,
+                                                          item_dict[space.id].max_size.area))
 
     main()

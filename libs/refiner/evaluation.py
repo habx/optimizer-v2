@@ -32,6 +32,26 @@ def compose(funcs: List[scoreFunc]) -> evaluateFunc:
     return _evaluate_func
 
 
+def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
+    """
+    Creates a 1-to-1 dict between spaces and items of the specification
+    :param _spec:
+    :return:
+    """
+    output = {}
+    spec_items = _spec.items[:]
+    for sp in _spec.plan.spaces:
+        if not sp.category.mutable:
+            continue
+        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
+        best_item = min(corresponding_items,
+                        key=lambda i: math.fabs(i.required_area - sp.cached_area()))
+        assert best_item, "Score: Each space should have a corresponding item in the spec"
+        output[sp.id] = best_item
+        spec_items.remove(best_item)
+    return output
+
+
 def fc_score_area(spec: 'Specification') -> scoreFunc:
     """
     Score function factory
@@ -41,20 +61,6 @@ def fc_score_area(spec: 'Specification') -> scoreFunc:
     :param spec:
     :return:
     """
-
-    def _create_dict(_spec: 'Specification') -> Dict[int, 'Item']:
-        output = {}
-        spec_items = _spec.items[:]
-        for sp in _spec.plan.spaces:
-            if not sp.category.mutable:
-                continue
-            corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
-            best_item = min(corresponding_items,
-                            key=lambda i: math.fabs(i.required_area - sp.cached_area()))
-            assert best_item, "Score: Each space should have a corresponding item in the spec"
-            output[sp.id] = best_item
-            spec_items.remove(best_item)
-        return output
 
     def _score(ind: 'Individual') -> float:
         # create the item_to_space dict
@@ -75,7 +81,7 @@ def fc_score_area(spec: 'Specification') -> scoreFunc:
 
         return area_score
 
-    space_to_item = _create_dict(spec)
+    space_to_item = create_item_dict(spec)
     return _score
 
 
@@ -87,11 +93,13 @@ def score_corner(ind: 'Individual') -> float:
     """
     min_corners = 4
     score = 0.0
+    num_space = 0
     for space in ind.spaces:
         if not space.category.mutable or space.category.name == "living":
             continue
         score += (space.number_of_corners() - min_corners) / min_corners
-    return score
+        num_space += 1
+    return score / num_space
 
 
 def score_bounding_box(ind: 'Individual') -> float:
@@ -109,7 +117,8 @@ def score_bounding_box(ind: 'Individual') -> float:
             continue
         box = space.bounding_box()
         box_area = box[0] * box[1]
-        space_score = math.fabs((space.cached_area() - box_area) / box_area)
+        area = space.cached_area()
+        space_score = math.fabs((area - box_area) / area)
         score += space_score
 
     return score
@@ -135,4 +144,5 @@ def score_aspect_ratio(ind: 'Individual') -> float:
     return score
 
 
-__all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'fc_score_area', 'score_corner']
+__all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'fc_score_area', 'score_corner',
+           'create_item_dict']
