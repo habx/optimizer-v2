@@ -29,7 +29,7 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
     logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
 
     # We need to both consume and produce
-    exchanger.prepare()
+    exchanger.prepare(consumer=True, producer=True)
 
     processor = TaskProcessor(config, args.target)
     processor.prepare()
