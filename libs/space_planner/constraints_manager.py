@@ -663,10 +663,10 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = min(max(30, plan_ratio + 10), 40)
+        param = min(max(30, plan_ratio + 10), 35)
     elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing", "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
-        param = min(max(25, plan_ratio), 35)
+        param = min(max(25, plan_ratio), 32)
     elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
         param = 22
     else:
@@ -698,7 +698,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     return ct
 
 
-def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
+def windows_ordering_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
     """
     Windows length constraint
     :param manager: 'ConstraintsManager'
@@ -733,6 +733,39 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
     ct = (manager.item_area[item.id] * ratio) <= (
                 manager.item_windows_area[item.id] * 100)
     return ct
+
+def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
+    """
+    Windows constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+
+    if item.category.name in WINDOW_ROOMS:
+        if item.category.name in ["living", "livingKitchen", "dining"]:
+            ratio = 18
+        elif item.category.name in ["bedroom"]:
+            ratio = 15
+        elif item.category.name in ["kitchen", "study"]:
+            ratio = 10
+        else:
+            logging.warning("ConstraintsManager - windows_constraint : undefine ratio")
+        ct1 = windows_ordering_constraint(manager, item)
+        ct2 = windows_area_constraint(manager, item, ratio)
+        print(item.category.name)
+        print(ct1)
+        print(ct2)
+        if ct1 is None:
+            ct = ct2
+        else:
+            ct = manager.or_(ct1, ct2)
+
+    if ct is None:
+        return ct
+    else:
+        return ct == 1
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
@@ -962,6 +995,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_graph_constraint, {}],
         [distance_constraint, {}],
         [shape_constraint, {}],
+        [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
@@ -985,7 +1019,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "living": [
         [area_constraint, {"min_max": "min"}],
-        [windows_area_constraint, {"ratio": 18}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
@@ -993,7 +1026,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "livingKitchen": [
         [area_constraint, {"min_max": "min"}],
-        [windows_area_constraint, {"ratio": 18}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
@@ -1001,7 +1033,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "dining": [
         [area_constraint, {"min_max": "min"}],
-        [windows_area_constraint, {"ratio": 18}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -1011,7 +1042,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
     "kitchen": [
         [area_constraint, {"min_max": "min"}],
         [opens_on_constraint, {"length": 220}],
-        [windows_area_constraint, {"ratio": 10}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
@@ -1020,7 +1050,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [area_constraint, {"min_max": "min"}],
-        [windows_area_constraint, {"ratio": 15}],
         [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],

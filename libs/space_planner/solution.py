@@ -90,7 +90,7 @@ class SolutionsCollector:
 
         list_scores = []
         for solution in self.solutions:
-            list_scores.append(solution.score())
+            list_scores.append(solution.score)
 
         # Choose the tree best distributions :
         best_score = max(list_scores)
@@ -160,6 +160,8 @@ class Solution:
         self.plan = plan
         self.plan.name = self.plan.name + "_Solution_Id" + str(self._id)
         self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
+        self.score = None
+        self._score()
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
@@ -221,6 +223,8 @@ class Solution:
                 if space.category.name == "entrance":
                     if space.area < 15000:
                         area_penalty += 2
+                    elif space.area > item.required_area:
+                        area_penalty += 1
                 elif space.category.name == "toilet":
                     if space.area < 10000:
                         area_penalty += 2
@@ -569,7 +573,7 @@ class Solution:
         logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
         return something_inside_score
 
-    def score(self) -> float:
+    def _score(self) -> None:
         """
         Scoring
         compilation of different scores
@@ -580,7 +584,8 @@ class Solution:
         solution_score = (solution_score + self._good_size_bonus() +
                           self._windows_good_distribution_bonus()) #- self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
-        return solution_score
+
+        self.score = solution_score
 
     def distance(self, other_solution: 'Solution') -> float:
         """
