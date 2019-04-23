@@ -12,6 +12,7 @@ import uuid
 import tempfile
 import time
 import sentry_sdk
+import copy
 from typing import Optional, List
 
 import boto3
@@ -256,6 +257,12 @@ class MessageProcessor:
             if not msg:  # No message received (queue is empty)
                 continue
 
+            # OPT-99: We shall NOT modify the source data
+            src_data = msg.content.get('data')
+            src_lot = copy.deepcopy(src_data.get('lot'))
+            src_setup = copy.deepcopy(src_data.get('setup'))
+            src_params = copy.deepcopy(src_data.get('params'))
+
             self._process_message_before()
 
             # We calculate the overall time just in case we face a crash
@@ -291,10 +298,12 @@ class MessageProcessor:
                     data = {'status': 'unknown'}
                     result['data'] = data
                 data['version'] = Executor.VERSION
-                src_data = msg.content.get('data')
-                data['lot'] = src_data.get('lot')
-                data['setup'] = src_data.get('setup')
-                data['params'] = src_data.get('params')
+
+                # OPT-99: All the feedback shall only be done from the source data except for the
+                #         context which is allowed to be modified by the processing.
+                data['lot'] = src_lot
+                data['setup'] = src_setup
+                data['params'] = src_params
                 data['context'] = src_data.get('context')
                 self.exchanger.send_result(result)
 
