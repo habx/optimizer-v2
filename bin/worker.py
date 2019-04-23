@@ -14,7 +14,7 @@ from libs.utils.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.dev import local_dev_hack
-from libs.worker.mq import Exchanger, Message
+from libs.worker.mq import Exchanger
 
 # Initializing sentry at the earliest stage to detect any issue that might happen later
 sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
@@ -41,11 +41,22 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
 
         # OPT-99: We shall NOT modify the source data
         td = TaskDefinition.from_json(msg.content.get('data'))
-        td.context['taskId'] = msg.content.get('requestId')
+
+        # Declaring as task_id
+        task_id = msg.content.get('taskId')
+
+        if not task_id:  # Drop it at some point
+            task_id = msg.content.get('requestId')
+
+        td.context['taskId'] = task_id
 
         result = processor.process_task(td)
 
-        result['requestId'] = msg.content.get('requestId')
+        if msg.content.get('taskId'):
+            result['taskId'] = task_id
+
+        if msg.content.get('requestId'):  # Drop it at some point
+            result['requestId'] = task_id
 
         exchanger.send_result(result)
 
@@ -57,7 +68,7 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     """Core sending message function"""
 
     # We only need a producer, not a consumer
-    exchanger.prepare(consumer=False)
+    exchanger.prepare(consumer=False, producer=True)
 
     # Reading the input files
     with open(args.lot) as lot_fp:

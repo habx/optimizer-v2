@@ -24,8 +24,8 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 
     context['taskId'] = str(uuid.uuid4())
 
-    #  Send data with the context
-    input = {
+    #  All of this should be fetched from the service-results API
+    job_input = {
         'lot': {
             'meta': {
                 'slug': 'sample-blueprint',
@@ -37,7 +37,7 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
         'params': {},
         'context': context,
     }
-    td = TaskDefinition.from_json(input)
+    td = TaskDefinition.from_json(job_input)
     return td
 
 
