@@ -30,23 +30,24 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 20000,
-        "min": 10000
-      },
-      "tags": [],
-      "type": "toilet",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
         "max": 40000,
         "min": 20000
       },
       "tags": [],
       "type": "bathroom",
       "variant": "xs"
+    },
+
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "study",
+      "variant": "s"
     },
     {
       "requiredArea": {

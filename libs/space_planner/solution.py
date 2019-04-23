@@ -157,7 +157,7 @@ class Solution:
         self._id = _id
         self.collector = collector
         self.plan = plan
-        self.plan.name = self.plan.name[:-5] + "_Solution_Id" + str(self._id)
+        self.plan.name = self.plan.name + "_Solution_Id" + str(self._id)
         self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
 
     def __repr__(self):

@@ -2,7 +2,7 @@
   "rooms": [
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": ["kitchen"],
       "requiredArea": {
         "max": 165000,
         "min": 120000
@@ -13,7 +13,7 @@
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": ["living"],
       "requiredArea": {
         "max": 60000,
         "min": 40000

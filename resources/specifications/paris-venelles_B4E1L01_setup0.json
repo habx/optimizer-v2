@@ -2,7 +2,7 @@
   "rooms": [
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": ["kitchen"],
       "requiredArea": {
         "max": 200000,
         "min": 165000
@@ -13,7 +13,7 @@
     },
     {
       "linkedTo": [],
-      "opensOn": [],
+      "opensOn": ["living"],
       "requiredArea": {
         "max": 80000,
         "min": 60000
@@ -48,12 +48,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 100000,
+        "min": 80000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "s"
+      "variant": "xs"
     },
     {
       "linkedTo": [],
