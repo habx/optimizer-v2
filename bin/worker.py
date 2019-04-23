@@ -91,7 +91,7 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     request = {
         'type': 'optimizer-processing-request',
         'from': 'worker-optimizer:sender',
-        'requestId': str(uuid.uuid4()),
+        'taskId': str(uuid.uuid4()),
         'data': {
             'lot': lot,
             'setup': setup,

@@ -52,7 +52,12 @@ class TaskDefinition:
     @staticmethod
     def from_json(data: dict) -> 'TaskDefinition':
         td = TaskDefinition()
-        td.blueprint = data.get('lot')  # We should have named it blueprint
+
+        # Preferring blueprint to lot (as it describes more precisely what we are actually
+        # processing.
+        td.blueprint = data.get('blueprint')
+        if not td.blueprint:
+            td.blueprint = data.get('lot')
         td.setup = data.get('setup')
         td.params = data.get('params')
         td.context = data.get('context')
