@@ -66,7 +66,7 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
                         help="plot outputs",
                         action="store_true")
     args = parser.parse_args()
-    lot_path = args.lot
+    blueprint_path = args.blueprint
     setup_path = args.setup
     params_path = args.params
     output_dir = args.output
@@ -78,10 +78,10 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
     logging.getLogger().setLevel(logging.INFO)
     executor = Executor()
 
-    logging.info('Running (%s, %s) --> %s', lot_path, setup_path, output_dir)
+    logging.info('Running (%s, %s) --> %s', blueprint_path, setup_path, output_dir)
 
-    with open(lot_path, 'r') as lot_fp:
-        lot = json.load(lot_fp)
+    with open(blueprint_path, 'r') as blueprint_fp:
+        lot = json.load(blueprint_fp)
     with open(setup_path, 'r') as setup_fp:
         setup = json.load(setup_fp)
     if params_path:
