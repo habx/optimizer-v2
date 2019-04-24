@@ -52,11 +52,10 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
 
         result = processor.process_task(td)
 
-        if msg.content.get('taskId'):
-            result['taskId'] = task_id
+        result['taskId'] = task_id
 
-        if msg.content.get('requestId'):  # Drop it at some point
-            result['requestId'] = task_id
+        # TODO: Drop me
+        result['requestId'] = task_id
 
         exchanger.send_result(result)
 

@@ -17,6 +17,7 @@ from libs.worker.config import Config
 
 class TaskDefinition:
     """Definition of the task we're about to process"""
+
     def __init__(self):
         # All these parameters are fetched from the API
         self.blueprint: dict = None
@@ -42,12 +43,12 @@ class TaskDefinition:
     def __str__(self):
         return "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
                "LocalParams: {local_params}, Context: {context}".format(
-                    blueprint=self.blueprint,
-                    setup=self.setup,
-                    params=self.params,
-                    local_params=self.local_params,
-                    context=self.context,
-                )
+            blueprint=self.blueprint,
+            setup=self.setup,
+            params=self.params,
+            local_params=self.local_params,
+            context=self.context,
+        )
 
     @staticmethod
     def from_json(data: dict) -> 'TaskDefinition':
@@ -150,7 +151,7 @@ class TaskProcessor:
             # OPT-89: Storing files in a "tasks" directory
             dst_file = "tasks/{task_id}/{file}".format(
                 task_id=task_id,
-                file=src_file[len(self.output_dir)+1:]
+                file=src_file[len(self.output_dir) + 1:]
             )
             logging.info(
                 "Uploading \"%s\" to s3://%s/%s",
@@ -162,9 +163,7 @@ class TaskProcessor:
                 src_file,
                 self.config.s3_repository,
                 dst_file,
-                ExtraArgs={
-                    'ACL': 'public-read'
-                }
+                ExtraArgs={'ACL': 'public-read'}
             )
 
         if files:
