@@ -91,7 +91,8 @@ class TaskProcessor:
         self._process_task_before()
 
         # We calculate the overall time just in case we face a crash
-        before_time = time.time()
+        before_time_real = time.time()
+        before_time_cpu = time.process_time()
 
         try:
             result = self._process_task_core(td)
@@ -103,7 +104,8 @@ class TaskProcessor:
                     'status': 'error',
                     'error': traceback.format_exception(*sys.exc_info()),
                     'times': {
-                        'totalReal': (time.time() - before_time)
+                        'totalReal': (time.time() - before_time_real),
+                        'total': (time.process_time()-before_time_cpu)
                     },
                 },
             }
