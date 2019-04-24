@@ -71,8 +71,8 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
     exchanger.prepare(consumer=False, producer=True)
 
     # Reading the input files
-    with open(args.lot) as lot_fp:
-        lot = json.load(lot_fp)
+    with open(args.blueprint) as blueprint_fp:
+        lot = json.load(blueprint_fp)
     with open(args.setup) as setup_fp:
         setup = json.load(setup_fp)
     if args.params:
@@ -122,8 +122,24 @@ def _cli():
     config = Config()
     exchanger = Exchanger(config)
 
-    parser = argparse.ArgumentParser(description="Optimizer V2 Worker v" + Executor.VERSION)
-    parser.add_argument("-l", "--lot", dest="lot", metavar="FILE", help="Lot input file")
+    example_text = """
+Example usage:
+==============
+
+# Will process any task coming its way
+bin/worker.py 
+
+# Will send a task towards processing workers
+bin/worker.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json
+bin/worker.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json -p resources/params/timeout.json
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Optimizer V2 Worker v" + Executor.VERSION,
+        epilog=example_text,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("-b", "--blueprint", dest="blueprint", metavar="FILE", help="Lot input file")
     parser.add_argument("-s", "--setup", dest="setup", metavar="FILE", help="Setup input file")
     parser.add_argument("-p", "--params", dest="params", metavar="FILE", help="Params input file")
     parser.add_argument("--params-crash", dest="params_crash", action="store_true",
@@ -137,7 +153,7 @@ def _cli():
     if args.myself:
         args.target = socket.gethostname()
 
-    if args.lot or args.setup:  # if only one is passed, we will crash and this is perfect
+    if args.blueprint or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:
         _process_messages(args, config, exchanger)

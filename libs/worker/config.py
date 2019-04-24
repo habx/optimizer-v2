@@ -38,4 +38,4 @@ class Config:
             topic=topic_results_base,
         )
 
-        self.s3_repository = 'habx-{env}-worker-optimizer-v2'.format(env=env)
+        self.s3_repository = 'habx-{env}-optimizer-v2'.format(env=env)

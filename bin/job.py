@@ -57,11 +57,22 @@ def _cli():
         format="%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s",
     )
 
+    example_text = """
+Example usage:
+==============
+
+BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
+"""
+
     logging.info("Optimizer V2 Job (%s)", Executor.VERSION)
 
-    parser = argparse.ArgumentParser(description="Optimizer V2 Job v" + Executor.VERSION)
+    parser = argparse.ArgumentParser(
+        description="Optimizer V2 Job v" + Executor.VERSION,
+        epilog=example_text,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
-        "-l", "--blueprint-id", dest="blueprint_id", default=os.getenv('BLUEPRINT_ID'),
+        "-b", "--blueprint-id", dest="blueprint_id", default=os.getenv('BLUEPRINT_ID'),
         metavar="ID", help="Blueprint ID",
 
     )
