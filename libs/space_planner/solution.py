@@ -11,9 +11,11 @@ from typing import List, Dict, Optional
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, COST_RULES
+from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
 
 CORRIDOR_SIZE = 120
+SQM = 10000
 
 
 class SolutionsCollector:
@@ -89,7 +91,7 @@ class SolutionsCollector:
 
         list_scores = []
         for solution in self.solutions:
-            list_scores.append(solution.score())
+            list_scores.append(solution.score)
 
         # Choose the tree best distributions :
         best_score = max(list_scores)
@@ -157,8 +159,10 @@ class Solution:
         self._id = _id
         self.collector = collector
         self.plan = plan
-        self.plan.name = self.plan.name[:-5] + "_Solution_Id" + str(self._id)
+        self.plan.name = self.plan.name + "_Solution_Id" + str(self._id)
         self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
+        self.score = None
+        self._score()
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
@@ -199,7 +203,7 @@ class Solution:
         Area score
         :return: score : float
         """
-        good_overflow_categories = ["living", "dining"]
+        good_overflow_categories = ["living", "livingKitchen", "dining"]
 
         area_score = 0
         area_penalty = 0
@@ -218,28 +222,29 @@ class Solution:
                 item_area_score = (100 - abs(item.required_area - space.area) /
                                    item.required_area * 100)
                 if space.category.name == "entrance":
-                    if space.area < 20000:
+                    if space.area < 15000:
+                        area_penalty += 2
+                    elif space.area > item.required_area:
                         area_penalty += 1
                 elif space.category.name == "toilet":
                     if space.area < 10000:
-                        area_penalty += 1
+                        area_penalty += 2
                     elif space.area > item.max_size.area:
                         area_penalty += 3
                 elif space.category.name == "bathroom":
                     if space.area < 20000:
-                        area_penalty += 1
+                        area_penalty += 2
                 elif space.category.name == "bedroom":
-                    if space.area < 75000:
+                    if space.area < 90000:
+                        area_penalty += 2
+                elif space.category.name == "circulation":
+                    if space.area > item.max_size.area:
                         area_penalty += 1
 
             # Area score
             area_score += item_area_score
             logging.debug("Solution %i: Area score : %f, room : %s", self._id, item_area_score,
                           item.id)
-
-        for space in self.plan.spaces:
-            if space.category.name == "circulation":
-                area_penalty += 1
 
         area_score = round(area_score / nbr_rooms, 2) - area_penalty * 20
         logging.debug("Solution %i: Area score : %f", self._id, area_score)
@@ -283,13 +288,39 @@ class Solution:
         """
         for item1 in self.collector.spec.items:
             for item2 in self.collector.spec.items:
-                if (item1 != item2 and item1.category.name != "entrance" and
-                        item2.category.name != "entrance"):
+                if (item1 != item2 and item1.category.name not in ["entrance", "circulation"] and
+                        item2.category.name not in ["entrance", "circulation"]):
                     if (item1.required_area < item2.required_area and
                             self.items_spaces[item1].area > self.items_spaces[item2].area):
                         logging.debug("Solution %i: Size bonus : %i", self._id, 0)
                         return 0
         logging.debug("Solution %i: Size bonus : %i", self._id, 10)
+        return 10
+
+    def _windows_good_distribution_bonus(self) -> float:
+        """
+        Good ordering windows area bonus
+        :return: score : float
+        """
+        item_windows_area = {}
+        for item in self.items_spaces:
+            area = 0
+            for component in self.items_spaces[item].immutable_components():
+                if component.category.name == "window":
+                    area += component.length * 100
+                elif component.category.name == "doorWindow":
+                    area += component.length * 200
+            item_windows_area[item.id] = area
+
+        for item1 in self.collector.spec.items:
+            for item2 in self.collector.spec.items:
+                if (item1.required_area < item2.required_area
+                        and item1.category.name in WINDOW_ROOMS
+                        and item2.category.name in WINDOW_ROOMS):
+                    if item_windows_area[item1.id] > item_windows_area[item2.id]:
+                        logging.debug("Solution %i: Windows bonus : %i", self._id, 0)
+                        return 0
+        logging.debug("Solution %i: Windows bonus : %i", self._id, 10)
         return 10
 
     def _externals_spaces_bonus(self) -> float:
@@ -346,7 +377,7 @@ class Solution:
         :return: score : float
         """
         first_level = self.plan.first_level
-        day_list = ["living", "kitchen", "cellar", "dining"]
+        day_list = ["living", "kitchen", "livingKitchen", "dining"]
 
         night_list = ["bedroom", "bathroom", "laundry"]
 
@@ -356,7 +387,7 @@ class Solution:
             day_polygon_list.append(None)
             night_polygon_list.append(None)
 
-        for item in self.items_spaces.keys():
+        for item in self.items_spaces:
             associated_space = self.items_spaces[item]
             level = associated_space.floor.level
             # Day
@@ -425,16 +456,16 @@ class Solution:
         Position room score :
         - one of the toilets must be near the entrance
         - bedrooms must be near a bathroom
-        - toilets and bathrooms must be accessible from the corridors or the entrance
+        - toilets and bathrooms must be accessible from corridors or the entrance
         - the living must be near the entrance
         :return: score : float
         """
 
         position_score = 0
         nbr_room_position_score = 0
-        front_door = self.plan.front_door().as_sp
-        corridor_poly = None  # TODO
-        for item in self.items_spaces.keys():
+        front_door = self.plan.front_door()
+        corridor = None  # TODO
+        for item in self.items_spaces:
             space = self.items_spaces[item]
             item_position_score = 0
             if item.category.name == "toilet" and space == self.get_rooms("toilet")[0]:
@@ -444,46 +475,45 @@ class Solution:
                     # distance from the entrance
                     plan_area = self.collector.spec.plan.area
                     criteria = plan_area ** 0.5
-                    distance_toilet_fd = space.as_sp.distance(front_door)
+                    distance_toilet_fd = space.distance_to_linear(front_door, "min")
                     if distance_toilet_fd < criteria:
                         item_position_score = (criteria - distance_toilet_fd) * 100 / criteria
+            elif item.category.name == "bathroom":
+                nbr_room_position_score += 1
+                # non adjacent bathroom / bathroom
+                for item_test in self.items_spaces:
+                    if (item_test.category.name == "bathroom" and
+                            self.items_spaces[item_test].floor == space.floor):
+                        if space.adjacent_to(self.items_spaces[item_test]):
+                            item_position_score = 0
+                            break
             elif item.category.name == "bedroom":
                 nbr_room_position_score += 1
                 # distance from a bedroom / bathroom
-                for item_test in self.collector.spec.items:
-                    if (item_test.category.name == "bathroom" and
+                for item_test in self.items_spaces:
+                    if (item_test.category.name in ["bathroom", "circulation"] and
                             self.items_spaces[item_test].floor == space.floor):
-                        polygon_bathroom = self.items_spaces[item_test].as_sp
-                        connected = False
-                        for circulation_space in self.plan.circulation_spaces():
-                            if polygon_bathroom.intersection(
-                                    circulation_space.as_sp.union(space.as_sp)):
-                                connected = True
-                                item_position_score = 100
-                                break
-                        if not connected and polygon_bathroom.distance(space.as_sp) < CORRIDOR_SIZE:
+                        if space.adjacent_to(self.items_spaces[item_test]):
                             item_position_score = 100
                             break
             if item.category.name == "toilet" or item.category.name == "bathroom":
                 # could be private
                 private = False
                 for circulation_space in self.plan.circulation_spaces():
-                    if circulation_space.as_sp.intersection(space.as_sp):
+                    if circulation_space.adjacent_to(space):
                         private = True
-                        item_position_score = 100
+                        item_position_score += 50
                         break
-                if not private and corridor_poly:
-                    if not corridor_poly.intersection(space.as_sp):
+                if not private and corridor:
+                    if not corridor.adjacent_to(space):
                         item_position_score -= 50
-                if item.category.name == "bathroom":
-                    nbr_room_position_score += 1
-            elif item.category.name == "living":
+            elif item.category.name == "living" or item.category.name == "livingKitchen":
                 nbr_room_position_score += 1
                 if "frontDoor" in space.components_category_associated():
                     item_position_score = 100
-                elif self.get_rooms("entrance")[0].floor == space.floor:
+                else:
                     # distance from the entrance
-                    if self.get_rooms("entrance")[0].as_sp.distance(space.as_sp) < CORRIDOR_SIZE:
+                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE*2:
                         item_position_score = 100
 
             logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
@@ -519,7 +549,7 @@ class Solution:
                                           "study", "laundry"]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
-            for i_item in self.collector.spec.items:
+            for i_item in self.items_spaces:
                 if (i_item != item and not (
                         i_item.category.name in list_of_non_concerned_room) and space.floor ==
                         self.items_spaces[i_item]):
@@ -543,7 +573,7 @@ class Solution:
         logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
         return something_inside_score
 
-    def score(self) -> float:
+    def _score(self) -> None:
         """
         Scoring
         compilation of different scores
@@ -551,9 +581,11 @@ class Solution:
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
-        solution_score = solution_score + self._good_size_bonus() - self._circulation_penalty()
+        solution_score = (solution_score + self._good_size_bonus() +
+                          self._windows_good_distribution_bonus()) #- self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
-        return solution_score
+
+        self.score = solution_score
 
     def distance(self, other_solution: 'Solution') -> float:
         """
@@ -563,7 +595,7 @@ class Solution:
         :return: distance : float
         """
         # Day group
-        day_list = ["livingKitchen", "living", "kitchen", "dining", "cellar"]
+        day_list = ["livingKitchen", "living", "kitchen", "dining"]
         # Night group
         night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "study", "misc"]
 
@@ -581,5 +613,8 @@ class Solution:
                              other_space.category.name not in night_list)):
                         difference_area += face.area
 
-        distance = difference_area * 100 / mesh_area
+        if difference_area < 18 * SQM:
+            distance = 0
+        else:
+            distance = difference_area * 100 / mesh_area
         return distance
