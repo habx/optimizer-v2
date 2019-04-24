@@ -761,7 +761,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
         else:
             ct = manager.or_(ct1, ct2)
 
-        return ct
+    return ct
 
 def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
