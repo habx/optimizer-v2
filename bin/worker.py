@@ -48,7 +48,7 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
         if not task_id:  # Drop it at some point
             task_id = msg.content.get('requestId')
 
-        td.context['taskId'] = task_id
+        # td.context['taskId'] = task_id
 
         result = processor.process_task(td)
 
