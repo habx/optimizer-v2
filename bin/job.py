@@ -7,6 +7,8 @@ import uuid
 
 import sentry_sdk
 
+import libpath
+
 from libs.utils.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
@@ -86,7 +88,7 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         metavar="ID", help="Params ID"
     )
     parser.add_argument(
-        "-b", "--batch-execution-id", dest="batch_execution_id",
+        "-B", "--batch-execution-id", dest="batch_execution_id",
         default=os.getenv('BATCH_EXECUTION_ID'), metavar="ID", help="BatchExecution ID"
     )
     args = parser.parse_args()
