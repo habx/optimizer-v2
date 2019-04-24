@@ -40,12 +40,26 @@ def test_solution_distance():
     plan1.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["bathroom"], floor_1)
     plan1.remove_null_spaces()
 
+    dict_items_spaces_plan1 = {}
+    for space in plan1.spaces:
+        for item in spec.items:
+            if space.category == item.category:
+                dict_items_spaces_plan1[item] = space
+                break
+
     plan2 = plan1.clone("2")
     plan2.spaces[1].category = SPACE_CATEGORIES["kitchen"]
     plan2.spaces[2].category = SPACE_CATEGORIES["bedroom"]
 
-    collector.add_solution(plan1)
-    collector.add_solution(plan2)
+    dict_items_spaces_plan2 = {}
+    for space in plan2.spaces:
+        for item in spec.items:
+            if space.category == item.category:
+                dict_items_spaces_plan2[item] = space
+                break
+
+    collector.add_solution(plan1, dict_items_spaces_plan1)
+    collector.add_solution(plan2, dict_items_spaces_plan2)
 
     assert collector.solutions[0].distance(collector.solutions[1]) == 25, "Wrong distance"
 
@@ -53,12 +67,19 @@ def test_solution_distance():
     plan3.spaces[1].category = SPACE_CATEGORIES["kitchen"]
     plan3.spaces[2].category = SPACE_CATEGORIES["entrance"]
 
-    collector.add_solution(plan3)
+    dict_items_spaces_plan3 = {}
+    for space in plan3.spaces:
+        for item in spec.items:
+            if space.category == item.category:
+                dict_items_spaces_plan3[item] = space
+                break
+
+    collector.add_solution(plan3, dict_items_spaces_plan3)
 
     assert collector.solutions[0].distance(collector.solutions[2]) == 50, "Wrong distance"
 
     plan4 = plan1.clone("4")
-    collector.add_solution(plan4)
+    collector.add_solution(plan4, dict_items_spaces_plan1)
 
     assert collector.solutions[0].distance(collector.solutions[3]) == 0, "Wrong distance"
 
@@ -66,7 +87,14 @@ def test_solution_distance():
     plan5.spaces[0].category = SPACE_CATEGORIES["bedroom"]
     plan5.spaces[1].category = SPACE_CATEGORIES["living"]
     plan5.spaces[2].category = SPACE_CATEGORIES["kitchen"]
-    collector.add_solution(plan5)
+
+    dict_items_spaces_plan5 = {}
+    for space in plan5.spaces:
+        for item in spec.items:
+            if space.category == item.category:
+                dict_items_spaces_plan5[item] = space
+                break
+    collector.add_solution(plan5, dict_items_spaces_plan5)
 
     assert collector.solutions[0].distance(collector.solutions[4]) == 100, "Wrong distance"
 

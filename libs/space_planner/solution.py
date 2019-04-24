@@ -15,6 +15,7 @@ from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
 
 CORRIDOR_SIZE = 120
+SQM = 10000
 
 
 class SolutionsCollector:
@@ -26,13 +27,13 @@ class SolutionsCollector:
         self.solutions: List['Solution'] = []
         self.spec = spec
 
-    def add_solution(self, plan: 'Plan') -> None:
+    def add_solution(self, plan: 'Plan', dict_items_spaces: Dict['Item', 'Space']) -> None:
         """
         creates and add plan solution to the list
         :param: plan
         :return: None
         """
-        sol = Solution(self, plan, len(self.solutions))
+        sol = Solution(self, plan, dict_items_spaces, len(self.solutions))
         self.solutions.append(sol)
 
     @property
@@ -153,13 +154,13 @@ class Solution:
     def __init__(self,
                  collector: 'SolutionsCollector',
                  plan: 'Plan',
+                 dict_items_spaces: Dict['Item', 'Space'],
                  _id: int):
         self._id = _id
         self.collector = collector
         self.plan = plan
         self.plan.name = self.plan.name + "_Solution_Id" + str(self._id)
-        self.items_spaces = {}
-        self.init_items_spaces()
+        self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
         self.score = None
         self._score()
 
@@ -612,5 +613,9 @@ class Solution:
                              other_space.category.name not in night_list)):
                         difference_area += face.area
 
-        distance = difference_area * 100 / mesh_area
+        print(difference_area)
+        if difference_area < 18 * SQM:
+            distance = 0
+        else:
+            distance = difference_area * 100 / mesh_area
         return distance

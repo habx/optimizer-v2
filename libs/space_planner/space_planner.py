@@ -126,6 +126,8 @@ class SpacePlanner:
             if space.category.name == "seed":
                 space.category = SPACE_CATEGORIES["circulation"]
 
+        # To know the space associated with the item
+        dict_items_space = {}
         for item in self.spec.items:
             item_space = dict_items_spaces[item]
             if len(item_space) > 1:
@@ -141,12 +143,17 @@ class SpacePlanner:
                             space_ini.merge(space)
                             plan.remove_null_spaces()
                             break
+                dict_items_space[item] = space_ini
+            else:
+                if item_space:
+                    dict_items_space[item] = item_space[0]
+
 
         # OPT-72: If we really want to enable it, it should be done through some execution context
         # parameters.
         # assert plan.check()
 
-        return plan
+        return plan, dict_items_space
 
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
@@ -165,8 +172,8 @@ class SpacePlanner:
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
-                    plan_solution= self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution)
+                    plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
+                    self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
                     # plan_solution.plot()
                     if show:
@@ -203,7 +210,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "010.json"
+        input_file = "019.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
