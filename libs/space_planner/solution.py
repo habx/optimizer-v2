@@ -613,7 +613,6 @@ class Solution:
                              other_space.category.name not in night_list)):
                         difference_area += face.area
 
-        print(difference_area)
         if difference_area < 18 * SQM:
             distance = 0
         else:

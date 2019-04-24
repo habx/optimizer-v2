@@ -655,7 +655,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = 30 #min(max(30, plan_ratio + 10), 35)
+        param = min(max(30, plan_ratio + 10), 35)
     elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing", "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
         param = min(max(25, plan_ratio), 32)
@@ -709,6 +709,15 @@ def windows_ordering_constraint(manager: 'ConstraintsManager',
                 new_ct = (manager.windows_length[item.id] <=
                           manager.windows_length[j_item.id])
                 ct = manager.solver.solver.Min(ct, new_ct)
+        elif (item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS
+              and item.required_area > j_item.required_area):
+            if ct is None:
+                ct = (manager.windows_length[item.id] >=
+                      manager.windows_length[j_item.id])
+            else:
+                new_ct = (manager.windows_length[item.id] >=
+                          manager.windows_length[j_item.id])
+                ct = manager.solver.solver.Min(ct, new_ct)
 
     return ct
 
@@ -747,10 +756,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
-        if ct1 is None:
-            ct = ct2
-        else:
-            ct = manager.or_(ct1, ct2)
+
+        ct = manager.or_(ct1, ct2)
 
         return ct
 
