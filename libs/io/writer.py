@@ -59,7 +59,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
     points = output_data_v2["vertices"]
     spaces = output_data_v2["spaces"]
     floors = output_data_v2["floors"]
-    aptInfos = output_data_v2["aptInfos"]
+    apt_infos = output_data_v2["aptInfos"]
     vertices_max_id = 0
     room_max_id = 0
 
@@ -93,7 +93,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
-    aptInfos["score"] = solution.score
+    apt_infos["score"] = solution.score
 
     return {"v2": output_data_v2}
 

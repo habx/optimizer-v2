@@ -368,9 +368,6 @@ class ConstraintsManager:
         spaces adjacency matrix init
         :return: None
         """
-        # for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-        #     for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-        #         print(i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2)
         self.spaces_item_adjacency_matrix = [
             [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
@@ -410,11 +407,6 @@ class ConstraintsManager:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 4:
-                for constraint in T4_MORE_ITEMS_CONSTRAINTS["all"]:
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
-                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
@@ -698,7 +690,8 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     return ct
 
 
-def windows_ordering_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
+def windows_ordering_constraint(manager: 'ConstraintsManager',
+                                item: Item) -> Optional[ ortools.Constraint]:
     """
     Windows length constraint
     :param manager: 'ConstraintsManager'
@@ -716,10 +709,8 @@ def windows_ordering_constraint(manager: 'ConstraintsManager', item: Item) -> Op
                 new_ct = (manager.windows_length[item.id] <=
                           manager.windows_length[j_item.id])
                 ct = manager.solver.solver.Min(ct, new_ct)
-    if ct is None:
-        return ct
-    else:
-        return ct == 1
+
+    return ct
 
 def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                             ratio: int) -> ortools.Constraint:
@@ -734,9 +725,9 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                 manager.item_windows_area[item.id] * 100)
     return ct
 
-def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
+def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
-    Windows constraint
+    Windows constraint : windows_area_constraint or windows_ordering_constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -746,26 +737,42 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
     if item.category.name in WINDOW_ROOMS:
         if item.category.name in ["living", "livingKitchen", "dining"]:
             ratio = 18
-        elif item.category.name in ["bedroom"]:
+        elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
             ratio = 15
-        elif item.category.name in ["kitchen", "study"]:
+        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
             ratio = 10
         else:
-            logging.warning("ConstraintsManager - windows_constraint : undefine ratio")
+            ratio = 0
+            logging.warning("ConstraintsManager - windows_constraint : undefined ratio")
+
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
-        print(item.category.name)
-        print(ct1)
-        print(ct2)
         if ct1 is None:
             ct = ct2
         else:
             ct = manager.or_(ct1, ct2)
 
-    if ct is None:
         return ct
-    else:
-        return ct == 1
+
+def large_windows_constraint(manager: 'ConstraintsManager',
+                             item: Item) -> Optional[ortools.Constraint]:
+    """
+    Large Windows constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+
+    large_windows_sum = 0
+    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for component in space.immutable_components():
+            if component.category.name is "doorWindow" and component.length > 180:
+                large_windows_sum += manager.solver.positions[item.id, j]
+    if large_windows_sum:
+        ct = large_windows_sum >= 1
+
+    return ct
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
@@ -1004,75 +1011,87 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "toilet": [
         [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
     ],
     "bathroom": [
         [area_constraint, {"min_max": "min"}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
     ],
     "living": [
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+        [large_windows_constraint, {}]
     ],
     "livingKitchen": [
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+        [large_windows_constraint, {}]
     ],
     "dining": [
         [area_constraint, {"min_max": "min"}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": ["kitchen", "livingKitchen"], "adj": True, "addition_rule": "Or"}]
     ],
     "kitchen": [
         [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}]
     ],
     "bedroom": [
         [area_constraint, {"min_max": "min"}],
-        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
     ],
     "study": [
         [area_constraint, {"min_max": "min"}],
-        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
     ],
     "dressing": [
         [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
+
     ]
 }
 
@@ -1107,21 +1126,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "dressing": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
-    ],
-    "laundry": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ]
 }
-T4_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
 
-    ],
-    "bathroom": [
-        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
-    ],
-    "bedroom": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
-    ]
-}

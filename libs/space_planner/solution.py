@@ -376,7 +376,7 @@ class Solution:
         :return: score : float
         """
         first_level = self.plan.first_level
-        day_list = ["living", "kitchen", "cellar", "dining"]
+        day_list = ["living", "kitchen", "livingKitchen", "dining"]
 
         night_list = ["bedroom", "bathroom", "laundry"]
 
@@ -455,15 +455,15 @@ class Solution:
         Position room score :
         - one of the toilets must be near the entrance
         - bedrooms must be near a bathroom
-        - toilets and bathrooms must be accessible from the corridors or the entrance
+        - toilets and bathrooms must be accessible from corridors or the entrance
         - the living must be near the entrance
         :return: score : float
         """
 
         position_score = 0
         nbr_room_position_score = 0
-        front_door = self.plan.front_door().as_sp
-        corridor_poly = None  # TODO
+        front_door = self.plan.front_door()
+        corridor = None  # TODO
         for item in self.items_spaces:
             space = self.items_spaces[item]
             item_position_score = 0
@@ -474,46 +474,45 @@ class Solution:
                     # distance from the entrance
                     plan_area = self.collector.spec.plan.area
                     criteria = plan_area ** 0.5
-                    distance_toilet_fd = space.as_sp.distance(front_door)
+                    distance_toilet_fd = space.distance_to_linear(front_door, "min")
                     if distance_toilet_fd < criteria:
                         item_position_score = (criteria - distance_toilet_fd) * 100 / criteria
+            elif item.category.name == "bathroom":
+                nbr_room_position_score += 1
+                # non adjacent bathroom / bathroom
+                for item_test in self.collector.spec.items:
+                    if (item_test.category.name == "bathroom" and
+                            self.items_spaces[item_test].floor == space.floor):
+                        if space.adjacent_to(self.items_spaces[item_test]):
+                            item_position_score = 0
+                            break
             elif item.category.name == "bedroom":
                 nbr_room_position_score += 1
                 # distance from a bedroom / bathroom
                 for item_test in self.collector.spec.items:
-                    if (item_test.category.name == "bathroom" and
+                    if (item_test.category.name in ["bathroom", "circulation"] and
                             self.items_spaces[item_test].floor == space.floor):
-                        polygon_bathroom = self.items_spaces[item_test].as_sp
-                        connected = False
-                        for circulation_space in self.plan.circulation_spaces():
-                            if polygon_bathroom.intersection(
-                                    circulation_space.as_sp.union(space.as_sp)):
-                                connected = True
-                                item_position_score = 100
-                                break
-                        if not connected and polygon_bathroom.distance(space.as_sp) < CORRIDOR_SIZE:
+                        if space.adjacent_to(self.items_spaces[item_test]):
                             item_position_score = 100
                             break
             if item.category.name == "toilet" or item.category.name == "bathroom":
                 # could be private
                 private = False
                 for circulation_space in self.plan.circulation_spaces():
-                    if circulation_space.as_sp.intersection(space.as_sp):
+                    if circulation_space.adjacent_to(space):
                         private = True
-                        item_position_score = 100
+                        item_position_score += 50
                         break
-                if not private and corridor_poly:
-                    if not corridor_poly.intersection(space.as_sp):
+                if not private and corridor:
+                    if not corridor.adjacent_to(space):
                         item_position_score -= 50
-                if item.category.name == "bathroom":
-                    nbr_room_position_score += 1
-            elif item.category.name == "living":
+            elif item.category.name == "living" or item.category.name == "livingKitchen":
                 nbr_room_position_score += 1
                 if "frontDoor" in space.components_category_associated():
                     item_position_score = 100
                 elif self.get_rooms("entrance")[0].floor == space.floor:
                     # distance from the entrance
-                    if self.get_rooms("entrance")[0].as_sp.distance(space.as_sp) < CORRIDOR_SIZE:
+                    if self.get_rooms("entrance")[0].distance_to(space, "min") < CORRIDOR_SIZE*2:
                         item_position_score = 100
 
             logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
