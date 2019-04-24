@@ -715,6 +715,20 @@ class Space(PlanComponent):
         return choices[kind]((e1.start.distance_to(e2.start)
                               for e1 in self.exterior_edges for e2 in other.exterior_edges))
 
+    def distance_to_linear(self, other: 'Linear', kind: str = "max") -> float:
+        """
+        Returns the max or the min distance to the linear
+        :param other:
+        :param kind: whether to return the max or the min distance
+        :return:
+        """
+        choices = {
+            "min": min,
+            "max": max
+        }
+        return choices[kind]((e1.start.distance_to(e2.start)
+                              for e1 in self.exterior_edges for e2 in other.edges))
+
     def adjacency_to(self, other: 'Space') -> float:
         """
         Returns the length of the boundary between two spaces
