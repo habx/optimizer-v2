@@ -514,7 +514,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
-        param = 2
+        param = 1.8
     elif item.category.name in ["entrance"]:
         param = 2.5
     else:
@@ -756,8 +756,10 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
-
-        ct = manager.or_(ct1, ct2)
+        if ct1 is None:
+            ct = ct2
+        else:
+            ct = manager.or_(ct1, ct2)
 
         return ct
 
