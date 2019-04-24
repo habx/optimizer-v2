@@ -67,8 +67,6 @@ Example usage:
 BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
 """
 
-    logging.info("Optimizer V2 Job (%s)", Executor.VERSION)
-
     parser = argparse.ArgumentParser(
         description="Optimizer V2 Job v" + Executor.VERSION,
         epilog=example_text,
