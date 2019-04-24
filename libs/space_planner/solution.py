@@ -26,13 +26,13 @@ class SolutionsCollector:
         self.solutions: List['Solution'] = []
         self.spec = spec
 
-    def add_solution(self, plan: 'Plan', dict_items_spaces: Dict['Item', 'Space']) -> None:
+    def add_solution(self, plan: 'Plan') -> None:
         """
         creates and add plan solution to the list
         :param: plan
         :return: None
         """
-        sol = Solution(self, plan, dict_items_spaces, len(self.solutions))
+        sol = Solution(self, plan, len(self.solutions))
         self.solutions.append(sol)
 
     @property
@@ -153,13 +153,13 @@ class Solution:
     def __init__(self,
                  collector: 'SolutionsCollector',
                  plan: 'Plan',
-                 dict_items_spaces: Dict['Item', 'Space'],
                  _id: int):
         self._id = _id
         self.collector = collector
         self.plan = plan
         self.plan.name = self.plan.name + "_Solution_Id" + str(self._id)
-        self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
+        self.items_spaces = {}
+        self.init_items_spaces()
         self.score = None
         self._score()
 
@@ -302,7 +302,7 @@ class Solution:
         :return: score : float
         """
         item_windows_area = {}
-        for item in self.collector.spec.items:
+        for item in self.items_spaces:
             area = 0
             for component in self.items_spaces[item].immutable_components():
                 if component.category.name == "window":
@@ -480,7 +480,7 @@ class Solution:
             elif item.category.name == "bathroom":
                 nbr_room_position_score += 1
                 # non adjacent bathroom / bathroom
-                for item_test in self.collector.spec.items:
+                for item_test in self.items_spaces:
                     if (item_test.category.name == "bathroom" and
                             self.items_spaces[item_test].floor == space.floor):
                         if space.adjacent_to(self.items_spaces[item_test]):
@@ -489,7 +489,7 @@ class Solution:
             elif item.category.name == "bedroom":
                 nbr_room_position_score += 1
                 # distance from a bedroom / bathroom
-                for item_test in self.collector.spec.items:
+                for item_test in self.items_spaces:
                     if (item_test.category.name in ["bathroom", "circulation"] and
                             self.items_spaces[item_test].floor == space.floor):
                         if space.adjacent_to(self.items_spaces[item_test]):
@@ -510,9 +510,9 @@ class Solution:
                 nbr_room_position_score += 1
                 if "frontDoor" in space.components_category_associated():
                     item_position_score = 100
-                elif self.get_rooms("entrance")[0].floor == space.floor:
+                else:
                     # distance from the entrance
-                    if self.get_rooms("entrance")[0].distance_to(space, "min") < CORRIDOR_SIZE*2:
+                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE*2:
                         item_position_score = 100
 
             logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
@@ -548,7 +548,7 @@ class Solution:
                                           "study", "laundry"]
             sp_space = space.as_sp
             convex_hull = sp_space.convex_hull
-            for i_item in self.collector.spec.items:
+            for i_item in self.items_spaces:
                 if (i_item != item and not (
                         i_item.category.name in list_of_non_concerned_room) and space.floor ==
                         self.items_spaces[i_item]):
@@ -594,7 +594,7 @@ class Solution:
         :return: distance : float
         """
         # Day group
-        day_list = ["livingKitchen", "living", "kitchen", "dining", "cellar"]
+        day_list = ["livingKitchen", "living", "kitchen", "dining"]
         # Night group
         night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "study", "misc"]
 

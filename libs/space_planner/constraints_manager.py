@@ -154,7 +154,7 @@ class ConstraintSolver:
                     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
                                     len(self.solutions))
                     break
-                if (time.clock() - t0 - 600) >= 0:
+                if (time.process_time() - t0 - 600) >= 0:
                     logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
                     break
 
