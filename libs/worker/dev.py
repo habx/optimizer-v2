@@ -17,5 +17,5 @@ def local_dev_hack():
         if 'HABX_ENV_NS' not in os.environ:
             ns = socket.gethostname()
             ns = re.sub('[^A-Za-z0-9]+', '', ns)
-            os.environ['HABX_ENV_NS'] = ns[:10]
+            os.environ['HABX_ENV_NS'] = ns[:20]
 
