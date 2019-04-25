@@ -24,7 +24,14 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
-    endpoint = 'https://www.habx-dev.fr/api/optimizer-v2/job'
+    endpoints = {
+        'local': 'http://localhost:3000/job',
+        'dev': 'https://www.habx-dev.fr/api/optimizer-v2/job',
+        'staging': 'https://www.habx-staging.fr/api/optimizer-v2/job',
+        'prod': 'https://www.habx.fr/api/optimizer-v2/job',
+    }
+
+    endpoint = endpoints.get(os.getenv('HABX_ENV', 'local'))
 
     response = requests.get(endpoint, params=context)
 
