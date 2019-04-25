@@ -1092,7 +1092,9 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
-                                           "addition_rule": "And"}]
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
@@ -1135,8 +1137,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [externals_connection_constraint, {}]
     ],
     "dressing": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+
     ]
 }
 
