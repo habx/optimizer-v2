@@ -19,6 +19,7 @@ bin_dir = os.path.realpath(
 links = {
     'bin/cli.py': 'opt-cli',
     'bin/worker.py': 'opt-worker',
+    'bin/job.py': 'opt-job'
 }
 
 for src, dst in links.items():
