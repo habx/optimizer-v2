@@ -175,7 +175,6 @@ class SpacePlanner:
                     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
-
                     if show:
                         plan_solution.plot()
 
@@ -210,7 +209,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "paris-venelles_B1E0L02.json"
+        input_file = "paris-venelles_B1E5L02.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)

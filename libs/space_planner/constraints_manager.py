@@ -759,7 +759,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
         if ct1 is None:
-            ct = ct2
+            ct = None
+            logging.debug("ConstraintsManager - No window constraint")
         else:
             ct = manager.or_(ct1, ct2)
 
@@ -1007,7 +1008,6 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
-        [item_attribution_constraint, {}],
         [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
@@ -1017,10 +1017,11 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
+        #[components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
         [area_constraint, {"min_max": "max"}]
     ],
     "toilet": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1030,6 +1031,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
     ],
     "bathroom": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1037,6 +1039,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
     ],
     "living": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -1045,6 +1048,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [large_windows_constraint, {}]
     ],
     "livingKitchen": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -1053,6 +1057,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [large_windows_constraint, {}]
     ],
     "dining": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
@@ -1063,6 +1068,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ["kitchen", "livingKitchen"], "adj": True, "addition_rule": "Or"}]
     ],
     "kitchen": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1073,6 +1079,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
     ],
     "bedroom": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1080,6 +1087,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}]
     ],
     "study": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1087,6 +1095,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}]
     ],
     "dressing": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint,
@@ -1097,6 +1106,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],

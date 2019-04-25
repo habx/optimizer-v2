@@ -41,17 +41,6 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 20000,
-        "min": 10000
-      },
-      "tags": [],
-      "type": "toilet",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
         "max": 40000,
         "min": 20000
       },

@@ -52,14 +52,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 85000,
-        "min": 60000
+        "max": 60000,
+        "min": 40000
       },
-      "tags": [
-        "toilet"
-      ],
+      "tags": [],
       "type": "bathroom",
-      "variant": "m"
+      "variant": "s"
     },
     {
       "requiredArea": {
