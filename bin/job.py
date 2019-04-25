@@ -4,6 +4,7 @@ import logging
 import os
 
 import uuid
+import requests
 
 import sentry_sdk
 
@@ -23,23 +24,13 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
-    # This is some sample code. This function should be entirely re-written.
+    endpoint = 'https://www.habx-dev.fr/api/optimizer-v2/job'
 
-    context['taskId'] = str(uuid.uuid4())
+    response = requests.get(endpoint, params=context)
 
-    #  All of this should be fetched from the service-results API
-    job_input = {
-        'lot': {
-            'meta': {
-                'slug': 'sample-blueprint',
-                'projectSlug': 'sample-project',
-            },
-            'v2': {},
-        },
-        'setup': {},
-        'params': {},
-        'context': context,
-    }
+    job_input = response.json()
+    job_input['context']['taskId'] = str(uuid.uuid4())
+
     td = TaskDefinition.from_json(job_input)
     return td
 
