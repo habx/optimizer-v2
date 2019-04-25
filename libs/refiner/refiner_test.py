@@ -22,7 +22,7 @@ def main():
 
         start = time.time()
 
-        hof = REFINERS["simple"].run(plan, spec, processes=1, with_hof=False)
+        hof = REFINERS["simple"].run(plan, spec, processes=4, with_hof=False)
 
         sols = sorted(hof, key=lambda i: i.fitness.value, reverse=True)
         end = time.time()
