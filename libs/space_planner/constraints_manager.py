@@ -513,14 +513,16 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     """
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
-    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+    elif item.category.name in ["bathroom"]:
+        param = 1.9
+    elif item.category.name in ["study", "misc", "kitchen"]:
         param = 1.8
     elif item.category.name in ["entrance"]:
         param = 2.5
     else:
-        param = 1.8
+        param = 1.8 # toilet, bedroom,
 
-    max_distance = int(round(param * item.max_size.area ** 0.5))
+    max_distance = int(round(param * item.required_area ** 0.5))
 
     ct = None
 
@@ -730,7 +732,7 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
     :param ratio : minimum ratio between item area and windows area
     :return: ct: ortools.Constraint
     """
-    ct = (manager.item_area[item.id] * ratio) <= (
+    ct = round(item.required_area * ratio) <= (
                 manager.item_windows_area[item.id] * 100)
     return ct
 
@@ -1090,7 +1092,9 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
-                                           "addition_rule": "And"}]
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
@@ -1133,8 +1137,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [externals_connection_constraint, {}]
     ],
     "dressing": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+
     ]
 }
 
