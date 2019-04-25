@@ -11,7 +11,6 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 """
 import math
 from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
-from libs.refiner.core import evaluateFunc
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
@@ -20,16 +19,15 @@ if TYPE_CHECKING:
 scoreFunc = Callable[['Individual'], float]
 
 
-def compose(funcs: List[scoreFunc]) -> evaluateFunc:
+def compose(funcs: List[scoreFunc], spec: 'Specification', ind: 'Individual') -> Sequence[float]:
     """
     A factory to compose evaluation function from a list of score function
     :param funcs:
+    :param spec:
+    :param ind:
     :return:
     """
-    def _evaluate_func(ind: 'Individual') -> Sequence[float]:
-        return tuple(map(lambda x: x(ind), funcs))
-
-    return _evaluate_func
+    return tuple(map(lambda x: x(spec, ind), funcs))
 
 
 def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
@@ -43,7 +41,8 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
     for sp in _spec.plan.spaces:
         if not sp.category.mutable:
             continue
-        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
+        corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
+                                          spec_items))
         best_item = min(corresponding_items,
                         key=lambda i: math.fabs(i.required_area - sp.cached_area()))
         assert best_item, "Score: Each space should have a corresponding item in the spec"
@@ -52,42 +51,39 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
     return output
 
 
-def fc_score_area(spec: 'Specification') -> scoreFunc:
+def fc_score_area(spec: 'Specification', ind: 'Individual') -> float:
     """
-    Score function factory
-    Returns a score function that evaluates the proximity of the individual to a specification
+    Returns a score that evaluates the proximity of the individual to a specification
     instance
     Note: The dictionary matching spaces to specification items is memoized in the factory
     :param spec:
+    :param ind
     :return:
     """
-
-    def _score(ind: 'Individual') -> float:
-        # create the item_to_space dict
-        area_score = 0.0
-        if spec is not None:
-            for space in ind.spaces:
-                if not space.category.mutable:
-                    continue
-                item = space_to_item[space.id]
-                space_area = space.cached_area()
-                if space_area < item.min_size.area:
-                    space_score = ((space_area - item.min_size.area)/space_area)**2
-                elif space_area > item.max_size.area:
-                    space_score = ((space_area - item.max_size.area)/space_area)**2
-                else:
-                    space_score = 0
-                area_score += space_score
-
-        return area_score
-
     space_to_item = create_item_dict(spec)
-    return _score
+
+    # create the item_to_space dict
+    area_score = 0.0
+    if spec is not None:
+        for space in ind.spaces:
+            if not space.category.mutable:
+                continue
+            item = space_to_item[space.id]
+            space_area = space.cached_area()
+            if space_area < item.min_size.area:
+                space_score = ((space_area - item.min_size.area)/space_area)**2
+            elif space_area > item.max_size.area:
+                space_score = ((space_area - item.max_size.area)/space_area)**2
+            else:
+                space_score = 0
+            area_score += space_score
+
+    return area_score
 
 
-def score_corner(ind: 'Individual') -> float:
+def score_corner(_: 'Specification', ind: 'Individual') -> float:
     """
-
+    :param _:
     :param ind:
     :return:
     """
@@ -102,9 +98,9 @@ def score_corner(ind: 'Individual') -> float:
     return score / num_space
 
 
-def score_bounding_box(ind: 'Individual') -> float:
+def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:
     """
-
+    :param _:
     :param ind:
     :return:
     """
@@ -124,9 +120,9 @@ def score_bounding_box(ind: 'Individual') -> float:
     return score
 
 
-def score_aspect_ratio(ind: 'Individual') -> float:
+def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> float:
     """
-
+    :param _
     :param ind:
     :return:
     """

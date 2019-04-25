@@ -20,19 +20,20 @@ TODO LIST:
     • create efficient all aligned edges mutation
     • check edge selector to make sure we are not eliminating needed scenarios
     • add similar function to create diversity in the hof
-    • enable multiprocessing by achieving to separate the mesh from the plan... (hard)
 
 """
 import random
 import logging
+import multiprocessing
 
-from typing import TYPE_CHECKING, Optional, Callable, List, Union
+from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
+    from libs.refiner.core import Individual
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, Optional['support.HallOfFame']],
@@ -49,7 +50,7 @@ class Refiner:
     • the algorithm function that will be applied to the plan
     """
     def __init__(self,
-                 fc_toolbox: Callable[['Specification', Callable], 'core.Toolbox'],
+                 fc_toolbox: Callable[['Specification'], 'core.Toolbox'],
                  algorithm: algorithmFunc):
         self._toolbox_factory = fc_toolbox
         self._algorithm = algorithm
@@ -61,24 +62,23 @@ class Refiner:
         :param spec:
         :return:
         """
-        plan.store_meshes_globally()  # needed for multiprocessing
         results = self.run(plan, spec)
         return max(results, key=lambda i: i.fitness)
 
     def run(self,
             plan: 'Plan',
             spec: 'Specification',
-            map_func: Callable = map,
+            processes: int = 1,
             with_hof: bool = False) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
         :param plan:
         :param spec:
-        :param map_func: a map function
+        :param processes: The number of processes to fork (if equal to 1: no multiprocessing
+                          is used.
         :param with_hof: whether to return the results or a hall of fame
         :return:
         """
-        toolbox = self._toolbox_factory(spec, map_func)
         _hof = support.HallOfFame(4, lambda a, b: a.is_similar(b)) if with_hof else None
         # 1. refine mesh of the plan
         # TODO : implement this
@@ -87,42 +87,67 @@ class Refiner:
         for floor in plan.floors.values():
             floor.mesh.compute_cache()
 
+        plan.store_meshes_globally()  # needed for multiprocessing (must be donne after the caching)
+        toolbox = self._toolbox_factory(spec)
+
+        # NOTE : the pool must be created after the toolbox in order to
+        # pass the global objects created when configuring the toolbox
+        # to the forked processes
+        map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
+        toolbox.register("map", map_func)
+
         # 3. run the algorithm
         initial_ind = toolbox.individual(plan)
         results = self._algorithm(toolbox, initial_ind, _hof)
 
         output = results if not with_hof else _hof
-        toolbox.evaluate_pop(output)  # evaluate fitnesses for analysis
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output)
         return output
 
 
 # Toolbox factories
 
-def fc_nsga_toolbox(spec: 'Specification', map_func: Optional[Callable] = map) -> 'core.Toolbox':
+# Algorithm functions
+def mate_and_mutate(mate_func, mutate_func, cxpb, couple: Tuple['Individual', 'Individual']):
+    """
+    Specific function for nsga algorithm
+    :param mate_func:
+    :param mutate_func:
+    :param cxpb:
+    :param couple:
+    :return:
+    """
+    _ind1, _ind2 = couple
+    if random.random() <= cxpb:
+        mate_func(_ind1, _ind2)
+    mutate_func(_ind1)
+    mutate_func(_ind2)
+    _ind1.fitness.clear()
+    _ind2.fitness.clear()
+
+
+def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     """
     Returns a toolbox
     :param spec: The specification to follow
-    :param map_func: A map function, default to built-in map, useful for multiprocessing
-    :return:
+    :return: a configured toolbox
     """
     toolbox = core.Toolbox()
-    toolbox.configure("fitness", (-3.0, -1.0, -5.0))
-    toolbox.configure("individual", toolbox.fitness)
-    toolbox.register("map", map_func)
+    toolbox.configure("fitness", "CustomFitness", (-3.0, -1.0, -5.0))
+    toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
                  evaluation.score_bounding_box,
-                 evaluation.fc_score_area(spec)]
-    toolbox.register("evaluate", evaluation.compose(scores_fc))
+                 evaluation.fc_score_area]
+    toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate, 0.5)
     toolbox.register("select", nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
     return toolbox
 
-
-# Algorithm functions
 
 def simple_ga(toolbox: 'core.Toolbox',
               initial_ind: 'core.Individual',
@@ -135,12 +160,12 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 100
-    mu = 4 * 25  # Must be a multiple of 4 for tournament selection of NSGA-II
+    ngen = 20
+    mu = 12  # Must be a multiple of 4 for tournament selection of NSGA-II
     cxpb = 0.5
 
     pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(pop)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -153,16 +178,10 @@ def simple_ga(toolbox: 'core.Toolbox',
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
-        for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() <= cxpb:
-                toolbox.mate(ind1, ind2)
-            toolbox.mutate(ind1)
-            toolbox.mutate(ind2)
-            ind1.fitness.clear()
-            ind2.fitness.clear()
+        toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]))
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(offspring)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
@@ -177,39 +196,3 @@ def simple_ga(toolbox: 'core.Toolbox',
 REFINERS = {
     "simple": Refiner(fc_nsga_toolbox, simple_ga)
 }
-
-if __name__ == '__main__':
-
-    import multiprocessing
-    pool = multiprocessing.Pool()
-
-    def main():
-        """ test function """
-        import time
-        import tools.cache
-
-        logging.getLogger().setLevel(logging.INFO)
-
-        spec, plan = tools.cache.get_plan("029")  # 052
-        if plan:
-            plan.name = "original"
-            plan.plot()
-
-            start = time.time()
-            hof = REFINERS["simple"].run(plan, spec, pool.map, True)
-            sols = sorted(hof, key=lambda i: i.fitness.value, reverse=True)
-            end = time.time()
-            for n, ind in enumerate(sols):
-                ind.name = str(n)
-                ind.plot()
-                print("Fitness: {} - {}".format(ind.fitness.value, ind.fitness.values))
-            print("Time elapsed: {}".format(end - start))
-            best = sols[0]
-            item_dict = evaluation.create_item_dict(spec)
-            for space in best.mutable_spaces():
-                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
-                                                          round(space.cached_area()),
-                                                          item_dict[space.id].min_size.area,
-                                                          item_dict[space.id].max_size.area))
-
-    main()

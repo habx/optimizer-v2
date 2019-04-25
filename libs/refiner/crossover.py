@@ -5,12 +5,11 @@ A cross-over takes two individuals as input and returns two blended individuals
 The individuals are modified in place
 """
 import random
-from typing import TYPE_CHECKING, List
-from functools import reduce
+from typing import TYPE_CHECKING
+import logging
 
 if TYPE_CHECKING:
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space
 
 
 def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
@@ -56,6 +55,7 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
         for space in set(impacted_spaces_ind_1) | set(impacted_spaces_ind_2):
             faces = list(filter(lambda f: space.has_face(f), connected_faces))
             if space.corner_stone(*faces):
+                logging.debug("Crossover: No crossover possible")
                 return ind_1, ind_2
 
         modified_spaces = []

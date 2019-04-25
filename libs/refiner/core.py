@@ -9,6 +9,9 @@ Individual.new(
 
 
 """
+import logging
+from functools import partial
+
 from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator
 from libs.plan.plan import Plan
 
@@ -22,20 +25,21 @@ class Fitness:
     __slots__ = "_wvalues"
 
     @classmethod
-    def new(cls, weights: Sequence[float]) -> Type['Fitness']:
+    def new(cls, alias: str, weights: Optional[Sequence[float]]) -> type:
         """
         Creates a new Fitness subclass
+        :param alias
         :param weights:
         :return:
         """
+        if alias in globals():
+            logging.warning("A class named '{0}' has already been created and it "
+                            "will be overwritten. Consider deleting previous "
+                            "creation of that class or rename it.".format(alias))
 
-        class CustomFitness(Fitness):
-            """
-            A customized sub-class of Fitness with the desired weights
-            """
-            _weights = weights
-
-        return CustomFitness
+        custom_class = type(alias, (Fitness,), {"_weights": weights})
+        globals()[alias] = custom_class  # needed for pickling
+        return custom_class
 
     """The weights are used in the fitness comparison. They are shared among
        all fitnesses of the same type. When subclassing :class:`Fitness`, the
@@ -147,19 +151,21 @@ class Individual(Plan):
     _fitness_class = Fitness
 
     @classmethod
-    def new(cls, fitness_class: Type[Fitness]) -> Type['Individual']:
+    def new(cls, alias: str, fitness_class: Type[Fitness]) -> type:
         """
         Creates a new Fitness subclass
+        :param alias
         :param fitness_class:
         :return:
         """
-        class CustomIndividual(Individual):
-            """
-            A customized sub-class of Individual with the desired fitness
-            """
-            _fitness_class = fitness_class
+        if alias in globals():
+            logging.warning("A class named '{0}' has already been created and it "
+                            "will be overwritten. Consider deleting previous "
+                            "creation of that class or rename it.".format(alias))
 
-        return CustomIndividual
+        custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class})
+        globals()[alias] = custom_class  # needed for pickling
+        return custom_class
 
     def __init__(self, plan: Optional[Plan] = None):
         super().__init__()
@@ -176,6 +182,15 @@ class Individual(Plan):
         """
         new_plan = super().clone()
         return type(self)(new_plan)
+
+    def __getstate__(self) -> dict:
+        data = super().__getstate__()
+        data["fitness"] = self.fitness
+        return data
+
+    def __setstate__(self, state: dict):
+        super().__setstate__(state)
+        self.fitness = state["fitness"]
 
     def __deepcopy__(self, memo) -> 'Individual':
         """
@@ -212,153 +227,103 @@ class Toolbox:
     • mutate
     • etc.
     """
+    op_list = (
+        "map",
+        "clone",
+        "mate",
+        "select",
+        "mutate",
+        "populate",
+        "evaluate",
+        "mate_and_mutate"
+    )
 
-    __slots__ = ("_map", "_clone", "_mate", "_select", "_evaluate", "_mutate", "_populate",
-                 "_individual_class", "_fitness_class")
+    class_list = ("individual", "fitness")
+
+    __slots__ = op_list + class_list
 
     classes = {"fitness": Fitness, "individual": Individual}
 
     def __init__(self):
         # operators
-        self._clone: cloneFunc = _standard_clone
-        self._map: mapFunc = map
-        self._mate:  Optional[mateFunc] = None
-        self._select: Optional[selectFunc] = None
-        self._evaluate: Optional[evaluateFunc] = None
-        self._mutate: Optional[mutateFunc] = None
-        self._populate: Optional[populateFunc] = None
+        self.clone: cloneFunc = _standard_clone
+        self.map: mapFunc = map
+        self.mate:  Optional[mateFunc] = None
+        self.select: Optional[selectFunc] = None
+        self.evaluate: Optional[evaluateFunc] = None
+        self.mutate: Optional[mutateFunc] = None
+        self.populate: Optional[populateFunc] = None
+        self.mate_and_mutate: Optional[Callable] = None  # TODO : precise type
 
         # base class
-        self._individual_class: Optional[Type['Individual']] = None
-        self._fitness_class: Optional[Type['Fitness']] = None
+        self.individual: Optional[Type['Individual']] = None
+        self.fitness: Optional[Type['Fitness']] = None
 
-    def configure(self, class_name: str, *args, **kwargs):
+    def configure(self, class_name: str, alias: str = "", *args, **kwargs):
         """
         Creates the customized subclass and stores it in the toolbox
             ex.: toolbox.configure("fitness", (-1.0, -2.0, -3.0))
                  toolbox.configure("individual", toolbox.fitness)
+        :param alias:
         :param class_name:
         :param args:
         :param kwargs:
         :return:
         """
-        class_dict = {
-            "individual": "_individual_class",
-            "fitness": "_fitness_class"
-        }
+        alias = alias or class_name + "Custom"
+        assert class_name in Toolbox.class_list, ("Toolbox: the class name is incorrect: "
+                                                  "{}".format(class_name))
 
-        assert class_name in class_dict, ("Toolbox: the class name is incorrect: "
-                                          "{}".format(class_name))
+        setattr(self, class_name, Toolbox.classes[class_name].new(alias, *args, **kwargs))
 
-        setattr(self, class_dict[class_name], Toolbox.classes[class_name].new(*args, **kwargs))
-
-    @property
-    def fitness(self) -> Type['Fitness']:
-        """ property : returns the fitness class"""
-        assert self._fitness_class, "Toolbox: the fitness class has not been implemented"
-        return self._fitness_class
-
-    @property
-    def individual(self) -> Type['Individual']:
-        """ property : returns the individual class"""
-        assert self._individual_class, "Toolbox: the individual class has not been implemented"
-        return self._individual_class
-
-    def register(self, operator_name: str, func: Callable):
+    def register(self, operator_name: str, func: Callable, *args, **kwargs):
         """
         Register a genetic operator in the toolbox
         :param operator_name:
         :param func:
+        :param args
+        :param kwargs
         :return:
         """
-        op_dict = {
-            "map": "_map",
-            "clone": "_clone",
-            "mate": "_mate",
-            "select": "_select",
-            "mutate": "_mutate",
-            "populate": "_populate",
-            "evaluate": "_evaluate"
-        }
 
-        assert operator_name in op_dict, ("Toolbox: Incorrect operator name: "
-                                          "{}".format(operator_name))
+        assert operator_name in Toolbox.op_list, ("Toolbox: Incorrect operator name: "
+                                                  "{}".format(operator_name))
 
-        setattr(self, op_dict[operator_name], func)
+        pfunc = partial(func, *args, **kwargs)
+        pfunc.__name__ = operator_name
+        pfunc.__doc__ = func.__doc__
 
-    def map(self,
-            func: Callable[['Individual'], Any], pop: Sequence['Individual']) -> Iterator[Any]:
-        """
-        Maps a function on an individual Sequence
-        :param func:
-        :param pop:
-        :return:
-        """
-        assert self._map, "Toolbox: the map function has not been implemented"
-        return self._map(func, pop)
+        if hasattr(func, "__dict__") and not isinstance(func, type):
+            # Some functions don't have a dictionary, in these cases
+            # simply don't copy it. Moreover, if the function is actually
+            # a class, we do not want to copy the dictionary.
+            pfunc.__dict__.update(func.__dict__.copy())
 
-    def clone(self, ind: 'Individual') -> 'Individual':
-        """
-        Clones an individual
-        :param ind:
-        :return:
-        """
-        assert self._clone, "Toolbox: the clone function has not been implemented"
-        return self._clone(ind)
+        setattr(self, operator_name, pfunc)
 
-    def select(self, pop: List['Individual'], *args, **kwargs) -> List['Individual']:
-        """
-        Clones an individual
-        :param pop:
-        :return: the selected population
-        """
-        assert self._select, "Toolbox: the select function has not been implemented"
-        return self._select(pop, *args, **kwargs)
+    def unregister(self, alias):
+        """Unregister *alias* from the toolbox.
 
-    def mate(self, ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual', 'Individual']:
+        :param alias: The name of the operator to remove from the toolbox.
         """
-        Clones an individual
-        :param ind_1:
-        :param ind_2:
-        :return:
-        """
-        assert self._mate, "Toolbox: the crossover function has not been implemented"
-        return self._mate(ind_1, ind_2)
+        delattr(self, alias)
 
-    def mutate(self, ind: 'Individual') -> 'Individual':
+    @staticmethod
+    def evaluate_pop(map_func,
+                     eval_func,
+                     pop: Sequence['Individual'],
+                     refresh: bool = False) -> None:
         """
-        Mutates an individual in place
-        :param ind:
-        :return:
-        """
-        assert self._mutate, "Toolbox: the mutation function has not been implemented"
-        return self._mutate(ind)
-
-    def evaluate(self, ind: 'Individual') -> Sequence[float]:
-        """
-        Clones an individual
-        :param ind:
-        :return:
-        """
-        assert self._evaluate, "Toolbox: the evaluate function has not been implemented"
-        return self._evaluate(ind)
-
-    def populate(self, ind: Optional['Individual'], size: int) -> List['Individual']:
-        """
-        Creates a population of individual
-        :return:
-        """
-        assert self._populate, "Toolbox: the populate function has not been implemented"
-        return self._populate(ind, size)
-
-    def evaluate_pop(self, pop: Sequence['Individual'], refresh: bool = False) -> None:
-        """
-        Evaluates the fitness of a specified population
+        Evaluates the fitness of a specified population. Note: the method has to be made static
+        for multiprocessing purposes.
+        :param map_func: a mapping function
+        :param eval_func: an evaluation function (NOTE: we cannot refer to self.evaluate for
+               multiprocessing concerns
         :param pop: a list of individuals
         :param refresh: whether to refresh the fitness if it is still valid
         :return:
         """
         invalid_fit = [ind for ind in pop if not ind.fitness.valid and not refresh]
-        fitnesses = self.map(self.evaluate, invalid_fit)
+        fitnesses = map_func(eval_func, invalid_fit)
         for ind, fit in zip(invalid_fit, fitnesses):
             ind.fitness.values = fit
