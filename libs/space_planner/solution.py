@@ -323,6 +323,16 @@ class Solution:
         logging.debug("Solution %i: Windows bonus : %i", self._id, 10)
         return 10
 
+    def _entrance_bonus(self) -> float:
+        """
+        Entrance bonus
+        :return: score : float
+        """
+        if(self.collector.spec.typology > 1
+                and [item for item in self.items_spaces if item.category.name == "entrance"]):
+            return 10
+        return 0
+
     def _externals_spaces_bonus(self) -> float:
         """
         Good ordering externals spaces size bonus
@@ -427,8 +437,9 @@ class Solution:
         if number_of_day_level > 1:
             groups_score -= 50
         elif self.plan.floor_count < 2 and day_polygon and day_polygon.geom_type != "Polygon":
-            day_polygon = day_polygon.union(
-                self.get_rooms("entrance")[0].as_sp.buffer(1))
+            if [item for item in self.items_spaces if item.category.name == "entrance"]:
+                day_polygon = day_polygon.union(
+                    self.get_rooms("entrance")[0].as_sp.buffer(1))
             if day_polygon.geom_type != "Polygon":
                 groups_score -= 50
 
@@ -438,8 +449,11 @@ class Solution:
             else:
                 groups_score -= 25
         if self.plan.floor_count < 2 and night_polygon and night_polygon.geom_type != "Polygon":
-            night_polygon_with_entrance = night_polygon.union(
-                self.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
+            if [item for item in self.items_spaces if item.category.name == "entrance"]:
+                night_polygon_with_entrance = night_polygon.union(
+                    self.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
+            else :
+                night_polygon_with_entrance = night_polygon
             if night_polygon_with_entrance.geom_type != "Polygon":
                 if ((len(night_polygon) > 2 and len(night_polygon_with_entrance) > 2)
                         or (self.collector.spec.typology <= 2
@@ -535,40 +549,41 @@ class Solution:
         :return: score : float
         """
         something_inside_score = 100
-        for item, space in self.items_spaces.items():
+        for item in self.items_spaces:
+            space = self.items_spaces[item]
             #  duct or pillar or small bearing wall
             if space.has_holes:
-                item_something_inside_score = 0
-                something_inside_score = min(something_inside_score,
-                                             item_something_inside_score)
                 logging.debug("Solution %i: Something Inside score : %f, room : %s, has_holes",
-                              self._id, something_inside_score, item.category.name)
-                continue
+                              self._id, 0, item.category.name)
+                return 0
             #  isolated room
-            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "cellar",
-                                          "study", "laundry"]
-            sp_space = space.as_sp
-            convex_hull = sp_space.convex_hull
+            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "study", "laundry"]
+            convex_hull = space.as_sp.convex_hull
             for i_item in self.items_spaces:
-                if (i_item != item and not (
-                        i_item.category.name in list_of_non_concerned_room) and space.floor ==
-                        self.items_spaces[i_item]):
-                    if (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
+                if (i_item != item and
+                        i_item.category.name not in list_of_non_concerned_room and space.floor ==
+                        self.items_spaces[i_item].floor):
+                    if (self.items_spaces[i_item].as_sp.is_valid and
+                            (round((convex_hull.intersection(self.items_spaces[i_item].as_sp)).area)
+                             == round(self.items_spaces[i_item].as_sp.area))):
+                        logging.debug(
+                            "Solution %i: Something Inside score : %f, room : %s - isolated room",
+                            self._id, 0, i_item.category.name)
+                        return 0
+                    elif (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
                             space.area / 8):
-                        # Check jroom adjacency
+                        # Check i_item adjacency
                         other_room_adj = False
-                        for j_item in self.collector.spec.items:
+                        for j_item in self.items_spaces:
                             if j_item != i_item and j_item != item:
-                                if space.adjacent_to(self.items_spaces[j_item]):
+                                if self.items_spaces[i_item].adjacent_to(self.items_spaces[j_item]):
                                     other_room_adj = True
+                                    break
                         if not other_room_adj:
-                            item_something_inside_score = 0
-                            something_inside_score = min(something_inside_score,
-                                                         item_something_inside_score)
                             logging.debug("Solution %i: Something Inside score : %f, room : %s, "
                                           "isolated room", self._id, something_inside_score,
                                           item.category.name)
-                            break
+                            return 0
 
         logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
         return something_inside_score
@@ -582,7 +597,7 @@ class Solution:
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
         solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus()) #- self._circulation_penalty())
+                          self._windows_good_distribution_bonus() + self._entrance_bonus()) #- self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
