@@ -26,23 +26,23 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 140000,
+        "min": 120000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "s"
+      "variant": "m"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 140000,
+        "min": 120000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "s"
+      "variant": "m"
     },
     {
       "linkedTo": [],

@@ -538,7 +538,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                                manager.solver.positions[item.id, k])
                               <= int(max_distance / manager.spaces_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
-
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 
@@ -595,7 +595,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                   manager.solver.positions[item.id, k] * area_path
                                   <= max_area)
                     ct = manager.and_(ct, new_ct)
-
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 
@@ -639,7 +639,7 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                                for l, l_space in enumerate(
                                     manager.sp.spec.plan.mutable_spaces())))
                     ct = manager.and_(ct, new_ct)
-
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 
@@ -657,7 +657,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = min(max(30, plan_ratio + 10), 35)
+        param = max(35, plan_ratio)
     elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing", "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
         param = min(max(25, plan_ratio), 32)
@@ -688,7 +688,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
     ct = (item_perimeter * item_perimeter <= int(param) * manager.item_area[item.id])
-
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 
@@ -880,6 +880,8 @@ def inside_adjacency_constraint(manager: 'ConstraintsManager',
 
     ct = (manager.and_(ct1, ct2) == 1)
 
+    ct = or_no_space_constraint(manager, item, ct)
+
     return ct
 
 
@@ -1005,6 +1007,36 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
+                           ct: Optional[ortools.Constraint]) -> Optional[ortools.Constraint]:
+    """
+    to apply the given constraint only if the item exists in the solution
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param ct : ortools.Constraint
+    :return: ct: ortools.Constraint
+    """
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        return manager.or_(ct, ct0)
+    else:
+        return None
+
+def entrance_constraint(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
+    """
+    conditional front door constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct1 = components_adjacency_constraint(manager, item,["frontDoor"], True)
+    ct = or_no_space_constraint(manager, item, ct1)
+
+    return ct
+
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
@@ -1017,7 +1049,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        #[components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],  # ???
+        [entrance_constraint,{}],
         [area_constraint, {"min_max": "max"}]
     ],
     "toilet": [

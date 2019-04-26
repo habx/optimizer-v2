@@ -52,22 +52,22 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 100000,
+        "min": 80000
       },
       "tags": [],
-      "type": "study",
-      "variant": "s"
+      "type": "bedroom",
+      "variant": "xs"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 20000,
-        "min": 10000
+        "max": 120000,
+        "min": 100000
       },
       "tags": [],
-      "type": "toilet",
+      "type": "study",
       "variant": "s"
     },
     {
