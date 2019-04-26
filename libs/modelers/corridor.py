@@ -46,20 +46,12 @@ class Corridor:
     """
 
     def __init__(self,
-                 layer_width: int = 25,
-                 nb_layer: int = 5,
-                 recursive_cut_length: float = 300,
-                 width: int = 100,
-                 penetration_length: float = 90,
+                 corridor_rules: Dict = None,
                  circulation_cost_rules: Dict = COST_RULES,
                  plot: Optional['Plot'] = None
                  ):
 
-        self.layer_width = layer_width
-        self.nb_layer = nb_layer
-        self.recursive_cut_length = recursive_cut_length
-        self.width = width
-        self.penetration_length = penetration_length
+        self.corridor_rules = corridor_rules
         self.circulation_cost_rules = circulation_cost_rules
         self.plot = plot
         self.plan: Plan = None
@@ -141,7 +133,7 @@ class Corridor:
                 for edge in penetration_edges:
                     if parallel(edge.vector, limit_edge.vector) and _penetration_condition(edge):
                         penetration_edge = edge if start else edge
-                        if l + penetration_edge.length > self.penetration_length:
+                        if l + penetration_edge.length > self.corridor_rules["penetration_length"]:
                             # splits penetration edge to get proper penetration length
                             coeff = (penetration_length - l) / penetration_edge.length
                             if penetration_edge.length * coeff < 2:
@@ -295,7 +287,8 @@ class Corridor:
             portions_width = []
             for e in edge_line:
                 start_edge = e if ccw else e.pair
-                portion_width = self._get_parallel_layers_edges(start_edge, self.width)[0]
+                portion_width = \
+                    self._get_parallel_layers_edges(start_edge, self.corridor_rules["width"])[0]
                 portions_width.append(portion_width)
             width = 0 if not portions_width else min(portions_width)
             return width
@@ -303,11 +296,11 @@ class Corridor:
         width_ccw = _get_width()
         width_cw = _get_width(ccw=False)
 
-        while width_ccw + width_cw > self.width + 1:
+        while width_ccw + width_cw > self.corridor_rules["width"] + 1:
             if width_ccw > width_cw:
-                width_ccw -= self.layer_width
+                width_ccw -= self.corridor_rules["layer_width"]
             else:
-                width_cw -= self.layer_width
+                width_cw -= self.corridor_rules["layer_width"]
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
         for edge in edge_line:
@@ -433,7 +426,8 @@ class Corridor:
             :param coeff:
             :return:
             """
-            slice_point = move_point(start_point, edge.normal, coeff * self.layer_width)
+            slice_point = move_point(start_point, edge.normal,
+                                     coeff * self.corridor_rules["layer_width"])
             slice_vertex = Vertex(mesh=edge.mesh, x=slice_point[0], y=slice_point[1])
             face = _get_containing_face(slice_vertex)
             if face and self.plan.get_space_of_edge(face.edge).mutable:
@@ -471,7 +465,7 @@ class Corridor:
             start_point = move_point([edge.start.x, edge.start.y], edge.unit_vector,
                                      edge.length / 2)
             sign = 1 if ccw else -1
-            for s in range(1, abs(self.nb_layer)):
+            for s in range(1, abs(self.corridor_rules["nb_layer"])):
                 sl = _slice(start_point, sign * s)
                 if not sl:
                     break
@@ -550,7 +544,8 @@ class Corridor:
             return
 
         if edge.face and not _projects_on_linear(vertex, edge) and not self.plan.get_linear(edge):
-            edge.recursive_cut(vertex, max_length=self.recursive_cut_length, callback=callback)
+            edge.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
+                               callback=callback)
 
         if not vertex.mesh:
             return
@@ -558,7 +553,8 @@ class Corridor:
         if edge.pair.face and not _projects_on_linear(vertex,
                                                       edge.pair) and not self.plan.get_linear(
             edge.pair):
-            edge.pair.recursive_cut(vertex, max_length=self.recursive_cut_length, callback=callback)
+            edge.pair.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
+                                    callback=callback)
 
     def _initialize_plot(self, plot: Optional['Plot'] = None):
         """
@@ -578,6 +574,14 @@ class Corridor:
         else:
             self.plot = plot
 
+
+CORRIDOR_RULES = {
+    "layer_width": 25,
+    "nb_layer": 5,
+    "recursive_cut_length": 300,
+    "width": 100,
+    "penetration_length": 90
+}
 
 if __name__ == '__main__':
 
@@ -648,12 +652,13 @@ if __name__ == '__main__':
         plan = get_plan(input_file)
         plan.name = input_file[:-5]
 
-        corridor = Corridor(layer_width=25, nb_layer=5)
+        # corridor = Corridor(layer_width=25, nb_layer=5)
+        corridor = Corridor(corridor_rules=CORRIDOR_RULES)
         corridor.apply_to(plan, show=False)
 
         plan.name = "corridor_" + plan.name
         plan.plot()
 
 
-    plan_name = "041.json"
+    plan_name = "001.json"
     main(input_file=plan_name)
