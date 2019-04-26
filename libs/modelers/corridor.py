@@ -26,13 +26,9 @@ from libs.utils.geometry import (
 # TODO : PEP8 compatibility
 # TODO : reorder libs imports
 
-# TODO : mettre en privé les méthodes qui le sont
-
+# TODO : bug plan 29
 # TODO : s'assurer qu'on coupe bien des slices autour des penetration edges (souci sur leplan 41?)
-# TODO : retravailler la pénétration : better add penetration vertex from the beginning à 90 cm de profondeur, tester notamment sur plan 41
-# TODO : pour pénétration, reprendre la fonction implémentée plus bas : pénétration edge
 
-# TODO SOUCI DE DÉCOUPE DE L'entrée
 # TODO : deal with corners
 # TODO : deal with size one path
 # TODO : mettre les régles de découpe et de construction du couloir (cutstep, nb step, cost_rules... dans un dict? => moins d'attributs)
@@ -67,11 +63,12 @@ class Corridor:
         self.circulation_cost_rules = circulation_cost_rules
         self.plot = plot
         self.plan: Plan = None
+        self.circulator: Circulator = None
 
     def _init(self):
         self.plan = None
         self.circulator = None
-        self.paths = None
+        self.paths = []
 
     def apply_to(self, plan: 'Plan', show: bool = False):
         """
@@ -83,15 +80,13 @@ class Corridor:
         :return:
         """
         self._init()
-
         self.plan = plan
-
         # Draw circulation paths and stores them
         self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         self.circulator.plot()
 
-        self.paths = []
+        # self.paths = []
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
             for vertex_path in vertex_paths:
@@ -131,11 +126,6 @@ class Corridor:
                 return False
             return True
 
-        def _expand_list(list, element, start):
-            if element not in list:
-                list = [element] + list if start else list + [element]
-            return list
-
         def _add_vertices(vert_list: List['Vertex'], start=True):
             # Adds vertices to the list, at the beginning (if start) or end if
             # penetration condition are satisfied until penetration length is reached
@@ -166,7 +156,9 @@ class Corridor:
                                 else edge_list + [penetration_edge]
                             added_vertex = penetration_edge.end
                             l += penetration_edge.length
-                        vert_list = _expand_list(vert_list, added_vertex, start=start)
+                        if added_vertex not in vert_list:
+                            vert_list = [added_vertex] + vert_list if start else vert_list + [
+                                added_vertex]
                         break
                 else:
                     continue_cut = False
@@ -317,7 +309,7 @@ class Corridor:
             else:
                 width_cw -= self.layer_width
 
-        corridor_space = Space(plan, plan.floor, category=SPACE_CATEGORIES['circulation'])
+        corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
         for edge in edge_line:
             self._add_corridor_portion(edge, width_ccw, corridor_space, show)
             self._add_corridor_portion(edge.pair, width_cw, corridor_space, show)
@@ -387,7 +379,7 @@ class Corridor:
         out = self._get_parallel_layers_edges(edge, width)
         layer_edges = out[1]
         for layer_edge in layer_edges:
-            if not plan.get_space_of_edge(layer_edge).category == "circulation":
+            if not self.plan.get_space_of_edge(layer_edge).category == "circulation":
                 sp = self.plan.get_space_of_edge(layer_edge)
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
@@ -524,13 +516,13 @@ class Corridor:
             :param new_edges: Tuple of the new edges created by the cut
             """
             start_edge, end_edge, new_face = new_edges
-            sp = plan.get_space_of_edge(end_edge)
+            sp = self.plan.get_space_of_edge(end_edge)
             # add the created face to the space
             if new_face is not None:
                 sp.add_face_id(new_face.id)
-            if not plan.get_space_of_edge(end_edge.pair):
+            if not self.plan.get_space_of_edge(end_edge.pair):
                 return True
-            if plan.get_space_of_edge(end_edge.pair) and not plan.get_space_of_edge(
+            if self.plan.get_space_of_edge(end_edge.pair) and not self.plan.get_space_of_edge(
                     end_edge.pair).mutable:
                 return True
             if end_edge.pair and end_edge.pair.face:
@@ -598,13 +590,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
+    plan_name = None
     if plan_index < 10:
         plan_name = '00' + str(plan_index) + ".json"
     elif 10 <= plan_index < 100:
         plan_name = '0' + str(plan_index) + ".json"
 
 
-    def get_plan(input_file: str = "001.json"):
+    def get_plan(input_file: str = "001.json") -> 'Plan':
 
         import libs.io.reader as reader
         import libs.io.writer as writer
@@ -644,19 +637,23 @@ if __name__ == '__main__':
                 return plan
             else:
                 logging.info("No solution for this plan")
-                return None
 
 
-    # TODO : reprise 041 (coude)
-    # TODO : 29 à reprendre : porte coupée
-    # TODO : 27 à reprendre : vertex en dehors
+    def main(input_file: str):
+
+        # TODO : reprise 041 (coude)
+        # TODO : 29 à reprendre : porte coupée
+        # TODO : 27 à reprendre : vertex en dehors
+
+        plan = get_plan(input_file)
+        plan.name = input_file[:-5]
+
+        corridor = Corridor(layer_width=25, nb_layer=5)
+        corridor.apply_to(plan, show=False)
+
+        plan.name = "corridor_" + plan.name
+        plan.plot()
+
+
     plan_name = "041.json"
-
-    plan = get_plan(plan_name)
-    plan.name = plan_name[:-5]
-
-    corridor = Corridor(layer_width=25, nb_layer=5)
-    corridor.apply_to(plan, show=False)
-
-    plan.name = "corridor_" + plan.name
-    plan.plot()
+    main(input_file=plan_name)
