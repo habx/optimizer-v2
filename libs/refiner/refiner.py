@@ -108,7 +108,10 @@ class Refiner:
 # Toolbox factories
 
 # Algorithm functions
-def mate_and_mutate(mate_func, mutate_func, params, couple: Tuple['Individual', 'Individual']):
+def mate_and_mutate(mate_func,
+                    mutate_func,
+                    params,
+                    couple: Tuple['Individual', 'Individual']) -> Tuple['Individual', 'Individual']:
     """
     Specific function for nsga algorithm
     :param mate_func:
@@ -126,6 +129,8 @@ def mate_and_mutate(mate_func, mutate_func, params, couple: Tuple['Individual', 
     _ind1.fitness.clear()
     _ind2.fitness.clear()
 
+    return _ind1, _ind2
+
 
 def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     """
@@ -134,7 +139,7 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     :return: a configured toolbox
     """
     toolbox = core.Toolbox()
-    toolbox.configure("fitness", "CustomFitness", (-3.0, -1.0, -5.0))
+    toolbox.configure("fitness", "CustomFitness", (-3.0, -2.0, -3.0))
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
@@ -143,7 +148,8 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
-    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate, {"cxpb": 0.5})
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
+                     {"cxpb": 0.8})
     toolbox.register("select", nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
@@ -161,9 +167,8 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 50
-    mu = 40  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.5
+    ngen = 100
+    mu = 100  # Must be a multiple of 4 for tournament selection of NSGA-II
 
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
@@ -179,16 +184,9 @@ def simple_ga(toolbox: 'core.Toolbox',
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
-        map(toolbox.mate_and_mutate, list(zip(offspring[::2], offspring[1::2])))
-
-        """
-        for _ind1, _ind2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() <= cxpb:
-                toolbox.mate(_ind1, _ind2)
-            toolbox.mutate(_ind1)
-            toolbox.mutate(_ind2)
-            _ind1.fitness.clear()
-            _ind2.fitness.clear()"""
+        # note : list is needed because map lazy evaluates
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)

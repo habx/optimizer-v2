@@ -15,6 +15,7 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
 
     spec, plan = tools.cache.get_plan("052")  # 052
+
     if plan:
         plan.name = "original"
         plan.plot()
@@ -22,7 +23,7 @@ def main():
 
         start = time.time()
 
-        output = REFINERS["simple"].run(plan, spec, processes=1, with_hof=True)
+        output = REFINERS["simple"].run(plan, spec, processes=4, with_hof=True)
         sols = sorted(output, key=lambda i: i.fitness.value, reverse=True)
         end = time.time()
         for n, ind in enumerate(sols):

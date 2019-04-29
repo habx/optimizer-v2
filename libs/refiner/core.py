@@ -73,6 +73,10 @@ class Fitness:
     def values(self, values: Sequence[float]):
         if not values:
             return
+        assert len(values) == len(self._weights), ("Refiner: Fitness, the values provided are "
+                                                   "incoherent with the fitness weights {} - "
+                                                   "{}".format(values, self._weights))
+
         self._wvalues = tuple(map(lambda x, y: x * y, values, self._weights))
 
     def clear(self):
@@ -224,7 +228,7 @@ mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individua
 evaluateFunc = Callable[['Individual'], Sequence[float]]
 mutateFunc = Callable[['Individual'], 'Individual']
 populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
-mateMutateFunc = Callable[[Tuple['Individual', 'Individual']], None]
+mateMutateFunc = Callable[[Tuple['Individual', 'Individual']], Tuple['Individual', 'Individual']]
 
 
 def _standard_clone(i: Individual) -> Individual:
