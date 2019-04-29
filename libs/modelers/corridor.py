@@ -18,11 +18,14 @@ from libs.utils.geometry import (
 )
 
 
-# TODO : bug plan 12,29
-# TODO : s'assurer qu'on coupe bien des slices autour des penetration edges (souci sur leplan 41?)
-
 # TODO : deal with corners
-# TODO : deal with size one path
+# TODO : deal with one vertice path
+# TODO : corridor bug 001
+# TODO : if needed : implement growth strategy on specific side
+# TODO : for now corridor is grown on each side of a path as long as growth is possible,
+# other growing strategies could be implemented :
+#   *grow on bigger rooms,
+#   *grow so as to minimize the number of corners...
 
 class Corridor:
     """
@@ -31,8 +34,7 @@ class Corridor:
     Class to build circulation spaces between every isolated room space of the plan.
 
     If a plot is given to the corridor, it will use it to display in real time the changes occurring
-    on the plan. It is useful to chain visualization of different stages in the optimizer pipeline
-    on the same plot. For example : the grid, then the seeder, then the shuffle...
+    on the plan.
     """
 
     def __init__(self,
@@ -57,22 +59,22 @@ class Corridor:
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan
         -refines the mesh around those paths
+        -grows corridor spaces around those paths
         :param plan:
-        :param show: whether to display a real-time vizualisation of the corridor
+        :param show: whether to display a real-time visualization of the corridor
         :return:
         """
         self._init()
         self.plan = plan
-        # Draw circulation paths and stores them
+        # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         self.circulator.plot()
 
-        # self.paths = []
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
             for vertex_path in vertex_paths:
-                if len(vertex_path) > 1:  # TODO : deal with 1 vertex path
+                if len(vertex_path) > 1:  # TODO : deal with one vertice path
                     vertex_path = self._add_penetration_vertices(vertex_path)
                     self.paths.append(vertex_path)
 
@@ -82,26 +84,27 @@ class Corridor:
 
         # Refines the mesh around the circulation paths
         for path in self.paths:
-            self._cut(path, show).grow(path, show)
+            self.cut(path, show).grow(path, show)
 
-    def _add_penetration_vertices(self, vertex_list: List['Vertex'],
-                                  penetration_length: float = 90):
+    def _add_penetration_vertices(self, vertex_list: List['Vertex']):
         """
         Possibly adds vertices at the beginning and end of the path
-        to account for possible corridor penetration within the room.
-        A path has to penetrate a room if several conditions are satisfied
-            -it reaches the space it connects in parallel to one of its borders
+        to account for corridor penetration within the room.
+        A path has to penetrate a room if following conditions are satisfied
+            -it extends on the room border, not inside the room space
             -it is not on the border of the plan
         When penetration conditions are satisfied, the penetration shall have a length equal to
-        self.penetrtaion_length
+        penetration_length
         :param List['Vertex']: ordered list of vertices forming a circulation path
         :return:
         """
 
-        def _penetration_condition(edge):
+        penetration_length = self.corridor_rules["penetration_length"]
+
+        def _penetration_condition(edge: 'Edge') -> bool:
             # Determines if the edge is added to the path
             if self.plan.get_space_of_edge(edge) is self.plan.get_space_of_edge(edge.pair):
-                # edge not reaching the space in parallel to one of its borders
+                # edge not on space border
                 return False
             if not edge.face or not edge.pair.face:
                 # edge on the plan border
@@ -123,7 +126,7 @@ class Corridor:
                 for edge in penetration_edges:
                     if parallel(edge.vector, limit_edge.vector) and _penetration_condition(edge):
                         penetration_edge = edge if start else edge
-                        if l + penetration_edge.length > self.corridor_rules["penetration_length"]:
+                        if l + penetration_edge.length > penetration_length:
                             # splits penetration edge to get proper penetration length
                             coeff = (penetration_length - l) / penetration_edge.length
                             if penetration_edge.length * coeff < 2:
@@ -153,14 +156,12 @@ class Corridor:
         self.plan.update_from_mesh()
         self.plan.simplify()
 
-        self.plan.check()
-
         return vertex_list
 
     @staticmethod
     def _get_edge_path(vertex_path: List['Vertex']) -> List['Edge']:
         """
-        From a list of verices forming a path, generates the list of contiguous edges following
+        From a list of vertices forming a path, generates the list of contiguous edges following
         the path
         :param List['Vertex']: ordered list of vertices forming a circulation path
         :return List['Edge']: ordered list of contiguous edges forming a circulation path
@@ -182,7 +183,7 @@ class Corridor:
 
         return edge_path
 
-    def _cut(self, path: List['Vertex'], show: bool = False):
+    def cut(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
         """
         Cuts layers in the mesh around the circulation path defined by path.
         For each edge of the path, cut self.nb_layer layers with spacing equal to self.layer_width
@@ -203,12 +204,15 @@ class Corridor:
         for edge in edge_path:
             self._layer_slice(edge, show)
 
-        self.plan.check()
-
         return self
 
-    def grow(self, path: List['Vertex'], show: bool = False):
-
+    def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
+        """
+        Grows corridor spaces around the circulation space defined by path.
+        :param path: ordered list of vertices forming a circulation path
+        :param show:
+        :return:
+        """
         if show:
             self._initialize_plot()
 
@@ -216,16 +220,16 @@ class Corridor:
 
         self._path_growth(edge_path, show)
 
-        self.plan.check()
-
         return self
 
     def _path_growth(self, edge_path: List['Edge'], show: bool = False):
-
-        # parcourir les edges du path
-        # ajouter d'un côté si on peut sur toute la ligne
-        # idem de l'autre côté
-        # tant qu'on peut, ajouter d'un côté et de l'autre sur tout un côté tant qu'on peut
+        """
+        Circulation path defined by edge_path is decomposed into its straight portions
+        A corridor space is grown around each portion
+        :param edge_path:
+        :param show: ordered list of contiguous edges forming a circulation path
+        :return:
+        """
 
         edge_lines = self._get_straight_parts(edge_path)
         corridor_spaces = []
@@ -267,14 +271,16 @@ class Corridor:
         -for each edge edge_i, deduce the maximum width_i the corridor can have on the portion
         around edge_i in cw(resp ccw) direction
         -the corridor in cw (resp ccw) direction has a maximum width equal to min_i(width_i)
-        -grows the corridor alternatively on each side while a layer is available and maximum
-        corridor width has not been reached
-        :param edge_line:
+        -grows the corridor alternatively on each side while
+            *a layer is available
+            *maximum corridor width has not been reached
+        :param edge_line: straight circulation path
         :param show:
         :return:
         """
 
-        def _get_width(ccw=True):
+        def _get_width(ccw=True) -> float:
+            # returns the maximum expansion on ccw (resp cw) side of the path
             portions_width = []
             for e in edge_line:
                 start_edge = e if ccw else e.pair
@@ -287,6 +293,8 @@ class Corridor:
         width_ccw = _get_width()
         width_cw = _get_width(ccw=False)
 
+        # the corridor is grown on each side while growth is possible and corridor width is
+        # under self.corridor_rules["width"]
         while width_ccw + width_cw > self.corridor_rules["width"] + 1:
             if width_ccw > width_cw:
                 width_ccw -= self.corridor_rules["layer_width"]
@@ -306,7 +314,7 @@ class Corridor:
             -being parallel to edge
             -in vertical direction from edge
             -with distance to edge less than width
-        *distance from edge to last layer edge
+        *distance from edge to the last layer edge
         :param edge:
         :param width:
         :return:
@@ -338,7 +346,6 @@ class Corridor:
                 if (pseudo_equal(angle, 180, 10)
                         and dist_tmp < width + 1
                         and _layer_condition(e)):
-                    # and self.plan.get_space_of_edge(e).category.mutable):
                     dist = dist_tmp
                     start_edge = e.pair
                     layer_edges.append(e)
@@ -352,7 +359,7 @@ class Corridor:
     def _add_corridor_portion(self, edge: 'Edge', width: float, corridor_space: 'Space',
                               show: bool = False):
         """
-        Builds a corridor space : starts with edge face and iteratively add faces
+        Builds a corridor space : starts with edge face and iteratively adds faces
         in normal direction to edge until the corridor space width reaches the objective
         :param edge:
         :param width:
@@ -371,7 +378,7 @@ class Corridor:
 
     def _ortho_slice(self, edge: 'Edge', start: bool = False, show: bool = False):
         """
-        cut mesh orthogonal to the edge, at its start (if start) or end
+        cut mesh orthogonally to the edge, at its start (if start) or end
         :param edge:
         :param start:
         :param show:
@@ -387,7 +394,8 @@ class Corridor:
 
     def _layer_slice(self, edge: 'Edge', show: bool = False):
         """
-        cut mesh in parallel to the edge, on self.nb_cut layers spaced from self.layer_width apart
+        cut mesh in parallel to the edge, self.nb_cut layers are cut,
+        spaced from self.layer_width apart
         :param edge:
         :param show:
         :return :
@@ -639,9 +647,11 @@ if __name__ == '__main__':
         corridor = Corridor(corridor_rules=CORRIDOR_RULES)
         corridor.apply_to(plan, show=False)
 
+        plan.check()
+
         plan.name = "corridor_" + plan.name
         plan.plot()
 
 
-    plan_name = "003.json"  # TODO : bug plans, 12, 27 ,29
+    plan_name = "001.json"  # TODO : bug plans, 12, 27 ,29
     main(input_file=plan_name)
