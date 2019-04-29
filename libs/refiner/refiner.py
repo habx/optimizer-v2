@@ -161,8 +161,9 @@ def simple_ga(toolbox: 'core.Toolbox',
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 20
-    mu = 100  # Must be a multiple of 4 for tournament selection of NSGA-II
+    ngen = 50
+    mu = 40  # Must be a multiple of 4 for tournament selection of NSGA-II
+    cxpb = 0.5
 
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
@@ -178,7 +179,16 @@ def simple_ga(toolbox: 'core.Toolbox',
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
-        toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]))
+        map(toolbox.mate_and_mutate, list(zip(offspring[::2], offspring[1::2])))
+
+        """
+        for _ind1, _ind2 in zip(offspring[::2], offspring[1::2]):
+            if random.random() <= cxpb:
+                toolbox.mate(_ind1, _ind2)
+            toolbox.mutate(_ind1)
+            toolbox.mutate(_ind2)
+            _ind1.fitness.clear()
+            _ind2.fitness.clear()"""
 
         # Evaluate the individuals with an invalid fitness
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)

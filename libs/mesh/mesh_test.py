@@ -91,7 +91,7 @@ def test_serialization():
     perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
     mesh = Mesh().from_boundary(perimeter)
     geometry = mesh.serialize()
-    writer.save_mesh_as_json(geometry, "test")
+    writer.save_mesh_as_json(geometry, "test.json")
     new_geometry = reader.get_mesh_from_json("test.json")
     mesh.deserialize(new_geometry)
     mesh.plot()
