@@ -381,7 +381,7 @@ class Corridor:
         vertex = edge.start if start else edge.end
         # cuts on both sides
         self._recursive_cut(edge, vertex)
-        self._recursive_cut(edge.pair, vertex)
+
         if show:
             self.plot.update_faces([sp for sp in self.plan.spaces])
 
@@ -457,7 +457,6 @@ class Corridor:
             sign = 1 if ccw else -1
             for s in range(1, abs(self.corridor_rules["nb_layer"])):
                 sl = _slice(start_point, sign * s)
-                # self.plan.plot()
                 if not sl:
                     break
 
@@ -518,19 +517,6 @@ class Corridor:
             if end_edge.pair and end_edge.pair.face:
                 if _projects_on_linear(end_edge.pair.end, end_edge.pair):
                     return True
-
-                # out = end_edge.pair.end.project_point(end_edge.pair.face, end_edge.pair.normal)
-                # if out:
-                #     intersect_vertex_next = out[0]
-                #     next_cut_edge = out[1]
-                #     for e in plan.get_space_of_edge(end_edge.pair).edges:
-                #         linear = plan.get_linear(e)
-                #         if linear and (
-                #                 linear.has_edge(next_cut_edge) or linear.has_edge(
-                #             next_cut_edge.next)):
-                #             intersect_vertex_next.remove_from_mesh()
-                #             return True
-                #     intersect_vertex_next.remove_from_mesh()
 
             return False
 
@@ -657,5 +643,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "001.json"  # TODO : bug plans, 12, 27 ,29
+    plan_name = "003.json"  # TODO : bug plans, 12, 27 ,29
     main(input_file=plan_name)
