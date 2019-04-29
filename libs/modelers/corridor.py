@@ -1,19 +1,14 @@
 import logging
-
 from typing import Optional, Tuple, Dict, List
+
 import matplotlib.pyplot as plt
 
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Edge, Vertex
-
 from libs.space_planner.circulation import Circulator, COST_RULES
-
-from libs.io.plot import Plot
-
-import argparse
 from libs.plan.category import SPACE_CATEGORIES
-
+from libs.io.plot import Plot
 from libs.utils.geometry import (
     ccw_angle,
     pseudo_equal,
@@ -23,16 +18,11 @@ from libs.utils.geometry import (
 )
 
 
-# TODO : PEP8 compatibility
-# TODO : reorder libs imports
-
-# TODO : bug plan 29
+# TODO : bug plan 12,29
 # TODO : s'assurer qu'on coupe bien des slices autour des penetration edges (souci sur leplan 41?)
 
 # TODO : deal with corners
 # TODO : deal with size one path
-# TODO : mettre les régles de découpe et de construction du couloir (cutstep, nb step, cost_rules... dans un dict? => moins d'attributs)
-
 
 class Corridor:
     """
@@ -243,6 +233,7 @@ class Corridor:
             created_space = self._straight_path_growth(edge_line, show)
             adjacent_corridor_space = [sp for sp in corridor_spaces if
                                        sp.adjacent_to(created_space)]
+
             if adjacent_corridor_space:
                 adjacent_corridor_space[0].merge(created_space)
             else:
@@ -369,11 +360,10 @@ class Corridor:
         :param show:
         :return:
         """
-        out = self._get_parallel_layers_edges(edge, width)
-        layer_edges = out[1]
+        layer_edges = self._get_parallel_layers_edges(edge, width)[1]
         for layer_edge in layer_edges:
-            if not self.plan.get_space_of_edge(layer_edge).category == "circulation":
-                sp = self.plan.get_space_of_edge(layer_edge)
+            sp = self.plan.get_space_of_edge(layer_edge)
+            if not sp.category.name == "circulation":
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -416,7 +406,7 @@ class Corridor:
                 return False
             return True
 
-        def _slice(start_point, coeff: float):
+        def _slice(start_point, coeff: float) -> bool:
             """
             Slicing process :
             -start_point is moved in edge normal direction with amplitude coeff
@@ -467,6 +457,7 @@ class Corridor:
             sign = 1 if ccw else -1
             for s in range(1, abs(self.corridor_rules["nb_layer"])):
                 sl = _slice(start_point, sign * s)
+                # self.plan.plot()
                 if not sl:
                     break
 
@@ -489,7 +480,12 @@ class Corridor:
             :param direction_edge:
             :return:
             """
+
+            if not direction_edge.face.as_sp.intersects(v.as_sp):
+                # TODO : this check should not be necessary?
+                return False
             out = v.project_point(direction_edge.face, direction_edge.normal)
+
             if out:
                 intersect_vertex_next = out[0]
                 next_cut_edge = out[1]
@@ -578,12 +574,13 @@ class Corridor:
 CORRIDOR_RULES = {
     "layer_width": 25,
     "nb_layer": 5,
-    "recursive_cut_length": 300,
+    "recursive_cut_length": 400,
     "width": 100,
     "penetration_length": 90
 }
 
 if __name__ == '__main__':
+    import argparse
 
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -660,5 +657,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "001.json"
+    # plan_name = "001.json"  # TODO : bug plans, 12, 27 ,29
     main(input_file=plan_name)
