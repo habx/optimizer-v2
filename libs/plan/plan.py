@@ -177,7 +177,7 @@ class Space(PlanComponent):
         :return:
         """
         new_floor = plan.floors[self.floor.id]
-        new_space = Space(plan, new_floor, category=self.category, _id=self.id)
+        new_space = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -1336,7 +1336,7 @@ class Space(PlanComponent):
         vertex_1 = Vertex(self.mesh, *point_1, mutable=False)
         vertex_2 = Vertex(self.mesh, *point_2, mutable=False)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = Linear(self.plan, self.floor, new_edge, category)
+        new_linear = self.plan.__class__.LinearType(self.plan, self.floor, new_edge, category)
 
         return new_linear
 
@@ -1865,7 +1865,7 @@ class Linear(PlanComponent):
         :return:
         """
         new_floor = plan.floors[self.floor.id]
-        new_linear = Linear(plan, new_floor, category=self.category, _id=self.id)
+        new_linear = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -2021,9 +2021,7 @@ class Floor:
         self.mesh = mesh
         self.level = level
         self.meta = meta
-
-        if self.mesh:
-            self.mesh.add_watcher(self.plan.watcher)
+        self.add_watcher()
 
     def __repr__(self):
         return "Floor: {}".format(self.id)
@@ -2034,7 +2032,7 @@ class Floor:
         :param new_plan:
         :return:
         """
-        new_floor = Floor(new_plan, self.mesh, self.level, self.meta, _id=self.id)
+        new_floor = type(self)(new_plan, self.mesh, self.level, self.meta, _id=self.id)
         return new_floor
 
     def store_mesh_globally(self):
@@ -2054,6 +2052,18 @@ class Floor:
         :return:
         """
         self.mesh = globals().get("MESHES")[mesh_id]
+
+    def add_watcher(self):
+        """
+        Adds a watcher to the mesh of the floor. The watcher is used to update the plan when
+        the mesh changes (for example when a face is split, the new created face must be
+        added to the appropriate space).
+        :return:
+        """
+        if self.mesh:
+            self.mesh.add_watcher(self.plan.watcher)
+        else:
+            logging.debug("Plan: trying to add a watcher to a floor without mesh %s", self)
 
     def serialize(self, embedded_mesh: bool = True) -> Dict:
         """
@@ -2090,8 +2100,7 @@ class Floor:
         else:
             self.get_mesh_from_global(uuid.UUID(data["mesh"]))
 
-        self.mesh.add_watcher(self.plan.watcher)
-
+        self.add_watcher()
         self.level = int(data["level"])
         self.meta = data["meta"]
         return self
@@ -2112,6 +2121,11 @@ class Plan:
     • linears : windows, doors, walls etc.
     • floors : floors of the plan stored in a dict
     """
+    # Note : we store the composed class for easier subclassing of the Plan Class
+    #        with custom floors, spaces, and linears
+    FloorType = Floor
+    SpaceType = Space
+    LinearType = Linear
 
     __slots__ = 'name', 'spaces', 'linears', 'floors', 'id', '_counter'
 
@@ -2131,7 +2145,7 @@ class Plan:
 
         # add a floor if a mesh is specified in the init (per convenience)
         if mesh:
-            new_floor = Floor(self, mesh, floor_level, floor_meta)
+            new_floor = self.__class__.FloorType(self, mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
 
     def __repr__(self):
@@ -2226,19 +2240,20 @@ class Plan:
 
         # add floors
         for floor in data["floors"]:
-            self.add_floor(Floor(self, _id=floor["id"]).deserialize(floor, embedded_mesh))
+            self.add_floor(
+                self.__class__.FloorType(self, _id=floor["id"]).deserialize(floor, embedded_mesh))
 
         # add spaces
         for space in data["spaces"]:
             floor_id = int(space["floor"])
             floor = self.floors[floor_id]
-            Space(self, floor, _id=int(space["id"])).deserialize(space)
+            self.__class__.SpaceType(self, floor, _id=int(space["id"])).deserialize(space)
 
         # add linears
         for linear in data["linears"]:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
-            Linear(self, floor, _id=linear["id"]).deserialize(linear)
+            self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
 
         self._reset_counter()
 
@@ -2558,10 +2573,9 @@ class Plan:
         :return:
         """
         mesh = Mesh().from_boundary(boundary)
-        mesh.add_watcher(self.watcher)
-        new_floor = Floor(self, mesh, floor_level, floor_meta)
+        new_floor = self.__class__.FloorType(self, mesh, floor_level, floor_meta)
         self.add_floor(new_floor)
-        Space(self, new_floor, mesh.faces[0].edge)
+        self.__class__.SpaceType(self, new_floor, mesh.faces[0].edge)
         return new_floor
 
     def add(self, plan_component):
@@ -2570,10 +2584,10 @@ class Plan:
         :param plan_component:
         :return:
         """
-        if type(plan_component) == Space:
+        if type(plan_component) == self.__class__.SpaceType:
             self._add_space(plan_component)
 
-        if type(plan_component) == Linear:
+        if type(plan_component) == self.__class__.LinearType:
             self._add_linear(plan_component)
 
     def remove(self, plan_component):
@@ -2582,10 +2596,10 @@ class Plan:
         :param plan_component:
         :return:
         """
-        if type(plan_component) == Space:
+        if type(plan_component) == self.__class__.SpaceType:
             self._remove_space(plan_component)
 
-        if type(plan_component) == Linear:
+        if type(plan_component) == self.__class__.LinearType:
             self._remove_linear(plan_component)
 
     def _add_space(self, space: 'Space'):
@@ -2907,9 +2921,9 @@ class Plan:
                 new_exterior_faces = floor.mesh.insert_external_face(face_to_insert)
                 # add the eventually created holes
                 for face in new_exterior_faces:
-                    Space(self, floor, face.edge, SPACE_CATEGORIES["hole"])
+                    self.__class__.SpaceType(self, floor, face.edge, SPACE_CATEGORIES["hole"])
                 # create the new space
-                new_space = Space(self, floor, face_to_insert.edge, category)
+                new_space = self.__class__.SpaceType(self, floor, face_to_insert.edge, category)
                 return new_space
 
             except OutsideFaceError:
@@ -2956,7 +2970,7 @@ class Plan:
              show: bool = False,
              save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional[Floor] = None):
+             floor: Optional['Floor'] = None):
         """
         Plots a plan.
         :return:

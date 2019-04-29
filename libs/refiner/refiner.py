@@ -108,15 +108,16 @@ class Refiner:
 # Toolbox factories
 
 # Algorithm functions
-def mate_and_mutate(mate_func, mutate_func, cxpb, couple: Tuple['Individual', 'Individual']):
+def mate_and_mutate(mate_func, mutate_func, params, couple: Tuple['Individual', 'Individual']):
     """
     Specific function for nsga algorithm
     :param mate_func:
     :param mutate_func:
-    :param cxpb:
+    :param params: a dict containing the arguments of the function
     :param couple:
     :return:
     """
+    cxpb = params["cxpb"]
     _ind1, _ind2 = couple
     if random.random() <= cxpb:
         mate_func(_ind1, _ind2)
@@ -142,7 +143,7 @@ def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
-    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate, 0.5)
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate, {"cxpb": 0.5})
     toolbox.register("select", nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
@@ -161,8 +162,7 @@ def simple_ga(toolbox: 'core.Toolbox',
     """
     # algorithm parameters
     ngen = 20
-    mu = 12  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.5
+    mu = 100  # Must be a multiple of 4 for tournament selection of NSGA-II
 
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)

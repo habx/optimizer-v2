@@ -13,7 +13,7 @@ import logging
 from functools import partial
 
 from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator
-from libs.plan.plan import Plan
+from libs.plan.plan import Plan, Floor
 
 
 class Fitness:
@@ -143,12 +143,27 @@ class Fitness:
                               self.values if self.valid else tuple())
 
 
+class UnwatchedFloor(Floor):
+    """
+    A Floor that does add a watcher to its mesh.
+    This is needed to prevent a memory leak where each clone plan adds a watcher to its
+    reference mesh resulting in thousands of watchers added to the mesh.
+    """
+    def add_watcher(self):
+        """
+        Do nothing
+        :return:
+        """
+        return
+
+
 class Individual(Plan):
     """
     An individual
     """
     __slots__ = 'fitness'
     _fitness_class = Fitness
+    FloorType = UnwatchedFloor
 
     @classmethod
     def new(cls, alias: str, fitness_class: Type[Fitness]) -> type:
@@ -203,12 +218,13 @@ class Individual(Plan):
 
 
 cloneFunc = Callable[['Individual'], 'Individual']
-mapFunc = Callable[[Callable[['Individual'], Any], Sequence['Individual']], Iterator[Any]]
+mapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
 selectFunc = Callable[[List['Individual']], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 evaluateFunc = Callable[['Individual'], Sequence[float]]
 mutateFunc = Callable[['Individual'], 'Individual']
 populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
+mateMutateFunc = Callable[[Tuple['Individual', 'Individual']], None]
 
 
 def _standard_clone(i: Individual) -> Individual:
@@ -253,7 +269,7 @@ class Toolbox:
         self.evaluate: Optional[evaluateFunc] = None
         self.mutate: Optional[mutateFunc] = None
         self.populate: Optional[populateFunc] = None
-        self.mate_and_mutate: Optional[Callable] = None  # TODO : precise type
+        self.mate_and_mutate: Optional[mateMutateFunc] = None
 
         # base class
         self.individual: Optional[Type['Individual']] = None
