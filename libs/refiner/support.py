@@ -565,7 +565,7 @@ class ParetoFront(HallOfFame):
     def __init__(self, similar=eq):
         HallOfFame.__init__(self, None, similar)
 
-    def update(self, population):
+    def update(self, population, value: bool = False):
         """Update the Pareto front hall of fame with the *population* by adding
         the individuals from the population that are not dominated by the hall
         of fame. If any individual in the hall of fame is dominated it is
@@ -573,6 +573,9 @@ class ParetoFront(HallOfFame):
 
         :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
+        :param value: whether to compare the arithmetic sum of the fitness
+                      weighed values or to lexicographically compare the fitness
+                      tuples
         """
         for ind in population:
             is_dominated = False
