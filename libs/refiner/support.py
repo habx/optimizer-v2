@@ -465,7 +465,7 @@ class HallOfFame:
         self.items = list()
         self.similar = similar
 
-    def update(self, population):
+    def update(self, population, value: bool = False):
         """Update the hall of fame with the *population* by replacing the
         worst individuals in it by the best individuals present in
         *population* (if they are better). The size of the hall of fame is
@@ -473,6 +473,9 @@ class HallOfFame:
 
         :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
+        :param value: whether to compare the arithmetic sum of the fitness
+                      weighed values or to lexicographically compare the fitness
+                      tuples
         """
         if len(self) == 0 and self.maxsize != 0:
             # Working on an empty hall of fame is problematic for the
@@ -480,7 +483,9 @@ class HallOfFame:
             self.insert(population[0])
 
         for ind in population:
-            if ind.fitness > self[-1].fitness or len(self) < self.maxsize:
+            if ((not value and ind.fitness > self[-1].fitness)
+                    or (value and ind.fitness.value > self[-1].fitness.value)
+                    or len(self) < self.maxsize):
                 for hofer in self:
                     # Loop through the hall of fame to check for any
                     # similar individual

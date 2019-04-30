@@ -10,6 +10,7 @@ Individual.new(
 
 """
 import logging
+import copy
 from functools import partial
 
 from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator
@@ -21,8 +22,6 @@ class Fitness:
     A fitness class
     """
     _weights: Optional[Sequence[float]] = None
-
-    __slots__ = "_wvalues"
 
     @classmethod
     def new(cls, alias: str, weights: Optional[Sequence[float]]) -> type:
@@ -200,7 +199,9 @@ class Individual(Plan):
         :return:
         """
         new_plan = super().clone()
-        return type(self)(new_plan)
+        new_ind = type(self)(new_plan)
+        new_ind.fitness = copy.deepcopy(self.fitness)
+        return new_ind
 
     def __getstate__(self) -> dict:
         data = super().__getstate__()
@@ -343,7 +344,8 @@ class Toolbox:
         :param refresh: whether to refresh the fitness if it is still valid
         :return:
         """
-        invalid_fit = [ind for ind in pop if not ind.fitness.valid and not refresh]
+        invalid_fit = [ind for ind in pop if not ind.fitness.valid or refresh]
         fitnesses = map_func(eval_func, invalid_fit)
         for ind, fit in zip(invalid_fit, fitnesses):
             ind.fitness.values = fit
+        logging.debug("bab")

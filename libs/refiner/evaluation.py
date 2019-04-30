@@ -87,7 +87,7 @@ def score_corner(_: 'Specification', ind: 'Individual') -> float:
     :param ind:
     :return:
     """
-    excluded_spaces = ("living", "livingKitchen")
+    excluded_spaces = ()
     min_corners = 4
     score = 0.0
     num_space = 0
@@ -105,7 +105,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:
     :param ind:
     :return:
     """
-    excluded_spaces = ("living", "livingKitchen")
+    excluded_spaces = ()
     score = 0.0
     for space in ind.spaces:
         if not space.category.mutable or space.category.name in excluded_spaces:
