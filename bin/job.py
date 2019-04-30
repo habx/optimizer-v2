@@ -33,9 +33,11 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 
     endpoint = endpoints.get(os.getenv('HABX_ENV', 'local'))
 
-    response = requests.get(endpoint, params=context)
+    response = requests.get(endpoint, params=context, headers={
+        'x-habx-token': os.getenv('HABX_TOKEN', 'ymSC4QkHwxEnAeyBu9UqWzbs')
+    })
 
-    job_input = response.json()
+    job_input = response.json().get('job')
     job_input['context']['taskId'] = str(uuid.uuid4())
 
     td = TaskDefinition.from_json(job_input)
