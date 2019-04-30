@@ -476,6 +476,9 @@ class Corridor:
             face = _get_containing_face(slice_vertex)
             if face and self.plan.get_space_of_edge(face.edge).mutable:
                 out = slice_vertex.project_point(face, edge.unit_vector)
+                if not out:
+                    slice_vertex.remove_from_mesh()
+                    return False
                 intersection_vertex = out[0]
                 edge_to_cut = out[1]
                 self._recursive_cut(edge_to_cut, intersection_vertex)
@@ -699,5 +702,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "001.json"
+    #plan_name = "018.json"
     main(input_file=plan_name)
