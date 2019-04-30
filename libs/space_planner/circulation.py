@@ -182,8 +182,8 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        for f in range(number_of_floors):
-            _ax = ax[i] if number_of_floors > 1 else ax
+        for f in self.plan.list_level:
+            _ax = ax[f] if number_of_floors > 1 else ax
             paths = self.connecting_paths[f]
             for path in paths:
                 if len(path) == 1:
