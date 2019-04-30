@@ -206,13 +206,13 @@ class Corridor:
 
         edge_path = self._get_edge_path(path)
 
-        # mesh cut, orthogonal to start and final path edges
-        self._ortho_slice(edge_path[0], start=True, show=show)
-        self._ortho_slice(edge_path[-1], show=show)
-
         # layer slices parallel to path edges
         for edge in edge_path:
             self._layer_slice(edge, show)
+
+        # mesh cut, orthogonal to start and final path edges
+        self._ortho_slice(edge_path[0], start=True, show=show)
+        self._ortho_slice(edge_path[-1], show=show)
 
         return self
 
@@ -538,7 +538,7 @@ class Corridor:
             """
 
             if not direction_edge.face.as_sp.intersects(v.as_sp):
-                # TODO : this check should not be necessary?
+                # TODO : this check should not be necessary - to be investigated
                 return False
             out = v.project_point(direction_edge.face, direction_edge.normal)
 
@@ -685,9 +685,11 @@ if __name__ == '__main__':
 
     def main(input_file: str):
 
-        # TODO : reprise 041 (coude)
-        # TODO : 29 à reprendre : porte coupée
-        # TODO : 27 à reprendre : vertex en dehors
+        # TODO : à reprendre
+        # * 35, 40 : linear cut
+        # * 46 : not enough contact with entrance
+        # * 31 : wrong corridor shape
+        # * 5 : wrong path proposed
 
         plan = get_plan(input_file)
         plan.name = input_file[:-5]
@@ -702,5 +704,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "018.json"
+    #plan_name = "035.json"
     main(input_file=plan_name)
