@@ -18,12 +18,12 @@ from libs.utils.geometry import (
 )
 
 
-# TODO : deal with corners
-# TODO : deal with one vertice path
-# TODO : corridor bug 001
-# TODO : if needed : implement growth strategy on specific side
-# TODO : for now corridor is grown on each side of a path as long as growth is possible,
-# other growing strategies could be implemented :
+# TODO LIST:
+# -deal with corridor corners
+# -deal with one vertex path
+# -cut slices orthogonally to start and final edges if needed by the refiner
+# -for now corridor is grown on each side of a path as long as growth is possible,
+#  other growing strategies could be implemented :
 #   *grow on bigger rooms,
 #   *grow so as to minimize the number of corners...
 
@@ -66,6 +66,7 @@ class Corridor:
         """
         self._init()
         self.plan = plan
+
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
@@ -82,7 +83,7 @@ class Corridor:
         if show:
             self._initialize_plot()
 
-        # Refines the mesh around the circulation paths
+        # Refines the mesh around the circulation paths and grow corridor spaces around
         for path in self.paths:
             self.cut(path, show).grow(path, show)
 
@@ -92,7 +93,7 @@ class Corridor:
         to account for corridor penetration within the room.
         A path has to penetrate a room if following conditions are satisfied
             -it extends on the room border, not inside the room space
-            -it is not on the border of the plan
+            -it is not on the plan border
         When penetration conditions are satisfied, the penetration shall have a length equal to
         penetration_length
         :param List['Vertex']: ordered list of vertices forming a circulation path
@@ -102,7 +103,11 @@ class Corridor:
         penetration_length = self.corridor_rules["penetration_length"]
 
         def _penetration_condition(edge: 'Edge') -> bool:
-            # Determines if the edge is added to the path
+            """
+            Determines if the edge is added to the path
+            :param edge:
+            :return:
+            """
             if self.plan.get_space_of_edge(edge) is self.plan.get_space_of_edge(edge.pair):
                 # edge not on space border
                 return False
@@ -112,20 +117,25 @@ class Corridor:
             return True
 
         def _add_vertices(vert_list: List['Vertex'], start=True):
-            # Adds vertices to the list, at the beginning (if start) or end if
-            # penetration condition are satisfied until penetration length is reached
+            """
+            Adds vertices to the list, at the beginning (if start) or end if
+            penetration condition are satisfied until penetration length is reached
+            :param vert_list: ordered list of vertices forming a circulation path
+            :param start:
+            :return:
+            """
             edge_list = self._get_edge_path(vert_list)
 
             l = 0  # penetration length
-            continue_cut = True
-            while l < penetration_length and continue_cut:
+            continue_penetration = True
+            while l < penetration_length and continue_penetration:
                 limit_edge = edge_list[0].pair if start else edge_list[-1]
                 limit_vertex = limit_edge.end
                 penetration_edges = [edge for edge in limit_vertex.edges if
                                      edge.face and edge.pair.face]
                 for edge in penetration_edges:
                     if parallel(edge.vector, limit_edge.vector) and _penetration_condition(edge):
-                        penetration_edge = edge if start else edge
+                        penetration_edge = edge
                         if l + penetration_edge.length > penetration_length:
                             # splits penetration edge to get proper penetration length
                             coeff = (penetration_length - l) / penetration_edge.length
@@ -146,7 +156,7 @@ class Corridor:
                                 added_vertex]
                         break
                 else:
-                    continue_cut = False
+                    continue_penetration = False
 
             return vert_list
 
@@ -163,8 +173,8 @@ class Corridor:
         """
         From a list of vertices forming a path, generates the list of contiguous edges following
         the path
-        :param List['Vertex']: ordered list of vertices forming a circulation path
-        :return List['Edge']: ordered list of contiguous edges forming a circulation path
+        :param vertex_path: ordered list of vertices forming a circulation path
+        :return: ordered list of contiguous edges forming a circulation path
         """
         edge_path = []
 
@@ -187,8 +197,8 @@ class Corridor:
         """
         Cuts layers in the mesh around the circulation path defined by path.
         For each edge of the path, cut self.nb_layer layers with spacing equal to self.layer_width
-        For start and end edges, an orthogonal cut is performed
-        :param List['Vertex']: ordered list of vertices forming a circulation path
+        :param path: ordered list of vertices forming a circulation path
+        :param show:
         :return:
         """
         if show:
@@ -209,6 +219,7 @@ class Corridor:
     def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
         """
         Grows corridor spaces around the circulation space defined by path.
+        Merge built corridor spaces when they are adjacent
         :param path: ordered list of vertices forming a circulation path
         :param show:
         :return:
@@ -220,13 +231,47 @@ class Corridor:
 
         self._path_growth(edge_path, show)
 
+        self._corridor_merge()
+
         return self
+
+    def _corridor_merge(self):
+        """
+        merges corridor spaces when they are adjacent
+        :return:
+        """
+
+        def merging(spaces: List['Space']) -> bool:
+            """
+            iterative merge attempt of list elements with following elements in the list
+            :param spaces:
+            :return:
+            """
+            count = 0
+            merge = False
+            while count < len(spaces) - 1:
+                for space in spaces[count + 1:]:
+                    if spaces[count].adjacent_to(space):
+                        spaces.remove(space)
+                        spaces[count].merge(space)
+                        merge = True
+                        break
+                else:
+                    count += 1
+            return merge
+
+        corridor_spaces = [space for space in self.plan.spaces if
+                           space.category.name is "circulation"]
+
+        fusion = True
+        while fusion:
+            fusion = merging(corridor_spaces)
 
     def _path_growth(self, edge_path: List['Edge'], show: bool = False):
         """
         Circulation path defined by edge_path is decomposed into its straight portions
         A corridor space is grown around each portion
-        :param edge_path:
+        :param edge_path: ordered list of contiguous edges forming a circulation path
         :param show: ordered list of contiguous edges forming a circulation path
         :return:
         """
@@ -247,7 +292,7 @@ class Corridor:
     def _get_straight_parts(edge_path: List['Edge']) -> List[List['Edge']]:
         """
         decomposes the path into its straight sub-parts
-        :param edge_path:
+        :param edge_path: ordered list of contiguous edges forming a circulation path
         :return:
         """
         edge_lines = []
@@ -276,7 +321,7 @@ class Corridor:
             *maximum corridor width has not been reached
         :param edge_line: straight circulation path
         :param show:
-        :return:
+        :return: built corridor space
         """
 
         def _get_width(ccw=True) -> float:
@@ -293,8 +338,9 @@ class Corridor:
         width_ccw = _get_width()
         width_cw = _get_width(ccw=False)
 
-        # the corridor is grown on each side while growth is possible and corridor width is
-        # under self.corridor_rules["width"]
+        # the corridor is grown on each side while
+        #  -growth is possible and corridor width is
+        #  -under self.corridor_rules["width"]
         while width_ccw + width_cw > self.corridor_rules["width"] + 1:
             if width_ccw > width_cw:
                 width_ccw -= self.corridor_rules["layer_width"]
@@ -653,5 +699,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "001.json"  # TODO : bug plans, 12, 27 ,29
+    # plan_name = "001.json"
     main(input_file=plan_name)
