@@ -25,6 +25,7 @@ class TaskDefinition:
         self.params: dict = None
         self.context: dict = {}
         self.local_params: dict = {}
+        self.task_id: str = None
 
     def copy_for_processing(self) -> 'TaskDefinition':
         new = TaskDefinition()
@@ -140,6 +141,9 @@ class TaskProcessor:
                             json.dump(data[k], f)
 
         self._process_task_after(td)
+
+        if td.task_id:
+            result['taskId'] = td.task_id
 
         return result
 
