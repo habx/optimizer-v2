@@ -652,6 +652,8 @@ if __name__ == '__main__':
 
         spec_file_name = input_file[:-5] + "_setup0"
         plan_file_name = input_file
+
+
         try:
             new_serialized_data = reader.get_plan_from_json(input_file)
             plan = Plan(input_file[:-5]).deserialize(new_serialized_data)
@@ -677,7 +679,7 @@ if __name__ == '__main__':
                 plan = solution.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
+                writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
                 return plan
             else:
                 logging.info("No solution for this plan")
@@ -704,5 +706,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "035.json"
+    #plan_name = "005.json"
     main(input_file=plan_name)
