@@ -221,7 +221,7 @@ def get_json_from_file(file_name: str = '011.json',
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
-
+    assert file_name[len(file_name) - 5:] == ".json", "The filename must have a .json extension"
     module_path = os.path.dirname(__file__)
     input_file_path = os.path.join(module_path, input_folder, file_name)
 
@@ -232,13 +232,13 @@ def get_json_from_file(file_name: str = '011.json',
     return input_floor_plan_dict
 
 
-def get_plan_from_json(file_root: str = '011',
+def get_plan_from_json(file_name: str = '011.json',
                        input_folder: str = DEFAULT_PLANS_OUTPUT_FOLDER) -> Dict:
     """
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
-    file_path = file_root + ".json"
+    file_path = file_name
     return get_json_from_file(file_path, input_folder)
 
 
@@ -248,7 +248,7 @@ def get_mesh_from_json(file_name: str,
     Retrieves the data dictionary from an optimizer json input
     :return:
     """
-    file_path = file_name + ".json"
+    file_path = file_name
     return get_json_from_file(file_path, input_folder)
 
 

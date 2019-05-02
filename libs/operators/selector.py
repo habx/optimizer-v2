@@ -21,6 +21,7 @@ from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
 import logging
 
+from libs.plan.category import SPACE_CATEGORIES
 from libs.utils.geometry import (
     ccw_angle,
     opposite_vector,
@@ -116,12 +117,21 @@ class SelectorFactory:
 # Queries
 def space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edges of the face
+    Returns the edges of the space
     :param space:
     :return:
     """
     if space.edge:
         yield from space.edges
+
+
+def space_external_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the external edges of the space
+    :param space:
+    :return:
+    """
+    yield from space.exterior_edges
 
 
 def touching_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -929,24 +939,6 @@ def adjacent_empty_space(edge: 'Edge', space: 'Space') -> bool:
     return space_pair and space_pair.category.name == 'empty'
 
 
-def pair_corner_stone(edge: 'Edge', space: 'Space') -> bool:
-    """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
-    """
-    face = edge.pair.face
-
-    if not face:
-        return False
-
-    other_space = space.plan.get_space_of_face(face)
-
-    if not other_space:
-        return False
-
-    return other_space.corner_stone(face)
-
-
 def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
@@ -1044,36 +1036,65 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
 
 def is_mutable(edge: 'Edge', space: 'Space') -> bool:
     """
-    Returns a predicate indicating if an edge and its pair belongs to a mutable space
-
+    Returns True if the edge pair space is mutable
     :param edge:
     :param space:
     :return:
     """
-    if not edge.pair or not space.plan.get_space_of_edge(edge.pair):
-        return False
-    else:
-        other = space.plan.get_space_of_edge(edge.pair)
-        if space.mutable and other.mutable and other.number_of_faces > 1:
-            return True
+    return space and space.mutable
 
 
-def has_immutable_linear(edge: 'Edge', space: 'Space') -> bool:
+def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     :param edge:
     :param space:
     :return:
     """
-    if edge.face is None:
+    face = edge.face
+
+    if not space.category.needed_linears or not face:
         return False
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
-        if linear and not linear.category.mutable:
+        if linear and linear.category in space.category.needed_linears:
             return True
     return False
 
+
+def only_adjacent_to_immutable(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge face has an immutable component
+    :param edge:
+    :param space:
+    :return:
+    """
+    face = edge.face
+
+    if not space.category.needed_spaces or not face:
+        return False
+
+    # check if the face of the edge is adjacent to a needed space
+    for _edge in face.edges:
+        if space.is_boundary(_edge):
+            other = space.plan.get_space_of_edge(_edge.pair)
+            if other and other.category in space.category.needed_spaces:
+                break
+    else:
+        return False
+
+    # check if another face maintains the needed adjacency
+    for _edge in space.edges:
+        if _edge.face is face:
+            continue
+        _other = space.plan.get_space_of_edge(_edge.pair)
+        if not _other:
+            continue
+        if _other.category is other.category:
+            return False
+
+    return True
 
 # predicate factories
 
@@ -1554,10 +1575,10 @@ SELECTORS = {
     "polish": Selector(
         space_boundary,
         [
-            is_mutable,
+            pair(is_mutable),
             face_proportion(0.3),
             face_without_component(),
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
 
         ]
     ),
@@ -1832,14 +1853,14 @@ SELECTORS = {
         other_seed_space_edge,
         [
             adjacent_to_other_space,
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
         ]
     ),
 
     "corner_stone": Selector(
         space_boundary,
         [
-            pair_corner_stone
+            pair(corner_stone)
         ]
     ),
     "single_edge": Selector(boundary_unique),
@@ -1850,7 +1871,7 @@ SELECTORS = {
         [
             adjacent_to_other_space,
             is_not_aligned,
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
         ]
     ),
 
@@ -1967,7 +1988,11 @@ SELECTORS = {
                                           pair(is_not(only_face)),
                                           pair(is_not(corner_stone))]),
 
-    "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear), is_not(only_face), is_not(corner_stone)])
+    "is_mutable": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                     is_not(has_needed_linear),
+                                                     is_not(only_face),
+                                                     is_not(only_adjacent_to_immutable),
+                                                     is_not(corner_stone)])
 }
 
 SELECTOR_FACTORIES = {

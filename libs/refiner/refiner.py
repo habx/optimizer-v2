@@ -17,23 +17,25 @@ It implements a simple version of the NSGA-II algorithm:
 
 TODO LIST:
     • refine grid prior to genetic search
-    • guide mutation to refine choices and speed-up search
-    • forbid the swap of a face close to a needed component (eg. duct for a bathroom)
+    • create efficient all aligned edges mutation
+    • check edge selector to make sure we are not eliminating needed scenarios
 
 """
 import random
 import logging
+import multiprocessing
 
-from typing import TYPE_CHECKING, Optional, Tuple, Callable, List, Union
+from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
+    from libs.refiner.core import Individual
 
 # The type of an algorithm function
-algorithmFunc = Callable[['core.Toolbox', Plan, Optional['support.HallOfFame']],
+algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
                          List['core.Individual']]
 
 
@@ -47,34 +49,44 @@ class Refiner:
     • the algorithm function that will be applied to the plan
     """
     def __init__(self,
-                 fc_toolbox: Callable[['Specification'], 'core.Toolbox'],
+                 fc_toolbox: Callable[['Specification', dict], 'core.Toolbox'],
                  algorithm: algorithmFunc):
         self._toolbox_factory = fc_toolbox
         self._algorithm = algorithm
 
-    def apply_to(self, plan: 'Plan', spec: 'Specification') -> 'Plan':
+    def apply_to(self,
+                 plan: 'Plan',
+                 spec: 'Specification',
+                 params: dict, processes: int = 1) -> 'Plan':
         """
         Applies the refiner to the plan and returns the result.
         :param plan:
         :param spec:
+        :param params: the parameters of the genetic algorithm (ex. cxpb, mupb etc.)
+        :param processes: number of process to spawn
         :return:
         """
-        results = self.run(plan, spec)
+        results = self.run(plan, spec, params, processes, hof=1)
         return max(results, key=lambda i: i.fitness)
 
     def run(self,
             plan: 'Plan',
             spec: 'Specification',
-            with_hof: bool = False) -> Union[List['core.Individual'], 'support.HallOfFame']:
+            params: dict,
+            processes: int = 1,
+            hof: int = 0) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
         :param plan:
         :param spec:
-        :param with_hof: whether to return the results or a hall of fame
+        :param params:
+        :param processes: The number of processes to fork (if equal to 1: no multiprocessing
+                          is used.
+        :param hof: number of individual to store in a hof. If hof > 0 then the output is the hof
         :return:
         """
-        toolbox = self._toolbox_factory(spec)
-        _hof = support.HallOfFame(3) if with_hof else None
+        _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
+
         # 1. refine mesh of the plan
         # TODO : implement this
 
@@ -82,57 +94,97 @@ class Refiner:
         for floor in plan.floors.values():
             floor.mesh.compute_cache()
 
+        plan.store_meshes_globally()  # needed for multiprocessing (must be donne after the caching)
+        toolbox = self._toolbox_factory(spec, params)
+
+        # NOTE : the pool must be created after the toolbox in order to
+        # pass the global objects created when configuring the toolbox
+        # to the forked processes
+        map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
+        toolbox.register("map", map_func)
+
         # 3. run the algorithm
         initial_ind = toolbox.individual(plan)
-        results = self._algorithm(toolbox, initial_ind, _hof)
-        return results if not with_hof else _hof
+        results = self._algorithm(toolbox, initial_ind, params, _hof)
+
+        output = results if hof == 0 else _hof
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output)
+        return output
 
 
 # Toolbox factories
 
-def fc_nsga_toolbox(spec: 'Specification') -> 'core.Toolbox':
+# Algorithm functions
+def mate_and_mutate(mate_func,
+                    mutate_func,
+                    params: dict,
+                    couple: Tuple['Individual', 'Individual']) -> Tuple['Individual', 'Individual']:
+    """
+    Specific function for nsga algorithm
+    :param mate_func:
+    :param mutate_func:
+    :param params: a dict containing the arguments of the function
+    :param couple:
+    :return:
+    """
+    cxpb = params["cxpb"]
+    _ind1, _ind2 = couple
+    if random.random() <= cxpb:
+        mate_func(_ind1, _ind2)
+    mutate_func(_ind1)
+    mutate_func(_ind2)
+    _ind1.fitness.clear()
+    _ind2.fitness.clear()
+
+    return _ind1, _ind2
+
+
+def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     """
     Returns a toolbox
     :param spec: The specification to follow
-    :return:
+    :param params: The params of the algorithm
+    :return: a configured toolbox
     """
+    weights = params["weights"]  # a tuple containing the weights of the fitness
+    cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
+
     toolbox = core.Toolbox()
-    toolbox.configure("fitness", (-1.0, -10.0, -8.0))
-    toolbox.configure("individual", toolbox.fitness)
-    scores_fc = [evaluation.fc_score_area(spec),
-                 evaluation.score_corner,
-                 evaluation.score_bounding_box]
-    toolbox.register("evaluate", evaluation.compose(scores_fc))
+    toolbox.configure("fitness", "CustomFitness", weights)
+    toolbox.configure("individual", "customIndividual", toolbox.fitness)
+    # Note : order is very important as tuples are evaluated lexicographically in python
+    scores_fc = [evaluation.score_corner,
+                 evaluation.score_bounding_box,
+                 evaluation.fc_score_area]
+    toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     toolbox.register("mutate", mutation.mutate_simple)
     toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
+                     {"cxpb": cxpb})
     toolbox.register("select", nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
     return toolbox
 
 
-# Algorithm functions
-
 def simple_ga(toolbox: 'core.Toolbox',
               initial_ind: 'core.Individual',
+              params: dict,
               hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
     A simple implementation of a genetic algorithm.
     :param toolbox: a refiner toolbox
     :param initial_ind: an initial individual
+    :param params: the parameters of the algorithm
     :param hof: an optional hall of fame to store best individuals
     :return: the best plan
     """
     # algorithm parameters
-    ngen = 20
-    mu = 4 * 20  # Must be a multiple of 4 for tournament selection of NSGA-II
-    cxpb = 0.8
+    ngen = params["ngen"]
+    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
 
     pop = toolbox.populate(initial_ind, mu)
-    invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-    fitnesses = map(toolbox.evaluate, invalid_ind)
-    for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -145,26 +197,23 @@ def simple_ga(toolbox: 'core.Toolbox',
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
-        for ind1, ind2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() <= cxpb:
-                toolbox.mate(ind1, ind2)
-            toolbox.mutate(ind1)
-            toolbox.mutate(ind2)
-            ind1.fitness.clear()
-            ind2.fitness.clear()
+        # note : list is needed because map lazy evaluates
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+
+        # best score
+        best_ind = max(offspring, key=lambda i: i.fitness.value)
+        logging.info("Best : {} - {}".format(best_ind.fitness.value, best_ind.fitness.values))
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
 
         # store best individuals in hof
         if hof is not None:
-            hof.update(pop)
+            hof.update(pop, value=True)
 
     return pop
 
@@ -172,77 +221,3 @@ def simple_ga(toolbox: 'core.Toolbox',
 REFINERS = {
     "simple": Refiner(fc_nsga_toolbox, simple_ga)
 }
-
-if __name__ == '__main__':
-    """
-    1. get a plan
-    2. get some specifications
-    3. run algorithm
-    """
-    from libs.modelers.shuffle import SHUFFLES
-
-    def get_plan(plan_name: str = "001",
-                 spec_name: str = "0",
-                 solution_number: int = 0) -> Tuple['Specification', Optional['Plan']]:
-        """
-        Returns a solution plan
-        """
-        import logging
-
-        import libs.io.reader as reader
-        import libs.io.writer as writer
-        from libs.modelers.grid import GRIDS
-        from libs.modelers.seed import SEEDERS
-        from libs.space_planner.space_planner import SpacePlanner
-        from libs.plan.plan import Plan
-        from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
-        # logging.getLogger().setLevel(logging.DEBUG)
-
-        spec_file_name = plan_name + "_setup" + spec_name
-        plan_file_name = plan_name + "_solution_" + str(solution_number)
-        folder = DEFAULT_PLANS_OUTPUT_FOLDER
-
-        try:
-            new_serialized_data = reader.get_plan_from_json(plan_file_name)
-            plan = Plan(plan_name).deserialize(new_serialized_data)
-            spec_dict = reader.get_json_from_file(spec_file_name + ".json",
-                                                  DEFAULT_PLANS_OUTPUT_FOLDER)
-            spec = reader.create_specification_from_data(spec_dict, "new")
-            spec.plan = plan
-            return spec, plan
-
-        except FileNotFoundError:
-            plan = reader.create_plan_from_file(plan_name + ".json")
-            spec = reader.create_specification_from_file(spec_file_name + ".json")
-
-            GRIDS['optimal_grid'].apply_to(plan)
-            SEEDERS["simple_seeder"].apply_to(plan)
-            spec.plan = plan
-            space_planner = SpacePlanner("test", spec)
-            best_solutions = space_planner.solution_research()
-            new_spec = space_planner.spec
-
-            if best_solutions:
-                solution = best_solutions[solution_number]
-                plan = solution.plan
-                new_spec.plan = plan
-                writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
-                return new_spec, plan
-            else:
-                logging.info("No solution for this plan")
-                return spec, None
-
-    def main():
-        """ test function """
-        logging.getLogger().setLevel(logging.INFO)
-
-        spec, plan = get_plan("052")
-        if plan:
-            plan.plot()
-            SHUFFLES["bedrooms_corner"].apply_to(plan)
-            hof = REFINERS["simple"].run(plan, spec, True)
-            for i in hof:
-                i.plot()
-
-    main()

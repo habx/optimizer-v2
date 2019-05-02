@@ -38,7 +38,6 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
     })
 
     job_input = response.json().get('job')
-    job_input['context']['taskId'] = str(uuid.uuid4())
 
     td = TaskDefinition.from_json(job_input)
     return td
@@ -89,16 +88,27 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         "-B", "--batch-execution-id", dest="batch_execution_id",
         default=os.getenv('BATCH_EXECUTION_ID'), metavar="ID", help="BatchExecution ID"
     )
+
+    # OPT-106: Allowing to specify a taskId
+    parser.add_argument(
+        "-t", "--task-id", dest="task_id", metavar="ID", help="Task ID"
+    )
     args = parser.parse_args()
 
-    context = {
+    job_fetching_params = {
         'blueprintId': args.blueprint_id,
         'setupId': args.setup_id,
         'paramsId': args.params_id,
         'batchExecutionId': args.batch_execution_id,
     }
 
-    td = fetch_task_definition(context)
+    td = fetch_task_definition(job_fetching_params)
+
+    td.task_id = args.task_id
+
+    # If no taskId is specified, we should specify one
+    if not td.task_id:
+        td.task_id = str(uuid.uuid4())
 
     config = Config()
 
