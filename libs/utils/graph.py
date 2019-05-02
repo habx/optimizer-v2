@@ -144,8 +144,8 @@ class EdgeGraph:
             for edge1 in edges1:
                 for edge2 in edges2:
                     search = dijkstar.find_path(self.graph_struct,
-                                                edge1,
-                                                edge2,
+                                                edge1.start,
+                                                edge2.start,
                                                 cost_func=lambda u, v, e, prev_e: e['cost'])
                     if cost is None or cost > search[3]:
                         path = search[0]
@@ -161,7 +161,8 @@ class EdgeGraph:
                 self.graph_struct.add_edge(edge.end, "virtual2", cost=0)
             # compute shortest path between virtual nodes
             try:
-                path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
+                path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2", weight='cost')[
+                       1:-1]
             except nx.exception.NetworkXNoPath:
                 # TODO : for now, the only case where this exception is thrown should be when
                 # a floor is cut into several parts by a load bearing wall.
