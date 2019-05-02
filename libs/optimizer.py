@@ -13,6 +13,7 @@ from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
+from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SpacePlanner
 from libs.version import VERSION as OPTIMIZER_VERSION
 
@@ -44,21 +45,51 @@ class Response:
 
 
 class ExecParams:
-    """Dict wrapper, mostly useful for auto-completion"""
+    """
+    Dict wrapper, mostly useful for auto-completion
+
+         TODO : the params structure does not seem generic enough.
+                The structure should be the same for each step of the pipe.
+                For example, we could do something nicer such as :
+                params = {
+                           'grid': {'name': 'optimal_grid', 'params': {}},
+                           'seeder': {'name': 'simple_seeder, 'params': {}},
+                           'space_planner': {'name': 'default_planner', 'params': {}},
+                           'shuffle': {'name': 'simple_shuffle', 'params': {}, 'run': False},
+                           'refiner': {'name': 'simple', 'params': {'mu': 28, 'ngen': 100 ...},
+                                       'run': True}
+                          }
+                To use as follow:
+                if self.params.shuffle['run']:
+                    (SHUFFLES[self.params.shuffle['name']]
+                        .apply_to(plan, params=self.params.shuffle['params']))
+
+    """
     def __init__(self, params):
         if not params:
             params = {}
 
+        refiner_params = {
+            "weights": (-2.0, -1.0, -1.0),
+            "ngen": 120,
+            "mu": 28,
+            "cxpb": 0.9
+        }
+
         self.grid_type = params.get('grid_type', 'optimal_grid')
-        self.seeder_type = params.get('seeder_type', "simple_seeder")
+        self.seeder_type = params.get('seeder_type', 'simple_seeder')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
+        self.do_refiner = params.get('do_refiner', False)
+        self.refiner_type = params.get('refiner_type', 'simple')
+        self.refiner_params = params.get('refiner_params', refiner_params)
 
 
 class Optimizer:
     """
     Class used to run Optimizer with defined parameters.
+    TODO: why are we using a Class here? We could just use functions and the module namespace.
     """
 
     VERSION = OPTIMIZER_VERSION
@@ -81,8 +112,11 @@ class Optimizer:
 
         return self.run(lot, setup, params)
 
-    def run(self, lot: dict, setup: dict, params_dict: dict = None, local_params: dict = None) \
-            -> Response:
+    def run(self,
+            lot: dict,
+            setup: dict,
+            params_dict: dict = None,
+            local_params: dict = None) -> Response:
         """
         Run Optimizer
         :param lot: lot data
@@ -153,6 +187,21 @@ class Optimizer:
                         sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
+
+        # refiner
+        t0_shuffle = time.process_time()
+        if params.do_refiner:
+            logging.info("Refiner")
+            if best_solutions and space_planner:
+                spec = space_planner.spec
+                for sol in best_solutions:
+                    spec.plan = sol.plan
+                    sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
+                                                                      params.refiner_params)
+                    if params.do_plot:
+                        sol.plan.plot()
+        elapsed_times["refiner"] = time.process_time() - t0_shuffle
+        logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
         # output
         t0_output = time.process_time()
