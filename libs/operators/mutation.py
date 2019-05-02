@@ -3,7 +3,6 @@
 Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
-TODO : we should distinguish mesh mutations from spaces mutations
 """
 from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
@@ -27,18 +26,21 @@ class Mutation:
     Will mutate a face and return the modified spaces
     """
 
-    __slots__ = 'name', '_mutation', '_spaces_modified', '_initial_state', 'reversible'
+    __slots__ = ('name', '_mutation', '_spaces_modified', '_initial_state',
+                 'reversible', 'modifies_mesh')
 
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
                  reversible: bool = True,
-                 name: str = ''):
+                 name: str = '',
+                 modifies_mesh: bool = True):
         self.name = name
         self._mutation = mutation
         self._spaces_modified = spaces_modified
         self._initial_state = Plan("storage")
         self.reversible = reversible
+        self.modifies_mesh = modifies_mesh
 
     def __repr__(self):
         return 'Mutation: {0}'.format(self.name)
@@ -52,8 +54,8 @@ class Mutation:
         """
         self._store_initial_state(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
-        # update the plan if need be
-        if output:
+        # update the plan if the mesh has been modified
+        if output and self.modifies_mesh:
             space.plan.update_from_mesh()
         return output
 
@@ -554,12 +556,12 @@ MUTATION_FACTORIES = {
 }
 
 MUTATIONS = {
-    "swap_face": Mutation(add_face),
-    "remove_face": Mutation(remove_face),
-    "swap_aligned_face": Mutation(swap_aligned_face),
-    "add_aligned_face": Mutation(add_aligned_face),
+    "swap_face": Mutation(add_face, modifies_mesh=False),
+    "remove_face": Mutation(remove_face, modifies_mesh=False),
+    "swap_aligned_face": Mutation(swap_aligned_face, modifies_mesh=False),
+    "add_aligned_face": Mutation(add_aligned_face, modifies_mesh=False),
     "ortho_projection_cut": Mutation(ortho_cut, reversible=False),
     "remove_edge": Mutation(remove_edge, reversible=False),
     "remove_line": Mutation(remove_line, reversible=False),
-    "merge_spaces": Mutation(merge_spaces)
+    "merge_spaces": Mutation(merge_spaces, modifies_mesh=False)
 }
