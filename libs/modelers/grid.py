@@ -339,6 +339,11 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["face_min_area"], MUTATIONS["remove_edge"], False)
 ])
 
+refiner_grid = Grid("refiner", [
+    (SELECTORS["plan_boundary_no_linear"], MUTATION_FACTORIES['barycenter_cut'](0.5), False),
+    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False),
+    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
+])
 
 GRIDS = {
     "ortho_grid": ortho_grid,
@@ -349,7 +354,8 @@ GRIDS = {
     "duct": duct_grid,
     "optimal_grid": (section_grid + duct_grid + corner_grid + load_bearing_wall_grid + window_grid +
                      entrance_grid + stair_grid + completion_grid + cleanup_grid),
-    "test_grid_temp": section_grid
+    "test_grid_temp": section_grid,
+    "refiner_grid": refiner_grid
 }
 
 if __name__ == '__main__':
@@ -370,14 +376,19 @@ if __name__ == '__main__':
         print(len(new_plan.mesh.faces))
 
 
-    # create_a_grid()
-
     def refine_grid():
         """
         Test
         :return:
         """
-        import tools
-        spec, plan = tools.cache.get_plan("030")
+        import tools.cache
+        spec, plan = tools.cache.get_plan("008")
+        new_plan = GRIDS["refiner_grid"].apply_to(plan, show=True)
+        new_plan.plot(save=False)
+        plt.show()
+        print(len(new_plan.mesh.faces))
+
+
+    refine_grid()
 
 

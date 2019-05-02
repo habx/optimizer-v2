@@ -513,7 +513,7 @@ class Space(PlanComponent):
             current_edge = self.next_edge(current_edge)
 
     @property
-    def edges(self) -> Generator[Edge, None, None]:
+    def edges(self) -> Generator[Edge, Edge, None]:
         """
         The boundary edges of the space
         :return: an iterator
@@ -562,7 +562,6 @@ class Space(PlanComponent):
         :param face: an optional face. When specified, only check the axes of this specific face
         :return:
         """
-        output = {}
         # retrieve all the edges of the space that are adjacent to the outside
         boundary_edges = []
         edges_to_search = self.edges if not face else face.edges
@@ -576,7 +575,18 @@ class Space(PlanComponent):
             return []
 
         # check for the angle of each edge
-        for _edge in boundary_edges:
+        return self._axes(boundary_edges)
+
+    def _axes(self, edges: Optional[Sequence['Edge']] = None) -> [float]:
+        """
+        Return the main axes of the space exterior edges
+        :param edges: an optional list of edges to check
+        :return:
+        """
+        output = {}
+        edges = edges or self.exterior_edges
+        # check for the angle of each edge
+        for _edge in edges:
             angle = ccw_angle((1, 0), _edge.vector) % 90.0
 
             if angle in output:
@@ -587,10 +597,9 @@ class Space(PlanComponent):
         return sorted(output.keys(), key=lambda k: output[k], reverse=True)
 
     def _directions(self, face: Optional['Face'] = None):
-        if not self._external_axes(face):
-            return None
-
-        x = unit_vector(self._external_axes(face)[0])
+        edges = face.edges if face is not None else self.edges
+        axes = self._external_axes(face) or self._axes(list(edges))
+        x = unit_vector(axes[0])
         y = normal_vector(x)
         return x, y, opposite_vector(x), opposite_vector(y)
 
@@ -617,6 +626,12 @@ class Space(PlanComponent):
         :param vector:
         :return:
         """
+        # if a space has no external walls (for example an internal bathroom)
+        # then it will not have specific directions
+        if not self.directions:
+            logging.debug("Space: Best Directions, space has no external directions %s", self)
+            return vector
+
         return max(self.directions, key=lambda d: dot_product(d, vector))
 
     @property
@@ -1244,7 +1259,7 @@ class Space(PlanComponent):
             return False
 
         # temporarily remove the faces from the self
-        list(map(lambda f: self.remove_face_id(f.id), faces))
+        list(map(lambda _f: self.remove_face_id(_f.id), faces))
 
         # we must check to see if we split the other_self by removing the face
         # for each adjacent face inside the other_self check if they are still connected
@@ -1257,7 +1272,7 @@ class Space(PlanComponent):
 
         adjacent_faces.remove(adjacent_face)
 
-        list(map(lambda f: self.add_face_id(f.id), faces))
+        list(map(lambda _f: self.add_face_id(_f.id), faces))
 
         return len(adjacent_faces) != 0
 

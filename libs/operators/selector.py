@@ -21,7 +21,6 @@ from typing import Sequence, Generator, Callable, Any, Optional, TYPE_CHECKING
 import math
 import logging
 
-from libs.plan.category import SPACE_CATEGORIES
 from libs.utils.geometry import (
     ccw_angle,
     opposite_vector,
@@ -1034,10 +1033,10 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
     return False
 
 
-def is_mutable(edge: 'Edge', space: 'Space') -> bool:
+def is_mutable(_: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge pair space is mutable
-    :param edge:
+    :param _:
     :param space:
     :return:
     """
@@ -1095,6 +1094,21 @@ def only_adjacent_to_immutable(edge: 'Edge', space: 'Space') -> bool:
             return False
 
     return True
+
+
+def adjacent_to_external_space(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge pair is on the boundary of the mesh or belongs to an
+    external space
+    :param edge:
+    :param space:
+    :return:
+    """
+    if edge.pair.face is None:
+        return True
+    other = space.plan.get_space_of_edge(edge.pair)
+    return not other or other.category.external
+
 
 # predicate factories
 
@@ -1316,7 +1330,8 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
     Predicate factory
     Returns a predicate indicating if an edge is on, before, after
     or between two linears of the provided category
-    :param category_names: tuple of linear category names
+    :param category_names: tuple of linear category names. If no category is specified will
+                           consider every linear.
     :param position : where should the edge be : before, after, between, on
     :return:
     """
@@ -1330,7 +1345,7 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         # check if the edge belongs to a linear
         linear = space.plan.get_linear(edge)
-        is_on_linear = linear and linear.category.name in category_names
+        is_on_linear = linear and (not category_names or linear.category.name in category_names)
 
         if position == 'on':
             return is_on_linear
@@ -1340,17 +1355,21 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
 
         if position == 'before':
             next_linear = space.plan.get_linear(edge.next)
-            return next_linear and next_linear.category.name in category_names
+            return (next_linear and
+                    (not category_names or next_linear.category.name in category_names))
 
         if position == 'after':
             previous_linear = space.plan.get_linear(edge.previous)
-            return previous_linear and previous_linear.category.name in category_names
+            return (previous_linear and
+                    (not category_names or previous_linear.category.name in category_names))
 
         if position == 'between':
             next_linear = space.plan.get_linear(edge.next)
             previous_linear = space.plan.get_linear(edge.previous)
-            if previous_linear and previous_linear.category.name in category_names:
-                if next_linear and next_linear.category.name in category_names:
+            if ((previous_linear and (not category_names
+                                      or previous_linear.category.name in category_names))
+                and (next_linear and (not category_names
+                                      or next_linear.category.name in category_names))):
                     return True
             return False
 
@@ -1992,7 +2011,12 @@ SELECTORS = {
                                                      is_not(has_needed_linear),
                                                      is_not(only_face),
                                                      is_not(only_adjacent_to_immutable),
-                                                     is_not(corner_stone)])
+                                                     is_not(corner_stone)]),
+
+    "plan_boundary_no_linear": Selector(space_external_boundary,
+                                        [adjacent_to_external_space,
+                                         edge_length(min_length=40),
+                                         is_not(touches_linear(position='on'))])
 }
 
 SELECTOR_FACTORIES = {
