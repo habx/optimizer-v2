@@ -44,8 +44,10 @@ def mutate_simple(ind: 'Individual') -> 'Individual':
     edge = _random_edge(space)
     if edge:
         modified_spaces = MUTATIONS["remove_face"].apply_to(edge, space)
-        if len(modified_spaces) > 2:
+        if __debug__ and len(modified_spaces) > 2:
             logging.warning("Refiner: Mutation: A space was split !! %s", modified_spaces[2])
+        if __debug__ and space.number_of_faces == 0:
+            logging.warning("Refiner: A space has no face left !!")
     return ind
 
 

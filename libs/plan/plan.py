@@ -357,16 +357,16 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        if not self.is_boundary(edge):
-            raise ValueError("The edge has to be a boundary "
-                             "edge: {0} of space: {1}".format(edge, self))
+        assert self.is_boundary(edge), ("The edge has to be a boundary "
+                                        "edge: {0} of space: {1}".format(edge, self))
 
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
-            if next_edge in seen:
+            if __debug__ and next_edge in seen:
                 raise Exception("The mesh is badly formed for space: %s", self)
-            seen.append(next_edge)
+            if __debug__:
+                seen.append(next_edge)
             next_edge = next_edge.cw
 
         return next_edge
@@ -1197,8 +1197,15 @@ class Space(PlanComponent):
         :param faces:
         :return:
         """
-        # case 1 : the space has only one face (we return true per convention)
-        if self.number_of_faces == 1:
+        assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
+        for f in faces:
+            assert self.has_face(f), ("Space: Corner Stone, the faces "
+                                      "provided must belong to the space: {}".format(f))
+
+        # case 1 : if we are trying to remove all the faces of the space
+        if self.number_of_faces == len(faces):
+            logging.debug("Space: Corner Stone : Trying to remove all the faces of the space: "
+                          "{}".format(self))
             return True
 
         faces = list(set(faces))
@@ -2063,7 +2070,7 @@ class Floor:
         if self.mesh:
             self.mesh.add_watcher(self.plan.watcher)
         else:
-            logging.debug("Plan: trying to add a watcher to a floor without mesh %s", self)
+            logging.debug("Plan: trying to add a watcher from a floor without mesh %s", self)
 
     def serialize(self, embedded_mesh: bool = True) -> Dict:
         """
@@ -2264,13 +2271,12 @@ class Plan:
         Used to replace pickling method.
         This is needed due to the circular references in the mesh that makes it inefficient
         for the standard pickle protocol.
-        For performance purposes : we do not pickle the mesh
         """
-        return self.serialize(embedded_mesh=False)
+        return self.serialize()
 
     def __setstate__(self, state: Dict):
         """ Used to replace pickling method. """
-        self.deserialize(state, embedded_mesh=False)
+        self.deserialize(state)
 
     def watcher(self, modifications: Dict[int, 'MeshModification'], mesh_id: uuid.UUID):
         """

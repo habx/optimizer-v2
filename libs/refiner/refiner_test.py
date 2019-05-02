@@ -3,8 +3,12 @@ Refiner Test Module
 """
 
 import logging
+
 from libs.refiner.refiner import REFINERS
 from libs.refiner import evaluation
+from libs.io import reader_test
+
+INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
             "weights": (-2.0, -1.0, -1.0),
@@ -55,7 +59,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("022")  # 052
+    spec, plan = tools.cache.get_plan("008")  # 052
 
     if plan:
         plan.name = "original"
@@ -65,6 +69,7 @@ def apply():
         start = time.time()
         improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
+        improved_plan.name = "Refined"
         improved_plan.plot()
         # analyse found solutions
         print("Time elapsed: {}".format(end - start))

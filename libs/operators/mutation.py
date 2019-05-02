@@ -3,7 +3,6 @@
 Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
-TODO : we should distinguish mesh mutations from spaces mutations
 """
 from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
@@ -55,9 +54,7 @@ class Mutation:
         """
         self._store_initial_state(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
-        # update the plan if need be
-        # TODO: This is really bad : we don't want this if the mutation
-        #       has no impact on the mesh
+        # update the plan if the mesh has been modified
         if output and self.modifies_mesh:
             space.plan.update_from_mesh()
         return output

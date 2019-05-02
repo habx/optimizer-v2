@@ -204,12 +204,12 @@ class Individual(Plan):
         return new_ind
 
     def __getstate__(self) -> dict:
-        data = super().__getstate__()
+        data = self.serialize(embedded_mesh=False)
         data["fitness"] = self.fitness
         return data
 
     def __setstate__(self, state: dict):
-        super().__setstate__(state)
+        self.deserialize(state, embedded_mesh=False)
         self.fitness = state["fitness"]
 
     def __deepcopy__(self, memo) -> 'Individual':
@@ -348,4 +348,3 @@ class Toolbox:
         fitnesses = map_func(eval_func, invalid_fit)
         for ind, fit in zip(invalid_fit, fitnesses):
             ind.fitness.values = fit
-        logging.debug("bab")
