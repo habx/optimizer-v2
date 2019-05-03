@@ -71,7 +71,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        #self.circulator.plot()
 
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
