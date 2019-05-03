@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Tuple, Dict, List
 
 import matplotlib.pyplot as plt
+from functools import reduce
 
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
@@ -19,6 +20,7 @@ from libs.utils.geometry import (
 
 
 # TODO LIST:
+# -remove angle measure and add global epsilon
 # -deal with corridor corners
 # -deal with one vertex path
 # -cut slices orthogonally to start and final edges if needed by the refiner
@@ -95,6 +97,7 @@ class Corridor:
         A path has to penetrate a room if following conditions are satisfied
             -it extends on the room border, not inside the room space
             -it is not on the plan border
+            -it is not along a load bearing wall
         When penetration conditions are satisfied, the penetration shall have a length equal to
         penetration_length
         :param List['Vertex']: ordered list of vertices forming a circulation path
@@ -114,6 +117,10 @@ class Corridor:
                 return False
             if not edge.face or not edge.pair.face:
                 # edge on the plan border
+                return False
+            if (self.plan.get_space_of_edge(edge).category.name == "loadBearingWall"
+                    or self.plan.get_space_of_edge(edge.pair).category.name == "loadBearingWall"):
+                # edge along a load bearing wall
                 return False
             return True
 
@@ -210,6 +217,8 @@ class Corridor:
         # layer slices parallel to path edges
         for edge in edge_path:
             self._layer_slice(edge, show)
+
+        edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
         for edge in edge_path:
@@ -341,7 +350,6 @@ class Corridor:
             width = 0 if not portions_width else min(portions_width)
             return width
 
-
         width_ccw = _get_width()
         width_cw = _get_width(ccw=False)
 
@@ -460,7 +468,12 @@ class Corridor:
 
         def _get_containing_face(vertex):
             # gets the face in which the vertex is lying
-            for face in edge.mesh.faces:
+            # for better performance, try faces ordered by their distance to vertex
+            faces = reduce(lambda a, b: a + b, [list(space.faces) for space in self.plan.spaces])
+            faces = sorted(faces, key=lambda x: x.edge.start.distance_to(vertex))
+
+            # gets the face in which the vertex is lying
+            for face in faces:
                 if face.as_sp.contains(vertex.as_sp):
                     return face
             return None
@@ -609,7 +622,7 @@ class Corridor:
             return False
 
         if (not space_ini
-                or not space_ini.mutable
+                # or not space_ini.mutable
                 or not vertex.mesh):
             return
 
@@ -659,7 +672,7 @@ CORRIDOR_RULES = {
 if __name__ == '__main__':
     import argparse
 
-    # logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -738,5 +751,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "018.json"
+    # plan_name = "010.json"
     main(input_file=plan_name)
