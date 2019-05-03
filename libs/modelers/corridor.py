@@ -211,9 +211,14 @@ class Corridor:
         for edge in edge_path:
             self._layer_slice(edge, show)
 
-        # mesh cut, orthogonal to start and final path edges
-        self._ortho_slice(edge_path[0], start=True, show=show)
+        # mesh cut, orthogonal to edge path
+        for edge in edge_path:
+            self._ortho_slice(edge, start=True, show=show)
         self._ortho_slice(edge_path[-1], show=show)
+
+        # # mesh cut, orthogonal to start and final path edges
+        # self._ortho_slice(edge_path[0], start=True, show=show)
+        # self._ortho_slice(edge_path[-1], show=show)
 
         return self
 
@@ -336,17 +341,22 @@ class Corridor:
             width = 0 if not portions_width else min(portions_width)
             return width
 
+
         width_ccw = _get_width()
         width_cw = _get_width(ccw=False)
 
         # the corridor is grown on each side while
         #  -growth is possible and corridor width is
         #  -under self.corridor_rules["width"]
+        narrow_step = self.corridor_rules["layer_width"]
         while width_ccw + width_cw > self.corridor_rules["width"] + 1:
+            if width_ccw + width_cw - self.corridor_rules["layer_width"] < self.corridor_rules[
+                "width"]:
+                narrow_step = width_ccw + width_cw - self.corridor_rules["width"]
             if width_ccw > width_cw:
-                width_ccw -= self.corridor_rules["layer_width"]
+                width_ccw -= narrow_step
             else:
-                width_cw -= self.corridor_rules["layer_width"]
+                width_cw -= narrow_step
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
         for edge in edge_line:
@@ -556,6 +566,26 @@ class Corridor:
                 intersect_vertex_next.remove_from_mesh()
             return False
 
+        def _start_cut_conditions(v: 'Vertex', e: 'Edge'):
+            """
+            :param v:
+            :param e:
+            :return:
+            """
+            if not e.face:
+                return False
+
+            if _projects_on_linear(v, e):
+                return False
+
+            if self.plan.get_linear(e):
+                return False
+
+            if self.plan.get_space_of_edge(e) and not self.plan.get_space_of_edge(e).mutable:
+                return False
+
+            return True
+
         def callback(new_edges: Optional[Tuple[Edge, Edge]]) -> bool:
             """
             Callback to insure space consistency
@@ -583,16 +613,19 @@ class Corridor:
                 or not vertex.mesh):
             return
 
-        if edge.face and not _projects_on_linear(vertex, edge) and not self.plan.get_linear(edge):
+        # if edge.face and not _projects_on_linear(vertex, edge) and not self.plan.get_linear(edge) \
+        #        and self.plan.get_space_of_edge(edge).mutable:
+        if _start_cut_conditions(vertex, edge):
             edge.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
                                callback=callback)
 
         if not vertex.mesh:
             return
 
-        if edge.pair.face and not _projects_on_linear(vertex,
-                                                      edge.pair) and not self.plan.get_linear(
-            edge.pair):
+        # if edge.pair.face and not _projects_on_linear(vertex,
+        #                                              edge.pair) and not self.plan.get_linear(
+        #    edge.pair) and self.plan.get_space_of_edge(edge.pair).mutable:
+        if _start_cut_conditions(vertex, edge.pair):
             edge.pair.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
                                     callback=callback)
 
@@ -626,7 +659,7 @@ CORRIDOR_RULES = {
 if __name__ == '__main__':
     import argparse
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    # logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -691,7 +724,6 @@ if __name__ == '__main__':
         # * 35, 40 : linear cut
         # * 46 : not enough contact with entrance
         # * 31 : wrong corridor shape
-        # * 5 : wrong path proposed
 
         plan = get_plan(input_file)
         plan.name = input_file[:-5]
@@ -706,5 +738,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "005.json"
+    #plan_name = "018.json"
     main(input_file=plan_name)
