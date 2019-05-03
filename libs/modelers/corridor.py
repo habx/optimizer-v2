@@ -27,6 +27,7 @@ from libs.utils.geometry import (
 #   *grow on bigger rooms,
 #   *grow so as to minimize the number of corners...
 
+
 class Corridor:
     """
     Corridor Class
@@ -653,7 +654,6 @@ if __name__ == '__main__':
         spec_file_name = input_file[:-5] + "_setup0"
         plan_file_name = input_file
 
-
         try:
             new_serialized_data = reader.get_plan_from_json(input_file)
             plan = Plan(input_file[:-5]).deserialize(new_serialized_data)
@@ -706,5 +706,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "005.json"
+    # plan_name = "005.json"
     main(input_file=plan_name)
