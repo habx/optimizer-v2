@@ -13,7 +13,6 @@ from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
-from libs.modelers.corridor import Corridor
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SpacePlanner
 from libs.version import VERSION as OPTIMIZER_VERSION
@@ -66,7 +65,6 @@ class ExecParams:
                         .apply_to(plan, params=self.params.shuffle['params']))
 
     """
-
     def __init__(self, params):
         if not params:
             params = {}
@@ -78,21 +76,11 @@ class ExecParams:
             "cxpb": 0.9
         }
 
-        corridor_params = {
-            "layer_width": 25,
-            "nb_layer": 5,
-            "recursive_cut_length": 400,
-            "width": 100,
-            "penetration_length": 90
-        }
-
         self.grid_type = params.get('grid_type', 'optimal_grid')
         self.seeder_type = params.get('seeder_type', 'simple_seeder')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
-        self.do_corridor = params.get('do_corridor', False)
-        self.corridor_type = params.get('corridor_params', corridor_params)
         self.do_refiner = params.get('do_refiner', False)
         self.refiner_type = params.get('refiner_type', 'simple')
         self.refiner_params = params.get('refiner_params', refiner_params)
@@ -199,20 +187,6 @@ class Optimizer:
                         sol.plan.plot()
         elapsed_times["shuffle"] = time.process_time() - t0_shuffle
         logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
-
-        # corridor
-        t0_corridor = time.process_time()
-        if params.do_corridor:
-            logging.info("Corridor")
-            if best_solutions and space_planner:
-                spec = space_planner.spec
-                for sol in best_solutions:
-                    spec.plan = sol.plan
-                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan)
-                    if params.do_plot:
-                        sol.plan.plot()
-        elapsed_times["corridor"] = time.process_time() - t0_corridor
-        logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
         # refiner
         t0_shuffle = time.process_time()
