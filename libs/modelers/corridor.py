@@ -49,7 +49,7 @@ class Corridor:
         self.plan: Plan = None
         self.circulator: Circulator = None
 
-    def _init(self):
+    def _clear(self):
         self.plan = None
         self.circulator = None
         self.paths = []
@@ -64,7 +64,7 @@ class Corridor:
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
-        self._init()
+        self._clear()
         self.plan = plan
 
         # computes circulation paths and stores them
@@ -706,5 +706,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "005.json"
+    plan_name = "005.json"
     main(input_file=plan_name)
