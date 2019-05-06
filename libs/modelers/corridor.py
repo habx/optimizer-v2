@@ -198,7 +198,7 @@ class Corridor:
             while not edge or (vert_end is not vertex_path[v + 1]):
                 for edge in vert_end.edges:
                     dir_e = edge.unit_vector
-                    if 1 > ccw_angle(ref_dir, dir_e) > -1:
+                    if parallel(ref_dir, dir_e):
                         edge_path.append(edge)
                         vert_end = edge.end
                         break
