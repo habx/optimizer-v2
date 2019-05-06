@@ -18,10 +18,11 @@ from libs.utils.geometry import (
     parallel
 )
 
+EPSILON = 1
+
 
 # TODO LIST:
 # -remove angle measure and add global epsilon
-# -deal with corridor corners
 # -deal with one vertex path
 # -cut slices orthogonally to start and final edges if needed by the refiner
 # -for now corridor is grown on each side of a path as long as growth is possible,
@@ -406,7 +407,7 @@ class Corridor:
         #  -growth is possible and corridor width is
         #  -under self.corridor_rules["width"]
         narrow_step = self.corridor_rules["layer_width"]
-        while width_ccw + width_cw > self.corridor_rules["width"] + 1:
+        while width_ccw + width_cw > self.corridor_rules["width"] + EPSILON:
             if width_ccw + width_cw - self.corridor_rules["layer_width"] < self.corridor_rules[
                 "width"]:
                 narrow_step = width_ccw + width_cw - self.corridor_rules["width"]
@@ -461,7 +462,7 @@ class Corridor:
 
                 dist_tmp = e.start.distance_to(edge.end)
                 if (pseudo_equal(angle, 180, 10)
-                        and dist_tmp < width + 2
+                        and dist_tmp < width + 2 * EPSILON
                         and _layer_condition(e)):
                     dist = dist_tmp
                     start_edge = e.pair
@@ -786,9 +787,7 @@ if __name__ == '__main__':
     def main(input_file: str):
 
         # TODO : à reprendre
-        # * 35, 40 : linear cut
-        # * 46 : not enough contact with entrance
-        # * 31 : wrong corridor shape
+        # * 61 : wrong corridor shape
 
         plan = get_plan(input_file)
         plan.name = input_file[:-5]
