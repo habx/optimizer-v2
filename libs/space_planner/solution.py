@@ -535,40 +535,41 @@ class Solution:
         :return: score : float
         """
         something_inside_score = 100
-        for item, space in self.items_spaces.items():
+        for item in self.items_spaces:
+            space = self.items_spaces[item]
             #  duct or pillar or small bearing wall
             if space.has_holes:
-                item_something_inside_score = 0
-                something_inside_score = min(something_inside_score,
-                                             item_something_inside_score)
                 logging.debug("Solution %i: Something Inside score : %f, room : %s, has_holes",
-                              self._id, something_inside_score, item.category.name)
-                continue
+                              self._id, 0, item.category.name)
+                return 0
             #  isolated room
-            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "cellar",
-                                          "study", "laundry"]
-            sp_space = space.as_sp
-            convex_hull = sp_space.convex_hull
+            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "study", "laundry"]
+            convex_hull = space.as_sp.convex_hull
             for i_item in self.items_spaces:
-                if (i_item != item and not (
-                        i_item.category.name in list_of_non_concerned_room) and space.floor ==
-                        self.items_spaces[i_item]):
-                    if (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
+                if (i_item != item and
+                        i_item.category.name not in list_of_non_concerned_room and space.floor ==
+                        self.items_spaces[i_item].floor):
+                    if (self.items_spaces[i_item].as_sp.is_valid and
+                            (round((convex_hull.intersection(self.items_spaces[i_item].as_sp)).area)
+                             == round(self.items_spaces[i_item].as_sp.area))):
+                        logging.debug(
+                            "Solution %i: Something Inside score : %f, room : %s - isolated room",
+                            self._id, 0, i_item.category.name)
+                        return 0
+                    elif (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
                             space.area / 8):
-                        # Check jroom adjacency
+                        # Check i_item adjacency
                         other_room_adj = False
-                        for j_item in self.collector.spec.items:
+                        for j_item in self.items_spaces:
                             if j_item != i_item and j_item != item:
-                                if space.adjacent_to(self.items_spaces[j_item]):
+                                if self.items_spaces[i_item].adjacent_to(self.items_spaces[j_item]):
                                     other_room_adj = True
+                                    break
                         if not other_room_adj:
-                            item_something_inside_score = 0
-                            something_inside_score = min(something_inside_score,
-                                                         item_something_inside_score)
                             logging.debug("Solution %i: Something Inside score : %f, room : %s, "
                                           "isolated room", self._id, something_inside_score,
                                           item.category.name)
-                            break
+                            return 0
 
         logging.debug("Solution %i: Something Inside score : %f", self._id, something_inside_score)
         return something_inside_score
