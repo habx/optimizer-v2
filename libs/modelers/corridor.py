@@ -51,13 +51,13 @@ class Corridor:
         self.plot = plot
         self.plan: Plan = None
         self.circulator: Circulator = None
-        self.growth_data: Dict = None
+        self.corner_data: Dict = None
 
     def _clear(self):
         self.plan = None
         self.circulator = None
         self.paths = []
-        self.growth_data = {}
+        self.corner_data = {}
 
     def apply_to(self, plan: 'Plan', show: bool = False):
         """
@@ -228,38 +228,59 @@ class Corridor:
             self._ortho_slice(edge, start=True, show=show)
         self._ortho_slice(edge_path[-1], show=show)
 
-        # # mesh cut, orthogonal to start and final path edges
-        # self._ortho_slice(edge_path[0], start=True, show=show)
-        # self._ortho_slice(edge_path[-1], show=show)
-
         return self
 
     def _corner_fill(self, show: bool = False):
+        """
+        Fills corridor corners
+        -path corner edges are stored in self.corner_data
+        -finds edges aligned with path corner edges and selects those that
+        are along a corridor space
+        -adds corridor space portions along those edges
+        :param show:
+        :return:
+        """
 
-        def condition(e: 'Edge'):
+        def _condition(e: 'Edge'):
             if (self.plan.get_space_of_edge(e)
                     and self.plan.get_space_of_edge(e).category.name is "circulation"):
                 return True
             return False
 
-        for edge in self.growth_data:
-            line = []
+        def _line_forward(e: 'Edge') -> List['Edge']:
+            """
+            returns edges aligned with e, contiguous, in forward direction
+            :param e:
+            :return:
+            """
+            output = []
+            current = e
+            while current:
+                output.append(current)
+                current = current.aligned_edge or current.continuous_edge
+            return output[1:]
+
+        for edge in self.corner_data:
             corridor_space = Space(self.plan, self.plan.floor,
                                    category=SPACE_CATEGORIES['circulation'])
-            for e in edge.line_forward():
-                if (condition(e) or condition(e.pair)):
+            line = []
+            for e in _line_forward(edge):
+                if _condition(e) or _condition(e.pair):
                     line.append(e)
                 else:
                     break
             for e in line:
-                self._add_corridor_portion(e, self.growth_data[edge]["ccw"], corridor_space,
+                self._add_corridor_portion(e, self.corner_data[edge]["ccw"], corridor_space,
                                            show)
-                self._add_corridor_portion(e.pair, self.growth_data[edge]["cw"], corridor_space,
+                self._add_corridor_portion(e.pair, self.corner_data[edge]["cw"], corridor_space,
                                            show)
 
     def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
         """
-        Grows corridor spaces around the circulation space defined by path.
+        -Grows corridor spaces around the circulation path defined by path
+        -Each straight corridor portion is treated separately, corners at this stage may not
+        be properly treated
+        -Fills corridor corners
         Merge built corridor spaces when they are adjacent
         :param path: ordered list of vertices forming a circulation path
         :param show:
@@ -399,7 +420,8 @@ class Corridor:
             self._add_corridor_portion(edge, width_ccw, corridor_space, show)
             self._add_corridor_portion(edge.pair, width_cw, corridor_space, show)
             if e == len(edge_line) - 1:
-                self.growth_data[edge] = {"cw": width_cw, "ccw": width_ccw}
+                # info stored for corner filling
+                self.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
         return corridor_space
 
     def _get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple[float, 'List']:
