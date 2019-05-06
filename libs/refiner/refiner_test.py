@@ -57,17 +57,17 @@ def apply():
     import time
     import tools.cache
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     spec, plan = tools.cache.get_plan("052", refine=True)  # 052
 
     if plan:
         plan.name = "original"
-        plan.plot(save=False)
+        plan.plot()
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=1)
+        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
         improved_plan.name = "Refined"
         improved_plan.plot()

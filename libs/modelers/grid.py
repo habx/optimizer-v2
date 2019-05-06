@@ -342,6 +342,11 @@ cleanup_grid = Grid("cleanup", [
 refiner_grid = Grid("refiner", [
     (SELECTORS["plan_boundary_no_linear"], MUTATION_FACTORIES['barycenter_cut'](0.5), False),
     (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False),
+    (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
     (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
 ])
 

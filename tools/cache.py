@@ -32,7 +32,8 @@ def get_plan(plan_name: str = "001",
     from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
 
     spec_file_name = plan_name + "_setup" + spec_name + ".json"
-    plan_file_name = plan_name + "_solution_" + str(solution_number) + ".json"
+    plan_file_name = (plan_name + "_solution_" + ("refine_" if refine else "")
+                      + str(solution_number) + ".json")
     folder = DEFAULT_PLANS_OUTPUT_FOLDER
 
     try:
