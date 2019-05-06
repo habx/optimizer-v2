@@ -25,6 +25,7 @@ class TaskDefinition:
         self.params: dict = None
         self.context: dict = {}
         self.local_params: dict = {}
+        self.task_id: str = None
 
     def copy_for_processing(self) -> 'TaskDefinition':
         new = TaskDefinition()
@@ -141,6 +142,9 @@ class TaskProcessor:
 
         self._process_task_after(td)
 
+        if td.task_id:
+            result['taskId'] = td.task_id
+
         return result
 
     def _save_output_files(self, task_id: str):
@@ -183,11 +187,11 @@ class TaskProcessor:
         self._cleanup_output_dir()
 
     def _process_task_after(self, td: TaskDefinition):
-        request_id: str = td.context.get('taskId') if td.context else None
-        if request_id:
-            self._save_output_files(request_id)
+        # OPT-106: Fixing S3 upload
+        if td.task_id:
+            self._save_output_files(td.task_id)
         else:
-            logging.warning("You didn't specify a context.taskId, no upload was performed. "
+            logging.warning("You didn't specify a task ID, no upload was performed. "
                             "Are you sure you want that ?")
 
     def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:

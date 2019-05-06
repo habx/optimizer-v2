@@ -8,7 +8,19 @@ Creates the following classes:
 TODO : remove infinity loops checks in production
 TODO : replace raise ValueError with assertions
 """
-from typing import Optional, List, Tuple, Sequence, Generator, Union, Dict, Any, Iterable
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    List,
+    Tuple,
+    Sequence,
+    Generator,
+    Union,
+    Dict,
+    Any,
+    Iterable
+)
+from functools import reduce
 import logging
 import uuid
 
@@ -31,6 +43,9 @@ from libs.utils.geometry import (
     pseudo_equal,
     unit_vector
 )
+
+if TYPE_CHECKING:
+    from libs.mesh.mesh import MeshModification
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -162,7 +177,7 @@ class Space(PlanComponent):
         :return:
         """
         new_floor = plan.floors[self.floor.id]
-        new_space = Space(plan, new_floor, category=self.category, _id=self.id)
+        new_space = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_space._faces_id = self._faces_id[:]
         new_space._edges_id = self._edges_id[:]
         return new_space
@@ -342,16 +357,16 @@ class Space(PlanComponent):
         :param edge:
         :return:
         """
-        if not self.is_boundary(edge):
-            raise ValueError("The edge has to be a boundary "
-                             "edge: {0} of space: {1}".format(edge, self))
+        assert self.is_boundary(edge), ("The edge has to be a boundary "
+                                        "edge: {0} of space: {1}".format(edge, self))
 
         next_edge = edge.next
         seen = []
         while not self.is_boundary(next_edge):
-            if next_edge in seen:
+            if __debug__ and next_edge in seen:
                 raise Exception("The mesh is badly formed for space: %s", self)
-            seen.append(next_edge)
+            if __debug__:
+                seen.append(next_edge)
             next_edge = next_edge.cw
 
         return next_edge
@@ -1189,64 +1204,62 @@ class Space(PlanComponent):
             return True
         return False
 
-    def corner_stone(self, face: 'Face') -> bool:
+    def corner_stone(self, *faces: 'Face') -> bool:
         """
-        Returns True if the removal of this face will split the space
-        into several disconnected parts
+        Checks if the removal of a list of connected faces will split the space.
+        NOTE : it is expected that the faces are all connected
+        :param faces:
         :return:
         """
-        if not face:
-            return False
+        assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
+        for f in faces:
+            assert self.has_face(f), ("Space: Corner Stone, the faces "
+                                      "provided must belong to the space: {}".format(f))
 
-        # case 1 : the only face of the space
-        if len(self._faces_id) == 1:
+        # case 1 : if we are trying to remove all the faces of the space
+        if self.number_of_faces == len(faces):
+            logging.debug("Space: Corner Stone : Trying to remove all the faces of the space: "
+                          "{}".format(self))
             return True
 
-        # case 2 : fully enclosing face
-        face_edges = list(face.edges)
+        faces = list(set(faces))
+        faces_edges = reduce(lambda a, b: a + b, [list(face.edges) for face in faces])
+
+        # remove internal edges of the face cluster
+        internal_edges = [e for e in faces_edges if e.pair in faces_edges]
+        for e in internal_edges:
+            faces_edges.remove(e)
+
+        # case 2 : fully enclosing face cluster
         for edge in self.exterior_edges:
-            if edge not in face_edges:
+            if edge not in faces_edges:
                 break
-            face_edges.remove(edge)
         else:
             return False
 
-        # case 4 : standard case
-        forbidden_edges = list(face.edges)
-        self.change_reference_edges(forbidden_edges)
-        adjacent_faces = list(self.adjacent_faces(face))
-
+        # case 3 : standard case
+        # find all the faces adjacent to the removed faces
+        adjacent_faces = [e.pair.face for e in faces_edges if self.has_face(e.pair.face)]
         if len(adjacent_faces) == 1:
             return False
 
-        remaining_faces = adjacent_faces[:]
+        # temporarily remove the faces from the self
+        list(map(lambda f: self.remove_face_id(f.id), faces))
 
-        # temporarily remove the face_id from the other_space
-        self.remove_face_id(face.id)
+        # we must check to see if we split the other_self by removing the face
+        # for each adjacent face inside the other_self check if they are still connected
+        adjacent_face = adjacent_faces[0]
 
-        # we must check to see if we split the other_space by removing the face
-        # for each adjacent face inside the other_space check if they are still connected
-        while remaining_faces:
+        for connected_face in self.connected_faces(adjacent_face):
+            # try to reach the other adjacent faces
+            if connected_face in adjacent_faces:
+                adjacent_faces.remove(connected_face)
 
-            adjacent_face = remaining_faces[0]
-            connected_faces = [adjacent_face]
+        adjacent_faces.remove(adjacent_face)
 
-            for connected_face in self.connected_faces(adjacent_face):
-                # try to reach the other adjacent faces
-                if connected_face in remaining_faces:
-                    remaining_faces.remove(connected_face)
-                connected_faces.append(connected_face)
+        list(map(lambda f: self.add_face_id(f.id), faces))
 
-            remaining_faces.remove(adjacent_face)
-
-            if len(remaining_faces) != 0:
-                self.add_face_id(face.id)
-                return True
-            else:
-                break
-
-        self.add_face_id(face.id)
-        return False
+        return len(adjacent_faces) != 0
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
@@ -1344,7 +1357,7 @@ class Space(PlanComponent):
         vertex_1 = Vertex(self.mesh, *point_1, mutable=False)
         vertex_2 = Vertex(self.mesh, *point_2, mutable=False)
         new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = Linear(self.plan, self.floor, new_edge, category)
+        new_linear = self.plan.__class__.LinearType(self.plan, self.floor, new_edge, category)
 
         return new_linear
 
@@ -1812,14 +1825,8 @@ class Space(PlanComponent):
         Returns the maximum distance with an other space or face
         :return: float : length
         """
-        max_distance = 0
-        for edge in self.edges:
-            vertex = edge.start
-            for other_edge in other.edges:
-                other_vertex = other_edge.start
-                if vertex.distance_to(other_vertex) > max_distance:
-                    max_distance = vertex.distance_to(other_vertex)
-
+        max_distance = max(e.start.distance_to(o.start)
+                           for e in self.exterior_edges for o in other.exterior_edges)
         return max_distance
 
 
@@ -1879,7 +1886,7 @@ class Linear(PlanComponent):
         :return:
         """
         new_floor = plan.floors[self.floor.id]
-        new_linear = Linear(plan, new_floor, category=self.category, _id=self.id)
+        new_linear = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
         return new_linear
 
@@ -2027,7 +2034,7 @@ class Floor:
     def __init__(self,
                  plan: 'Plan',
                  mesh: Optional['Mesh'] = None,
-                 level: Optional[int] = None,
+                 level: Optional[int] = 0,
                  meta: Optional[dict] = None,
                  _id: Optional[int] = None):
         self.plan = plan
@@ -2035,6 +2042,7 @@ class Floor:
         self.mesh = mesh
         self.level = level
         self.meta = meta
+        self.add_watcher()
 
     def __repr__(self):
         return "Floor: {}".format(self.id)
@@ -2045,32 +2053,77 @@ class Floor:
         :param new_plan:
         :return:
         """
-        new_floor = Floor(new_plan, self.mesh, self.level, self.meta, _id=self.id)
+        new_floor = type(self)(new_plan, self.mesh, self.level, self.meta, _id=self.id)
         return new_floor
 
-    def serialize(self) -> Dict:
+    def store_mesh_globally(self):
+        """
+        Stores the mesh in a global variable named MESHES
+        :return:
+        """
+        if "MESHES" not in globals():
+            globals().setdefault("MESHES", {self.mesh.id: self.mesh})
+        else:
+            globals()["MESHES"][self.mesh.id] = self.mesh
+
+    def get_mesh_from_global(self, mesh_id: uuid.UUID):
+        """
+        Sets the mesh of the floor by retrieving it from the global MESHES
+        according to the specified mesh id
+        :return:
+        """
+        self.mesh = globals().get("MESHES")[mesh_id]
+
+    def add_watcher(self):
+        """
+        Adds a watcher to the mesh of the floor. The watcher is used to update the plan when
+        the mesh changes (for example when a face is split, the new created face must be
+        added to the appropriate space).
+        :return:
+        """
+        if self.mesh:
+            self.mesh.add_watcher(self.plan.watcher)
+        else:
+            logging.debug("Plan: trying to add a watcher from a floor without mesh %s", self)
+
+    def serialize(self, embedded_mesh: bool = True) -> Dict:
         """
         Returns a serialized version of the floor
+        :param embedded_mesh: whether to serialize or not the linked mesh. If the mesh is not
+        serialized, it is expected that the mesh will be found in a global variables named
+        meshes which contains a dict : { mesh_id: mesh_object }.
+        The global variable will then be used when deserializing the mesh.
         :return:
         """
         output = {
             "id": self.id,
-            "mesh": self.mesh.serialize(),
+            "mesh": self.mesh.serialize() if embedded_mesh else str(self.mesh.id),
             "level": self.level,
             "meta": self.meta
         }
 
+        if not embedded_mesh:
+            # make sure the mesh is stored in a global variable
+            self.store_mesh_globally()
+
         return output
 
-    def deserialize(self, value: Dict) -> 'Floor':
+    def deserialize(self, data: Dict, embedded_mesh: bool = False) -> 'Floor':
         """
-        Returns a serialized version of the floor
+        Creates a floor from serialized data
+        :param data: the dictionary containing the serialized data
+        :param embedded_mesh: whether the mesh is embedded or not inside the serialize data
         :return:
         """
-        self.mesh = Mesh().deserialize(value["mesh"])
-        self.level = int(value["level"])
-        self.meta = value["meta"]
+        # add new deserialized mesh and corresponding watcher
+        if embedded_mesh:
+            self.mesh = Mesh().deserialize(data["mesh"])
+        else:
+            self.get_mesh_from_global(uuid.UUID(data["mesh"]))
 
+        self.add_watcher()
+        self.level = int(data["level"])
+        self.meta = data["meta"]
         return self
 
     @property
@@ -2089,6 +2142,11 @@ class Plan:
     • linears : windows, doors, walls etc.
     • floors : floors of the plan stored in a dict
     """
+    # Note : we store the composed class for easier subclassing of the Plan Class
+    #        with custom floors, spaces, and linears
+    FloorType = Floor
+    SpaceType = Space
+    LinearType = Linear
 
     __slots__ = 'name', 'spaces', 'linears', 'floors', 'id', '_counter'
 
@@ -2105,11 +2163,11 @@ class Plan:
         self.linears = linears or []
         self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
-        # add a floor
+
+        # add a floor if a mesh is specified in the init (per convenience)
         if mesh:
-            new_floor = Floor(self, mesh, floor_level, floor_meta)
+            new_floor = self.__class__.FloorType(self, mesh, floor_level, floor_meta)
             self.floors[new_floor.id] = new_floor
-            mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
 
     def __repr__(self):
         output = 'Plan ' + self.name + ':'
@@ -2145,54 +2203,102 @@ class Plan:
         self.linears = []
         self.floors = {}
 
-    def serialize(self) -> Dict[str, Any]:
+    def is_similar(self, other: 'Plan') -> bool:
+        """
+        Returns True if two plans are considered similar.
+        The plans are expected to have the same mesh for each of their floors, and to
+        :param other:
+        :return:
+        """
+        min_difference = 1000
+        # check that both plan have the same meshes
+        for _id, floor in self.floors.items():
+            other_floor = other.get_floor_from_id(_id)
+            if floor.mesh is not other_floor.mesh:
+                return False
+        # compare the id of the space for each face
+        self_spaces_faces = ((space, f) for space in self.mutable_spaces() for f in space.faces)
+        difference = 0
+        for self_space, f in self_spaces_faces:
+            other_space = other.get_space_of_face(f)
+            difference += f.cached_area if other_space.id != self_space.id else 0
+
+        return difference < min_difference
+
+    def store_meshes_globally(self):
+        """
+        Store the meshes of the plan in a global variable named MESHES.
+        This is needed for multiprocessing.
+        :return:
+        """
+        for floor in self.floors.values():
+            floor.store_mesh_globally()
+
+    def serialize(self, embedded_mesh: bool = True) -> Dict[str, Any]:
         """
         Returns a serialize version of the plan
+        :param embedded_mesh: whether to embed the mesh in the serialized data
         :return:
         """
         output = {
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
-            "floors": [floor.serialize() for floor in self.floors.values()]
+            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()]
         }
 
         return output
 
-    def deserialize(self, value: Dict) -> 'Plan':
+    def deserialize(self, data: Dict, embedded_mesh: bool = True) -> 'Plan':
         """
         Adds plan data from serialized input value
-        :param value:
+        :param data: the serialized data
+        :param embedded_mesh: whether to expect the mesh to be embedded in the data
         :return: a plan
         """
         self.clear()
-        self.name = value["name"]
+        self.name = data["name"]
 
         # add floors
-        for floor in value["floors"]:
-            self.add_floor(Floor(self, _id=floor["id"]).deserialize(floor))
+        for floor in data["floors"]:
+            self.add_floor(
+                self.__class__.FloorType(self, _id=floor["id"]).deserialize(floor, embedded_mesh))
 
         # add spaces
-        for space in value["spaces"]:
+        for space in data["spaces"]:
             floor_id = int(space["floor"])
             floor = self.floors[floor_id]
-            Space(self, floor, _id=int(space["id"])).deserialize(space)
+            self.__class__.SpaceType(self, floor, _id=int(space["id"])).deserialize(space)
 
         # add linears
-        for linear in value["linears"]:
+        for linear in data["linears"]:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
-            Linear(self, floor, _id=linear["id"]).deserialize(linear)
+            self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
 
         self._reset_counter()
 
         return self
 
-    def _watcher(self, modifications, mesh_id: uuid.UUID):
+    def __getstate__(self) -> Dict:
+        """
+        Used to replace pickling method.
+        This is needed due to the circular references in the mesh that makes it inefficient
+        for the standard pickle protocol.
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """ Used to replace pickling method. """
+        self.deserialize(state)
+
+    def watcher(self, modifications: Dict[int, 'MeshModification'], mesh_id: uuid.UUID):
         """
         A watcher for mesh modification. The watcher must be manually called from the plan.
         ex: by calling self.mesh.watch()
-        :param modifications
+        :param modifications: a dictionary containing the mesh modification
+        :param mesh_id: the id of the corresponding mesh (a plan can have several meshes,
+        one for each floor)
         :return:
         """
         logging.debug("Plan: Updating plan from mesh watcher")
@@ -2475,7 +2581,7 @@ class Plan:
 
     def add_floor_from_boundary(self,
                                 boundary: Sequence[Coords2d],
-                                floor_level: Optional[int] = None,
+                                floor_level: Optional[int] = 0,
                                 floor_meta: Optional[dict] = None) -> 'Floor':
         """
         Creates a plan from a list of points
@@ -2487,10 +2593,9 @@ class Plan:
         :return:
         """
         mesh = Mesh().from_boundary(boundary)
-        mesh.add_watcher(lambda modifications: self._watcher(modifications, mesh.id))
-        new_floor = Floor(self, mesh, floor_level, floor_meta)
+        new_floor = self.__class__.FloorType(self, mesh, floor_level, floor_meta)
         self.add_floor(new_floor)
-        Space(self, new_floor, mesh.faces[0].edge)
+        self.__class__.SpaceType(self, new_floor, mesh.faces[0].edge)
         return new_floor
 
     def add(self, plan_component):
@@ -2499,10 +2604,10 @@ class Plan:
         :param plan_component:
         :return:
         """
-        if type(plan_component) == Space:
+        if type(plan_component) == self.__class__.SpaceType:
             self._add_space(plan_component)
 
-        if type(plan_component) == Linear:
+        if type(plan_component) == self.__class__.LinearType:
             self._add_linear(plan_component)
 
     def remove(self, plan_component):
@@ -2511,10 +2616,10 @@ class Plan:
         :param plan_component:
         :return:
         """
-        if type(plan_component) == Space:
+        if type(plan_component) == self.__class__.SpaceType:
             self._remove_space(plan_component)
 
-        if type(plan_component) == Linear:
+        if type(plan_component) == self.__class__.LinearType:
             self._remove_linear(plan_component)
 
     def _add_space(self, space: 'Space'):
@@ -2836,9 +2941,9 @@ class Plan:
                 new_exterior_faces = floor.mesh.insert_external_face(face_to_insert)
                 # add the eventually created holes
                 for face in new_exterior_faces:
-                    Space(self, floor, face.edge, SPACE_CATEGORIES["hole"])
+                    self.__class__.SpaceType(self, floor, face.edge, SPACE_CATEGORIES["hole"])
                 # create the new space
-                new_space = Space(self, floor, face_to_insert.edge, category)
+                new_space = self.__class__.SpaceType(self, floor, face_to_insert.edge, category)
                 return new_space
 
             except OutsideFaceError:
@@ -2885,7 +2990,7 @@ class Plan:
              show: bool = False,
              save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional[Floor] = None):
+             floor: Optional['Floor'] = None):
         """
         Plots a plan.
         :return:
