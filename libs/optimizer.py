@@ -154,6 +154,8 @@ class Optimizer:
         logging.info("Grid")
         t0_grid = time.process_time()
         GRIDS[params.grid_type].apply_to(plan)
+        if params.do_plot:
+            plan.plot(name="grid")
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -161,9 +163,8 @@ class Optimizer:
         logging.info("Seeder")
         t0_seeder = time.process_time()
         SEEDERS[params.seeder_type].apply_to(plan)
-
         if params.do_plot:
-            plan.plot()
+            plan.plot(name="seeder")
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -226,7 +227,7 @@ class Optimizer:
                      elapsed_times["total"],
                      elapsed_times["totalReal"])
 
-        return Response(solutions, elapsed_times)
+        return Response(solutions, elapsed_times, libs.io.plot.output_path)
 
 
 if __name__ == '__main__':
