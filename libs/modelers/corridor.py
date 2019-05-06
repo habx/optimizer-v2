@@ -51,11 +51,13 @@ class Corridor:
         self.plot = plot
         self.plan: Plan = None
         self.circulator: Circulator = None
+        self.growth_data: Dict = None
 
     def _clear(self):
         self.plan = None
         self.circulator = None
         self.paths = []
+        self.growth_data = {}
 
     def apply_to(self, plan: 'Plan', show: bool = False):
         """
@@ -232,6 +234,29 @@ class Corridor:
 
         return self
 
+    def _corner_fill(self, show: bool = False):
+
+        def condition(e: 'Edge'):
+            if (self.plan.get_space_of_edge(e)
+                    and self.plan.get_space_of_edge(e).category.name is "circulation"):
+                return True
+            return False
+
+        for edge in self.growth_data:
+            line = []
+            corridor_space = Space(self.plan, self.plan.floor,
+                                   category=SPACE_CATEGORIES['circulation'])
+            for e in edge.line_forward():
+                if (condition(e) or condition(e.pair)):
+                    line.append(e)
+                else:
+                    break
+            for e in line:
+                self._add_corridor_portion(e, self.growth_data[edge]["ccw"], corridor_space,
+                                           show)
+                self._add_corridor_portion(e.pair, self.growth_data[edge]["cw"], corridor_space,
+                                           show)
+
     def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
         """
         Grows corridor spaces around the circulation space defined by path.
@@ -246,6 +271,8 @@ class Corridor:
         edge_path = self._get_edge_path(path)
 
         self._path_growth(edge_path, show)
+
+        self._corner_fill(show)
 
         self._corridor_merge()
 
@@ -368,9 +395,11 @@ class Corridor:
                 width_cw -= narrow_step
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
-        for edge in edge_line:
+        for e, edge in enumerate(edge_line):
             self._add_corridor_portion(edge, width_ccw, corridor_space, show)
             self._add_corridor_portion(edge.pair, width_cw, corridor_space, show)
+            if e == len(edge_line) - 1:
+                self.growth_data[edge] = {"cw": width_cw, "ccw": width_ccw}
         return corridor_space
 
     def _get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple[float, 'List']:
@@ -752,5 +781,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "010.json"
+    # plan_name = "059.json"
     main(input_file=plan_name)
