@@ -71,6 +71,17 @@ class PlanComponent:
         # add the component to the plan
         self.add()
 
+    def __hash__(self):
+        return hash((self.id, self.floor.id))
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return (self.id, self.floor.id) == (other.id, other.floor.id)
+
+    def __ne__(self, other):
+        return not (self == other)
+
     @property
     def edge(self) -> 'Edge':
         """
@@ -264,22 +275,24 @@ class Space(PlanComponent):
         """
         return len(self._faces_id)
 
-    def add_face_id(self, face_id: int):
+    def add_face_id(self, *faces_id: int):
         """
         Adds a face_id if possible
-        :param face_id:
+        :param faces_id: id of faces to add to the space
         :return:
         """
-        if face_id not in self._faces_id:
-            self._faces_id.append(face_id)
+        for face_id in faces_id:
+            if face_id not in self._faces_id:
+                self._faces_id.append(face_id)
 
-    def remove_face_id(self, face_id: int):
+    def remove_face_id(self, *faces_id: int):
         """
         Removes a face_id
-        :param face_id:
+        :param faces_id: id of faces to remove from the space
         :return:
         """
-        self._faces_id.remove(face_id)
+        for face_id in faces_id:
+            self._faces_id.remove(face_id)
 
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
@@ -351,6 +364,7 @@ class Space(PlanComponent):
         assert self._edges_id[0] != edge.id, "Cannot remove the exterior reference edge"
         self._edges_id.remove(edge.id)
 
+    # noinspection PyUnreachableCode
     def next_edge(self, edge: 'Edge') -> 'Edge':
         """
         Returns the next boundary edge of the space
@@ -390,7 +404,9 @@ class Space(PlanComponent):
 
     def next_angle(self, edge: 'Edge') -> float:
         """
-        Returns the angle betwen the edge and the next edge on the boundary
+        Returns the angle between the edge and the opposite next edge on the boundary
+        Note : this means that two aligned edge will have a "next_angle" of 180.0
+        and not 0.0 (this is more robust to test for alignement).
         :param edge:
         :return:
         """
@@ -406,7 +422,7 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
 
-    def previous_is_aligned(self, edge: 'Edge') -> bool:
+    def previous_is_aligned(self, edge: 'Edge', max_angle: float = ANGLE_EPSILON) -> bool:
         """
         Indicates if the previous edge is approximately aligned with this one,
         using a pseudo equality on the angle
@@ -415,10 +431,10 @@ class Space(PlanComponent):
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        is_aligned = pseudo_equal(self.previous_angle(edge), 180, ANGLE_EPSILON)
+        is_aligned = pseudo_equal(self.previous_angle(edge), 180, max_angle)
         return is_aligned
 
-    def next_is_aligned(self, edge: 'Edge') -> bool:
+    def next_is_aligned(self, edge: 'Edge', max_angle: float = ANGLE_EPSILON) -> bool:
         """
         Indicates if the next edge is approximately aligned with this one,
         using a pseudo equality on the angle
@@ -427,10 +443,11 @@ class Space(PlanComponent):
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        is_aligned = pseudo_equal(self.next_angle(edge), 180, ANGLE_EPSILON)
+        is_aligned = pseudo_equal(self.next_angle(edge), 180, max_angle)
         return is_aligned
 
-    def next_aligned_siblings(self, edge: Edge) -> Generator['Edge', 'Edge', None]:
+    def next_aligned_siblings(self, edge: Edge,
+                              max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
         """
         Returns the edges that are aligned with edge, follows it and contiguous
         Starts with the edge itself, then all the next ones
@@ -444,16 +461,19 @@ class Space(PlanComponent):
 
         aligned = True
         while aligned:
-            if self.next_is_aligned(edge):
+            if self.next_is_aligned(edge, max_angle):
                 yield self.next_edge(edge)
                 edge = self.next_edge(edge)
             else:
                 aligned = False
 
-    def aligned_siblings(self, edge: 'Edge') -> Generator['Edge', 'Edge', None]:
+    def aligned_siblings(self, edge: 'Edge',
+                         max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
         """
         Returns all the edge on the space boundary that are aligned with the edge
         :param edge:
+        :param max_angle: the maximum angle between to successive edge in order to consider
+                          them aligned.
         :return:
         """
         if not self.is_boundary(edge):
@@ -463,13 +483,13 @@ class Space(PlanComponent):
 
         # forward check
         current = edge
-        while self.next_is_aligned(current):
+        while self.next_is_aligned(current, max_angle):
             current = self.next_edge(current)
             yield current
 
         # backward check
         current = edge
-        while self.previous_is_aligned(current):
+        while self.previous_is_aligned(current, max_angle):
             current = self.previous_edge(current)
             yield current
 

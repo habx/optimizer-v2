@@ -11,13 +11,15 @@ if TYPE_CHECKING:
 
 def get_plan(plan_name: str = "001",
              spec_name: str = "0",
-             solution_number: int = 0) -> Tuple['Specification', Optional['Plan']]:
+             solution_number: int = 0,
+             refine: bool = False) -> Tuple['Specification', Optional['Plan']]:
     """
     Returns a specification and the corresponding solution plan
     :param plan_name: The name of the file of the plan blueprint source
     :param spec_name: The number of the setup of the corresponding plan
     :param solution_number: The solution number (note if the solution number is higher than the
     total number of solutions found, it returns the last solution)
+    :param refine: if True will run the refiner grid
     """
     import logging
 
@@ -62,6 +64,8 @@ def get_plan(plan_name: str = "001",
             solution = best_solutions[solution_number]
             plan = solution.plan
             new_spec.plan = plan
+            if refine:
+                GRIDS["refiner_grid"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_file_name)
             writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
             return new_spec, plan

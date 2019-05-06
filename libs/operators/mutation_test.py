@@ -163,3 +163,28 @@ def test_remove_line(l_plan):
     plan.plot()
 
     assert plan.check()
+
+
+def test_add_aligned_edges(l_plan):
+    """
+    Add all aligned faces to the space
+    :return:
+    """
+    from libs.modelers.grid import GRIDS
+    from libs.plan.plan import Space
+
+    plan = GRIDS["optimal_grid"].apply_to(l_plan)
+    plan.empty_space.remove_face(plan.mesh.faces[0])
+    plan.empty_space.remove_face(plan.mesh.faces[1])
+    plan.empty_space.remove_face(plan.mesh.faces[6])
+    other = Space(plan, plan.floor, plan.mesh.faces[0].edge)
+    other.add_face(plan.mesh.faces[1])
+    other.add_face(plan.mesh.faces[6])
+    plan = GRIDS["finer_ortho_grid"].apply_to(l_plan)
+
+    edge = list(other.exterior_edges)[15]
+    MUTATIONS["add_aligned_face"].apply_to(edge, other)
+
+    plan.plot()
+
+    assert plan.check()

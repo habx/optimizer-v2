@@ -59,7 +59,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("008")  # 052
+    spec, plan = tools.cache.get_plan("052", refine=True)  # 052
 
     if plan:
         plan.name = "original"
@@ -72,15 +72,11 @@ def apply():
         improved_plan.name = "Refined"
         improved_plan.plot()
         # analyse found solutions
-        print("Time elapsed: {}".format(end - start))
-        item_dict = evaluation.create_item_dict(spec)
-        print("Solution found : {} - {}".format(improved_plan.fitness.value,
-                                                improved_plan.fitness.values))
-        for space in improved_plan.mutable_spaces():
-            print("• Area {} : {} -> [{}, {}]".format(space.category.name,
-                                                      round(space.cached_area()),
-                                                      item_dict[space.id].min_size.area,
-                                                      item_dict[space.id].max_size.area))
+        logging.info("Time elapsed: {}".format(end - start))
+        logging.info("Solution found : {} - {}".format(improved_plan.fitness.value,
+                                                       improved_plan.fitness.values))
+
+        evaluation.check_area(improved_plan, spec)
 
 
 if __name__ == '__main__':

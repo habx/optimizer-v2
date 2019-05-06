@@ -154,6 +154,17 @@ def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from face.edges
 
 
+def boundary_faces_fixed(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges of the face in a fixed list
+    :param space:
+    :return:
+    """
+    for face in space.faces:
+        for edge in list(face.edges):
+            yield edge
+
+
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge reference of the space
@@ -1757,7 +1768,7 @@ SELECTORS = {
     ),
 
     "all_aligned_edges": Selector(
-        boundary_faces,
+        boundary_faces_fixed,
         [
             edge_angle(180 - 15, 180 + 15),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
@@ -2015,7 +2026,7 @@ SELECTORS = {
 
     "plan_boundary_no_linear": Selector(space_external_boundary,
                                         [adjacent_to_external_space,
-                                         edge_length(min_length=40),
+                                         edge_length(min_length=60),
                                          is_not(touches_linear(position='on'))])
 }
 

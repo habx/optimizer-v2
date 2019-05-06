@@ -10,6 +10,7 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 
 """
 import math
+import logging
 from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
 
 if TYPE_CHECKING:
@@ -142,5 +143,24 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> float:
     return score
 
 
+def check_area(plan, spec):
+    """
+    Compares the plan area with the specification objectives
+    :param plan:
+    :param spec:
+    :return:
+    """
+    logging.info("Refiner: Checking Plan Surface: %s", plan.name)
+
+    item_dict = create_item_dict(spec)
+    for space in plan.mutable_spaces():
+        area = round(space.cached_area()) / (100 ** 2)
+        min_area = item_dict[space.id].min_size.area / (100 ** 2)
+        max_area = item_dict[space.id].max_size.area / (100 ** 2)
+        ok = min_area <= area <= max_area
+        logging.info("  • Area {} : {} -> [{}, {}]: {}".format(space.category.name, area, min_area,
+                                                               max_area, "✅" if ok else "❌"))
+
+
 __all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'fc_score_area', 'score_corner',
-           'create_item_dict']
+           'create_item_dict', 'check_area']
