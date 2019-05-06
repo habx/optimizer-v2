@@ -118,9 +118,10 @@ class Corridor:
             if not edge.face or not edge.pair.face:
                 # edge on the plan border
                 return False
-            if (self.plan.get_space_of_edge(edge).category.name == "loadBearingWall"
-                    or self.plan.get_space_of_edge(edge.pair).category.name == "loadBearingWall"):
-                # edge along a load bearing wall
+            cat = ["loadBearingWall", "duct"]
+            if (self.plan.get_space_of_edge(edge).category.name in cat
+                    or self.plan.get_space_of_edge(edge.pair).category.name in cat):
+                # edge along a non mutable space among cat
                 return False
             return True
 
@@ -409,7 +410,7 @@ class Corridor:
 
                 dist_tmp = e.start.distance_to(edge.end)
                 if (pseudo_equal(angle, 180, 10)
-                        and dist_tmp < width + 1
+                        and dist_tmp < width + 2
                         and _layer_condition(e)):
                     dist = dist_tmp
                     start_edge = e.pair
