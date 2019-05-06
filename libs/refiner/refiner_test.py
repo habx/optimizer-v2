@@ -12,7 +12,7 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
             "weights": (-2.0, -1.0, -1.0),
-            "ngen": 120,
+            "ngen": 50,
             "mu": 28,
             "cxpb": 0.9
           }
@@ -57,17 +57,17 @@ def apply():
     import time
     import tools.cache
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     spec, plan = tools.cache.get_plan("052", refine=True)  # 052
 
     if plan:
         plan.name = "original"
-        plan.plot()
+        plan.plot(save=False)
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=4)
+        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=1)
         end = time.time()
         improved_plan.name = "Refined"
         improved_plan.plot()

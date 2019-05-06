@@ -58,7 +58,9 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
                 logging.debug("Crossover: No crossover possible")
                 return ind_1, ind_2
 
-        modified_spaces = []
+        logging.debug("Refiner: Crossover: Mating %s - %s", ind_1, ind_2)
+        modified_spaces_ind_1 = set()
+        modified_spaces_ind_2 = set()
         for i, face in enumerate(connected_faces):
             space_1 = impacted_spaces_ind_1[i]
             space_2 = impacted_spaces_ind_2[i]
@@ -71,12 +73,14 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
             space_2.remove_face_id(face.id)
             other_2.add_face_id(face.id)
 
-            for space in [space_1, space_2, other_1, other_2]:
-                if space not in modified_spaces:
-                    modified_spaces.append(space)
+            modified_spaces_ind_1 |= {space_1, other_1}
+            modified_spaces_ind_2 |= {space_2, other_2}
 
         # make sure the plan structure is correct
-        for space in modified_spaces:
+        for space in modified_spaces_ind_1:
+            space.set_edges()
+
+        for space in modified_spaces_ind_2:
             space.set_edges()
 
         return ind_1, ind_2

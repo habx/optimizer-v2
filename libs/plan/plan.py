@@ -37,6 +37,7 @@ from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
     dot_product,
+    cross_product,
     normal_vector,
     opposite_vector,
     ccw_angle,
@@ -72,12 +73,12 @@ class PlanComponent:
         self.add()
 
     def __hash__(self):
-        return hash((self.id, self.floor.id))
+        return self.id
 
     def __eq__(self, other):
         if other is None:
             return False
-        return (self.id, self.floor.id) == (other.id, other.floor.id)
+        return self.id == other.id
 
     def __ne__(self, other):
         return not (self == other)
@@ -838,7 +839,8 @@ class Space(PlanComponent):
         """
         Adds a face to the space
         :param face: face to add to space
-        We have to check for the edge case where we create a hole in the space by adding
+
+        Note: We have to check for the edge case where we create a hole in the space by adding
         a "U" shaped face
         +------------+
         |    Face    |
@@ -1143,21 +1145,31 @@ class Space(PlanComponent):
         NOTE : Per convention the edge of the exterior is stored as the first element of the
         _edges_id array.
         """
-        if not self.number_of_faces:
+        if self.number_of_faces == 0:
+            self._edges_id = []
             return
+
         space_edges = []
+        seen = []
         self._edges_id = []
-        max_perimeter = 0.0
         for face in self.faces:
             for edge in face.edges:
-                if self.is_boundary(edge) and edge not in space_edges:
+                if edge in seen:
+                    continue
+                if not self.is_boundary(edge):
+                    seen.append(edge)
+                    seen.append(edge.pair)
+                    continue
+                if edge not in space_edges:
                     # in order to determine which edge is the exterior one we have to
-                    # measure its perimeter
-                    perimeter = sum(_edge.length for _edge in self.siblings(edge))
-                    if perimeter > max_perimeter:
-                        max_perimeter = perimeter
+                    # calculate its rotation order (ccw or ccw).
+                    # we use the curve orientation algorithm
+                    ref_edge = min(self.siblings(edge), key=lambda e: e.start.coords)
+                    previous_edge = self.previous_edge(ref_edge)
+                    det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                    if det < 0:  # counter clockwise
                         self._edges_id = [edge.id] + self._edges_id
-                    else:
+                    else:  # clockwise
                         self.add_edge(edge)
 
                     space_edges = list(self.edges)
@@ -1513,10 +1525,11 @@ class Space(PlanComponent):
         # do not try to plot an empty space
         if self.edge is None:
             return ax
-
         color = self.category.color
-        x, y = self.as_sp.exterior.xy
-        ax = plot_polygon(ax, x, y, options, color, save)
+
+        if 'border' in options or not ax:
+            x, y = self.as_sp.exterior.xy
+            ax = plot_polygon(ax, x, y, options, color, save)
 
         if 'face' in options:
             for face in self.faces:
