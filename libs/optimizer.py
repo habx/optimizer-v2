@@ -27,23 +27,23 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str, float]):
+                 elapsed_times: Dict[str, float],
+                 output_dir: str):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self._output_dir = output_dir
 
     @property
-    def as_dict(self) -> dict:
-        """
-        return all response data in a dict
-        """
-        return self.__dict__
-
-    def to_json_file(self, filepath) -> None:
-        """
-        save all response data in a json file
-        """
-        with open(filepath, "w") as output_file:
-            json.dump(self.as_dict, output_file, sort_keys=True, indent=2)
+    def pictures(self) -> Dict[str, str]:
+        pictures = {}
+        for file in os.listdir(self._output_dir):
+            extension = os.path.splitext(file)[-1]
+            if extension in (".tif", ".tiff",
+                             ".jpeg", ".jpg", ".jif", ".jfif",
+                             ".jp2", ".jpx", ".j2k", ".j2c",
+                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
+                pictures[os.path.splitext(file)[0]] = os.path.join(self._output_dir, file)
+        return pictures
 
 
 class ExecParams:
