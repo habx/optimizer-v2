@@ -37,6 +37,7 @@ from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
     dot_product,
+    cross_product,
     normal_vector,
     opposite_vector,
     ccw_angle,
@@ -70,6 +71,17 @@ class PlanComponent:
 
         # add the component to the plan
         self.add()
+
+    def __hash__(self):
+        return self.id
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return not (self == other)
 
     @property
     def edge(self) -> 'Edge':
@@ -166,7 +178,8 @@ class Space(PlanComponent):
         return self
 
     def __repr__(self):
-        output = 'Space: {} - id:{}'.format(self.category.name, self.id)
+        output = 'Space: {} - id:{}'.format(self.category.name if self.category else "No Category",
+                                            self.id)
         return output
 
     def clone(self, plan: 'Plan') -> 'Space':
@@ -264,22 +277,24 @@ class Space(PlanComponent):
         """
         return len(self._faces_id)
 
-    def add_face_id(self, face_id: int):
+    def add_face_id(self, *faces_id: int):
         """
         Adds a face_id if possible
-        :param face_id:
+        :param faces_id: id of faces to add to the space
         :return:
         """
-        if face_id not in self._faces_id:
-            self._faces_id.append(face_id)
+        for face_id in faces_id:
+            if face_id not in self._faces_id:
+                self._faces_id.append(face_id)
 
-    def remove_face_id(self, face_id: int):
+    def remove_face_id(self, *faces_id: int):
         """
         Removes a face_id
-        :param face_id:
+        :param faces_id: id of faces to remove from the space
         :return:
         """
-        self._faces_id.remove(face_id)
+        for face_id in faces_id:
+            self._faces_id.remove(face_id)
 
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
@@ -342,7 +357,7 @@ class Space(PlanComponent):
             return
         self._edges_id.append(edge.id)
 
-    def remove_edge(self, edge: 'Edge'):
+    def remove_reference_edge(self, edge: 'Edge'):
         """
         Removes a reference edge
         :param edge:
@@ -351,6 +366,7 @@ class Space(PlanComponent):
         assert self._edges_id[0] != edge.id, "Cannot remove the exterior reference edge"
         self._edges_id.remove(edge.id)
 
+    # noinspection PyUnreachableCode
     def next_edge(self, edge: 'Edge') -> 'Edge':
         """
         Returns the next boundary edge of the space
@@ -390,7 +406,9 @@ class Space(PlanComponent):
 
     def next_angle(self, edge: 'Edge') -> float:
         """
-        Returns the angle betwen the edge and the next edge on the boundary
+        Returns the angle between the edge and the opposite next edge on the boundary
+        Note : this means that two aligned edge will have a "next_angle" of 180.0
+        and not 0.0 (this is more robust to test for alignement).
         :param edge:
         :return:
         """
@@ -406,7 +424,7 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         return ccw_angle(edge.vector, self.previous_edge(edge).opposite_vector)
 
-    def previous_is_aligned(self, edge: 'Edge') -> bool:
+    def previous_is_aligned(self, edge: 'Edge', max_angle: float = ANGLE_EPSILON) -> bool:
         """
         Indicates if the previous edge is approximately aligned with this one,
         using a pseudo equality on the angle
@@ -415,10 +433,10 @@ class Space(PlanComponent):
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        is_aligned = pseudo_equal(self.previous_angle(edge), 180, ANGLE_EPSILON)
+        is_aligned = pseudo_equal(self.previous_angle(edge), 180, max_angle)
         return is_aligned
 
-    def next_is_aligned(self, edge: 'Edge') -> bool:
+    def next_is_aligned(self, edge: 'Edge', max_angle: float = ANGLE_EPSILON) -> bool:
         """
         Indicates if the next edge is approximately aligned with this one,
         using a pseudo equality on the angle
@@ -427,10 +445,11 @@ class Space(PlanComponent):
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        is_aligned = pseudo_equal(self.next_angle(edge), 180, ANGLE_EPSILON)
+        is_aligned = pseudo_equal(self.next_angle(edge), 180, max_angle)
         return is_aligned
 
-    def next_aligned_siblings(self, edge: Edge) -> Generator['Edge', 'Edge', None]:
+    def next_aligned_siblings(self, edge: Edge,
+                              max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
         """
         Returns the edges that are aligned with edge, follows it and contiguous
         Starts with the edge itself, then all the next ones
@@ -444,16 +463,19 @@ class Space(PlanComponent):
 
         aligned = True
         while aligned:
-            if self.next_is_aligned(edge):
+            if self.next_is_aligned(edge, max_angle):
                 yield self.next_edge(edge)
                 edge = self.next_edge(edge)
             else:
                 aligned = False
 
-    def aligned_siblings(self, edge: 'Edge') -> Generator['Edge', 'Edge', None]:
+    def aligned_siblings(self, edge: 'Edge',
+                         max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
         """
         Returns all the edge on the space boundary that are aligned with the edge
         :param edge:
+        :param max_angle: the maximum angle between to successive edge in order to consider
+                          them aligned.
         :return:
         """
         if not self.is_boundary(edge):
@@ -463,13 +485,13 @@ class Space(PlanComponent):
 
         # forward check
         current = edge
-        while self.next_is_aligned(current):
+        while self.next_is_aligned(current, max_angle):
             current = self.next_edge(current)
             yield current
 
         # backward check
         current = edge
-        while self.previous_is_aligned(current):
+        while self.previous_is_aligned(current, max_angle):
             current = self.previous_edge(current)
             yield current
 
@@ -513,7 +535,7 @@ class Space(PlanComponent):
             current_edge = self.next_edge(current_edge)
 
     @property
-    def edges(self) -> Generator[Edge, None, None]:
+    def edges(self) -> Generator[Edge, Edge, None]:
         """
         The boundary edges of the space
         :return: an iterator
@@ -538,7 +560,7 @@ class Space(PlanComponent):
         yield from self.siblings(self.edge)
 
     @property
-    def hole_edges(self) -> Generator[Edge, None, None]:
+    def holes_reference_edge(self) -> Generator[Edge, None, None]:
         """
         Returns the internal reference edges
         :return:
@@ -553,19 +575,18 @@ class Space(PlanComponent):
         """
         return len(self._edges_id) > 1
 
-    def _external_axes(self, face: Optional['Face'] = None) -> [float]:
+    def _external_axes(self, edges: Optional[Sequence['Edge']] = None) -> [float]:
         """
         Returns the external axes of the space.
         For every edge of the space adjacent to an external or null space we store
         the angle to the x axis (defined by the vector (1, 0) modulo 90.0 to account
         for both orthogonal directions.
-        :param face: an optional face. When specified, only check the axes of this specific face
+        :param edges: the list of edges
         :return:
         """
-        output = {}
         # retrieve all the edges of the space that are adjacent to the outside
         boundary_edges = []
-        edges_to_search = self.edges if not face else face.edges
+        edges_to_search = edges if edges is not None else self.exterior_edges
         for _edge in edges_to_search:
             adjacent_space = self.plan.get_space_of_edge(_edge.pair)
             if adjacent_space is not self and (adjacent_space is None
@@ -576,7 +597,18 @@ class Space(PlanComponent):
             return []
 
         # check for the angle of each edge
-        for _edge in boundary_edges:
+        return self._axes(boundary_edges)
+
+    def _axes(self, edges: Optional[Sequence['Edge']] = None) -> [float]:
+        """
+        Return the main axes of the space exterior edges
+        :param edges: an optional list of edges to check
+        :return:
+        """
+        output = {}
+        edges = edges or self.exterior_edges
+        # check for the angle of each edge
+        for _edge in edges:
             angle = ccw_angle((1, 0), _edge.vector) % 90.0
 
             if angle in output:
@@ -587,10 +619,9 @@ class Space(PlanComponent):
         return sorted(output.keys(), key=lambda k: output[k], reverse=True)
 
     def _directions(self, face: Optional['Face'] = None):
-        if not self._external_axes(face):
-            return None
-
-        x = unit_vector(self._external_axes(face)[0])
+        edges = face.edges if face is not None else self.edges
+        axes = self._external_axes(list(edges)) or self._axes(list(edges))
+        x = unit_vector(axes[0])
         y = normal_vector(x)
         return x, y, opposite_vector(x), opposite_vector(y)
 
@@ -617,6 +648,12 @@ class Space(PlanComponent):
         :param vector:
         :return:
         """
+        # if a space has no external walls (for example an internal bathroom)
+        # then it will not have specific directions
+        if not self.directions:
+            logging.debug("Space: Best Directions, space has no external directions %s", self)
+            return vector
+
         return max(self.directions, key=lambda d: dot_product(d, vector))
 
     @property
@@ -668,7 +705,7 @@ class Space(PlanComponent):
         list_vertices.append(list_vertices[0])
 
         holes = []
-        for hole_edge in self.hole_edges:
+        for hole_edge in self.holes_reference_edge:
             _vertices = [edge.start.coords for edge in self.siblings(hole_edge)]
             _vertices.append(_vertices[0])
             holes.append(_vertices)
@@ -803,7 +840,8 @@ class Space(PlanComponent):
         """
         Adds a face to the space
         :param face: face to add to space
-        We have to check for the edge case where we create a hole in the space by adding
+
+        Note: We have to check for the edge case where we create a hole in the space by adding
         a "U" shaped face
         +------------+
         |    Face    |
@@ -891,15 +929,37 @@ class Space(PlanComponent):
          |       +-------+        |
          |                        |
          |                        |
-           +------------------------+
+         +------------------------+
+
+         or
+
+        +-----------------------------------+
+        |                SPACE              |
+        |     +--------+       +-------+    |
+        |     |        |       |       |    |
+        |     |        +-------+       |    |
+        |     | HOLE 1 | FACE  | HOLE 2|    |
+        |     |        +-------+       |    |
+        |     |        |       |       |    |
+        |     +--------+       +-------+    |
+        |                                   |
+        +-----------------------------------+
         :return:
         """
         if not self.has_holes:
             return
-        exterior_edges = list(self.exterior_edges)
-        for edge in self.hole_edges:
-            if edge in exterior_edges:
-                self.remove_edge(edge)
+
+        holes_reference_edge = list(self.holes_reference_edge)
+        ref_edge = self.edge
+        removed = []
+        for hole_edge in holes_reference_edge:
+            for edge in self.siblings(hole_edge):
+                if edge is hole_edge:
+                    continue
+                if (edge in holes_reference_edge and edge not in removed) or edge is ref_edge:
+                    removed.append(hole_edge)
+                    self.remove_reference_edge(hole_edge)
+                    break
 
     def _check_edges_references(self) -> bool:
         """
@@ -912,7 +972,7 @@ class Space(PlanComponent):
             return False
 
         # check for disconnectivity:
-        for edge in self.hole_edges:
+        for edge in self.holes_reference_edge:
             if edge in self.exterior_edges:
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
@@ -924,6 +984,9 @@ class Space(PlanComponent):
         Note : the biggest challenge of this method is to verify whether the removal
         of the specified face will split the space into several disconnected components.
         A new space must be created for each new disconnected component.
+
+        We must also check that the removal of the face has linked internal holes of the space,
+        thus creating a larger hole (in which case we must remove one of the reference edge).
 
         :param face: face to remove from space
         :returns the modified spaces (including the created spaces)
@@ -949,8 +1012,8 @@ class Space(PlanComponent):
         #     |    +---------+    |
         #     |                   |
         #     +-------------------+
-
-        for edge in face.edges:
+        face_edges = list(face.edges)
+        for edge in face_edges:
             if self.is_outside(edge.pair):
                 break
         else:
@@ -974,8 +1037,6 @@ class Space(PlanComponent):
         #     +-------------------+
         # check if we are removing an enclosing face (this means that the removed face contains
         # all the edges boundary (this is no good)
-
-        face_edges = list(face.edges)
         for edge in self.exterior_edges:
             if edge not in face_edges:
                 break
@@ -1065,9 +1126,9 @@ class Space(PlanComponent):
                 new_space.add_face_id(component_face.id)
 
             # transfer internal edge reference from self to new spaces
-            for internal_reference_edge in self.hole_edges:
+            for internal_reference_edge in self.holes_reference_edge:
                 if new_space.has_edge(internal_reference_edge):
-                    self.remove_edge(internal_reference_edge)
+                    self.remove_reference_edge(internal_reference_edge)
                     new_space.add_edge(internal_reference_edge)
 
             new_space._clean_hole_disappearance()
@@ -1108,21 +1169,31 @@ class Space(PlanComponent):
         NOTE : Per convention the edge of the exterior is stored as the first element of the
         _edges_id array.
         """
-        if not self.number_of_faces:
+        if self.number_of_faces == 0:
+            self._edges_id = []
             return
+
         space_edges = []
+        seen = []
         self._edges_id = []
-        max_perimeter = 0.0
         for face in self.faces:
             for edge in face.edges:
-                if self.is_boundary(edge) and edge not in space_edges:
+                if edge in seen:
+                    continue
+                if not self.is_boundary(edge):
+                    seen.append(edge)
+                    seen.append(edge.pair)
+                    continue
+                if edge not in space_edges:
                     # in order to determine which edge is the exterior one we have to
-                    # measure its perimeter
-                    perimeter = sum(_edge.length for _edge in self.siblings(edge))
-                    if perimeter > max_perimeter:
-                        max_perimeter = perimeter
+                    # calculate its rotation order (ccw or ccw).
+                    # we use the curve orientation algorithm
+                    ref_edge = min(self.siblings(edge), key=lambda e: e.start.coords)
+                    previous_edge = self.previous_edge(ref_edge)
+                    det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                    if det < 0:  # counter clockwise
                         self._edges_id = [edge.id] + self._edges_id
-                    else:
+                    else:  # clockwise
                         self.add_edge(edge)
 
                     space_edges = list(self.edges)
@@ -1148,7 +1219,8 @@ class Space(PlanComponent):
             i = self._edges_id.index(edge.id)
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
-                    assert other_edge.id not in self._edges_id, "The edge cannot already be a ref"
+                    assert other_edge.id not in self._edges_id, ("The edge cannot "
+                                                                 "already be a reference")
                     # we replace the edge id in place to preserve the list order
                     self._edges_id[i] = other_edge.id
                     break
@@ -1159,7 +1231,7 @@ class Space(PlanComponent):
                         raise ValueError("Space: changing reference edges, you should have"
                                          "specified a boundary edge !")
                     self._edges_id[0] = boundary_edge.id
-                self.remove_edge(edge)
+                self.remove_reference_edge(edge)
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
@@ -1244,7 +1316,7 @@ class Space(PlanComponent):
             return False
 
         # temporarily remove the faces from the self
-        list(map(lambda f: self.remove_face_id(f.id), faces))
+        list(map(lambda _f: self.remove_face_id(_f.id), faces))
 
         # we must check to see if we split the other_self by removing the face
         # for each adjacent face inside the other_self check if they are still connected
@@ -1257,7 +1329,7 @@ class Space(PlanComponent):
 
         adjacent_faces.remove(adjacent_face)
 
-        list(map(lambda f: self.add_face_id(f.id), faces))
+        list(map(lambda _f: self.add_face_id(_f.id), faces))
 
         return len(adjacent_faces) != 0
 
@@ -1478,10 +1550,11 @@ class Space(PlanComponent):
         # do not try to plot an empty space
         if self.edge is None:
             return ax
-
         color = self.category.color
-        x, y = self.as_sp.exterior.xy
-        ax = plot_polygon(ax, x, y, options, color, save)
+
+        if 'border' in options or not ax:
+            x, y = self.as_sp.exterior.xy
+            ax = plot_polygon(ax, x, y, options, color, save)
 
         if 'face' in options:
             for face in self.faces:
@@ -2990,7 +3063,8 @@ class Plan:
              show: bool = False,
              save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional['Floor'] = None):
+             floor: Optional['Floor'] = None,
+             name: Optional[str] = None):
         """
         Plots a plan.
         :return:
@@ -3018,7 +3092,7 @@ class Plan:
 
             _ax.set_title(self.name + " - floor id:{}".format(floor.id))
 
-        plot_save(save, show)
+        plot_save(save, show, name)
 
         return ax
 

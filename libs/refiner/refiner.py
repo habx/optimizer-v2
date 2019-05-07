@@ -157,7 +157,8 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
                  evaluation.score_bounding_box,
                  evaluation.fc_score_area]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
-    toolbox.register("mutate", mutation.mutate_simple)
+    mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
+    toolbox.register("mutate", mutation.compose, mutations)
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})

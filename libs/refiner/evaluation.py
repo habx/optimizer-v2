@@ -10,11 +10,15 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 
 """
 import math
+import logging
 from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
+
+from libs.utils.geometry import ccw_angle, pseudo_equal
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
+    from libs.plan.plan import Space
 
 scoreFunc = Callable[['Individual'], float]
 
@@ -99,6 +103,30 @@ def score_corner(_: 'Specification', ind: 'Individual') -> float:
     return score / num_space
 
 
+def number_of_corners(space: 'Space') -> int:
+    """
+    Returns the number of "inside" corners. The corners of the boundary edges of a space
+    that are adjacent to another mutable space.
+    :param space:
+    :return:
+    """
+    corner_min_angle = 20.0
+    num_corners = 0
+    internal_edges = []
+    for e in space.exterior_edges:
+        other = space.plan.get_space_of_edge(e)
+        if not other or other.category.external:
+            continue
+        internal_edges.append(e)
+
+    for edge in internal_edges:
+        angle = ccw_angle(edge.opposite_vector, space.next_edge(edge).vector)
+        if not pseudo_equal(angle, 180.0, corner_min_angle):
+            num_corners += 1
+
+    return num_corners
+
+
 def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:
     """
     :param _:
@@ -142,5 +170,24 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> float:
     return score
 
 
+def check_area(plan, spec):
+    """
+    Compares the plan area with the specification objectives
+    :param plan:
+    :param spec:
+    :return:
+    """
+    logging.info("Refiner: Checking Plan Surface: %s", plan.name)
+
+    item_dict = create_item_dict(spec)
+    for space in plan.mutable_spaces():
+        area = round(space.cached_area()) / (100 ** 2)
+        min_area = item_dict[space.id].min_size.area / (100 ** 2)
+        max_area = item_dict[space.id].max_size.area / (100 ** 2)
+        ok = min_area <= area <= max_area
+        logging.info("  • Area {} : {} -> [{}, {}]: {}".format(space.category.name, area, min_area,
+                                                               max_area, "✅" if ok else "❌"))
+
+
 __all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'fc_score_area', 'score_corner',
-           'create_item_dict']
+           'create_item_dict', 'check_area']
