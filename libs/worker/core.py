@@ -28,6 +28,13 @@ class TaskDefinition:
         self.task_id: str = None
 
     def copy_for_processing(self) -> 'TaskDefinition':
+        """
+        Create a copy of the parameters to avoid instance modification in the optimizer code.
+
+        Please note the context and local_params are left uncopied on purpose.
+
+        :return: New instance duplicated from the first one.
+        """
         new = TaskDefinition()
         new.blueprint = copy.deepcopy(self.blueprint)
         new.setup = copy.deepcopy(self.setup)
@@ -37,22 +44,29 @@ class TaskDefinition:
         return new
 
     def check(self):
+        """Check the input is correct"""
         assert self.blueprint is not None
         assert self.setup is not None
         assert self.params is not None
 
     def __str__(self):
-        return "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
-               "LocalParams: {local_params}, Context: {context}".format(
-            blueprint=self.blueprint,
-            setup=self.setup,
-            params=self.params,
-            local_params=self.local_params,
-            context=self.context,
-        )
+        return \
+            "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
+            "LocalParams: {local_params}, Context: {context}".format(
+                blueprint=self.blueprint,
+                setup=self.setup,
+                params=self.params,
+                local_params=self.local_params,
+                context=self.context,
+            )
 
     @staticmethod
     def from_json(data: dict) -> 'TaskDefinition':
+        """
+        Create a task from a given JSON input
+        :param data: JSON input
+        :return: A TaskDefinition
+        """
         td = TaskDefinition()
 
         # Preferring blueprint to lot (as it describes more precisely what we are actually
@@ -106,7 +120,7 @@ class TaskProcessor:
                     'error': traceback.format_exception(*sys.exc_info()),
                     'times': {
                         'totalReal': (time.time() - before_time_real),
-                        'total': (time.process_time()-before_time_cpu)
+                        'total': (time.process_time() - before_time_cpu)
                     },
                 },
             }
@@ -197,7 +211,7 @@ class TaskProcessor:
     def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
         """
         Actual message processing (without any error handling on purpose)
-        :param msg: Message to process
+        :param td: Task definition we're processing
         :return: Message to return
         """
         logging.info("Processing message: %s", td)
