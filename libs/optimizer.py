@@ -34,7 +34,7 @@ class Response:
         self.elapsed_times = elapsed_times
         self._output_dir = output_dir
 
-    def picture_files(self) -> Dict[str, str]:
+    def get_generated_files(self) -> Dict[str, dict]:
         mimetypes.init()
         files = {}
         for file in os.listdir(self._output_dir):

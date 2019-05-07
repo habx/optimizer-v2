@@ -225,7 +225,7 @@ class TaskProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
-                'files': executor_result.picture_files()
+                'files': executor_result.get_generated_files()
                 # TODO add other files created outside optimizer.run() like profiling
             },
         }
