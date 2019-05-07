@@ -222,7 +222,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-
+    logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -241,25 +241,29 @@ if __name__ == '__main__':
 
         GRIDS['optimal_grid'].apply_to(plan)
 
-        SEEDERS["circulation_seeder"].apply_to(plan)
-        #SEEDERS["simple_seeder"].apply_to(plan)
+        nbr_grid_cells = 0
+        for space in plan.spaces:
+            if space.category.name == "empty":
+                nbr_grid_cells += len(list(space.faces))
+        logging.debug("nbr_grid_cells : ", nbr_grid_cells)
 
-        # new_space_list = []
-        # for space in plan.spaces:
-        #     if space.category.name == "empty":
-        #         for face in space.faces:
-        #             new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-        #             new_space_list.append(new_space)
-        # has_empty_space = True
-        # while has_empty_space:
-        #     has_empty_space = False
-        #     for space in plan.spaces:
-        #         if space.category.name == "empty":
-        #             plan.remove(space)
-        #             has_empty_space = True
-        #     plan.remove_null_spaces()
-
-
+        if nbr_grid_cells > 25:
+            SEEDERS["simple_seeder"].apply_to(plan)
+        else:
+            new_space_list = []
+            for space in plan.spaces:
+                if space.category.name == "empty":
+                    for face in space.faces:
+                        new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
+                        new_space_list.append(new_space)
+            has_empty_space = True
+            while has_empty_space:
+                has_empty_space = False
+                for space in plan.spaces:
+                    if space.category.name == "empty":
+                        plan.remove(space)
+                        has_empty_space = True
+                plan.remove_null_spaces()
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))
@@ -275,6 +279,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SpacePlanner("test", spec)
+        logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
         print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))

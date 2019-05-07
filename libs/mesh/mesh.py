@@ -24,7 +24,6 @@ from libs.utils.geometry import (
     unit,
     barycenter,
     move_point,
-    same_half_plane,
     opposite_vector,
     pseudo_equal,
     dot_product,
@@ -127,6 +126,20 @@ class MeshComponent:
         if value is not None:
             value.add(self)
 
+    def __hash__(self):
+        # Note : this is incorrect in the sense that two edges from two different meshes
+        # could have the same id. But this is faster and we are not comparing
+        # edges from different meshes.
+        return self.id
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def remove_from_mesh(self):
         """
         Removes the component from the mesh
@@ -148,6 +161,12 @@ class MeshComponent:
         self._id = _id
         self._mesh = mesh
         self._mesh.add(self)
+
+# Types for typing
+
+
+MeshComponentIdTuple = Tuple[MeshComponentType, int]
+MeshModification = Tuple[MeshOps, MeshComponentIdTuple, Optional[MeshComponentIdTuple]]
 
 
 class Vertex(MeshComponent):
@@ -1052,15 +1071,9 @@ class Edge(MeshComponent):
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
     @property
-    def siblings(self) -> Generator['Edge', 'Edge', None]:
+    def siblings(self) -> Generator['Edge', None, None]:
         """
         Returns the siblings of the edge, starting with itself.
-        Note : an edge can be sent back to the generator, for example when the face has changed
-        example:   g = face.edge
-                    for edge in g:
-                    modify something:
-                    g.send(edge)
-
         :return: generator yielding each edge in the loop
         """
         yield self
@@ -1068,16 +1081,13 @@ class Edge(MeshComponent):
         # in order to detect infinite loop we stored each yielded edge
         seen = []
         while edge is not self:
-            if edge in seen:
+            if __debug__ and edge in seen:
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
-            seen.append(edge)
-            new_edge = (yield edge)
-            if new_edge:
-                seen = []
-                edge = new_edge
-            else:
-                edge = edge.next
+            if __debug__:
+                seen.append(edge)  # noinspection PyUnreachableCode
+            yield edge
+            edge = edge.next
 
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
@@ -1244,7 +1254,7 @@ class Edge(MeshComponent):
         self.remove_from_mesh()
         self.pair.remove_from_mesh()
 
-    def remove(self) -> 'Face':
+    def remove(self, clean_vertex: bool = True) -> 'Face':
         """
         Removes the edge from the face. The corresponding faces are merged
         1. remove the face of the edge from the mesh (except if the face is None, in which case
@@ -1295,8 +1305,9 @@ class Edge(MeshComponent):
             self.previous.next = self.pair.next
 
             # clean useless vertices
-            self.start.clean()
-            self.end.clean()
+            if clean_vertex:
+                self.start.clean()
+                self.end.clean()
 
         # remove isolated edges
         for edge in remaining_face.edges:
@@ -1788,7 +1799,7 @@ class Edge(MeshComponent):
             |                         |
             |       New face          |
             |                         |
-            |       Line cut          |
+            |       Line cut          | vector ->
         +---*-----------+-------------*---+
             |           ^             |
             |           | offset      |
@@ -1797,8 +1808,8 @@ class Edge(MeshComponent):
             +-----------+-------------+
             +---------+EDGE+---------->
 
-        :param offset:
-        :param vector:
+        :param offset: the distance along the edge normal
+        :param vector: the direction of the created edge
         :return: a list of the created faces including the initial face
         """
         logging.debug("Edge: Slicing a face from edge %s with offset %s and vector %s",
@@ -1885,12 +1896,15 @@ class Face(MeshComponent):
 
     type = MeshComponentType.FACE
 
-    __slots__ = '_edge'
+    __slots__ = '_edge', '_cached_area'
 
     def __init__(self, mesh: 'Mesh', edge: 'Edge', _id: Optional[int] = None):
 
         self._edge = edge
         super().__init__(mesh, _id)
+
+        # for performance purposes
+        self._cached_area = None
 
     def __repr__(self):
         output = 'Face: ['
@@ -1940,7 +1954,7 @@ class Face(MeshComponent):
         self._edge = value
 
     @property
-    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
+    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, None, None]:
         """
         Loops trough all the edges belonging to a face.
         We start at the edge stored in the face and follow each edge next until
@@ -2016,6 +2030,26 @@ class Face(MeshComponent):
         return self.as_sp.area
 
     @property
+    def cached_area(self) -> float:
+        """
+        property
+        Returns the cached area of the face
+        :return:
+        """
+        if self._cached_area is None:
+            self._cached_area = self.area
+        return self._cached_area
+
+    @cached_area.setter
+    def cached_area(self, value: float):
+        """
+        Computes the cache
+        :param value:
+        :return:
+        """
+        self._cached_area = value
+
+    @property
     def length(self) -> float:
         """
         Calculates the perimeter length of the face
@@ -2079,9 +2113,18 @@ class Face(MeshComponent):
         generator = self.edges
         for edge in generator:
             if edge.pair.face is not None and edge.pair.face not in seen:
-                new_edge = (yield edge.pair.face)
-                if new_edge:
-                    generator.send(new_edge)
+                yield edge.pair.face
+
+    def is_adjacent(self, other: 'Face') -> bool:
+        """
+        Returns True if the face *self* is adjacent to the face *other*
+        :param other:
+        :return:
+        """
+        for edge in self.edges:
+            if edge.pair.face is other:
+                return True
+        return False
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
@@ -2243,31 +2286,36 @@ class Face(MeshComponent):
         best_vertex = None
         best_near_vertex = None
         best_shared_edge = None
-        for vertex in face.vertices:
+        for edge in face.edges:
             for vector in vectors:
-                edge = vertex.edge.pair.next
-                _correct_orientation = same_half_plane(vector, edge.normal)
-                _vector = vector if _correct_orientation else opposite_vector(vector)
-                intersection_data = vertex.project_point(self, _vector)
-                if intersection_data is None:
-                    continue
-                near_vertex, shared_edge, distance_to_vertex = intersection_data
-                projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
-                if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
-                        and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
-                    # do not forget to clean unused vertex
-                    near_vertex.remove_from_mesh()
-                    continue
-                if min_distance is None or distance_to_vertex < min_distance:
-                    best_vertex = vertex
-                    # do not forget to clean unused vertex
-                    if best_near_vertex:
-                        best_near_vertex.remove_from_mesh()
-                    best_near_vertex = near_vertex
-                    best_shared_edge = shared_edge
-                    min_distance = distance_to_vertex
-                else:
-                    near_vertex.remove_from_mesh()
+                for vertex in (edge.pair.start, edge.pair.end):
+                    angle = ccw_angle(edge.pair.normal, vector)
+                    if angle <= 90.0 - MIN_ANGLE or angle >= 270.0 + MIN_ANGLE:
+                        _vector = vector
+                    elif 90 + MIN_ANGLE <= angle <= 270.0 - MIN_ANGLE:
+                        _vector = opposite_vector(vector)
+                    else:
+                        continue
+                    intersection_data = vertex.project_point(self, _vector)
+                    if intersection_data is None:
+                        continue
+                    near_vertex, shared_edge, distance_to_vertex = intersection_data
+                    projected_angle = ccw_angle(shared_edge.vector, vertex.vector(near_vertex)) % 90
+                    if (not pseudo_equal(projected_angle, 0.0, ANGLE_EPSILON)
+                            and not pseudo_equal(projected_angle, 90.0, ANGLE_EPSILON)):
+                        # do not forget to clean unused vertex
+                        near_vertex.remove_from_mesh()
+                        continue
+                    if min_distance is None or distance_to_vertex < min_distance:
+                        best_vertex = vertex
+                        # do not forget to clean unused vertex
+                        if best_near_vertex:
+                            best_near_vertex.remove_from_mesh()
+                        best_near_vertex = near_vertex
+                        best_shared_edge = shared_edge
+                        min_distance = distance_to_vertex
+                    else:
+                        near_vertex.remove_from_mesh()
 
         if min_distance is None:
             raise Exception('Cannot find and intersection point to insert face !:{0}'.format(face))
@@ -2501,8 +2549,13 @@ class Face(MeshComponent):
         for new_face in new_faces:
             for edge in new_face.edges:
                 if edge.pair.face in new_faces:
-                    remaining_face = edge.remove()
+                    # we must not clean vertices to prevent the deletion of an edge on
+                    # which we are currently iterating thus creating an infinite loop
+                    remaining_face = edge.remove(clean_vertex=False)
 
+        # we clean the vertices afterwards
+        for vertex in list(remaining_face.vertices):
+            vertex.clean()
         # attribute the references to the initial face
         # to preserve the face references
         remaining_face.swap(face)
@@ -2775,7 +2828,7 @@ class Mesh:
     Mesh Class
     """
     __slots__ = ('_edge', '_faces', '_edges', '_vertices',
-                 '_watchers', '_modifications', 'id', '_counter')
+                 '_watchers', '_modifications', 'id', '_counter', '_cached_area')
 
     def __init__(self, _id: Optional[int] = None):
         self._edge = None  # boundary edge of the mesh
@@ -2788,7 +2841,10 @@ class Mesh:
                                   Tuple['MeshOps', Tuple['MeshComponentType', int],
                                         Optional[Tuple['MeshComponentType', int]]]] = {}
         self.id = _id or uuid.uuid4()
-        self._counter = 0
+        self._counter: int = 0
+
+        # for caching purpose
+        self._cached_area: Optional[float] = None
 
     def __repr__(self):
         output = 'Mesh:\n'
@@ -2825,6 +2881,14 @@ class Mesh:
         faces_id = set(self._faces.keys())
         edges_id = set(self._edges.keys())
         self._counter = max(vertices_id | faces_id | edges_id)
+
+    def compute_cache(self):
+        """
+        Computes the cached values for area / length of the mesh elements
+        :return:
+        """
+        for face in self.faces:
+            face.cached_area = face.area
 
     @property
     def components_id(self) -> Generator[int, None, None]:
@@ -2919,7 +2983,23 @@ class Mesh:
 
         return self
 
-    def add_watcher(self, watcher: Callable[['MeshComponent', MeshOps], None]):
+    def __getstate__(self) -> Dict:
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :return: the data used for pickling
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :param state: the data used to unpickle
+        """
+        self.deserialize(state)
+
+    def add_watcher(self, watcher: Callable[[Dict[int, MeshModification]], None]):
         """
         Adds a watcher to the mesh.
         Each time a mesh component is added or removed, a call to the watcher is triggered.
@@ -2978,7 +3058,7 @@ class Mesh:
         :return:
         """
         for watcher in self._watchers:
-            watcher(self._modifications)
+            watcher(self._modifications, self.id)
         self._modifications = {}
 
     def add(self, component: Union['MeshComponent', 'Vertex', 'Face', 'Edge']):
@@ -2987,10 +3067,10 @@ class Mesh:
         :param component:
         :return:
         """
-        self.store_modification(MeshOps.ADD, component)
-
         if component.id is None:
             component.id = self.get_id()
+
+        self.store_modification(MeshOps.ADD, component)
 
         if type(component) == Vertex:
             self._add_vertex(component)
@@ -3309,6 +3389,17 @@ class Mesh:
         :return:
         """
         return Polygon(self.boundary_as_sp)
+
+    def area(self, cache: bool = False):
+        """
+        Returns the area of the mesh
+        :return:
+        """
+        if cache and self._cached_area is not None:
+            return self._cached_area
+        else:
+            self._cached_area = self.as_sp.area
+            return self._cached_area
 
     @property
     def directions(self) -> Sequence[Tuple[float, float]]:

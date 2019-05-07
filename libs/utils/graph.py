@@ -13,7 +13,7 @@ from libs.plan.plan import Vertex
 from libs.mesh.mesh import Edge
 
 
-class Graph_nx:
+class GraphNx:
 
     def __init__(self):
         self.graph = nx.Graph()
@@ -144,8 +144,8 @@ class EdgeGraph:
             for edge1 in edges1:
                 for edge2 in edges2:
                     search = dijkstar.find_path(self.graph_struct,
-                                                edge1,
-                                                edge2,
+                                                edge1.start,
+                                                edge2.start,
                                                 cost_func=lambda u, v, e, prev_e: e['cost'])
                     if cost is None or cost > search[3]:
                         path = search[0]
@@ -153,27 +153,32 @@ class EdgeGraph:
             return path, cost
         if self.graph_lib == 'networkx':
             # for each edges sequence add a virtual node connected with cost 0 to all edges
+            virtual_1 = Vertex(edges1[0].mesh)
+            virtual_2 = Vertex(edges1[0].mesh)
             for edge in edges1:
-                self.graph_struct.add_edge("virtual1", edge.start, cost=0)
-                self.graph_struct.add_edge("virtual1", edge.end, cost=0)
+                self.graph_struct.add_edge(virtual_1, edge.start, cost=0)
+                self.graph_struct.add_edge(virtual_1, edge.end, cost=0)
             for edge in edges2:
-                self.graph_struct.add_edge(edge.start, "virtual2", cost=0)
-                self.graph_struct.add_edge(edge.end, "virtual2", cost=0)
+                self.graph_struct.add_edge(edge.start, virtual_2, cost=0)
+                self.graph_struct.add_edge(edge.end, virtual_2, cost=0)
             # compute shortest path between virtual nodes
             try:
-                path = nx.shortest_path(self.graph_struct, "virtual1", "virtual2")[1:-1]
+                path = nx.shortest_path(self.graph_struct, virtual_1, virtual_2, weight='cost')[
+                       1:-1]
             except nx.exception.NetworkXNoPath:
-                # TODO : for now, the only case where this exception is thrown should be when
-                # a floor is cut into several parts by a load bearing wall.
-                # This problem must be treated
-                # possible treatment : by putting holes in the load bearing walls at location where
-                # they can be crossed
-                logging.warning('Graph_nx-no path found')
+                # TODO: for now, the only case where this exception is thrown should be when
+                #       a floor is cut into several parts by a load bearing wall.
+                #       This problem must be treated
+                #       possible treatment : by putting holes in the load bearing walls at location
+                #       where they can be crossed
+                logging.warning('GraphNx: no path found')
                 return [], 0
             finally:
                 # remove virtual nodes
-                self.graph_struct.remove_node("virtual1")
-                self.graph_struct.remove_node("virtual2")
+                self.graph_struct.remove_node(virtual_1)
+                self.graph_struct.remove_node(virtual_2)
+                virtual_1.remove_from_mesh()
+                virtual_2.remove_from_mesh()
             # compute cost
             if len(path) == 1:
                 return path, 0

@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + "_solution_"
-                                                            + str(solution_number))
+                                                            + str(solution_number) + ".json")
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")

@@ -75,8 +75,8 @@ class Grid:
         :param show:
         :return:
         """
-        for empty_space in plan.empty_spaces:
-            mesh_has_changed = self._select_and_slice(empty_space, operator, show)
+        for space in plan.mutable_spaces():
+            mesh_has_changed = self._select_and_slice(space, operator, show)
             if mesh_has_changed:
                 return self._apply_operator(plan, operator, show)
         return
@@ -339,6 +339,30 @@ cleanup_grid = Grid("cleanup", [
     (SELECTORS["face_min_area"], MUTATIONS["remove_edge"], False)
 ])
 
+refiner_grid = Grid("refiner", [
+    (SELECTORS["plan_boundary_no_linear"], MUTATION_FACTORIES['barycenter_cut'](0.5), False),
+    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False),
+    (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
+])
+
+finer_cleanup_grid = Grid("cleanup", [
+    (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
+    (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False)
+])
+
+simple_finer_grid = Grid("Simple", [
+    (SELECTORS["plan_boundary_no_linear"], MUTATION_FACTORIES['barycenter_cut'](0.5), False),
+])
 
 GRIDS = {
     "ortho_grid": ortho_grid,
@@ -349,7 +373,11 @@ GRIDS = {
     "duct": duct_grid,
     "optimal_grid": (section_grid + duct_grid + corner_grid + load_bearing_wall_grid + window_grid +
                      entrance_grid + stair_grid + completion_grid + cleanup_grid),
-    "test_grid_temp": section_grid
+    "test_grid_temp": section_grid,
+    "refiner_grid": refiner_grid,
+    "optimal_finer_grid": (section_grid + duct_grid + corner_grid + load_bearing_wall_grid +
+                           window_grid + entrance_grid + stair_grid + simple_finer_grid +
+                           completion_grid + finer_cleanup_grid)
 }
 
 if __name__ == '__main__':
@@ -361,13 +389,30 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("030.json")
+        plan = reader.create_plan_from_file("007.json")
         plan.check()
-        new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
+        new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)
         new_plan.check()
         new_plan.plot(save=False)
         plt.show()
         print(len(new_plan.mesh.faces))
 
+    # create_a_grid()
 
-    create_a_grid()
+
+    def refine_grid():
+        """
+        Test
+        :return:
+        """
+        import tools.cache
+        spec, plan = tools.cache.get_plan("007")
+        new_plan = GRIDS["refiner_grid"].apply_to(plan, show=True)
+        new_plan.plot(save=False)
+        plt.show()
+        print(len(new_plan.mesh.faces))
+
+
+    refine_grid()
+
+

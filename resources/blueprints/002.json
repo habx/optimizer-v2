@@ -341,17 +341,6 @@
         "id": 304
       },
       {
-        "area": 2661.119999999999,
-        "category": "loadBearingWall",
-        "geometry": [
-          1038,
-          1039,
-          1040,
-          1041
-        ],
-        "id": 305
-      },
-      {
         "area": 537.6000000000004,
         "category": "loadBearingWall",
         "geometry": [

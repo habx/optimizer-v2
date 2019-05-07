@@ -147,7 +147,7 @@ class ConstraintSolver:
                     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
                                     len(self.solutions))
                     break
-                if (time.clock() - t0 - 600) >= 0:
+                if (time.process_time() - t0 - 600) >= 0:
                     logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
                     break
 
@@ -231,10 +231,18 @@ class ConstraintsManager:
         self._init_spaces_adjacency()
         self.spaces_item_adjacency_matrix = []
         self._init_spaces_item_adjacency()
-        self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                       self.sp.spec.plan.count_mutable_spaces(),
-                                       self.spaces_adjacency_matrix)
-
+        if sp.spec.plan.floor_count < 2:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces(),
+                                           self.spaces_adjacency_matrix, False)
+        else:
+            self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                           self.sp.spec.plan.count_mutable_spaces(),
+                                           self.spaces_adjacency_matrix, True)
+        self.item_area = {}
+        self._init_item_area()
+        self.item_windows_area = {}
+        self._init_item_windows_area()
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self._init_windows_length()
@@ -249,6 +257,34 @@ class ConstraintsManager:
         self.add_spaces_constraints()
         self.add_item_constraints()
 
+    def _init_item_area(self) -> None:
+        """
+        Initialize item area
+        :return:
+        """
+        for item in self.sp.spec.items:
+            self.item_area[item.id] = self.solver.solver.Sum(
+                self.solver.positions[item.id, j] * round(space.area)
+                for j, space in
+                enumerate(self.sp.spec.plan.mutable_spaces()))
+
+    def _init_item_windows_area(self) -> None:
+        """
+        Initialize item window area
+        :return:
+        """
+        for item in self.sp.spec.items:
+            area = 0
+            for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                for component in space.immutable_components():
+                    if component.category.name == "window":
+                        area += (self.solver.positions[item.id, j]
+                                 * int(round(component.length * 100)))
+                    elif component.category.name == "doorWindow":
+                        area += (self.solver.positions[item.id, j]
+                                   * int(round(component.length * 200)))
+            self.item_windows_area[item.id] = area
+
     def _init_windows_length(self) -> None:
         """
         Initialize the length of each window
@@ -262,7 +298,7 @@ class ConstraintsManager:
                             or component.category.name == "doorWindow"):
                         length += (self.solver.positions[item.id, j]
                                    * int(round(component.length / 10)))
-            self.windows_length[str(item.id)] = length
+            self.windows_length[item.id] = length
 
     def _init_spaces_distance(self) -> None:
         """
@@ -325,6 +361,16 @@ class ConstraintsManager:
         spaces adjacency matrix init
         :return: None
         """
+        self.spaces_item_adjacency_matrix = [
+            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
+             enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
+            enumerate(self.sp.spec.plan.mutable_spaces())]
+
+    def _init_spaces_item_adjacency(self) -> None:
+        """
+        spaces adjacency matrix init
+        :return: None
+        """
         # for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
         #     for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
         #         print(i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2)
@@ -360,11 +406,6 @@ class ConstraintsManager:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 4:
-                for constraint in T4_MORE_ITEMS_CONSTRAINTS["all"]:
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
-                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
@@ -447,9 +488,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
 
-        ct = (manager.solver.solver
-              .Sum(manager.solver.positions[item.id, j] * round(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) <= max_area)
+        ct = manager.item_area[item.id] <= max_area
 
     elif min_max == "min":
         if item.variant in ["xs", "s"]:
@@ -457,9 +496,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
         else:
             min_area = round(min(item.min_size.area * MIN_AREA_COEFF, item.min_size.area - 1 * SQM))
 
-        ct = (manager.solver.solver
-              .Sum(manager.solver.positions[item.id, j] * round(space.area)
-                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces())) >= min_area)
+        ct = manager.item_area[item.id] >= min_area
     else:
         ValueError("AreaConstraint")
 
@@ -497,10 +534,10 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
     elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
-        param = 2
+        param = 1.8
     elif item.category.name in ["entrance"]:
         param = 2.5
-    elif item.category.name in ["circulation", "entrance"]:
+    elif item.category.name in ["circulation"]:
         param = 3
     else:
         param = 1.8
@@ -646,11 +683,15 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
     if manager.sp.spec.typology <= 2:
         if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
-            param = min(max(30, int(plan_ratio + 10)), 40)
-        elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
-            param = min(max(25, int(plan_ratio)), 35)
+            param = min(max(25, int(plan_ratio + 10)), 35)
+        elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance",
+                                     "dressing", "laundry"]
+              or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
+            param = min(max(25, plan_ratio), 32)
+        elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
+            param = 22
         else:
-            param = 20 # toilet / bedroom / entrance
+            param = 22  # toilet / bedroom / entrance
     else:
         if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
             param = 26# min(max(30, int(plan_ratio + 10)), 40)
@@ -663,38 +704,36 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
         else:
             param = 22 # toilet / bedroom / entrance
 
-    item_area = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * int(space.area)
-                                          for j, space in
-                                          enumerate(manager.sp.spec.plan.mutable_spaces()))
     if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
-                                                    int(space.perimeter_without_duct)
+                                                    int(round(space.perimeter_without_duct))
                                                     for j, space in
                                                     enumerate(
                                                         manager.sp.spec.plan.mutable_spaces()))
     else:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
-                                                    int(space.perimeter)
+                                                    int(round(space.perimeter))
                                                     for j, space in
                                                     enumerate(
                                                         manager.sp.spec.plan.mutable_spaces()))
     cells_adjacency = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
                                                 manager.solver.positions[item.id, k] *
-                                                int(j_space.contact_length(k_space))
+                                                int(round(j_space.contact_length(k_space)))
                                                 for j, j_space in
                                                 enumerate(manager.sp.spec.plan.mutable_spaces())
                                                 for k, k_space in
                                                 enumerate(manager.sp.spec.plan.mutable_spaces())
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
-    ct = (item_perimeter * item_perimeter <= param * item_area)
+    ct = (item_perimeter * item_perimeter <= int(param) * manager.item_area[item.id])
 
     ct = or_no_space_constraint(manager, item, ct)
 
     return ct
 
 
-def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bool]:
+def windows_ordering_constraint(manager: 'ConstraintsManager',
+                                item: Item) -> Optional[ ortools.Constraint]:
     """
     Windows length constraint : margin
     :param manager: 'ConstraintsManager'
@@ -706,17 +745,85 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> Optional[bo
         if (item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS
                 and item.required_area < j_item.required_area):
             if ct is None:
-                ct = (manager.windows_length[str(item.id)] <=
-                      manager.windows_length[str(j_item.id)])
+                ct = (manager.windows_length[item.id] <=
+                      manager.windows_length[j_item.id])
             else:
-                new_ct = (manager.windows_length[str(item.id)] <=
-                          manager.windows_length[str(j_item.id)])
+                new_ct = (manager.windows_length[item.id] <=
+                          manager.windows_length[j_item.id])
                 ct = manager.solver.solver.Min(ct, new_ct)
-    if ct is None:
-        return ct
-    else:
-        return ct == 1
+        elif (item.category.name in WINDOW_ROOMS and j_item.category.name in WINDOW_ROOMS
+              and item.required_area > j_item.required_area):
+            if ct is None:
+                ct = (manager.windows_length[item.id] >=
+                      manager.windows_length[j_item.id])
+            else:
+                new_ct = (manager.windows_length[item.id] >=
+                          manager.windows_length[j_item.id])
+                ct = manager.solver.solver.Min(ct, new_ct)
 
+    return ct
+
+def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
+                            ratio: int) -> ortools.Constraint:
+    """
+    Windows area ratio constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param ratio : minimum ratio between item area and windows area
+    :return: ct: ortools.Constraint
+    """
+    ct = (manager.item_area[item.id] * ratio) <= (
+                manager.item_windows_area[item.id] * 100)
+    return ct
+
+def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Windows constraint : windows_area_constraint or windows_ordering_constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+
+    if item.category.name in WINDOW_ROOMS:
+        if item.category.name in ["living", "livingKitchen", "dining"]:
+            ratio = 18
+        elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
+            ratio = 15
+        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
+            ratio = 10
+        else:
+            ratio = 0
+            logging.warning("ConstraintsManager - windows_constraint : undefined ratio")
+
+        ct1 = windows_ordering_constraint(manager, item)
+        ct2 = windows_area_constraint(manager, item, ratio)
+        if ct1 is None:
+            ct = ct2
+        else:
+            ct = manager.or_(ct1, ct2)
+
+    return ct
+
+def large_windows_constraint(manager: 'ConstraintsManager',
+                             item: Item) -> Optional[ortools.Constraint]:
+    """
+    Large Windows constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+
+    large_windows_sum = 0
+    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for component in space.immutable_components():
+            if component.category.name is "doorWindow" and component.length > 180:
+                large_windows_sum += manager.solver.positions[item.id, j]
+    if large_windows_sum:
+        ct = large_windows_sum >= 1
+
+    return ct
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
@@ -759,7 +866,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     """
     ct = None
     item_sym_id = str(item.category.name + item.variant)
-    if item_sym_id in manager.symmetry_breaker_memo.keys():
+    if item_sym_id in manager.symmetry_breaker_memo:
         memo = manager.solver.solver.Sum(
             2 ** j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j]
             for j in range(manager.solver.spaces_nbr))
@@ -831,6 +938,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     """
 
     ct = None
+
     for cat in item_categories:
         adjacency_sum = 0
         for num, num_item in enumerate(manager.sp.spec.items):
@@ -1019,13 +1127,13 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
-        [windows_constraint, {}],
-        [symmetry_breaker_constraint, {}],
         [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         [distance_constraint, {}],
         [shape_constraint, {}],
+        [windows_constraint, {}],
+        [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
         [item_attribution_constraint, {}],
@@ -1036,104 +1144,106 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ],
     "toilet": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
             {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+        [large_windows_constraint, {}],
         [item_adjacency_constraint,
-         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+                 {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
 
     ],
     "livingKitchen": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ["kitchen", "dining"], "adj": True, "addition_rule": "Or"}],
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+        [large_windows_constraint, {}],
         [item_adjacency_constraint,
-         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+                 {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["kitchen"]}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["kitchen", "livingKitchen"], "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "kitchen": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bedroom": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
-        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "study": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
-        [opens_on_constraint, {"length": 220}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+
     ],
     "laundry": [
         [area_constraint, {"min_max": "min"}],
-        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
-        [components_adjacency_constraint, {"category": ["startingStep"], "adj": False}],
-        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
@@ -1201,15 +1311,5 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [circulation_bedroom_adjacency_constraint, {}]
     ]
 }
-T4_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
 
-    ],
-    "bathroom": [
-        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
-    ],
-    "bedroom": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
-    ]
-}
+

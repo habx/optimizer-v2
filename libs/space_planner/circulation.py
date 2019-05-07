@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 from libs.plan.plan import Space, Plan, Vertex
 from libs.mesh.mesh import Edge
 from libs.io.plot import plot_save
-from libs.utils.graph import Graph_nx, EdgeGraph
+from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
 
 
@@ -27,7 +27,7 @@ class Circulator:
         self.plan = plan
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
-        self.connectivity_graph = Graph_nx()
+        self.connectivity_graph = GraphNx()
         self.connecting_paths = {level: [] for level in plan.list_level}
         self.circulation_cost = 0
 
@@ -182,8 +182,8 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        for f in range(number_of_floors):
-            _ax = ax[f]
+        for f in self.plan.list_level:
+            _ax = ax[f] if number_of_floors > 1 else ax
             paths = self.connecting_paths[f]
             for path in paths:
                 if len(path) == 1:

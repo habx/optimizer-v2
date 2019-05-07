@@ -119,7 +119,7 @@ def unit_vector(angle: float) -> Vector2d:
     angle %= 360
     angle = angle - 360 * np.sign(angle) if np.abs(angle) > 180 else angle
     rad = angle * np.pi / 180
-    return np.cos(rad), np.sin(rad)
+    return truncate(np.cos(rad), COORD_DECIMAL), truncate(np.sin(rad), COORD_DECIMAL)
 
 
 def normal_vector(vector: Vector2d) -> Vector2d:
@@ -223,6 +223,16 @@ def dot_product(vector_1: Vector2d, vector_2: Vector2d):
     :return:
     """
     return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]
+
+
+def cross_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
+    """
+    Returns the cross product of the two vectors
+    :param vector_1:
+    :param vector_2:
+    :return:
+    """
+    return vector_1[0]*vector_2[1] - vector_1[1]*vector_2[0]
 
 
 def pseudo_equal(value: float, other: float, epsilon: float) -> bool:

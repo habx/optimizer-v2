@@ -144,7 +144,6 @@ SPACE_CATEGORIES = {
     "laundry": SpaceCategory('laundry', needed_spaces=[duct_space]),
     "toilet": SpaceCategory('toilet', needed_spaces=[duct_space]),
     "circulation": SpaceCategory("circulation", circulation=True),
-    "corridor": SpaceCategory('corridor', circulation=True),
     "balcony": SpaceCategory('balcony', mutable=False, external=True),
     "garden": SpaceCategory('garden', mutable=False, external=True),
     "terrace": SpaceCategory('terrace', mutable=False, external=True),

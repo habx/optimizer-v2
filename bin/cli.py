@@ -34,11 +34,22 @@ def _exists_path(parser, path, file=None):
 
 
 def _cli():
-    # arg parser
-    parser = argparse.ArgumentParser(description="Optimizer V2 CLI (%s)" % Executor.VERSION)
-    parser.add_argument("-l", dest="lot", required=True, metavar="FILE",
+    example_text = """
+Example usage:
+==============
+
+bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json
+bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json -p resources/params/timeout.json
+"""
+
+    parser = argparse.ArgumentParser(
+        description="Optimizer V2 CLI (%s)" % Executor.VERSION,
+        epilog=example_text,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("-b", dest="blueprint", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
-                        help="the input lot file path")
+                        help="the input blueprint file path")
     parser.add_argument("-s", dest="setup", required=True, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input setup file path")
@@ -48,14 +59,14 @@ def _cli():
     parser.add_argument("-o", dest="output", required=True,
                         help="the output solutions dir")
     parser.add_argument("-g", dest="grid", required=False,
-                        help="grid type", default="optimal_grid")
+                        help="grid type")
     parser.add_argument("-u", dest="shuffle", required=False,
-                        help="shuffle type", default="square_shape_shuffle_rooms")
+                        help="shuffle type")
     parser.add_argument("-P", "--plot",
                         help="plot outputs",
                         action="store_true")
     args = parser.parse_args()
-    lot_path = args.lot
+    blueprint_path = args.blueprint
     setup_path = args.setup
     params_path = args.params
     output_dir = args.output
@@ -67,10 +78,10 @@ def _cli():
     logging.getLogger().setLevel(logging.INFO)
     executor = Executor()
 
-    logging.info('Running (%s, %s) --> %s', lot_path, setup_path, output_dir)
+    logging.info('Running (%s, %s) --> %s', blueprint_path, setup_path, output_dir)
 
-    with open(lot_path, 'r') as lot_fp:
-        lot = json.load(lot_fp)
+    with open(blueprint_path, 'r') as blueprint_fp:
+        lot = json.load(blueprint_fp)
     with open(setup_path, 'r') as setup_fp:
         setup = json.load(setup_fp)
     if params_path:
