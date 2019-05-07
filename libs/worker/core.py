@@ -164,8 +164,10 @@ class TaskProcessor:
     def _save_output_files(self, task_id: str):
         files = self._output_files()
 
-        if files:
-            logging.info("Uploading some files on S3...")
+        if not files:
+            return
+
+        logging.info("Uploading some files on S3...")
 
         for src_file in files:
             # OPT-89: Storing files in a "tasks" directory
@@ -186,8 +188,7 @@ class TaskProcessor:
                 ExtraArgs={'ACL': 'public-read'}
             )
 
-        if files:
-            logging.info("Upload done...")
+        logging.info("Upload done...")
 
     def _output_files(self) -> List[str]:
         return glob.glob(os.path.join(self.output_dir, '*'))
