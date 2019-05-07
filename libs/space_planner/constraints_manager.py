@@ -397,14 +397,13 @@ class ConstraintsManager:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
+            if self.sp.spec.typology <= 2:
+                for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
@@ -533,16 +532,18 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     """
     if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
         param = 2
-    elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+    elif item.category.name in ["bathroom"]:
+        param = 1.9
+    elif item.category.name in ["study", "misc", "kitchen"]:
         param = 1.8
     elif item.category.name in ["entrance"]:
         param = 2.5
     elif item.category.name in ["circulation"]:
         param = 3
     else:
-        param = 1.8
+        param = 1.8 # toilet, bedroom,
 
-    max_distance = int(round(param * item.max_size.area ** 0.5))
+    max_distance = int(round(param * item.required_area ** 0.5))
 
     ct = None
 
@@ -558,9 +559,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                                manager.solver.positions[item.id, k])
                               <= int(max_distance / manager.spaces_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
-
     ct = or_no_space_constraint(manager, item, ct)
-
     return ct
 
 
@@ -617,9 +616,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                   manager.solver.positions[item.id, k] * area_path
                                   <= max_area)
                     ct = manager.and_(ct, new_ct)
-
     ct = or_no_space_constraint(manager, item, ct)
-
     return ct
 
 
@@ -663,9 +660,7 @@ def graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                                for l, l_space in enumerate(
                                     manager.sp.spec.plan.mutable_spaces())))
                     ct = manager.and_(ct, new_ct)
-
     ct = or_no_space_constraint(manager, item, ct)
-
     return ct
 
 
@@ -726,9 +721,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                                                 )
     item_perimeter = cells_perimeter - cells_adjacency
     ct = (item_perimeter * item_perimeter <= int(param) * manager.item_area[item.id])
-
     ct = or_no_space_constraint(manager, item, ct)
-
     return ct
 
 
@@ -766,13 +759,13 @@ def windows_ordering_constraint(manager: 'ConstraintsManager',
 def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                             ratio: int) -> ortools.Constraint:
     """
-    Windows area ratio constraint
+    Windows area ratio constraint : NF HABITAT HQE
     :param manager: 'ConstraintsManager'
     :param item: Item
     :param ratio : minimum ratio between item area and windows area
     :return: ct: ortools.Constraint
     """
-    ct = (manager.item_area[item.id] * ratio) <= (
+    ct = round(item.required_area * ratio) <= (
                 manager.item_windows_area[item.id] * 100)
     return ct
 
@@ -799,7 +792,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
         if ct1 is None:
-            ct = ct2
+            ct = None
+            logging.debug("ConstraintsManager - No window constraint")
         else:
             ct = manager.or_(ct1, ct2)
 
@@ -1124,6 +1118,58 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
+                           ct: Optional[ortools.Constraint]) -> Optional[ortools.Constraint]:
+    """
+    to apply the given constraint only if the item exists in the solution
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param ct : ortools.Constraint
+    :return: ct: ortools.Constraint
+    """
+    ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
+                                     for j, space in enumerate(
+                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+    if ct:
+        return manager.or_(ct, ct0)
+    else:
+        return None
+
+def optional_entrance_constraint(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
+    """
+    optional entrance constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct1 = components_adjacency_constraint(manager, item,["frontDoor"], True)
+    ct = or_no_space_constraint(manager, item, ct1)
+
+    return ct
+
+def conditional_entrance_constraint(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
+    """
+    conditional entrance constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct1 = components_adjacency_constraint(manager, item, ["frontDoor"], True)
+
+    front_door_space = None
+    for space in manager.sp.spec.plan.mutable_spaces():
+        if "frontDoor" in space.components_category_associated():
+            front_door_space = space
+            break
+
+    if front_door_space and front_door_space.area > 4*SQM:
+        ct = or_no_space_constraint(manager, item, ct1)
+    else:
+        ct = ct1
+
+    return ct
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
@@ -1136,13 +1182,12 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [item_attribution_constraint, {}],
-        [components_adjacency_constraint, {"category": ["frontDoor"], "adj": True}],
         [area_constraint, {"min_max": "max"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "toilet": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1151,9 +1196,12 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
             {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bathroom": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1163,6 +1211,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -1174,6 +1223,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
     ],
     "livingKitchen": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
@@ -1184,6 +1234,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
                  {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [opens_on_constraint, {"length": 220}],
         [components_adjacency_constraint,
@@ -1196,6 +1247,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "kitchen": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1208,6 +1260,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "bedroom": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1217,6 +1270,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "study": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [opens_on_constraint, {"length": 220}],
@@ -1226,6 +1280,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
     "dressing": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint,
@@ -1233,10 +1288,12 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
-
     ],
     "laundry": [
+        [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1257,9 +1314,15 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ]
 }
 
-T2_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
+T1_T2_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [optional_entrance_constraint,{}],
+    ]
+}
 
+T2_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [conditional_entrance_constraint, {}],
     ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1267,12 +1330,7 @@ T2_MORE_ITEMS_CONSTRAINTS = {
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
-
-    ],
     "toilet": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
         [item_adjacency_constraint,
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
@@ -1297,13 +1355,9 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "dressing": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint,
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],
     "laundry": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],
