@@ -6,7 +6,7 @@ module used to run optimizer
 import logging
 from typing import List, Dict
 import time
-import json
+import mimetypes
 import os
 
 from libs.io import reader
@@ -33,17 +33,19 @@ class Response:
         self.elapsed_times = elapsed_times
         self._output_dir = output_dir
 
-    @property
-    def pictures(self) -> Dict[str, str]:
-        pictures = {}
+    def picture_files(self) -> Dict[str, str]:
+        mimetypes.init()
+        files = {}
         for file in os.listdir(self._output_dir):
-            extension = os.path.splitext(file)[-1]
+            extension = os.path.splitext(file)[-1].lower()
             if extension in (".tif", ".tiff",
                              ".jpeg", ".jpg", ".jif", ".jfif",
                              ".jp2", ".jpx", ".j2k", ".j2c",
                              ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
-                pictures[os.path.splitext(file)[0]] = os.path.join(self._output_dir, file)
-        return pictures
+                files[file] = {"type": os.path.splitext(file)[0],
+                               "title": os.path.splitext(file)[0].capitalize(),
+                               "mime": mimetypes.types_map[extension]}
+        return files
 
 
 class ExecParams:

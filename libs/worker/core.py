@@ -106,7 +106,7 @@ class TaskProcessor:
                     'error': traceback.format_exception(*sys.exc_info()),
                     'times': {
                         'totalReal': (time.time() - before_time_real),
-                        'total': (time.process_time()-before_time_cpu)
+                        'total': (time.process_time() - before_time_cpu)
                     },
                 },
             }
@@ -225,6 +225,8 @@ class TaskProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
+                'files': executor_result.picture_files()
+                # TODO add other files created outside optimizer.run() like profiling
             },
         }
 
