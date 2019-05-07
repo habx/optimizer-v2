@@ -511,8 +511,88 @@ def test_remove_middle_e_space():
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
 
-    plan.plot()
+    assert plan.check()
 
+
+def test_remove_face_between_holes():
+    """
+    Remove a face between two holes : creating a large holes.
+    The reference edges of the space should be changed accordingly
+    In this case the face is internal.
+    Example :
+    +-----------------------------------+
+    |                SPACE              |
+    |     +--------+       +-------+    |
+    |     |        |       |       |    |
+    |     |        +-------+       |    |
+    |     | HOLE 1 | FACE  | HOLE 2|    |
+    |     |        +-------+       |    |
+    |     |        |       |       |    |
+    |     +--------+       +-------+    |
+    |                                   |
+    +-----------------------------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
+    hole_1 = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    hole_2 = [(500, 200), (700, 200), (700, 600), (500, 600)]
+    face = [(300, 300), (500, 300), (500, 500), (300, 500)]
+    plan = Plan('face_between_holes')
+    plan.add_floor_from_boundary(perimeter)
+
+    face_1 = plan.empty_space.insert_face_from_boundary(hole_1)
+    plan.empty_space.remove_face(face_1)
+
+    face_2 = plan.empty_space.insert_face_from_boundary(hole_2)
+    plan.empty_space.remove_face(face_2)
+
+    face_3 = plan.empty_space.insert_face_from_boundary(face)
+    plan.empty_space.remove_face(face_3)
+
+    assert len(list(plan.empty_space.holes_reference_edge)) == 1
+    assert plan.check()
+
+
+def test_remove_face_between_holes_2():
+    """
+    Remove a face between two holes : creating a large holes.
+    The reference edges of the space should be changed accordingly.
+    In this case the face shares a boundary with the space
+    Example :
+    +--------+----------------+------+
+    |        |     FACE       |      |
+    |  +-----+---+------+-----+---+  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  | HOLE 1  |      | HOLE 2  |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  +---------+      +---------+  |
+    |              SPACE             |
+    +--------------------------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
+    hole_1 = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    hole_2 = [(500, 200), (700, 200), (700, 600), (500, 600)]
+    face = [(200, 600), (600, 600), (600, 800), (200, 800)]
+    plan = Plan('face_between_holes')
+    plan.add_floor_from_boundary(perimeter)
+
+    face_1 = plan.empty_space.insert_face_from_boundary(hole_1)
+    plan.empty_space.remove_face(face_1)
+
+    face_2 = plan.empty_space.insert_face_from_boundary(hole_2)
+    plan.empty_space.remove_face(face_2)
+
+    face_3 = plan.empty_space.insert_face_from_boundary(face)
+    plan.empty_space.remove_face(face_3)
+
+    assert len(list(plan.empty_space.holes_reference_edge)) == 0
     assert plan.check()
 
 
@@ -529,8 +609,6 @@ def test_create_hole():
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
     plan.empty_space.add_face(plan.mesh.faces[1])
-
-    plan.plot()
 
     assert plan.check()
 
