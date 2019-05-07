@@ -350,10 +350,10 @@ refiner_grid = Grid("refiner", [
     (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
 ])
 
-finer_cleanup_grid = Grid("cleanup", [
+finer_cleanup_grid = Grid("cleanup_finer", [
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
-    (SELECTORS["close_to_wall"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_wall_finer"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
@@ -362,6 +362,35 @@ finer_cleanup_grid = Grid("cleanup", [
 
 simple_finer_grid = Grid("Simple", [
     (SELECTORS["plan_boundary_no_linear"], MUTATION_FACTORIES['barycenter_cut'](0.5), False),
+])
+
+window_grid_finer = Grid("window", [
+    (SELECTORS["between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
+    (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
+    (SELECTORS["before_window"],
+     MUTATION_FACTORIES["translation_cut"](10, reference_point="end"), True),
+    (SELECTORS["after_window"], MUTATION_FACTORIES["translation_cut"](10), True)
+])
+
+duct_grid_finer = Grid("duct", [
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
+     True),
+])
+
+entrance_grid_finer = Grid("front_door", [
+    (SELECTORS["before_front_door"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_front_door"], MUTATION_FACTORIES["translation_cut"](5), True)
+])
+
+stair_grid_finer = Grid("starting_step", [
+    (SELECTORS["before_starting_step"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_starting_step"], MUTATION_FACTORIES["translation_cut"](5), True)
 ])
 
 GRIDS = {
@@ -375,29 +404,33 @@ GRIDS = {
                      entrance_grid + stair_grid + completion_grid + cleanup_grid),
     "test_grid_temp": section_grid,
     "refiner_grid": refiner_grid,
-    "optimal_finer_grid": (section_grid + duct_grid + corner_grid + load_bearing_wall_grid +
-                           window_grid + entrance_grid + stair_grid + simple_finer_grid +
-                           completion_grid + finer_cleanup_grid)
+    "optimal_finer_grid": (section_grid + duct_grid_finer + corner_grid + load_bearing_wall_grid +
+                           window_grid_finer + entrance_grid_finer + stair_grid_finer +
+                           simple_finer_grid + completion_grid + finer_cleanup_grid)
 }
 
 if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
+    import time
 
     def create_a_grid():
         """
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("007.json")
+        plan = reader.create_plan_from_file("021.json")
         plan.check()
+        start_time = time.time()
         new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)
+        end_time = time.time()
         new_plan.check()
+        logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)
         plt.show()
         print(len(new_plan.mesh.faces))
 
-    # create_a_grid()
+    create_a_grid()
 
 
     def refine_grid():
@@ -406,13 +439,13 @@ if __name__ == '__main__':
         :return:
         """
         import tools.cache
-        spec, plan = tools.cache.get_plan("007")
-        new_plan = GRIDS["refiner_grid"].apply_to(plan, show=True)
+        spec, plan = tools.cache.get_plan("021")
+        new_plan = GRIDS["refiner_grid"].apply_to(plan, show=False)
         new_plan.plot(save=False)
         plt.show()
         print(len(new_plan.mesh.faces))
 
 
-    refine_grid()
+    # refine_grid()
 
 

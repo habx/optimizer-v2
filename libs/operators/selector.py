@@ -133,15 +133,24 @@ def space_external_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]
     yield from space.exterior_edges
 
 
-def touching_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def wrong_direction_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges touching an edge of the space
     :param space:
     :param _:
     :return:
     """
+    directions = space.directions
+    if not directions:
+        return
+
     for edge in space.edges:
-        yield edge.next
+        if not space.is_internal(edge):
+            continue
+        vector = edge.unit_vector
+        delta = map(lambda d: pseudo_equal(ccw_angle(vector, d), 180, ANGLE_EPSILON), directions)
+        if max(list(delta)) == 0:
+            yield edge.next
 
 
 def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -449,9 +458,19 @@ def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :return:
     """
     plan = space.plan
-    for edge in space.exterior_edges:
-        if plan.is_external(edge):
+    for edge in space.edges:
+        if _is_wall(edge, plan):
             yield from edge.siblings
+
+
+def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
+    """
+    Returns True if the edge is on the wall
+    :param edge:
+    :return:
+    """
+    other = plan.get_space_of_edge(edge.pair)
+    return not other or other.category.external or other.category.name == "loadBearingWall"
 
 
 def close_to_front_door(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -1469,12 +1488,12 @@ def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 
         plan: 'Plan' = space.plan
 
         # per convention if an edge is on the apartment boundary it cannot be too close
-        if plan.is_external(edge.pair):
+        if _is_wall(edge, plan):
             return False
 
         # we must not take into account the external edge that is connected to the edge
         # in the case of non orthogonal cuts
-        external_edges = [e for e in edge.siblings if plan.is_external(e.pair)
+        external_edges = [e for e in edge.siblings if _is_wall(e, plan)
                           and e is not edge.next and e.next is not edge]
 
         if not external_edges:
@@ -1991,6 +2010,8 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(90, 5)]),
+
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
     "previous_concave_non_ortho": Selector(space_boundary, [
@@ -2019,7 +2040,7 @@ SELECTORS = {
 
     "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),
 
-    "wrong_direction": Selector(touching_space_boundary, [wrong_direction]),
+    "wrong_direction": Selector(wrong_direction_edges, []),
 
     "add_aligned": Selector(
         space_boundary,
@@ -2062,8 +2083,8 @@ SELECTORS = {
                                                      is_not(only_adjacent_to_immutable),
                                                      is_not(corner_stone)]),
 
-    "plan_boundary_no_linear": Selector(space_external_boundary,
-                                        [edge_length(min_length=60),
+    "plan_boundary_no_linear": Selector(space_boundary,
+                                        [edge_length(min_length=40),
                                          is_not(touches_linear(position='on'))])
 }
 

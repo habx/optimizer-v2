@@ -35,3 +35,15 @@ def test_other_rectangle():
                          (70.71067811865474, 70.71067811865474),
                          (35.35533905932736, 106.06601717798212),
                          (-35.35533905932738, 35.35533905932738)]
+
+
+def test_line_intersection():
+    """
+    Test
+    :return:
+    """
+    assert geometry.lines_intersection(((0, 0), (1, 1)), ((0, 10), (1, 0))) == (10, 10)
+    assert geometry.lines_intersection(((10, 5), (0, 2)), ((0, 0), (1, 1))) == (10, 10)
+    assert geometry.lines_intersection(((0, 0), (1, 1)), ((10, 0), (-1, 1))) == (5, 5)
+    assert geometry.lines_intersection(((0, 0), (-1, -1)), ((10, 0), (-1, 1))) == (5, 5)
+    assert geometry.lines_intersection(((0, 0), (1, 1)), ((10, 0), (1, 1))) is None

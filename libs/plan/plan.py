@@ -1462,8 +1462,8 @@ class Space(PlanComponent):
             """
             start_edge, end_edge, new_face = new_edges
             # add the created face to the space
-            if new_face is not None:
-                self.add_face_id(new_face.id)
+            # if new_face is not None:
+            #   self.add_face_id(new_face.id)
             if self.is_outside(end_edge.pair):
                 return True
             return False
@@ -2376,6 +2376,9 @@ class Plan:
         """
         logging.debug("Plan: Updating plan from mesh watcher")
 
+        if not modifications:
+            return
+
         inserted_faces = (modification for _id, modification in modifications.items()
                           if modification[0] == MeshOps.INSERT
                           and modification[1][0] == MeshComponentType.FACE)
@@ -2401,7 +2404,8 @@ class Plan:
             face_space = self.get_space_from_face_id(face_add[1][1], mesh_id)
             if face_space:
                 logging.debug("Plan: Adding face from mesh "
-                              "update %s buf face is already in a space", face_space)
+                              "update %s buf face is already in a space %s", face_space,
+                              face_add[1][1])
                 continue
 
             space = self.get_space_from_face_id(face_add[2][1], mesh_id)

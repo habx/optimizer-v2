@@ -29,7 +29,8 @@ from libs.utils.geometry import (
     dot_product,
     normal_vector,
     truncate,
-    distance
+    distance,
+    lines_intersection
 )
 from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -984,13 +985,13 @@ class Edge(MeshComponent):
 
         return output
 
-    def max_distance(self, other: 'Edge', parallel: bool = False) -> Optional[float]:
+    def max_distance(self, other: 'Edge', parallel: bool = False) -> float:
         """
         Returns the max distance between to edges of the same face, according to the normal
-        vector of the edge. If the distance is infinite return None per convention.
+        vector of the edge. If the distance is infinite return INFINITY per convention.
         :param other:
         :param parallel: flag to indicate whether we only consider pseudo parallel edges
-        :return: the distance or None
+        :return: the distance
 
         Example:
           ^
@@ -1013,29 +1014,26 @@ class Edge(MeshComponent):
         if parallel and not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
-        d1, d2, d3, d4 = None, None, None, None
+        normal = self.normal
+        self_vector = self.vector
+        self_start, self_end = self.start.coords, self.end.coords
+        other_vector = other.vector
+        other_start, other_end = other.start.coords, other.end.coords
 
-        start_line = self.start.sp_half_line(self.normal)
-        end_line = self.end.sp_half_line(self.normal)
-        p1 = start_line.intersection(other.as_sp)
-        p2 = end_line.intersection(other.as_sp)
+        self_line = self_start, self_vector
+        edge_line = other_start, other_vector
 
-        other_start_line = other.start.sp_half_line(opposite_vector(self.normal))
-        other_end_line = other.end.sp_half_line(opposite_vector(self.normal))
-        p3 = other_start_line.intersection(self.as_sp)
-        p4 = other_end_line.intersection(self.as_sp)
+        p1 = lines_intersection((self_start, normal), edge_line)
+        d1 = distance(self_start, p1)
 
-        if not p1.is_empty and p1.geom_type == 'Point':
-            d1 = p1.distance(self.start.as_sp)
-        if not p2.is_empty and p2.geom_type == 'Point':
-            d2 = p2.distance(self.end.as_sp)
-        if not p3.is_empty and p3.geom_type == 'Point':
-            d3 = p3.distance(other.start.as_sp)
-        if not p4.is_empty and p4.geom_type == 'Point':
-            d4 = p4.distance(other.end.as_sp)
+        p2 = lines_intersection((self_end, normal), edge_line)
+        d2 = distance(self_end, p2)
 
-        if not d1 and not d2 and not d3 and not d4:
-            return INFINITY
+        p3 = lines_intersection((other_start, normal), self_line)
+        d3 = distance(other_start, p3)
+
+        p4 = lines_intersection((other_end, normal), self_line)
+        d4 = distance(other_end, p4)
 
         dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
         return dist_max_to_edge
@@ -1070,6 +1068,7 @@ class Edge(MeshComponent):
         """
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
+    # noinspection PyUnreachableCode
     @property
     def siblings(self) -> Generator['Edge', None, None]:
         """
@@ -1085,7 +1084,7 @@ class Edge(MeshComponent):
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
             if __debug__:
-                seen.append(edge)  # noinspection PyUnreachableCode
+                seen.append(edge)
             yield edge
             edge = edge.next
 
