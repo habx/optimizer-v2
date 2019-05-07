@@ -231,14 +231,9 @@ class ConstraintsManager:
         self._init_spaces_adjacency()
         self.spaces_item_adjacency_matrix = []
         self._init_spaces_item_adjacency()
-        if sp.spec.plan.floor_count < 2:
-            self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces(),
-                                           self.spaces_adjacency_matrix, False)
-        else:
-            self.solver = ConstraintSolver(len(self.sp.spec.items),
-                                           self.sp.spec.plan.count_mutable_spaces(),
-                                           self.spaces_adjacency_matrix, True)
+        self.solver = ConstraintSolver(len(self.sp.spec.items),
+                                       self.sp.spec.plan.count_mutable_spaces(),
+                                       self.spaces_adjacency_matrix)
         self.item_area = {}
         self._init_item_area()
         self.item_windows_area = {}

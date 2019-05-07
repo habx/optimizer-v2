@@ -222,7 +222,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -231,8 +230,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "007.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "032.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -248,7 +247,7 @@ if __name__ == '__main__':
         logging.debug("nbr_grid_cells : ", nbr_grid_cells)
 
         if nbr_grid_cells > 25:
-            SEEDERS["simple_seeder"].apply_to(plan)
+            SEEDERS["circulation_seeder"].apply_to(plan)
         else:
             new_space_list = []
             for space in plan.spaces:
@@ -301,7 +300,7 @@ if __name__ == '__main__':
         # Output
         for sol in best_solutions:
             sol.plan.plot()
-            print(sol, sol.score())
+            print(sol, sol.score)
             for space in sol.plan.mutable_spaces():
                 print(space.category.name, " : ", space.area)
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
