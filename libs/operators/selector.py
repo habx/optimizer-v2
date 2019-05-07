@@ -144,13 +144,17 @@ def wrong_direction_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if not directions:
         return
 
-    for edge in space.edges:
-        if not space.is_internal(edge):
-            continue
-        vector = edge.unit_vector
-        delta = map(lambda d: pseudo_equal(ccw_angle(vector, d), 180, ANGLE_EPSILON), directions)
-        if max(list(delta)) == 0:
-            yield edge.next
+    for hole_edge in space.holes_reference_edge:
+        for edge in space.siblings(hole_edge):
+            for starting_edge in edge.start.edges:
+                if starting_edge is edge:
+                    continue
+                if space.has_edge(starting_edge):
+                    vector = starting_edge.unit_vector
+                    delta = map(lambda d: pseudo_equal(ccw_angle(vector, d), 180, ANGLE_EPSILON),
+                                directions)
+                    if max(list(delta)) == 0:
+                        yield starting_edge
 
 
 def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:

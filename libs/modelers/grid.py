@@ -419,7 +419,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("021.json")
+        plan = reader.create_plan_from_file("007.json")
         plan.check()
         start_time = time.time()
         new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)
@@ -439,7 +439,7 @@ if __name__ == '__main__':
         :return:
         """
         import tools.cache
-        spec, plan = tools.cache.get_plan("021")
+        spec, plan = tools.cache.get_plan("022")
         new_plan = GRIDS["refiner_grid"].apply_to(plan, show=False)
         new_plan.plot(save=False)
         plt.show()
