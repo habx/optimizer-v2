@@ -67,7 +67,7 @@ def test_simple_grid():
 
     ################ corridor build ################
     corridor = Corridor(corridor_rules=CORRIDOR_RULES)
-    corridor._init()
+    corridor._clear()
     corridor.plan = plan
     corridor.cut(circulation_path)
     plan.check()
