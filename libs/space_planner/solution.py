@@ -328,9 +328,12 @@ class Solution:
         Entrance bonus
         :return: score : float
         """
-        if(self.collector.spec.typology > 1
+        if(self.collector.spec.typology > 2
                 and [item for item in self.items_spaces if item.category.name == "entrance"]):
             return 10
+        elif(self.collector.spec.typology <= 2
+                and [item for item in self.items_spaces if item.category.name == "entrance"]):
+            return -10
         return 0
 
     def _externals_spaces_bonus(self) -> float:
@@ -563,15 +566,16 @@ class Solution:
                 if (i_item != item and
                         i_item.category.name not in list_of_non_concerned_room and space.floor ==
                         self.items_spaces[i_item].floor):
-                    if (self.items_spaces[i_item].as_sp.is_valid and
+                    if (self.items_spaces[i_item].as_sp.is_valid and convex_hull.is_valid and
                             (round((convex_hull.intersection(self.items_spaces[i_item].as_sp)).area)
                              == round(self.items_spaces[i_item].as_sp.area))):
                         logging.debug(
                             "Solution %i: Something Inside score : %f, room : %s - isolated room",
                             self._id, 0, i_item.category.name)
                         return 0
-                    elif (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
-                            space.area / 8):
+                    elif (self.items_spaces[i_item].as_sp.is_valid and convex_hull.is_valid and
+                          (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
+                            space.area / 8)):
                         # Check i_item adjacency
                         other_room_adj = False
                         for j_item in self.items_spaces:
