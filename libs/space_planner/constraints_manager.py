@@ -398,14 +398,13 @@ class ConstraintsManager:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
+            if self.sp.spec.typology <= 2:
+                for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS["all"]:
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
@@ -726,7 +725,7 @@ def windows_ordering_constraint(manager: 'ConstraintsManager',
 def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                             ratio: int) -> ortools.Constraint:
     """
-    Windows area ratio constraint
+    Windows area ratio constraint : NF HABITAT HQE
     :param manager: 'ConstraintsManager'
     :param item: Item
     :param ratio : minimum ratio between item area and windows area
@@ -1024,10 +1023,10 @@ def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
     else:
         return None
 
-def entrance_constraint(manager: 'ConstraintsManager',
+def optional_entrance_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
     """
-    conditional front door constraint
+    optional entrance constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -1037,6 +1036,26 @@ def entrance_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+def conditional_entrance_constraint(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
+    """
+    conditional entrance constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct1 = components_adjacency_constraint(manager, item, ["frontDoor"], True)
+
+    for space in manager.sp.spec.plan.mutable_spaces():
+        if "frontDoor" in space.components_category_associated():
+            front_door_space = space
+
+    if front_door_space.area > 4*SQM:
+        ct = or_no_space_constraint(manager, item, ct1)
+    else:
+        ct = ct1
+
+    return ct
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
@@ -1049,7 +1068,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [entrance_constraint,{}],
         [area_constraint, {"min_max": "max"}]
     ],
     "toilet": [
@@ -1152,9 +1170,15 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ]
 }
 
-T2_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
+T1_T2_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [optional_entrance_constraint,{}],
+    ]
+}
 
+T2_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [conditional_entrance_constraint, {}],
     ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
@@ -1162,9 +1186,6 @@ T2_MORE_ITEMS_CONSTRAINTS = {
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
-    "all": [
-
-    ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}]
     ],
