@@ -26,9 +26,6 @@ class Mutation:
     Will mutate a face and return the modified spaces
     """
 
-    __slots__ = ('name', '_mutation', '_spaces_modified', '_initial_state',
-                 'reversible', 'modifies_mesh')
-
     def __init__(self,
                  mutation: EdgeMutation,
                  spaces_modified: Optional[EdgeMutation] = None,
@@ -45,14 +42,18 @@ class Mutation:
     def __repr__(self):
         return 'Mutation: {0}'.format(self.name)
 
-    def apply_to(self, edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    def apply_to(self, edge: 'Edge', space: 'Space',
+                 store_initial_state: bool = True) -> Sequence['Space']:
         """
         Applies the mutation to the edge
         :param edge:
         :param space:
+        :param store_initial_state: whether to store the initial state of the space before
+                                    the mutation occurs
         :return: the list of modified spaces
         """
-        self._store_initial_state(self.spaces_modified(edge, space))
+        if self.reversible and store_initial_state:
+            self._store_initial_state(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
         # update the plan if the mesh has been modified
         if output and self.modifies_mesh:
@@ -130,12 +131,15 @@ class MutationFactory:
     Returns a Mutation instance when called
     """
 
-    __slots__ = 'name', 'factory', 'reversible'
-
-    def __init__(self, factory: MutationFactoryFunction, name: str = '', reversible: bool = True):
+    def __init__(self,
+                 factory: MutationFactoryFunction,
+                 name: str = '',
+                 reversible: bool = True,
+                 modifies_mesh: bool = True):
         self.name = name or factory.__name__
         self.factory = factory
         self.reversible = reversible
+        self.modifies_mesh = modifies_mesh
 
     def __call__(self, *args, **kwargs) -> Mutation:
         name = self.name
@@ -144,7 +148,8 @@ class MutationFactory:
         for key, value in kwargs.items():
             name += ', ' + key + ':{0}'.format(value)
 
-        return Mutation(self.factory(*args, **kwargs), name=name, reversible=self.reversible)
+        return Mutation(self.factory(*args, **kwargs), name=name, reversible=self.reversible,
+                        modifies_mesh=self.modifies_mesh)
 
 
 # Mutation Catalog
@@ -267,47 +272,39 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> Sequence['Space']:
     • for each edge add the corresponding faces
     :return:
     """
-    assert space.has_face(edge.face), "Mutation: The edge must belong to the first space"
+    assert space.has_edge(edge), "Mutation: The edge must belong to the first space"
 
-    plan = space.plan
-    other_space = plan.get_space_of_edge(edge.pair)
+    max_angle = 25.0  # the angle used to determine if two edges are aligned
 
-    if other_space.face:
-        assert other_space.adjacent_to(
-            edge.face), "Mutation: The edge face must be adjacent to the second space"
-
-    aligned_edges = []
-    for aligned in space.next_aligned_siblings(edge):
-        if not other_space.has_edge(aligned.pair):
-            break
-        aligned_edges.append(aligned)
-
-    list_face_aligned = []
-    for aligned in aligned_edges:
-        if aligned.face not in list_face_aligned:
-            list_face_aligned.append(aligned.pair.face)
-
-    # adds faces of list_face_aligned to space.
-    list_created_spaces = [other_space]
-    while list_face_aligned:
-        aligned_face = list_face_aligned[0]
-        sp_to_remove = None
-        for sp in space.plan.spaces:
-            if sp.has_face(aligned_face):
-                sp_to_remove = sp
-                break
-        if sp_to_remove:
-            created_spaces = sp_to_remove.remove_face(aligned_face)
-            space.add_face(aligned_face)
-
-            list_face_aligned.remove(aligned_face)
-            for sp in created_spaces:
-                if sp not in list_created_spaces:
-                    list_created_spaces.append(sp)
+    # retrieve all the aligned edges
+    edges_and_spaces = map(lambda e: (space.plan.get_space_of_edge(e.pair), e.pair),
+                           space.aligned_siblings(edge, max_angle))
+    # group faces by spaces
+    faces_by_spaces = {}
+    for _space, _edge in edges_and_spaces:
+        if _space is None:
+            continue
+        if _space not in faces_by_spaces:
+            faces_by_spaces[_space] = {_edge.face}
         else:
-            break
+            faces_by_spaces[_space].add(_edge.face)
 
-    return [space] + list_created_spaces
+    modified_spaces = [space]
+    for _space in faces_by_spaces:
+        if not _space.mutable:
+            continue
+        # check if we are breaking the space if we remove the faces
+        if _space.corner_stone(*faces_by_spaces[_space]):
+            continue
+        faces_id = list(map(lambda f: f.id, faces_by_spaces[_space]))
+        space.add_face_id(*faces_id)
+        _space.remove_face_id(*faces_id)
+        # set the reference edges of each spaces
+        space.set_edges()
+        _space.set_edges()
+        modified_spaces.append(_space)
+
+    return modified_spaces if len(modified_spaces) > 1 else []
 
 
 def remove_edge(edge: 'Edge', space: 'Space') -> Sequence['Space']:
