@@ -6,7 +6,8 @@ module used to run optimizer
 import logging
 from typing import List, Dict
 import time
-import json
+import mimetypes
+import os
 
 from libs.io import reader
 from libs.io.writer import generate_output_dict
@@ -17,6 +18,7 @@ from libs.modelers.corridor import Corridor
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SpacePlanner
 from libs.version import VERSION as OPTIMIZER_VERSION
+import libs.io.plot
 
 
 class Response:
@@ -26,23 +28,25 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str, float]):
+                 elapsed_times: Dict[str, float],
+                 output_dir: str):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self._output_dir = output_dir
 
-    @property
-    def as_dict(self) -> dict:
-        """
-        return all response data in a dict
-        """
-        return self.__dict__
-
-    def to_json_file(self, filepath) -> None:
-        """
-        save all response data in a json file
-        """
-        with open(filepath, "w") as output_file:
-            json.dump(self.as_dict, output_file, sort_keys=True, indent=2)
+    def get_generated_files(self) -> Dict[str, dict]:
+        mimetypes.init()
+        files = {}
+        for file in os.listdir(self._output_dir):
+            extension = os.path.splitext(file)[-1].lower()
+            if extension in (".tif", ".tiff",
+                             ".jpeg", ".jpg", ".jif", ".jfif",
+                             ".jp2", ".jpx", ".j2k", ".j2c",
+                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
+                files[file] = {"type": os.path.splitext(file)[0],
+                               "title": os.path.splitext(file)[0].capitalize(),
+                               "mime": mimetypes.types_map[extension]}
+        return files
 
 
 class ExecParams:
@@ -68,7 +72,7 @@ class ExecParams:
     """
 
     def __init__(self, params):
-        if not params:
+        if params is None:
             params = {}
 
         refiner_params = {
@@ -110,7 +114,8 @@ class Optimizer:
     def run_from_file_names(self,
                             lot_file_name: str = "011.json",
                             setup_file_name: str = "011_setup0.json",
-                            params: dict = None) -> Response:
+                            params: dict = None,
+                            local_params: dict = None) -> Response:
         """
         Run Optimizer from file names.
         :param lot_file_name: name of lot file, file has to be in resources/blueprints
@@ -122,7 +127,7 @@ class Optimizer:
         setup = reader.get_json_from_file(setup_file_name,
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
 
-        return self.run(lot, setup, params)
+        return self.run(lot, setup, params, local_params)
 
     def run(self,
             lot: dict,
@@ -140,6 +145,12 @@ class Optimizer:
 
         params = ExecParams(params_dict)
 
+        # output dir
+        if local_params is not None and 'output_dir' in local_params:
+            libs.io.plot.output_path = local_params['output_dir']
+            if not os.path.exists(libs.io.plot.output_path):
+                os.makedirs(libs.io.plot.output_path)
+
         # times
         elapsed_times = {}
         t0_total = time.process_time()
@@ -156,6 +167,8 @@ class Optimizer:
         logging.info("Grid")
         t0_grid = time.process_time()
         GRIDS[params.grid_type].apply_to(plan)
+        if params.do_plot:
+            plan.plot(name="grid")
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -163,9 +176,8 @@ class Optimizer:
         logging.info("Seeder")
         t0_seeder = time.process_time()
         SEEDERS[params.seeder_type].apply_to(plan)
-
         if params.do_plot:
-            plan.plot()
+            plan.plot(name="seeder")
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -242,7 +254,7 @@ class Optimizer:
                      elapsed_times["total"],
                      elapsed_times["totalReal"])
 
-        return Response(solutions, elapsed_times)
+        return Response(solutions, elapsed_times, libs.io.plot.output_path)
 
 
 if __name__ == '__main__':
@@ -257,7 +269,7 @@ if __name__ == '__main__':
             "012_setup0.json",
             {
                 "grid_type": "optimal_grid",
-                "do_plot": False,
+                "do_plot": True,
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
