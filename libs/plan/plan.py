@@ -357,7 +357,7 @@ class Space(PlanComponent):
             return
         self._edges_id.append(edge.id)
 
-    def remove_edge(self, edge: 'Edge'):
+    def remove_reference_edge(self, edge: 'Edge'):
         """
         Removes a reference edge
         :param edge:
@@ -560,7 +560,7 @@ class Space(PlanComponent):
         yield from self.siblings(self.edge)
 
     @property
-    def hole_edges(self) -> Generator[Edge, None, None]:
+    def holes_reference_edge(self) -> Generator[Edge, None, None]:
         """
         Returns the internal reference edges
         :return:
@@ -705,7 +705,7 @@ class Space(PlanComponent):
         list_vertices.append(list_vertices[0])
 
         holes = []
-        for hole_edge in self.hole_edges:
+        for hole_edge in self.holes_reference_edge:
             _vertices = [edge.start.coords for edge in self.siblings(hole_edge)]
             _vertices.append(_vertices[0])
             holes.append(_vertices)
@@ -929,15 +929,37 @@ class Space(PlanComponent):
          |       +-------+        |
          |                        |
          |                        |
-           +------------------------+
+         +------------------------+
+
+         or
+
+        +-----------------------------------+
+        |                SPACE              |
+        |     +--------+       +-------+    |
+        |     |        |       |       |    |
+        |     |        +-------+       |    |
+        |     | HOLE 1 | FACE  | HOLE 2|    |
+        |     |        +-------+       |    |
+        |     |        |       |       |    |
+        |     +--------+       +-------+    |
+        |                                   |
+        +-----------------------------------+
         :return:
         """
         if not self.has_holes:
             return
-        exterior_edges = list(self.exterior_edges)
-        for edge in self.hole_edges:
-            if edge in exterior_edges:
-                self.remove_edge(edge)
+
+        holes_reference_edge = list(self.holes_reference_edge)
+        ref_edge = self.edge
+        removed = []
+        for hole_edge in holes_reference_edge:
+            for edge in self.siblings(hole_edge):
+                if edge is hole_edge:
+                    continue
+                if (edge in holes_reference_edge and edge not in removed) or edge is ref_edge:
+                    removed.append(hole_edge)
+                    self.remove_reference_edge(hole_edge)
+                    break
 
     def _check_edges_references(self) -> bool:
         """
@@ -950,7 +972,7 @@ class Space(PlanComponent):
             return False
 
         # check for disconnectivity:
-        for edge in self.hole_edges:
+        for edge in self.holes_reference_edge:
             if edge in self.exterior_edges:
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
@@ -962,6 +984,9 @@ class Space(PlanComponent):
         Note : the biggest challenge of this method is to verify whether the removal
         of the specified face will split the space into several disconnected components.
         A new space must be created for each new disconnected component.
+
+        We must also check that the removal of the face has linked internal holes of the space,
+        thus creating a larger hole (in which case we must remove one of the reference edge).
 
         :param face: face to remove from space
         :returns the modified spaces (including the created spaces)
@@ -987,8 +1012,8 @@ class Space(PlanComponent):
         #     |    +---------+    |
         #     |                   |
         #     +-------------------+
-
-        for edge in face.edges:
+        face_edges = list(face.edges)
+        for edge in face_edges:
             if self.is_outside(edge.pair):
                 break
         else:
@@ -1012,8 +1037,6 @@ class Space(PlanComponent):
         #     +-------------------+
         # check if we are removing an enclosing face (this means that the removed face contains
         # all the edges boundary (this is no good)
-
-        face_edges = list(face.edges)
         for edge in self.exterior_edges:
             if edge not in face_edges:
                 break
@@ -1103,9 +1126,9 @@ class Space(PlanComponent):
                 new_space.add_face_id(component_face.id)
 
             # transfer internal edge reference from self to new spaces
-            for internal_reference_edge in self.hole_edges:
+            for internal_reference_edge in self.holes_reference_edge:
                 if new_space.has_edge(internal_reference_edge):
-                    self.remove_edge(internal_reference_edge)
+                    self.remove_reference_edge(internal_reference_edge)
                     new_space.add_edge(internal_reference_edge)
 
             new_space._clean_hole_disappearance()
@@ -1196,7 +1219,8 @@ class Space(PlanComponent):
             i = self._edges_id.index(edge.id)
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
-                    assert other_edge.id not in self._edges_id, "The edge cannot already be a ref"
+                    assert other_edge.id not in self._edges_id, ("The edge cannot "
+                                                                 "already be a reference")
                     # we replace the edge id in place to preserve the list order
                     self._edges_id[i] = other_edge.id
                     break
@@ -1207,7 +1231,7 @@ class Space(PlanComponent):
                         raise ValueError("Space: changing reference edges, you should have"
                                          "specified a boundary edge !")
                     self._edges_id[0] = boundary_edge.id
-                self.remove_edge(edge)
+                self.remove_reference_edge(edge)
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
