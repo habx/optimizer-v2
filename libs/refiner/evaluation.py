@@ -13,9 +13,12 @@ import math
 import logging
 from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
 
+from libs.utils.geometry import ccw_angle, pseudo_equal
+
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
+    from libs.plan.plan import Space
 
 scoreFunc = Callable[['Individual'], float]
 
@@ -98,6 +101,30 @@ def score_corner(_: 'Specification', ind: 'Individual') -> float:
         score += (space.number_of_corners() - min_corners) / min_corners
         num_space += 1
     return score / num_space
+
+
+def number_of_corners(space: 'Space') -> int:
+    """
+    Returns the number of "inside" corners. The corners of the boundary edges of a space
+    that are adjacent to another mutable space.
+    :param space:
+    :return:
+    """
+    corner_min_angle = 20.0
+    num_corners = 0
+    internal_edges = []
+    for e in space.exterior_edges:
+        other = space.plan.get_space_of_edge(e)
+        if not other or other.category.external:
+            continue
+        internal_edges.append(e)
+
+    for edge in internal_edges:
+        angle = ccw_angle(edge.opposite_vector, space.next_edge(edge).vector)
+        if not pseudo_equal(angle, 180.0, corner_min_angle):
+            num_corners += 1
+
+    return num_corners
 
 
 def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:

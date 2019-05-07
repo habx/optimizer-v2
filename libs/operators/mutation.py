@@ -42,14 +42,18 @@ class Mutation:
     def __repr__(self):
         return 'Mutation: {0}'.format(self.name)
 
-    def apply_to(self, edge: 'Edge', space: 'Space') -> Sequence['Space']:
+    def apply_to(self, edge: 'Edge', space: 'Space',
+                 store_initial_state: bool = True) -> Sequence['Space']:
         """
         Applies the mutation to the edge
         :param edge:
         :param space:
+        :param store_initial_state: whether to store the initial state of the space before
+                                    the mutation occurs
         :return: the list of modified spaces
         """
-        self._store_initial_state(self.spaces_modified(edge, space))
+        if self.reversible and store_initial_state:
+            self._store_initial_state(self.spaces_modified(edge, space))
         output = self._mutation(edge, space)
         # update the plan if the mesh has been modified
         if output and self.modifies_mesh:

@@ -55,7 +55,8 @@ def mutate_aligned(ind: 'Individual') -> 'Individual':
     """
     space = _random_space(ind)
     edge = _random_mutable_edge(space)
-    MUTATIONS["add_aligned_face"].apply_to(edge, space)
+    if edge:
+        MUTATIONS["add_aligned_face"].apply_to(edge, space, store_initial_state=False)
     return ind
 
 
@@ -71,7 +72,7 @@ def mutate_simple(ind: 'Individual') -> 'Individual':
     space = _random_space(ind)
     edge = _random_mutable_edge(space)
     if edge:
-        modified_spaces = MUTATIONS["remove_face"].apply_to(edge, space)
+        modified_spaces = MUTATIONS["remove_face"].apply_to(edge, space, store_initial_state=False)
         if __debug__ and len(modified_spaces) > 2:
             logging.warning("Refiner: Mutation: A space was split !! %s", modified_spaces[2])
         if __debug__ and space.number_of_faces == 0:

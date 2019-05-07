@@ -12,8 +12,8 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
             "weights": (-2.0, -1.0, -1.0),
-            "ngen": 50,
-            "mu": 28,
+            "ngen": 100,
+            "mu": 20,
             "cxpb": 0.9
           }
 
@@ -25,7 +25,7 @@ def run():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("044")  # 052
+    spec, plan = tools.cache.get_plan("052", "1")  # 052
 
     if plan:
         plan.name = "original"
@@ -59,7 +59,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("052", refine=True)  # 052
+    spec, plan = tools.cache.get_plan("007")  # 052
 
     if plan:
         plan.name = "original"

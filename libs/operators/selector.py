@@ -429,6 +429,44 @@ def vertical_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
             yield edge
 
 
+def close_to_windows(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has a window linear
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        linear = plan.get_linear(edge)
+        if linear and linear.category.name in ("window", "doorWindow"):
+            yield from edge.siblings
+
+
+def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has an external edge
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        if plan.is_external(edge):
+            yield from edge.siblings
+
+
+def close_to_front_door(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has a window linear
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        linear = plan.get_linear(edge)
+        if linear and linear.category.name in ("frontDoor",):
+            yield from edge.siblings
+
+
 # Query factories
 
 
@@ -1693,7 +1731,7 @@ SELECTORS = {
     ),
 
     "close_to_window": Selector(
-        boundary_faces,
+        close_to_windows,
         [
             not_space_boundary,
             close_to_linear('window', 'doorWindow', min_distance=150.0)
@@ -1701,7 +1739,7 @@ SELECTORS = {
     ),
 
     "close_to_front_door": Selector(
-        boundary_faces,
+        close_to_front_door,
         [
             not_space_boundary,
             close_to_linear('frontDoor', min_distance=80.0)
@@ -1951,7 +1989,7 @@ SELECTORS = {
     "window_doorWindow": Selector(space_boundary, [touches_linear("window", "doorWindow",
                                                                   position="on")]),
 
-    "close_to_wall": Selector(boundary_faces, [close_to_apartment_boundary(90, 80)]),
+    "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
@@ -2025,8 +2063,7 @@ SELECTORS = {
                                                      is_not(corner_stone)]),
 
     "plan_boundary_no_linear": Selector(space_external_boundary,
-                                        [adjacent_to_external_space,
-                                         edge_length(min_length=60),
+                                        [edge_length(min_length=60),
                                          is_not(touches_linear(position='on'))])
 }
 

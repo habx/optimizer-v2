@@ -178,7 +178,8 @@ class Space(PlanComponent):
         return self
 
     def __repr__(self):
-        output = 'Space: {} - id:{}'.format(self.category.name, self.id)
+        output = 'Space: {} - id:{}'.format(self.category.name if self.category else "No Category",
+                                            self.id)
         return output
 
     def clone(self, plan: 'Plan') -> 'Space':
@@ -574,18 +575,18 @@ class Space(PlanComponent):
         """
         return len(self._edges_id) > 1
 
-    def _external_axes(self, face: Optional['Face'] = None) -> [float]:
+    def _external_axes(self, edges: Optional[Sequence['Edge']] = None) -> [float]:
         """
         Returns the external axes of the space.
         For every edge of the space adjacent to an external or null space we store
         the angle to the x axis (defined by the vector (1, 0) modulo 90.0 to account
         for both orthogonal directions.
-        :param face: an optional face. When specified, only check the axes of this specific face
+        :param edges: the list of edges
         :return:
         """
         # retrieve all the edges of the space that are adjacent to the outside
         boundary_edges = []
-        edges_to_search = self.edges if not face else face.edges
+        edges_to_search = edges if edges is not None else self.exterior_edges
         for _edge in edges_to_search:
             adjacent_space = self.plan.get_space_of_edge(_edge.pair)
             if adjacent_space is not self and (adjacent_space is None
@@ -619,7 +620,7 @@ class Space(PlanComponent):
 
     def _directions(self, face: Optional['Face'] = None):
         edges = face.edges if face is not None else self.edges
-        axes = self._external_axes(face) or self._axes(list(edges))
+        axes = self._external_axes(list(edges)) or self._axes(list(edges))
         x = unit_vector(axes[0])
         y = normal_vector(x)
         return x, y, opposite_vector(x), opposite_vector(y)
