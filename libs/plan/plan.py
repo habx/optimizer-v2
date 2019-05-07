@@ -1462,8 +1462,8 @@ class Space(PlanComponent):
             """
             start_edge, end_edge, new_face = new_edges
             # add the created face to the space
-            # if new_face is not None:
-            #   self.add_face_id(new_face.id)
+            if new_face is not None:
+                self.add_face_id(new_face.id)
             if self.is_outside(end_edge.pair):
                 return True
             return False
