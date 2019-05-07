@@ -34,7 +34,7 @@ if not os.path.exists(output_path):
     os.makedirs(output_path)
 
 
-def plot_save(save: bool = True, show: bool = False):
+def plot_save(save: bool = True, show: bool = False, name: Optional[str] = None):
     """
     Saves or displays the plot
     :param save:
@@ -49,7 +49,10 @@ def plot_save(save: bool = True, show: bool = False):
         logging.info('Plot: Saving plot')
         ax = plt.gca()
         date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        file_name = ax.get_title() + '_' + date_time + '.svg'
+        if name is None:
+            file_name = ax.get_title().replace(':', '') + '_' + date_time + '.svg'
+        else:
+            file_name = name + '.svg'
         plt.savefig(os.path.join(output_path, file_name), format='svg')
         plt.close()  # need to close the plot (otherwise matplotlib keeps it in memory)
 

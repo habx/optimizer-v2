@@ -3063,7 +3063,8 @@ class Plan:
              show: bool = False,
              save: bool = True,
              options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional['Floor'] = None):
+             floor: Optional['Floor'] = None,
+             name: Optional[str] = None):
         """
         Plots a plan.
         :return:
@@ -3091,7 +3092,7 @@ class Plan:
 
             _ax.set_title(self.name + " - floor id:{}".format(floor.id))
 
-        plot_save(save, show)
+        plot_save(save, show, name)
 
         return ax
 
