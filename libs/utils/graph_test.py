@@ -22,6 +22,6 @@ def test_shortest_path():
     second_group = (edges[2], edges[3])
     path, cost = g.get_shortest_path(first_group, second_group)
     assert len(path) == 2
-    assert cost == 500
+    assert cost == 200
 
 test_shortest_path()

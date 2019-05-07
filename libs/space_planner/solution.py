@@ -563,8 +563,9 @@ class Solution:
                 if (i_item != item and
                         i_item.category.name not in list_of_non_concerned_room and space.floor ==
                         self.items_spaces[i_item].floor):
-                    if (round((convex_hull.intersection(self.items_spaces[i_item].as_sp)).area)
-                        == round(self.items_spaces[i_item].as_sp.area)):
+                    if (self.items_spaces[i_item].as_sp.is_valid and
+                            (round((convex_hull.intersection(self.items_spaces[i_item].as_sp)).area)
+                             == round(self.items_spaces[i_item].as_sp.area))):
                         logging.debug(
                             "Solution %i: Something Inside score : %f, room : %s - isolated room",
                             self._id, 0, i_item.category.name)

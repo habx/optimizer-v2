@@ -116,12 +116,21 @@ class SelectorFactory:
 # Queries
 def space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edges of the face
+    Returns the edges of the space
     :param space:
     :return:
     """
     if space.edge:
         yield from space.edges
+
+
+def space_external_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the external edges of the space
+    :param space:
+    :return:
+    """
+    yield from space.exterior_edges
 
 
 def touching_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -143,6 +152,17 @@ def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     for face in space.faces:
         yield from face.edges
+
+
+def boundary_faces_fixed(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges of the face in a fixed list
+    :param space:
+    :return:
+    """
+    for face in space.faces:
+        for edge in list(face.edges):
+            yield edge
 
 
 def boundary_unique(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -407,6 +427,44 @@ def vertical_edge(space: 'Space', *_) -> Generator['Edge', bool, None]:
                       if pseudo_equal(ccw_angle(edge.normal, vector), 180.0, 35)]
         for edge in edges_list:
             yield edge
+
+
+def close_to_windows(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has a window linear
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        linear = plan.get_linear(edge)
+        if linear and linear.category.name in ("window", "doorWindow"):
+            yield from edge.siblings
+
+
+def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has an external edge
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        if plan.is_external(edge):
+            yield from edge.siblings
+
+
+def close_to_front_door(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has a window linear
+    :param space:
+    :return:
+    """
+    plan = space.plan
+    for edge in space.exterior_edges:
+        linear = plan.get_linear(edge)
+        if linear and linear.category.name in ("frontDoor",):
+            yield from edge.siblings
 
 
 # Query factories
@@ -929,24 +987,6 @@ def adjacent_empty_space(edge: 'Edge', space: 'Space') -> bool:
     return space_pair and space_pair.category.name == 'empty'
 
 
-def pair_corner_stone(edge: 'Edge', space: 'Space') -> bool:
-    """
-    Returns True if the removal of the edge's face from the space
-    will cut it in several spaces or is the only face
-    """
-    face = edge.pair.face
-
-    if not face:
-        return False
-
-    other_space = space.plan.get_space_of_face(face)
-
-    if not other_space:
-        return False
-
-    return other_space.corner_stone(face)
-
-
 def corner_stone(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the removal of the edge's face from the space
@@ -1042,37 +1082,81 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
     return False
 
 
-def is_mutable(edge: 'Edge', space: 'Space') -> bool:
+def is_mutable(_: 'Edge', space: 'Space') -> bool:
     """
-    Returns a predicate indicating if an edge and its pair belongs to a mutable space
-
-    :param edge:
+    Returns True if the edge pair space is mutable
+    :param _:
     :param space:
     :return:
     """
-    if not edge.pair or not space.plan.get_space_of_edge(edge.pair):
-        return False
-    else:
-        other = space.plan.get_space_of_edge(edge.pair)
-        if space.mutable and other.mutable and other.number_of_faces > 1:
-            return True
+    return space and space.mutable
 
 
-def has_immutable_linear(edge: 'Edge', space: 'Space') -> bool:
+def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     :param edge:
     :param space:
     :return:
     """
-    if edge.face is None:
+    face = edge.face
+
+    if not space.category.needed_linears or not face:
         return False
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
-        if linear and not linear.category.mutable:
+        if linear and linear.category in space.category.needed_linears:
             return True
     return False
+
+
+def only_adjacent_to_immutable(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge face has an immutable component
+    :param edge:
+    :param space:
+    :return:
+    """
+    face = edge.face
+
+    if not space.category.needed_spaces or not face:
+        return False
+
+    # check if the face of the edge is adjacent to a needed space
+    for _edge in face.edges:
+        if space.is_boundary(_edge):
+            other = space.plan.get_space_of_edge(_edge.pair)
+            if other and other.category in space.category.needed_spaces:
+                break
+    else:
+        return False
+
+    # check if another face maintains the needed adjacency
+    for _edge in space.edges:
+        if _edge.face is face:
+            continue
+        _other = space.plan.get_space_of_edge(_edge.pair)
+        if not _other:
+            continue
+        if _other.category is other.category:
+            return False
+
+    return True
+
+
+def adjacent_to_external_space(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge pair is on the boundary of the mesh or belongs to an
+    external space
+    :param edge:
+    :param space:
+    :return:
+    """
+    if edge.pair.face is None:
+        return True
+    other = space.plan.get_space_of_edge(edge.pair)
+    return not other or other.category.external
 
 
 # predicate factories
@@ -1295,7 +1379,8 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
     Predicate factory
     Returns a predicate indicating if an edge is on, before, after
     or between two linears of the provided category
-    :param category_names: tuple of linear category names
+    :param category_names: tuple of linear category names. If no category is specified will
+                           consider every linear.
     :param position : where should the edge be : before, after, between, on
     :return:
     """
@@ -1309,7 +1394,7 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         # check if the edge belongs to a linear
         linear = space.plan.get_linear(edge)
-        is_on_linear = linear and linear.category.name in category_names
+        is_on_linear = linear and (not category_names or linear.category.name in category_names)
 
         if position == 'on':
             return is_on_linear
@@ -1319,17 +1404,21 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
 
         if position == 'before':
             next_linear = space.plan.get_linear(edge.next)
-            return next_linear and next_linear.category.name in category_names
+            return (next_linear and
+                    (not category_names or next_linear.category.name in category_names))
 
         if position == 'after':
             previous_linear = space.plan.get_linear(edge.previous)
-            return previous_linear and previous_linear.category.name in category_names
+            return (previous_linear and
+                    (not category_names or previous_linear.category.name in category_names))
 
         if position == 'between':
             next_linear = space.plan.get_linear(edge.next)
             previous_linear = space.plan.get_linear(edge.previous)
-            if previous_linear and previous_linear.category.name in category_names:
-                if next_linear and next_linear.category.name in category_names:
+            if ((previous_linear and (not category_names
+                                      or previous_linear.category.name in category_names))
+                and (next_linear and (not category_names
+                                      or next_linear.category.name in category_names))):
                     return True
             return False
 
@@ -1554,10 +1643,10 @@ SELECTORS = {
     "polish": Selector(
         space_boundary,
         [
-            is_mutable,
+            pair(is_mutable),
             face_proportion(0.3),
             face_without_component(),
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
 
         ]
     ),
@@ -1642,7 +1731,7 @@ SELECTORS = {
     ),
 
     "close_to_window": Selector(
-        boundary_faces,
+        close_to_windows,
         [
             not_space_boundary,
             close_to_linear('window', 'doorWindow', min_distance=150.0)
@@ -1650,7 +1739,7 @@ SELECTORS = {
     ),
 
     "close_to_front_door": Selector(
-        boundary_faces,
+        close_to_front_door,
         [
             not_space_boundary,
             close_to_linear('frontDoor', min_distance=80.0)
@@ -1717,7 +1806,7 @@ SELECTORS = {
     ),
 
     "all_aligned_edges": Selector(
-        boundary_faces,
+        boundary_faces_fixed,
         [
             edge_angle(180 - 15, 180 + 15),
             is_not(touches_linear('window', 'doorWindow', 'frontDoor')),
@@ -1832,14 +1921,14 @@ SELECTORS = {
         other_seed_space_edge,
         [
             adjacent_to_other_space,
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
         ]
     ),
 
     "corner_stone": Selector(
         space_boundary,
         [
-            pair_corner_stone
+            pair(corner_stone)
         ]
     ),
     "single_edge": Selector(boundary_unique),
@@ -1850,7 +1939,7 @@ SELECTORS = {
         [
             adjacent_to_other_space,
             is_not_aligned,
-            is_not(pair_corner_stone)
+            is_not(pair(corner_stone))
         ]
     ),
 
@@ -1900,7 +1989,7 @@ SELECTORS = {
     "window_doorWindow": Selector(space_boundary, [touches_linear("window", "doorWindow",
                                                                   position="on")]),
 
-    "close_to_wall": Selector(boundary_faces, [close_to_apartment_boundary(90, 80)]),
+    "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
@@ -1967,7 +2056,15 @@ SELECTORS = {
                                           pair(is_not(only_face)),
                                           pair(is_not(corner_stone))]),
 
-    "is_mutable": Selector(space_boundary, [is_mutable, is_not(has_immutable_linear), is_not(only_face), is_not(corner_stone)])
+    "is_mutable": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                     is_not(has_needed_linear),
+                                                     is_not(only_face),
+                                                     is_not(only_adjacent_to_immutable),
+                                                     is_not(corner_stone)]),
+
+    "plan_boundary_no_linear": Selector(space_external_boundary,
+                                        [edge_length(min_length=60),
+                                         is_not(touches_linear(position='on'))])
 }
 
 SELECTOR_FACTORIES = {

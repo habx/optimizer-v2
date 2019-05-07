@@ -4,6 +4,7 @@ import logging
 import os
 
 import uuid
+import requests
 
 import sentry_sdk
 
@@ -23,23 +24,21 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
-    # This is some sample code. This function should be entirely re-written.
-
-    context['taskId'] = str(uuid.uuid4())
-
-    #  All of this should be fetched from the service-results API
-    job_input = {
-        'lot': {
-            'meta': {
-                'slug': 'sample-blueprint',
-                'projectSlug': 'sample-project',
-            },
-            'v2': {},
-        },
-        'setup': {},
-        'params': {},
-        'context': context,
+    endpoints = {
+        'local': 'http://localhost:3000/job',
+        'dev': 'https://www.habx-dev.fr/api/optimizer-v2/job',
+        'staging': 'https://www.habx-staging.fr/api/optimizer-v2/job',
+        'prod': 'https://www.habx.fr/api/optimizer-v2/job',
     }
+
+    endpoint = endpoints.get(os.getenv('HABX_ENV', 'local'))
+
+    response = requests.get(endpoint, params=context, headers={
+        'x-habx-token': os.getenv('HABX_TOKEN', 'ymSC4QkHwxEnAeyBu9UqWzbs')
+    })
+
+    job_input = response.json().get('job')
+
     td = TaskDefinition.from_json(job_input)
     return td
 
@@ -89,16 +88,27 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         "-B", "--batch-execution-id", dest="batch_execution_id",
         default=os.getenv('BATCH_EXECUTION_ID'), metavar="ID", help="BatchExecution ID"
     )
+
+    # OPT-106: Allowing to specify a taskId
+    parser.add_argument(
+        "-t", "--task-id", dest="task_id", metavar="ID", help="Task ID"
+    )
     args = parser.parse_args()
 
-    context = {
+    job_fetching_params = {
         'blueprintId': args.blueprint_id,
         'setupId': args.setup_id,
         'paramsId': args.params_id,
         'batchExecutionId': args.batch_execution_id,
     }
 
-    td = fetch_task_definition(context)
+    td = fetch_task_definition(job_fetching_params)
+
+    td.task_id = args.task_id
+
+    # If no taskId is specified, we should specify one
+    if not td.task_id:
+        td.task_id = str(uuid.uuid4())
 
     config = Config()
 

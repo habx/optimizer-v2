@@ -60,7 +60,7 @@ def test_serialization():
         serialized_data = plan.serialize()
         writer.save_plan_as_json(serialized_data)
 
-        new_serialized_data = reader.get_plan_from_json(serialized_data["name"])
+        new_serialized_data = reader.get_plan_from_json(serialized_data["name"] + ".json")
         new_plan = Plan("from_saved_data").deserialize(new_serialized_data)
 
     new_plan.plot()
@@ -511,8 +511,88 @@ def test_remove_middle_e_space():
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
 
-    plan.plot()
+    assert plan.check()
 
+
+def test_remove_face_between_holes():
+    """
+    Remove a face between two holes : creating a large holes.
+    The reference edges of the space should be changed accordingly
+    In this case the face is internal.
+    Example :
+    +-----------------------------------+
+    |                SPACE              |
+    |     +--------+       +-------+    |
+    |     |        |       |       |    |
+    |     |        +-------+       |    |
+    |     | HOLE 1 | FACE  | HOLE 2|    |
+    |     |        +-------+       |    |
+    |     |        |       |       |    |
+    |     +--------+       +-------+    |
+    |                                   |
+    +-----------------------------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
+    hole_1 = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    hole_2 = [(500, 200), (700, 200), (700, 600), (500, 600)]
+    face = [(300, 300), (500, 300), (500, 500), (300, 500)]
+    plan = Plan('face_between_holes')
+    plan.add_floor_from_boundary(perimeter)
+
+    face_1 = plan.empty_space.insert_face_from_boundary(hole_1)
+    plan.empty_space.remove_face(face_1)
+
+    face_2 = plan.empty_space.insert_face_from_boundary(hole_2)
+    plan.empty_space.remove_face(face_2)
+
+    face_3 = plan.empty_space.insert_face_from_boundary(face)
+    plan.empty_space.remove_face(face_3)
+
+    assert len(list(plan.empty_space.holes_reference_edge)) == 1
+    assert plan.check()
+
+
+def test_remove_face_between_holes_2():
+    """
+    Remove a face between two holes : creating a large holes.
+    The reference edges of the space should be changed accordingly.
+    In this case the face shares a boundary with the space
+    Example :
+    +--------+----------------+------+
+    |        |     FACE       |      |
+    |  +-----+---+------+-----+---+  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  | HOLE 1  |      | HOLE 2  |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  |         |      |         |  |
+    |  +---------+      +---------+  |
+    |              SPACE             |
+    +--------------------------------+
+
+    :return:
+    """
+    perimeter = [(0, 0), (800, 0), (800, 800), (0, 800)]
+    hole_1 = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    hole_2 = [(500, 200), (700, 200), (700, 600), (500, 600)]
+    face = [(200, 600), (600, 600), (600, 800), (200, 800)]
+    plan = Plan('face_between_holes')
+    plan.add_floor_from_boundary(perimeter)
+
+    face_1 = plan.empty_space.insert_face_from_boundary(hole_1)
+    plan.empty_space.remove_face(face_1)
+
+    face_2 = plan.empty_space.insert_face_from_boundary(hole_2)
+    plan.empty_space.remove_face(face_2)
+
+    face_3 = plan.empty_space.insert_face_from_boundary(face)
+    plan.empty_space.remove_face(face_3)
+
+    assert len(list(plan.empty_space.holes_reference_edge)) == 0
     assert plan.check()
 
 
@@ -529,8 +609,6 @@ def test_create_hole():
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
     plan.empty_space.add_face(plan.mesh.faces[1])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -672,23 +750,23 @@ def test_clone_change_plan():
     perimeter = [(0, 0), (1000, 0), (1000, 1000), (0, 1000)]
     duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
     duct_2 = [(0, 0), (200, 0), (200, 200), (0, 200)]
-    plan = Plan()
+    plan = Plan("first")
     plan.add_floor_from_boundary(perimeter)
-    plan_2 = plan.clone()
+    plan_2 = plan.clone("second")
     plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan_2)
-    plan.plot()
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
+    assert not plan_2.empty_space.has_holes
     assert plan.spaces[0].id == plan_2.spaces[0].id
+    plan.plot()
 
 
 def test_deepcopy_change_plan():
     """
-
     :return:
     """
     from libs.modelers.grid import GRIDS
@@ -708,7 +786,24 @@ def test_deepcopy_change_plan():
     plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
+    assert not plan_2.empty_space.has_holes
     assert plan.spaces[0].id == plan_2.spaces[0].id
+
+
+def test_pickling():
+    from libs.modelers.grid import GRIDS
+    import pickle
+
+    plan = rectangular_plan(1000, 800)
+    duct = [(400, 400), (600, 400), (600, 600), (400, 600)]
+    plan.insert_linear((200, 0), (600, 0), LINEAR_CATEGORIES["doorWindow"])
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+    data = pickle.dumps(plan)
+    new_plan = pickle.loads(data)
+    new_plan.plot()
+
+    assert new_plan.check()
 
 
 def test_insert_external_space():
@@ -1003,6 +1098,19 @@ def test_maximum_distance_to():
     assert plan.spaces[1].maximum_distance_to(plan.spaces[2]) == 700*2**0.5
 
 
+def test_maximum_distance_to_2():
+    import math
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    GRIDS["finer_ortho_grid"].apply_to(plan)
+    space_1 = plan.insert_space_from_boundary([(0, 0), (125, 0), (125, 125), (0, 125)])
+    space_2 = plan.insert_space_from_boundary([(375, 375), (500, 375), (500, 500), (375, 500)])
+    plan.plot()
+    assert space_1.distance_to(space_2) == 500*math.sqrt(2)
+    space_3 = plan.insert_space_from_boundary([(0, 375), (125, 375), (125, 500), (0, 500)])
+    assert space_1.distance_to(space_3) == math.sqrt(500.0**2 + 125**2)
+
+
 def test_space_area(l_plan):
     assert l_plan.empty_space.area == 915000.0
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
@@ -1066,3 +1174,24 @@ def test_number_corners_with_addition_face(l_plan):
     plan.insert_space_from_boundary(weird_space_boundary)
     GRIDS["ortho_grid"].apply_to(plan)
     assert plan.spaces[0].number_of_corners(plan.mesh.faces[0]) == 6
+
+
+def test_corner_stone():
+    from libs.modelers.grid import GRIDS
+    plan = rectangular_plan(500, 500)
+    weird_space_boundary = [(0, 0), (250, 0), (250, 250), (125, 250), (125, 125), (0, 125)]
+    plan.insert_space_from_boundary(weird_space_boundary)
+
+    GRIDS["simple_grid"].apply_to(plan)
+    plan.plot()
+
+    faces_id = [365, 389]
+    faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
+    space = plan.spaces[1]
+
+    assert space.corner_stone(*faces)
+
+    faces_id += [383, 16]
+    faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
+
+    assert not space.corner_stone(*faces)

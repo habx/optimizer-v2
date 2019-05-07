@@ -225,6 +225,16 @@ def dot_product(vector_1: Vector2d, vector_2: Vector2d):
     return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]
 
 
+def cross_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
+    """
+    Returns the cross product of the two vectors
+    :param vector_1:
+    :param vector_2:
+    :return:
+    """
+    return vector_1[0]*vector_2[1] - vector_1[1]*vector_2[0]
+
+
 def pseudo_equal(value: float, other: float, epsilon: float) -> bool:
     """
     Verify if an value is very close to a specific value, according to an epsilon float

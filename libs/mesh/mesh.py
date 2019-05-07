@@ -126,6 +126,20 @@ class MeshComponent:
         if value is not None:
             value.add(self)
 
+    def __hash__(self):
+        # Note : this is incorrect in the sense that two edges from two different meshes
+        # could have the same id. But this is faster and we are not comparing
+        # edges from different meshes.
+        return self.id
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def remove_from_mesh(self):
         """
         Removes the component from the mesh
@@ -147,6 +161,12 @@ class MeshComponent:
         self._id = _id
         self._mesh = mesh
         self._mesh.add(self)
+
+# Types for typing
+
+
+MeshComponentIdTuple = Tuple[MeshComponentType, int]
+MeshModification = Tuple[MeshOps, MeshComponentIdTuple, Optional[MeshComponentIdTuple]]
 
 
 class Vertex(MeshComponent):
@@ -1051,15 +1071,9 @@ class Edge(MeshComponent):
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
     @property
-    def siblings(self) -> Generator['Edge', 'Edge', None]:
+    def siblings(self) -> Generator['Edge', None, None]:
         """
         Returns the siblings of the edge, starting with itself.
-        Note : an edge can be sent back to the generator, for example when the face has changed
-        example:   g = face.edge
-                    for edge in g:
-                    modify something:
-                    g.send(edge)
-
         :return: generator yielding each edge in the loop
         """
         yield self
@@ -1067,16 +1081,13 @@ class Edge(MeshComponent):
         # in order to detect infinite loop we stored each yielded edge
         seen = []
         while edge is not self:
-            if edge in seen:
+            if __debug__ and edge in seen:
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
-            seen.append(edge)
-            new_edge = (yield edge)
-            if new_edge:
-                seen = []
-                edge = new_edge
-            else:
-                edge = edge.next
+            if __debug__:
+                seen.append(edge)  # noinspection PyUnreachableCode
+            yield edge
+            edge = edge.next
 
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
@@ -1943,7 +1954,7 @@ class Face(MeshComponent):
         self._edge = value
 
     @property
-    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
+    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, None, None]:
         """
         Loops trough all the edges belonging to a face.
         We start at the edge stored in the face and follow each edge next until
@@ -2972,7 +2983,23 @@ class Mesh:
 
         return self
 
-    def add_watcher(self, watcher: Callable[['MeshComponent', MeshOps], None]):
+    def __getstate__(self) -> Dict:
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :return: the data used for pickling
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :param state: the data used to unpickle
+        """
+        self.deserialize(state)
+
+    def add_watcher(self, watcher: Callable[[Dict[int, MeshModification]], None]):
         """
         Adds a watcher to the mesh.
         Each time a mesh component is added or removed, a call to the watcher is triggered.
@@ -3031,7 +3058,7 @@ class Mesh:
         :return:
         """
         for watcher in self._watchers:
-            watcher(self._modifications)
+            watcher(self._modifications, self.id)
         self._modifications = {}
 
     def add(self, component: Union['MeshComponent', 'Vertex', 'Face', 'Edge']):
@@ -3040,10 +3067,10 @@ class Mesh:
         :param component:
         :return:
         """
-        self.store_modification(MeshOps.ADD, component)
-
         if component.id is None:
             component.id = self.get_id()
+
+        self.store_modification(MeshOps.ADD, component)
 
         if type(component) == Vertex:
             self._add_vertex(component)
