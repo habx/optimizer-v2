@@ -407,6 +407,9 @@ class ConstraintsManager:
             if self.sp.spec.typology >= 3:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -1205,4 +1208,15 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "dressing": [
     ]
 }
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "all": [
 
+    ],
+    "bathroom": [
+        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}]
+    ],
+    "bedroom": [
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ]
+}
