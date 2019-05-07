@@ -657,7 +657,8 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = min(max(25, plan_ratio + 10), 35)
-    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing", "laundry"]
+    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing",
+                                 "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
         param = min(max(25, plan_ratio), 32)
     elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
@@ -1046,11 +1047,13 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
     """
     ct1 = components_adjacency_constraint(manager, item, ["frontDoor"], True)
 
+    front_door_space = None
     for space in manager.sp.spec.plan.mutable_spaces():
         if "frontDoor" in space.components_category_associated():
             front_door_space = space
+            break
 
-    if front_door_space.area > 4*SQM:
+    if front_door_space and front_door_space.area > 4*SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
@@ -1191,7 +1194,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bathroom": [
         [item_adjacency_constraint,
-         {"item_categories": ["bedroom"], "adj": True, "addition_rule": "Or"}],
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "living": [
         [externals_connection_constraint, {}]
