@@ -419,7 +419,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("007.json")
+        plan = reader.create_plan_from_file("006.json")
         plan.check()
         start_time = time.time()
         new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)

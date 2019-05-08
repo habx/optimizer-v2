@@ -814,7 +814,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "007"
+        plan_name = "006"
 
         # to not run each time the grid generation
         try:
