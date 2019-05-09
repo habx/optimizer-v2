@@ -133,15 +133,28 @@ def space_external_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]
     yield from space.exterior_edges
 
 
-def touching_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
+def wrong_direction_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges touching an edge of the space
     :param space:
     :param _:
     :return:
     """
-    for edge in space.edges:
-        yield edge.next
+    directions = space.directions
+    if not directions:
+        return
+
+    for hole_edge in space.holes_reference_edge:
+        for edge in space.siblings(hole_edge):
+            for starting_edge in edge.start.edges:
+                if starting_edge is edge:
+                    continue
+                if space.has_edge(starting_edge):
+                    vector = starting_edge.unit_vector
+                    delta = map(lambda d: pseudo_equal(ccw_angle(vector, d), 180, ANGLE_EPSILON),
+                                directions)
+                    if max(list(delta)) == 0:
+                        yield starting_edge
 
 
 def boundary_faces(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -182,11 +195,10 @@ def boundary_faces_biggest(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :return:
     """
     for face in space.faces:
-        if face.edge:
-            output = max((e for e in face.edges if space.has_edge(e.pair)),
-                         key=lambda e: e.length, default=None)
-            if output is not None:
-                yield output
+        internal_edges = [e for e in face.edges if not space.is_boundary(e)]
+        if not internal_edges:
+            continue
+        yield max(internal_edges, key=lambda e: e.length)
 
 
 def fixed_space_boundary(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -435,11 +447,21 @@ def close_to_windows(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :param space:
     :return:
     """
+    min_distance = 150.0
     plan = space.plan
-    for edge in space.exterior_edges:
-        linear = plan.get_linear(edge)
-        if linear and linear.category.name in ("window", "doorWindow"):
-            yield from edge.siblings
+    for linear in plan.get_linears("window", "doorWindow"):
+        if not space.has_linear(linear):
+            continue
+        for linear_edge in linear.edges:
+            for edge in linear_edge.siblings:
+                # per convention we do not consider the linear edge, its next or previous edge
+                # as being close to the linear
+                if (edge is linear_edge or edge is linear_edge.next or edge.next is linear_edge
+                        or space.is_boundary(edge)):
+                    continue
+                max_distance = linear_edge.max_distance(edge, parallel=True)
+                if max_distance is not None and max_distance <= min_distance:
+                    yield edge
 
 
 def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -449,9 +471,21 @@ def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
     :return:
     """
     plan = space.plan
-    for edge in space.exterior_edges:
-        if plan.is_external(edge):
+    for edge in space.edges:
+        if _is_wall(edge, plan):
             yield from edge.siblings
+
+
+def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
+    """
+    Returns True if the edge is on the wall
+    :param edge:
+    :return:
+    """
+    min_lbwall_length = 15.0
+    other = plan.get_space_of_edge(edge.pair)
+    return (not other or other.category.external
+            or (other.category.name == "loadBearingWall" and edge.length > min_lbwall_length))
 
 
 def close_to_front_door(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -468,6 +502,58 @@ def close_to_front_door(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 
 # Query factories
+def small_faces(max_area: float = 2500.0) -> EdgeQuery:
+    """
+    returns the biggest edge of faces which area is inferior to the specified max
+    :param max_area:
+    :return:
+    """
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        """
+        Returns the biggest edge of each face
+        :param space:
+        :return:
+        """
+        for face in space.faces:
+            if face.area < max_area:
+                internal_edges = [e for e in face.edges if not space.is_boundary(e)]
+                if not internal_edges:
+                    continue
+                yield max(internal_edges, key=lambda e: e.length)
+
+    return _query
+
+
+def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQuery:
+    """
+    Returns the edges that are at less thant the specified distance to a linear
+    of the specified categories.
+    :param cat_names:
+    :param min_distance:
+    :return:
+    """
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        """
+        Returns the edges on a face that has a window linear
+        :param space:
+        :return:
+        """
+        plan = space.plan
+        for linear in plan.get_linears(*cat_names):
+            for linear_edge in linear.edges:
+                if not space.has_linear(linear):
+                    continue
+                for edge in linear_edge.siblings:
+                    # per convention we do not consider the linear edge, its next or previous edge
+                    # as being close to the linear
+                    if (edge is linear_edge or edge is linear_edge.next or edge.next is linear_edge
+                            or space.is_boundary(edge)):
+                        continue
+                    max_distance = linear_edge.max_distance(edge, parallel=True)
+                    if max_distance is not None and max_distance <= min_distance:
+                        yield edge
+
+    return _query
 
 
 def farthest_edges_barycenter(coeff: float = 0) -> EdgeQuery:
@@ -899,6 +985,16 @@ def specific_category(*category_names: str) -> EdgeQuery:
 
 # predicates
 
+def close_to_corner_wall(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge is before a corner
+    :param edge:
+    :param space:
+    :return:
+    """
+    angle_precision = 15.0
+    return space.next_angle(edge) < 90.0 + angle_precision
+
 
 def t_edge(edge: 'Edge', space: 'Space') -> bool:
     """
@@ -1084,7 +1180,7 @@ def wrong_direction(edge: 'Edge', space: 'Space') -> bool:
 
 def is_mutable(_: 'Edge', space: 'Space') -> bool:
     """
-    Returns True if the edge pair space is mutable
+    Returns True if the edge space is mutable
     :param _:
     :param space:
     :return:
@@ -1469,12 +1565,12 @@ def close_to_apartment_boundary(min_distance: float = 90.0, min_length: float = 
         plan: 'Plan' = space.plan
 
         # per convention if an edge is on the apartment boundary it cannot be too close
-        if plan.is_external(edge.pair):
+        if _is_wall(edge, plan):
             return False
 
         # we must not take into account the external edge that is connected to the edge
         # in the case of non orthogonal cuts
-        external_edges = [e for e in edge.siblings if plan.is_external(e.pair)
+        external_edges = [e for e in edge.siblings if _is_wall(e, plan)
                           and e is not edge.next and e.next is not edge]
 
         if not external_edges:
@@ -1731,18 +1827,18 @@ SELECTORS = {
     ),
 
     "close_to_window": Selector(
-        close_to_windows,
+        close_to_linear_query("window", "doorWindow", min_distance=200.0),
         [
             not_space_boundary,
-            close_to_linear('window', 'doorWindow', min_distance=150.0)
+            pair(is_mutable)
         ]
     ),
 
     "close_to_front_door": Selector(
-        close_to_front_door,
+        close_to_linear_query("frontDoor", min_distance=90.0),
         [
             not_space_boundary,
-            close_to_linear('frontDoor', min_distance=80.0)
+            pair(is_mutable)
         ]
     ),
 
@@ -1991,6 +2087,8 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(90, 5)]),
+
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
     "previous_concave_non_ortho": Selector(space_boundary, [
@@ -2019,7 +2117,7 @@ SELECTORS = {
 
     "adjacent_to_empty_space": Selector(space_boundary, [adjacent_to_space("empty")]),
 
-    "wrong_direction": Selector(touching_space_boundary, [wrong_direction]),
+    "wrong_direction": Selector(wrong_direction_edges, []),
 
     "add_aligned": Selector(
         space_boundary,
@@ -2062,9 +2160,17 @@ SELECTORS = {
                                                      is_not(only_adjacent_to_immutable),
                                                      is_not(corner_stone)]),
 
-    "plan_boundary_no_linear": Selector(space_external_boundary,
-                                        [edge_length(min_length=60),
-                                         is_not(touches_linear(position='on'))])
+    "plan_boundary_no_linear": Selector(space_boundary,
+                                        [edge_length(min_length=40),
+                                         _or(is_not(close_to_corner_wall),
+                                             edge_length(min_length=180.0)),
+                                         _or(space_previous_has(is_not(close_to_corner_wall)),
+                                             edge_length(min_length=180.0))]),
+    "close_to_corner_wall": Selector(space_boundary, [edge_length(min_length=110.0),
+                                                      close_to_corner_wall]),
+    "previous_close_to_corner_wall": Selector(space_boundary,
+                                              [edge_length(min_length=110.0),
+                                               space_previous_has(close_to_corner_wall)]),
 }
 
 SELECTOR_FACTORIES = {
@@ -2072,5 +2178,6 @@ SELECTOR_FACTORIES = {
     "edges_length": SelectorFactory(lambda: space_boundary, [edge_length]),
     "min_depth": SelectorFactory(min_depth),
     "tight_lines": SelectorFactory(tight_lines),
-    "category": SelectorFactory(specific_category)
+    "category": SelectorFactory(specific_category),
+    "small_faces": SelectorFactory(small_faces)
 }
