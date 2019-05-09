@@ -732,7 +732,7 @@ CORRIDOR_RULES = {
     "layer_width": 25,
     "nb_layer": 5,
     "recursive_cut_length": 400,
-    "width": 100,
+    "width": 110,
     "penetration_length": 90,
     "layer_cut": False
 }
