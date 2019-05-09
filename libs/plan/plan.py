@@ -619,6 +619,8 @@ class Space(PlanComponent):
         return sorted(output.keys(), key=lambda k: output[k], reverse=True)
 
     def _directions(self, face: Optional['Face'] = None):
+        if face is None and self.edge is None:
+            return None
         edges = face.edges if face is not None else self.edges
         axes = self._external_axes(list(edges)) or self._axes(list(edges))
         x = unit_vector(axes[0])
