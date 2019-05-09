@@ -48,19 +48,18 @@ jobs:
           docker_layer_caching: true
       - run: .circleci/build-container.sh
 
-  trigger-batch-execution:
+  notify-optimizer-result-for-new-version:
     docker:
       - image: alpine
     working_directory: /work
     steps:
-      - checkout
       - run: 
           command: |
             apk update
-            apk add ca-certificates git bash
+            apk add ca-certificates
       - attach_workspace:
           at: /work
-      - run: .circleci/trigger-batch-execution.sh
+      - run: .circleci/notify-optimizer-result-for-new-version.sh
 
   # Publishing the the tasks
   deploy-to-kubernetes-standard-worker:
@@ -107,12 +106,8 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-            # branches:
-            #   only:
-            #     - dev
-            #     - feature/OPT-47-correct
 
-      - trigger-batch-execution:
+      - notify-optimizer-result-for-new-version:
           context: default_env_vars
           requires:
             - get-build-infos
