@@ -53,6 +53,10 @@ jobs:
       - image: alpine
     working_directory: /work
     steps:
+      - run: 
+          command: |
+            apk update
+            apk add ca-certificates
       - attach_workspace:
           at: /work
       - run: .circleci/trigger-batch-execution.sh
