@@ -57,7 +57,7 @@ jobs:
       - run: 
           command: |
             apk update
-            apk add ca-certificates
+            apk add ca-certificates curl
       - attach_workspace:
           at: /work
       - run: .circleci/notify-optimizer-result-for-new-version.sh
