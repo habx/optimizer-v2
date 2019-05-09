@@ -53,6 +53,7 @@ jobs:
       - image: alpine
     working_directory: /work
     steps:
+      - checkout
       - run: 
           command: |
             apk update
