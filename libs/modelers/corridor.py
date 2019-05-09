@@ -76,7 +76,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        #self.circulator.plot()
+        self.circulator.plot()
 
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
@@ -219,10 +219,11 @@ class Corridor:
         edge_path = self._get_edge_path(path)
 
         # layer slices parallel to path edges
-        for edge in edge_path:
-            self._layer_slice(edge, show)
+        if self.corridor_rules["layer_cut"]:
+            for edge in edge_path:
+                self._layer_slice(edge, show)
 
-        edge_path = self._get_edge_path(path)
+            edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
         for edge in edge_path:
@@ -265,15 +266,16 @@ class Corridor:
             corridor_space = Space(self.plan, self.plan.floor,
                                    category=SPACE_CATEGORIES['circulation'])
             line = []
-            for e in _line_forward(edge):
-                if _condition(e) or _condition(e.pair):
-                    line.append(e)
+            for line_edge in _line_forward(edge):
+                if _condition(line_edge) or _condition(line_edge.pair):
+                    line.append(line_edge)
                 else:
                     break
-            for e in line:
-                self._add_corridor_portion(e, self.corner_data[edge]["ccw"], corridor_space,
+            for line_edge in line:
+                self._add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
                                            show)
-                self._add_corridor_portion(e.pair, self.corner_data[edge]["cw"], corridor_space,
+                self._add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
+                                           corridor_space,
                                            show)
 
     def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
@@ -389,32 +391,43 @@ class Corridor:
         :return: built corridor space
         """
 
-        def _get_width(ccw=True) -> float:
-            # returns the maximum expansion on ccw (resp cw) side of the path
+        def _lists_intersection(l: List[List]) -> List:
+            # returns a sorted list containing elements that are in every lists of l
+            intersect = set(l[0])
+            for s in l[1:]:
+                intersect.intersection_update(s)
+            intersect = list(intersect)
+            intersect.sort()
+            return intersect
+
+        def _get_layers_width(ccw=True) -> List:
+            # returns the list of layers' width on ccw (resp cw) side of the path
             portions_width = []
-            for e in edge_line:
-                start_edge = e if ccw else e.pair
+            for line_edge in edge_line:
+                start_edge = line_edge if ccw else line_edge.pair
                 portion_width = \
                     self._get_parallel_layers_edges(start_edge, self.corridor_rules["width"])[0]
                 portions_width.append(portion_width)
-            width = 0 if not portions_width else min(portions_width)
-            return width
+            return _lists_intersection(portions_width)
 
-        width_ccw = _get_width()
-        width_cw = _get_width(ccw=False)
+        width_ccw_list = _get_layers_width()
+        width_cw_list = _get_layers_width(ccw=False)
 
         # the corridor is grown on each side while
         #  -growth is possible and corridor width is
         #  -under self.corridor_rules["width"]
-        narrow_step = self.corridor_rules["layer_width"]
+
+        width_ccw = width_ccw_list[-1]
+        width_cw = width_cw_list[-1]
+        count_ccw = len(width_ccw_list) - 1
+        count_cw = len(width_cw_list) - 1
         while width_ccw + width_cw > self.corridor_rules["width"] + EPSILON:
-            if width_ccw + width_cw - self.corridor_rules["layer_width"] < self.corridor_rules[
-                "width"]:
-                narrow_step = width_ccw + width_cw - self.corridor_rules["width"]
             if width_ccw > width_cw:
-                width_ccw -= narrow_step
+                count_ccw -= 1
             else:
-                width_cw -= narrow_step
+                count_cw -= 1
+            width_ccw = width_ccw_list[count_ccw]
+            width_cw = width_cw_list[count_cw]
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
         for e, edge in enumerate(edge_line):
@@ -425,14 +438,14 @@ class Corridor:
                 self.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
         return corridor_space
 
-    def _get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple[float, 'List']:
+    def _get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple['List', 'List']:
         """
         Returns
         *successive layer edges defined as
             -being parallel to edge
             -in vertical direction from edge
             -with distance to edge less than width
-        *distance from edge to the last layer edge
+        *list of rounded distances from edge to the layer edges
         :param edge:
         :param width:
         :return:
@@ -451,7 +464,7 @@ class Corridor:
 
         layer_edges = []
         next_layer = True
-        dist = 0
+        dist = [0]
         start_edge = edge
         if not _layer_condition(start_edge):
             return dist, layer_edges
@@ -464,7 +477,8 @@ class Corridor:
                 if (pseudo_equal(angle, 180, 10)
                         and dist_tmp < width + 2 * EPSILON
                         and _layer_condition(e)):
-                    dist = dist_tmp
+                    dist.append(int(round(dist_tmp / 5)) * 5)
+                    # dist.append(int(round(dist_tmp)))
                     start_edge = e.pair
                     layer_edges.append(e)
                     if not start_edge.face:
@@ -719,13 +733,14 @@ CORRIDOR_RULES = {
     "nb_layer": 5,
     "recursive_cut_length": 400,
     "width": 100,
-    "penetration_length": 90
+    "penetration_length": 90,
+    "layer_cut": False
 }
 
 if __name__ == '__main__':
     import argparse
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    # logging.getLogger().setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -766,7 +781,8 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            GRIDS['optimal_grid'].apply_to(plan)
+            # GRIDS['optimal_grid'].apply_to(plan)
+            GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
             spec.plan = plan
             space_planner = SpacePlanner("test", spec)
@@ -802,5 +818,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "059.json"
+    plan_name = "001.json"
     main(input_file=plan_name)
