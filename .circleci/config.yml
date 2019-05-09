@@ -57,7 +57,7 @@ jobs:
       - run: 
           command: |
             apk update
-            apk add ca-certificates git
+            apk add ca-certificates git bash
       - attach_workspace:
           at: /work
       - run: .circleci/trigger-batch-execution.sh
