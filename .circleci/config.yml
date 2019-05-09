@@ -48,6 +48,15 @@ jobs:
           docker_layer_caching: true
       - run: .circleci/build-container.sh
 
+  trigger-batch-execution:
+    docker:
+      - image: alpine
+    working_directory: /work
+    steps:
+      - attach_workspace:
+          at: /work
+      - run: .circleci/trigger-batch-execution.sh
+
   # Publishing the the tasks
   deploy-to-kubernetes-standard-worker:
     docker:
@@ -93,10 +102,18 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-            branches:
-              only:
-                - dev
-                - feature/OPT-47-correct
+            # branches:
+            #   only:
+            #     - dev
+            #     - feature/OPT-47-correct
+
+      - trigger-batch-execution:
+          context: default_env_vars
+          requires:
+            - get-build-infos
+          filters:
+            tags:
+              only: /^v.*/
 
       - deploy-to-kubernetes-standard-worker:
           context: default_env_vars
