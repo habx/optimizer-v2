@@ -111,7 +111,7 @@ workflows:
       - notify-optimizer-result-for-new-version:
           context: default_env_vars
           requires:
-            - get-build-infos
+            - build-container
           filters:
             tags:
               only: /^v.*/
