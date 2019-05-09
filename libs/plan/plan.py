@@ -243,7 +243,7 @@ class Space(PlanComponent):
         :param mesh_id:
         :return:
         """
-        return face_id in self._faces_id and mesh_id == self.floor.mesh.id
+        return mesh_id == self.floor.mesh.id and face_id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """

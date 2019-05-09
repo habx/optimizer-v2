@@ -1074,7 +1074,8 @@ class Edge(MeshComponent):
         yield self
         edge = self.next
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
             if __debug__ and edge in seen:
                 raise Exception('Infinite loop' +
