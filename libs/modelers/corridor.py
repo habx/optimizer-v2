@@ -22,7 +22,6 @@ EPSILON = 1
 
 
 # TODO LIST:
-# -remove angle measure and add global epsilon
 # -deal with one vertex path
 # -cut slices orthogonally to start and final edges if needed by the refiner
 # -for now corridor is grown on each side of a path as long as growth is possible,
@@ -445,7 +444,8 @@ class Corridor:
             -being parallel to edge
             -in vertical direction from edge
             -with distance to edge less than width
-        *list of rounded distances from edge to the layer edges
+        *list of rounded distances from edge to the layer edges. NB : distances are rounded so that
+        edges on a straight path have consistant distances to their respective layers
         :param edge:
         :param width:
         :return:
@@ -477,8 +477,7 @@ class Corridor:
                 if (pseudo_equal(angle, 180, 10)
                         and dist_tmp < width + 2 * EPSILON
                         and _layer_condition(e)):
-                    dist.append(int(round(dist_tmp / 5)) * 5)
-                    # dist.append(int(round(dist_tmp)))
+                    dist.append(int(round(dist_tmp / 5)) * 5 + 5)  # rounding
                     start_edge = e.pair
                     layer_edges.append(e)
                     if not start_edge.face:
