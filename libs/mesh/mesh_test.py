@@ -966,7 +966,7 @@ def test_max_distance_weird_mesh(weird_mesh):
     edge = weird_mesh.boundary_edge.pair
     other = edge.previous.previous
     weird_mesh.plot()
-    assert edge.max_distance(other) == 464.2383454426297
+    assert edge.max_distance(other) == 464.2383454426296
 
 
 def test_continuous_line(weird_mesh):
