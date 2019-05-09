@@ -153,6 +153,8 @@ class Seeder:
 
         self.plan.remove_null_spaces()
 
+        self.plan.plot()
+
         return self
 
     def fill(self, show: bool = False) -> 'Seeder':
@@ -353,7 +355,7 @@ class Seed:
         self.max_size.width = max(self.size.width + EPSILON_MAX_SIZE, self.max_size.width or 0)
         self.max_size.depth = max(self.size.depth + EPSILON_MAX_SIZE, self.max_size.depth or 0)
         self.max_size.area = max(self.max_size.width * self.max_size.depth,
-                                 self.size.area + EPSILON_MAX_SIZE**2,
+                                 self.size.area + EPSILON_MAX_SIZE ** 2,
                                  self.max_size.area or 0)
 
     def get_growth_methods(self) -> Sequence['GrowthMethod']:
@@ -537,6 +539,7 @@ class GrowthMethod:
 
         return self.constraints[constraint_name]
 
+
 # Seed Methods
 
 
@@ -606,6 +609,7 @@ GROWTH_METHODS = {
         )
     )
 }
+
 
 # FILL METHODS
 
@@ -796,13 +800,15 @@ SEEDERS = {
     "initial_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                              [adjacent_faces, empty_to_seed, merge_small_cells]),
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                            [adjacent_faces, empty_to_seed, merge_corners])
+                            [adjacent_faces, empty_to_seed, merge_corners]),
+    "compact_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+                             [adjacent_faces, empty_to_seed, merge_corners])
 }
-
 
 if __name__ == '__main__':
 
     logging.getLogger().setLevel(logging.DEBUG)
+
 
     def try_plan():
         """
@@ -814,7 +820,24 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "006"
+        import argparse
+
+        logging.getLogger().setLevel(logging.DEBUG)
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-p", "--plan_index", help="choose plan index",
+                            default=1)
+
+        args = parser.parse_args()
+        plan_index = int(args.plan_index)
+
+        plan_name = None
+        if plan_index < 10:
+            plan_name = '00' + str(plan_index)
+        elif 10 <= plan_index < 100:
+            plan_name = '0' + str(plan_index)
+
+        #plan_name = "001"
 
         # to not run each time the grid generation
         try:
@@ -825,8 +848,9 @@ if __name__ == '__main__':
             GRIDS["optimal_finer_grid"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
-        SEEDERS["simple_seeder"].apply_to(plan, show=True)
+        SEEDERS["simple_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
+
 
     try_plan()
