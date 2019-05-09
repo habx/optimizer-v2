@@ -59,6 +59,7 @@ jobs:
             apk add ca-certificates
       - attach_workspace:
           at: /work
+      - run: ls -la
       - run: .circleci/trigger-batch-execution.sh
 
   # Publishing the the tasks
