@@ -32,7 +32,7 @@ class Mutation:
                  reversible: bool = True,
                  name: str = '',
                  modifies_mesh: bool = True):
-        self.name = name
+        self.name = name or mutation.__name__
         self._mutation = mutation
         self._spaces_modified = spaces_modified
         self._initial_state = Plan("storage")
@@ -422,6 +422,7 @@ def translation_cut(offset: float,
     :param reference_point: the end or the start of the edge
     :return: an action function
     """
+    assert reference_point in ("start", "end"), "The reference must be either start or end"
 
     def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
         # check the length of the edge. It cannot be inferior to the translation distance
