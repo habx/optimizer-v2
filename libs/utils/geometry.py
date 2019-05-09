@@ -119,7 +119,7 @@ def unit_vector(angle: float) -> Vector2d:
     angle %= 360
     angle = angle - 360 * np.sign(angle) if np.abs(angle) > 180 else angle
     rad = angle * np.pi / 180
-    return truncate(np.cos(rad), COORD_DECIMAL), truncate(np.sin(rad), COORD_DECIMAL)
+    return truncate(np.cos(rad)), truncate(np.sin(rad))
 
 
 def normal_vector(vector: Vector2d) -> Vector2d:
@@ -318,4 +318,33 @@ def lines_intersection(line_1: Tuple[Coords2d, Vector2d],
     if d == 0:
         return None
     t = 1/d * (u[1]*(a[0] - b[0]) - u[0]*(a[1]-b[1]))
+    return b[0] + t*v[0], b[1] + t*v[1]
+
+
+def project_point_on_segment(point: Coords2d,
+                             vector: Coords2d,
+                             segment: Tuple[Coords2d, Coords2d]) -> Optional[Coords2d]:
+    """
+    Computes the projection of a point along a specified vector unto a specified segment.
+    Returns None if there is no intersection.
+    :param point:
+    :param vector:
+    :param segment:
+    :return: an optional point
+    """
+    a = point
+    u = vector
+    b = segment[0]
+    v = segment[1][0]-b[0], segment[1][1] - b[1]
+    d = (v[0]*u[1] - u[0]*v[1])
+    if d == 0:
+        return None
+    abx = a[0] - b[0]
+    aby = a[1] - b[1]
+    t = 1/d * (u[1]*abx - u[0]*aby)
+    if t > 1 or t < 0:
+        return None
+    p = 1/d * (v[1]*abx - v[0]*aby)
+    if p < 0:
+        return None
     return b[0] + t*v[0], b[1] + t*v[1]

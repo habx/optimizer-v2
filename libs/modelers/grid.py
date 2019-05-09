@@ -75,10 +75,14 @@ class Grid:
         :param show:
         :return:
         """
-        for space in plan.mutable_spaces():
-            mesh_has_changed = self._select_and_slice(space, operator, show)
-            if mesh_has_changed:
-                return self._apply_operator(plan, operator, show)
+        loop = True
+        while loop:
+            loop = False
+            for space in plan.mutable_spaces():
+                mesh_has_changed = self._select_and_slice(space, operator, show)
+                if mesh_has_changed:
+                    loop = True
+                    break
         return
 
     def _select_and_slice(self, space: 'Space',
@@ -93,7 +97,8 @@ class Grid:
         for edge in _selector.yield_from(space):
             if edge in self._seen:
                 continue
-            logging.debug("Grid: Applying cut %s to edge %s of space %s", _mutation, edge, space)
+            logging.debug("Grid: Applying mutation %s to edge %s of space %s",
+                          _mutation, edge, space)
             mesh_has_changed = _mutation.apply_to(edge, space)
             if show:
                 self._plot.update_faces([space])
@@ -101,6 +106,7 @@ class Grid:
                 self._seen.append(edge)
             if mesh_has_changed:
                 return True
+            logging.debug("Mutation: nothing was changed...")
         return False
 
     def _initialize_plot(self, plan: 'Plan', plot: Optional['Plot'] = None):
@@ -275,6 +281,13 @@ section_grid = Grid("section", [
     (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
 ])
 
+wall_grid = Grid("walls", [
+    (SELECTORS["close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](90, reference_point="end"), True),
+    (SELECTORS["previous_close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](90, reference_point="start"), True)
+])
+
 corner_grid = Grid("corner", [
     (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](1), True)
@@ -357,7 +370,9 @@ finer_cleanup_grid = Grid("cleanup_finer", [
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
-    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False)
+    (SELECTOR_FACTORIES["tight_lines"]([15]), MUTATIONS["remove_line"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
+
 ])
 
 simple_finer_grid = Grid("Simple", [
@@ -404,9 +419,8 @@ GRIDS = {
                      entrance_grid + stair_grid + completion_grid + cleanup_grid),
     "test_grid_temp": section_grid,
     "refiner_grid": refiner_grid,
-    "optimal_finer_grid": (section_grid + duct_grid_finer + corner_grid + load_bearing_wall_grid +
-                           window_grid_finer + entrance_grid_finer + stair_grid_finer +
-                           simple_finer_grid + completion_grid + finer_cleanup_grid)
+    "optimal_finer_grid": (section_grid + duct_grid_finer + corner_grid + load_bearing_wall_grid
+                           + wall_grid + simple_finer_grid + completion_grid + finer_cleanup_grid)
 }
 
 if __name__ == '__main__':
@@ -419,7 +433,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("006.json")
+        plan = reader.create_plan_from_file("016.json")
         plan.check()
         start_time = time.time()
         new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)
@@ -431,21 +445,3 @@ if __name__ == '__main__':
         print(len(new_plan.mesh.faces))
 
     create_a_grid()
-
-
-    def refine_grid():
-        """
-        Test
-        :return:
-        """
-        import tools.cache
-        spec, plan = tools.cache.get_plan("022")
-        new_plan = GRIDS["refiner_grid"].apply_to(plan, show=False)
-        new_plan.plot(save=False)
-        plt.show()
-        print(len(new_plan.mesh.faces))
-
-
-    # refine_grid()
-
-

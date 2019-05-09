@@ -30,7 +30,7 @@ from libs.utils.geometry import (
     normal_vector,
     truncate,
     distance,
-    lines_intersection
+    project_point_on_segment
 )
 from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -1015,27 +1015,23 @@ class Edge(MeshComponent):
             return INFINITY
 
         normal = self.normal
-        self_vector = self.vector
+        opposite_normal = opposite_vector(normal)
         self_start, self_end = self.start.coords, self.end.coords
-        other_vector = other.vector
         other_start, other_end = other.start.coords, other.end.coords
 
-        self_line = self_start, self_vector
-        edge_line = other_start, other_vector
+        p1 = project_point_on_segment(self_start, normal, (other_start, other_end))
+        d1 = distance(self_start, p1) if p1 is not None else None
 
-        p1 = lines_intersection((self_start, normal), edge_line)
-        d1 = distance(self_start, p1)
+        p2 = project_point_on_segment(self_end, normal, (other_start, other_end))
+        d2 = distance(self_end, p2) if p2 is not None else None
 
-        p2 = lines_intersection((self_end, normal), edge_line)
-        d2 = distance(self_end, p2)
+        p3 = project_point_on_segment(other_start, opposite_normal, (self_start, self_end))
+        d3 = distance(other_start, p3) if p3 is not None else None
 
-        p3 = lines_intersection((other_start, normal), self_line)
-        d3 = distance(other_start, p3)
+        p4 = project_point_on_segment(other_end, opposite_normal, (self_start, self_end))
+        d4 = distance(other_end, p4) if p4 is not None else None
 
-        p4 = lines_intersection((other_end, normal), self_line)
-        d4 = distance(other_end, p4)
-
-        dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
+        dist_max_to_edge = max((d for d in (d1, d2, d3, d4) if d is not None), default=INFINITY)
         return dist_max_to_edge
 
     @property

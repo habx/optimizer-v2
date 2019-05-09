@@ -408,7 +408,7 @@ class Space(PlanComponent):
         """
         Returns the angle between the edge and the opposite next edge on the boundary
         Note : this means that two aligned edge will have a "next_angle" of 180.0
-        and not 0.0 (this is more robust to test for alignement).
+        and not 0.0 (this is more robust to test for alignment).
         :param edge:
         :return:
         """
@@ -2846,14 +2846,14 @@ class Plan:
                 return linear
         return None
 
-    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
+    def get_linears(self, *category_names: str) -> Generator['Linear', None, None]:
         """
         Returns an iterator of the linears contained in the place
-        :param category_name:
+        :param category_names:
         :return:
         """
-        if category_name is not None:
-            return (linear for linear in self.linears if linear.category.name == category_name)
+        if category_names:
+            return (linear for linear in self.linears if linear.category.name in category_names)
 
         return (linear for linear in self.linears)
 
