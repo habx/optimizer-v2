@@ -2744,31 +2744,31 @@ class Plan:
         self.linears.remove(linear)
 
     def get_components(self,
-                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
+                       *cat_names: str) -> Generator['PlanComponent', None, None]:
         """
         Returns an iterator of the components contained in the plan.
         Can be filtered according to a category name
-        :param cat_name: the name of the category
+        :param cat_names: the names of the category
         :return:
         """
-        yield from self.get_spaces(cat_name)
-        yield from self.get_linears(cat_name)
+        yield from self.get_spaces(*cat_names)
+        yield from self.get_linears(*cat_names)
 
     def get_spaces(self,
-                   category_name: Optional[str] = None,
+                   *category_names: str,
                    floor: Optional['Floor'] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
-        :param category_name:
+        :param category_names:
         :param floor:
         :return:
         """
         assert floor is None or floor.id in self.floors, (
             "The floor specified does not exist in the plan floors: {}".format(floor, self.floors))
 
-        if category_name is not None:
+        if category_names:
             return (space for space in self.spaces
-                    if space.category.name == category_name
+                    if space.category.name in category_names
                     and (floor is None or space.floor is floor))
         else:
             return (space for space in self.spaces
@@ -2916,7 +2916,7 @@ class Plan:
         The empty spaces of the plan
         :return:
         """
-        return self.get_spaces(category_name='empty')
+        return self.get_spaces('empty')
 
     def empty_spaces_of_floor(self, floor: 'Floor') -> Generator['Space', None, None]:
         """
@@ -2924,7 +2924,7 @@ class Plan:
         :param floor:
         :return:
         """
-        return self.get_spaces(category_name="empty", floor=floor)
+        return self.get_spaces("empty", floor=floor)
 
     @property
     def empty_space(self) -> Optional['Space']:
