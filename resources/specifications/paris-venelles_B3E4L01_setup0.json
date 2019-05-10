@@ -6,7 +6,7 @@
         "kitchen"
       ],
       "requiredArea": {
-        "max": 225000,
+        "max": 240000,
         "min": 200000
       },
       "tags": [],
@@ -19,8 +19,8 @@
         "living"
       ],
       "requiredArea": {
-        "max": 80000,
-        "min": 60000
+        "max": 90000,
+        "min": 50000
       },
       "tags": [],
       "type": "kitchen",
@@ -30,62 +30,35 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 70000,
+        "min": 30000
       },
-      "tags": [],
-      "type": "bedroom",
+      "tags": [
+        "bathtype:tub",
+        "washbasin:double"
+      ],
+      "type": "bathroom",
       "variant": "s"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
+        "max": 50000,
+        "min": 10000
       },
-      "tags": [],
-      "type": "study",
-      "variant": "s"
+      "tags": [
+        "bathtype:shower",
+        "washbasin:single"
+      ],
+      "type": "bathroom",
+      "variant": "xs"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "bedroom",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "bedroom",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "bedroom",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 20000,
+        "max": 30000,
         "min": 10000
       },
       "tags": [],
@@ -96,23 +69,45 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 60000,
-        "min": 40000
+        "max": 130000,
+        "min": 90000
       },
       "tags": [],
-      "type": "bathroom",
+      "type": "bedroom",
       "variant": "s"
     },
     {
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 85000,
-        "min": 60000
+        "max": 110000,
+        "min": 70000
       },
       "tags": [],
-      "type": "bathroom",
-      "variant": "m"
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
     },
     {
       "requiredArea": {

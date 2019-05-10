@@ -210,7 +210,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "paris-venelles_B2E1L01.json"
+        input_file = "paris-venelles_B2E0L02.json"
         print("input_file", input_file)
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
                 nbr_grid_cells += len(list(space.faces))
         print("nbr_grid_cells : ", nbr_grid_cells)
 
-        if nbr_grid_cells > 25:
+        if nbr_grid_cells > 30:
             SEEDERS["simple_seeder"].apply_to(plan)
         else:
             for space in plan.spaces:

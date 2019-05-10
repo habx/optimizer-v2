@@ -7,7 +7,7 @@
       ],
       "requiredArea": {
         "max": 200000,
-        "min": 165000
+        "min": 160000
       },
       "tags": [],
       "type": "living",
@@ -19,52 +19,89 @@
         "living"
       ],
       "requiredArea": {
-        "max": 120000,
-        "min": 80000
+        "max": 90000,
+        "min": 50000
       },
       "tags": [],
       "type": "kitchen",
-      "variant": "m"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "bedroom",
       "variant": "s"
     },
     {
       "linkedTo": [],
       "opensOn": [],
-      "requiredArea": {
-        "max": 120000,
-        "min": 100000
-      },
-      "tags": [],
-      "type": "bedroom",
-      "variant": "s"
-    },
-    {
-      "linkedTo": [],
-      "opensOn": [],
-      "requiredArea": {
-        "max": 85000,
-        "min": 60000
-      },
-      "tags": [
-        "toilet"
-      ],
-      "type": "bathroom",
-      "variant": "m"
-    },
-    {
       "requiredArea": {
         "max": 70000,
-        "min": 50000
+        "min": 30000
+      },
+      "tags": [
+        "bathtype:tub",
+        "washbasin:double"
+      ],
+      "type": "bathroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 50000,
+        "min": 10000
+      },
+      "tags": [
+        "bathtype:shower",
+        "washbasin:single"
+      ],
+      "type": "bathroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 30000,
+        "min": 10000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 130000,
+        "min": 90000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "requiredArea": {
+        "max": 100000,
+        "min": 80000
       },
       "type": "circulation"
     }
