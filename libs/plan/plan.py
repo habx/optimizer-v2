@@ -470,30 +470,32 @@ class Space(PlanComponent):
                 aligned = False
 
     def aligned_siblings(self, edge: 'Edge',
-                         max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
+                         max_angle: float = ANGLE_EPSILON) -> List['Edge']:
         """
         Returns all the edge on the space boundary that are aligned with the edge
         :param edge:
         :param max_angle: the maximum angle between to successive edge in order to consider
                           them aligned.
-        :return:
+        :return: a list of edge in the correct order
         """
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        yield edge
+        aligned_edges = [edge]
 
         # forward check
         current = edge
         while self.next_is_aligned(current, max_angle):
             current = self.next_edge(current)
-            yield current
+            aligned_edges.append(current)
 
         # backward check
         current = edge
         while self.previous_is_aligned(current, max_angle):
             current = self.previous_edge(current)
-            yield current
+            aligned_edges.insert(0, current)
+
+        return aligned_edges
 
     def line(self, edge: 'Edge', mesh_line: Optional[List['Edge']] = None) -> ['Edge']:
         """
@@ -714,6 +716,25 @@ class Space(PlanComponent):
             holes.append(_vertices)
 
         return Polygon(list_vertices, holes)
+
+    def boundary_polygon(self) -> List[Coords2d]:
+        """
+        Returns the polygon of the exterior boundary of the space (no holes)
+        :return:
+        """
+        perimeter = []
+
+        aligned_edges = self.aligned_siblings(self.edge)
+        perimeter.append(aligned_edges[0].start.coords)
+        initial_edge = aligned_edges[0]
+        current_edge = self.next_edge(aligned_edges[len(aligned_edges) - 1])
+
+        while current_edge is not initial_edge:
+            aligned_edges = self.aligned_siblings(current_edge)
+            perimeter.append(aligned_edges[0].start.coords)
+            current_edge = self.next_edge(aligned_edges[len(aligned_edges) - 1])
+
+        return perimeter
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
@@ -1645,22 +1666,49 @@ class Space(PlanComponent):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
-    def adjacent_to(self, other: Union['Space', 'Face'], length: int = None) -> bool:
+    def adjacent_to(self, other: 'Space', length: float = None) -> bool:
         """
         Check the adjacency with an other space or face
-        with constraint of adjacency length
+        with constraint of adjacency length.
+        Note: the adjacency must be on connected edges
         :return:
         """
+        # if no length is specified, we just check if the two spaces have a common edge
         if length is None:
             for edge in other.edges:
                 if self.has_edge(edge.pair):
                     return True
             return False
-        else:
-            if self.maximum_adjacency_length(other) >= length:
-                return True
-            else:
-                return False
+
+        seen = []  # we check all consecutive edges at once
+        for edge in self.exterior_edges:
+            if edge in seen:
+                continue
+            if not other.has_edge(edge.pair):
+                continue
+            # forward check
+            shared_length = edge.length
+            seen.append(edge)
+            for e in self.siblings(edge):
+                if e is edge:
+                    continue
+                if other.has_edge(e.pair):
+                    shared_length += e.length
+                    if shared_length >= length:
+                        return True
+                    seen.append(e)
+
+            # backward check
+            for e in other.siblings(edge.pair):
+                if e is edge.pair:
+                    continue
+                if self.has_edge(e.pair):
+                    shared_length += e.length
+                    if shared_length >= length:
+                        return True
+                    seen.append(e)
+
+        return False
 
     def contact_length(self, space: 'Space') -> float:
         """
@@ -1711,8 +1759,8 @@ class Space(PlanComponent):
         for edge in self.edges:
             if edge.pair:
                 adjacent_space = self.plan.get_space_of_edge(edge.pair)
-                if adjacent_space and adjacent_space not in spaces_list and self.adjacent_to(
-                        adjacent_space, length):
+                if (adjacent_space and adjacent_space not in spaces_list
+                        and self.adjacent_to(adjacent_space, length)):
                     spaces_list.append(adjacent_space)
         return spaces_list
 

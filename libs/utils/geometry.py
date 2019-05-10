@@ -5,11 +5,12 @@ Contains utility functions for computational geometry
 TODO : we should structure this with a point class and a vector class
 """
 
-from typing import Optional, Any, Sequence, Dict, Tuple
+from typing import Optional, Any, Sequence, Dict, Tuple, List
 import numpy as np
 import shapely as sp
 from shapely.geometry import Point, LineString, LinearRing
 from random import randint
+import math
 
 from libs.utils.custom_types import Vector2d, Coords2d
 
@@ -348,3 +349,43 @@ def project_point_on_segment(point: Coords2d,
     if p < 0:
         return None
     return b[0] + t*v[0], b[1] + t*v[1]
+
+
+def min_section(perimeter: List[Coords2d]) -> float:
+    """
+    Returns the minimum section of the perimeter.
+    Note : this is a simplification of the algorithm needed to correctly implement
+           ingress constraints on corridors, which should compute
+           a min cross section width along a given access path.
+    :param perimeter:
+    :return:
+    """
+    depth = math.inf
+    assert sp.geometry.Polygon(perimeter).is_valid, "The specified polygon must be valid"
+    n = len(perimeter)
+    assert n > 2, "The perimeter must have at least 3 points"
+
+    for i, point in enumerate(perimeter):
+        # check projection distance with each segment (other than the next and previous one)
+        k = (i + 1) % n
+        previous_point = perimeter[(i - 1) % n]
+        next_point = perimeter[k]
+        previous_vector = previous_point[0] - point[0], previous_point[1] - point[1]
+        next_vector = next_point[0] - point[0], next_point[1] - point[1]
+
+        while k != (i - 1) % n:
+            seg = (perimeter[k], perimeter[(k + 1) % n])
+            vector = normal_vector((seg[0][0] - seg[1][0], seg[0][1] - seg[1][1]))
+            k = (k + 1) % n
+            if ccw_angle(next_vector, vector) >= ccw_angle(next_vector, previous_vector):
+                continue
+            projected_point = project_point_on_segment(point, vector, seg)
+            if not projected_point:
+                continue
+            projected_depth = distance(point, projected_point)
+            if projected_depth < depth:
+                depth = projected_depth
+
+    return depth
+
+
