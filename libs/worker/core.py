@@ -25,6 +25,7 @@ class TaskDefinition:
         self.params: dict = None
         self.context: dict = {}
         self.local_params: dict = {}
+        self.task_id: str = None
 
     def copy_for_processing(self) -> 'TaskDefinition':
         new = TaskDefinition()
@@ -105,7 +106,7 @@ class TaskProcessor:
                     'error': traceback.format_exception(*sys.exc_info()),
                     'times': {
                         'totalReal': (time.time() - before_time_real),
-                        'total': (time.process_time()-before_time_cpu)
+                        'total': (time.process_time() - before_time_cpu)
                     },
                 },
             }
@@ -140,6 +141,9 @@ class TaskProcessor:
                             json.dump(data[k], f)
 
         self._process_task_after(td)
+
+        if td.task_id:
+            result['taskId'] = td.task_id
 
         return result
 
@@ -183,11 +187,11 @@ class TaskProcessor:
         self._cleanup_output_dir()
 
     def _process_task_after(self, td: TaskDefinition):
-        request_id: str = td.context.get('taskId') if td.context else None
-        if request_id:
-            self._save_output_files(request_id)
+        # OPT-106: Fixing S3 upload
+        if td.task_id:
+            self._save_output_files(td.task_id)
         else:
-            logging.warning("You didn't specify a context.taskId, no upload was performed. "
+            logging.warning("You didn't specify a task ID, no upload was performed. "
                             "Are you sure you want that ?")
 
     def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
@@ -221,6 +225,8 @@ class TaskProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
+                'files': executor_result.get_generated_files()
+                # TODO add other files created outside optimizer.run() like profiling
             },
         }
 

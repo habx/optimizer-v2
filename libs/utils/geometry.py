@@ -5,7 +5,7 @@ Contains utility functions for computational geometry
 TODO : we should structure this with a point class and a vector class
 """
 
-from typing import Optional, Any, Sequence, Dict
+from typing import Optional, Any, Sequence, Dict, Tuple
 import numpy as np
 import shapely as sp
 from shapely.geometry import Point, LineString, LinearRing
@@ -119,7 +119,7 @@ def unit_vector(angle: float) -> Vector2d:
     angle %= 360
     angle = angle - 360 * np.sign(angle) if np.abs(angle) > 180 else angle
     rad = angle * np.pi / 180
-    return truncate(np.cos(rad), COORD_DECIMAL), truncate(np.sin(rad), COORD_DECIMAL)
+    return truncate(np.cos(rad)), truncate(np.sin(rad))
 
 
 def normal_vector(vector: Vector2d) -> Vector2d:
@@ -225,6 +225,16 @@ def dot_product(vector_1: Vector2d, vector_2: Vector2d):
     return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]
 
 
+def cross_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
+    """
+    Returns the cross product of the two vectors
+    :param vector_1:
+    :param vector_2:
+    :return:
+    """
+    return vector_1[0]*vector_2[1] - vector_1[1]*vector_2[0]
+
+
 def pseudo_equal(value: float, other: float, epsilon: float) -> bool:
     """
     Verify if an value is very close to a specific value, according to an epsilon float
@@ -289,3 +299,52 @@ def parallel(vector: Vector2d, other: Vector2d) -> bool:
     :return:
     """
     return pseudo_equal(ccw_angle(vector, opposite_vector(other)), 180.0, ANGLE_EPSILON)
+
+
+def lines_intersection(line_1: Tuple[Coords2d, Vector2d],
+                       line_2: Tuple[Coords2d, Vector2d]) -> Optional[Coords2d]:
+    """
+    Returns the intersection between two lines defined by a point and a directional vector.
+    Will return None if the lines are parallel.
+    :param line_1: a tuple of a point and a vector defining the first line
+    :param line_2: a tuple of a point and a vector defining the second line
+    :return:
+    """
+    a, u = line_1
+    b, v = line_2
+    assert v != (0, 0) and u != (0, 0), "Geometry: Line intersection : the vectors must no be null"
+    d = (v[0]*u[1] - u[0]*v[1])
+    # if d == 0: no or infinite number of solutions because the vectors are co-linears
+    if d == 0:
+        return None
+    t = 1/d * (u[1]*(a[0] - b[0]) - u[0]*(a[1]-b[1]))
+    return b[0] + t*v[0], b[1] + t*v[1]
+
+
+def project_point_on_segment(point: Coords2d,
+                             vector: Coords2d,
+                             segment: Tuple[Coords2d, Coords2d]) -> Optional[Coords2d]:
+    """
+    Computes the projection of a point along a specified vector unto a specified segment.
+    Returns None if there is no intersection.
+    :param point:
+    :param vector:
+    :param segment:
+    :return: an optional point
+    """
+    a = point
+    u = vector
+    b = segment[0]
+    v = segment[1][0]-b[0], segment[1][1] - b[1]
+    d = (v[0]*u[1] - u[0]*v[1])
+    if d == 0:
+        return None
+    abx = a[0] - b[0]
+    aby = a[1] - b[1]
+    t = 1/d * (u[1]*abx - u[0]*aby)
+    if t > 1 or t < 0:
+        return None
+    p = 1/d * (v[1]*abx - v[0]*aby)
+    if p < 0:
+        return None
+    return b[0] + t*v[0], b[1] + t*v[1]

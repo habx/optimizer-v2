@@ -29,7 +29,8 @@ from libs.utils.geometry import (
     dot_product,
     normal_vector,
     truncate,
-    distance
+    distance,
+    project_point_on_segment
 )
 from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -126,6 +127,20 @@ class MeshComponent:
         if value is not None:
             value.add(self)
 
+    def __hash__(self):
+        # Note : this is incorrect in the sense that two edges from two different meshes
+        # could have the same id. But this is faster and we are not comparing
+        # edges from different meshes.
+        return self.id
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def remove_from_mesh(self):
         """
         Removes the component from the mesh
@@ -147,6 +162,12 @@ class MeshComponent:
         self._id = _id
         self._mesh = mesh
         self._mesh.add(self)
+
+# Types for typing
+
+
+MeshComponentIdTuple = Tuple[MeshComponentType, int]
+MeshModification = Tuple[MeshOps, MeshComponentIdTuple, Optional[MeshComponentIdTuple]]
 
 
 class Vertex(MeshComponent):
@@ -964,13 +985,13 @@ class Edge(MeshComponent):
 
         return output
 
-    def max_distance(self, other: 'Edge', parallel: bool = False) -> Optional[float]:
+    def max_distance(self, other: 'Edge', parallel: bool = False) -> float:
         """
         Returns the max distance between to edges of the same face, according to the normal
-        vector of the edge. If the distance is infinite return None per convention.
+        vector of the edge. If the distance is infinite return INFINITY per convention.
         :param other:
         :param parallel: flag to indicate whether we only consider pseudo parallel edges
-        :return: the distance or None
+        :return: the distance
 
         Example:
           ^
@@ -993,31 +1014,24 @@ class Edge(MeshComponent):
         if parallel and not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
-        d1, d2, d3, d4 = None, None, None, None
+        normal = self.normal
+        opposite_normal = opposite_vector(normal)
+        self_start, self_end = self.start.coords, self.end.coords
+        other_start, other_end = other.start.coords, other.end.coords
 
-        start_line = self.start.sp_half_line(self.normal)
-        end_line = self.end.sp_half_line(self.normal)
-        p1 = start_line.intersection(other.as_sp)
-        p2 = end_line.intersection(other.as_sp)
+        p1 = project_point_on_segment(self_start, normal, (other_start, other_end))
+        d1 = distance(self_start, p1) if p1 is not None else None
 
-        other_start_line = other.start.sp_half_line(opposite_vector(self.normal))
-        other_end_line = other.end.sp_half_line(opposite_vector(self.normal))
-        p3 = other_start_line.intersection(self.as_sp)
-        p4 = other_end_line.intersection(self.as_sp)
+        p2 = project_point_on_segment(self_end, normal, (other_start, other_end))
+        d2 = distance(self_end, p2) if p2 is not None else None
 
-        if not p1.is_empty and p1.geom_type == 'Point':
-            d1 = p1.distance(self.start.as_sp)
-        if not p2.is_empty and p2.geom_type == 'Point':
-            d2 = p2.distance(self.end.as_sp)
-        if not p3.is_empty and p3.geom_type == 'Point':
-            d3 = p3.distance(other.start.as_sp)
-        if not p4.is_empty and p4.geom_type == 'Point':
-            d4 = p4.distance(other.end.as_sp)
+        p3 = project_point_on_segment(other_start, opposite_normal, (self_start, self_end))
+        d3 = distance(other_start, p3) if p3 is not None else None
 
-        if not d1 and not d2 and not d3 and not d4:
-            return INFINITY
+        p4 = project_point_on_segment(other_end, opposite_normal, (self_start, self_end))
+        d4 = distance(other_end, p4) if p4 is not None else None
 
-        dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
+        dist_max_to_edge = max((d for d in (d1, d2, d3, d4) if d is not None), default=INFINITY)
         return dist_max_to_edge
 
     @property
@@ -1050,33 +1064,26 @@ class Edge(MeshComponent):
         """
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
+    # noinspection PyUnreachableCode
     @property
-    def siblings(self) -> Generator['Edge', 'Edge', None]:
+    def siblings(self) -> Generator['Edge', None, None]:
         """
         Returns the siblings of the edge, starting with itself.
-        Note : an edge can be sent back to the generator, for example when the face has changed
-        example:   g = face.edge
-                    for edge in g:
-                    modify something:
-                    g.send(edge)
-
         :return: generator yielding each edge in the loop
         """
         yield self
         edge = self.next
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
-            if edge in seen:
+            if __debug__ and edge in seen:
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
-            seen.append(edge)
-            new_edge = (yield edge)
-            if new_edge:
-                seen = []
-                edge = new_edge
-            else:
-                edge = edge.next
+            if __debug__:
+                seen.append(edge)
+            yield edge
+            edge = edge.next
 
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
@@ -1943,7 +1950,7 @@ class Face(MeshComponent):
         self._edge = value
 
     @property
-    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, Edge, None]:
+    def edges(self, from_edge: Optional[Edge] = None) -> Generator[Edge, None, None]:
         """
         Loops trough all the edges belonging to a face.
         We start at the edge stored in the face and follow each edge next until
@@ -2972,7 +2979,23 @@ class Mesh:
 
         return self
 
-    def add_watcher(self, watcher: Callable[['MeshComponent', MeshOps], None]):
+    def __getstate__(self) -> Dict:
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :return: the data used for pickling
+        """
+        return self.serialize()
+
+    def __setstate__(self, state: Dict):
+        """
+        Used to customize the pickling method. Needed due to the very circular natures of the
+        half-edge data structure.
+        :param state: the data used to unpickle
+        """
+        self.deserialize(state)
+
+    def add_watcher(self, watcher: Callable[[Dict[int, MeshModification]], None]):
         """
         Adds a watcher to the mesh.
         Each time a mesh component is added or removed, a call to the watcher is triggered.
@@ -3031,7 +3054,7 @@ class Mesh:
         :return:
         """
         for watcher in self._watchers:
-            watcher(self._modifications)
+            watcher(self._modifications, self.id)
         self._modifications = {}
 
     def add(self, component: Union['MeshComponent', 'Vertex', 'Face', 'Edge']):
@@ -3040,10 +3063,10 @@ class Mesh:
         :param component:
         :return:
         """
-        self.store_modification(MeshOps.ADD, component)
-
         if component.id is None:
             component.id = self.get_id()
+
+        self.store_modification(MeshOps.ADD, component)
 
         if type(component) == Vertex:
             self._add_vertex(component)

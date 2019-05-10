@@ -43,19 +43,12 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
         td = TaskDefinition.from_json(msg.content.get('data'))
 
         # Declaring as task_id
-        task_id = msg.content.get('taskId')
+        td.task_id = msg.content.get('taskId')
 
-        if not task_id:  # Drop it at some point
-            task_id = msg.content.get('requestId')
-
-        # td.context['taskId'] = task_id
+        if not td.task_id:  # Drop it at some point
+            td.task_id = msg.content.get('requestId')
 
         result = processor.process_task(td)
-
-        result['taskId'] = task_id
-
-        # TODO: Drop me
-        result['requestId'] = task_id
 
         exchanger.send_result(result)
 

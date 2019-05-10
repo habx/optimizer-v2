@@ -814,16 +814,16 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "007"
+        plan_name = "006"
 
         # to not run each time the grid generation
         try:
-            new_serialized_data = reader.get_plan_from_json(plan_name)
+            new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS['optimal_grid'].apply_to(plan)
-            writer.save_plan_as_json(plan.serialize(), plan_name)
+            GRIDS["optimal_finer_grid"].apply_to(plan)
+            writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         SEEDERS["simple_seeder"].apply_to(plan, show=True)
         plan.plot()

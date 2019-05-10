@@ -112,15 +112,15 @@ class History:
         individuals with their history parameters modified according to the
         update function.
         """
-        def decFunc(func):
-            def wrapFunc(*args, **kargs):
+        def _dec_func(func):
+            def _wrap_func(*args, **kargs):
                 individuals = func(*args, **kargs)
                 self.update(individuals)
                 return individuals
-            return wrapFunc
-        return decFunc
+            return _wrap_func
+        return _dec_func
 
-    def getGenealogy(self, individual, max_depth=float("inf")):
+    def get_genealogy(self, individual, max_depth=float("inf")):
         """Provide the genealogy tree of an *individual*. The individual must
         have an attribute :attr:`history_index` as defined by
         :func:`~deap.tools.History.update` in order to retrieve its associated
@@ -136,7 +136,8 @@ class History:
         """
         gtree = {}
         visited = set()     # Adds memory to the breadth first search
-        def genealogy(index, depth):
+
+        def _genealogy(index, depth):
             if index not in self.genealogy_tree:
                 return
             depth += 1
@@ -146,9 +147,9 @@ class History:
             gtree[index] = parent_indices
             for ind in parent_indices:
                 if ind not in visited:
-                    genealogy(ind, depth)
+                    _genealogy(ind, depth)
                 visited.add(ind)
-        genealogy(individual.history_index, 0)
+        _genealogy(individual.history_index, 0)
         return gtree
 
 
@@ -176,10 +177,10 @@ class Statistics:
         time :meth:`record` is called.
 
         :param name: The name of the statistics function as it would appear
-                     in the dictionnary of the statistics object.
+                     in the dictionary of the statistics object.
         :param function: A function that will compute the desired statistics
                          on the data as preprocessed by the key.
-        :param argument: One or more argument (and keyword argument) to pass
+        :param args: One or more argument (and keyword argument) to pass
                          automatically to the registered function when called,
                          optional.
         """
@@ -222,6 +223,7 @@ class MultiStatistics(dict):
 
     @property
     def fields(self):
+        """ property """
         return sorted(self.keys())
 
     def register(self, name, function, *args, **kargs):
@@ -463,7 +465,7 @@ class HallOfFame:
         self.items = list()
         self.similar = similar
 
-    def update(self, population):
+    def update(self, population, value: bool = False):
         """Update the hall of fame with the *population* by replacing the
         worst individuals in it by the best individuals present in
         *population* (if they are better). The size of the hall of fame is
@@ -471,6 +473,9 @@ class HallOfFame:
 
         :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
+        :param value: whether to compare the arithmetic sum of the fitness
+                      weighed values or to lexicographically compare the fitness
+                      tuples
         """
         if len(self) == 0 and self.maxsize != 0:
             # Working on an empty hall of fame is problematic for the
@@ -478,7 +483,9 @@ class HallOfFame:
             self.insert(population[0])
 
         for ind in population:
-            if ind.fitness > self[-1].fitness or len(self) < self.maxsize:
+            if ((not value and ind.fitness > self[-1].fitness)
+                    or (value and ind.fitness.value > self[-1].fitness.value)
+                    or len(self) < self.maxsize):
                 for hofer in self:
                     # Loop through the hall of fame to check for any
                     # similar individual
@@ -558,7 +565,7 @@ class ParetoFront(HallOfFame):
     def __init__(self, similar=eq):
         HallOfFame.__init__(self, None, similar)
 
-    def update(self, population):
+    def update(self, population, value: bool = False):
         """Update the Pareto front hall of fame with the *population* by adding
         the individuals from the population that are not dominated by the hall
         of fame. If any individual in the hall of fame is dominated it is
@@ -566,6 +573,9 @@ class ParetoFront(HallOfFame):
 
         :param population: A list of individual with a fitness attribute to
                            update the hall of fame with.
+        :param value: whether to compare the arithmetic sum of the fitness
+                      weighed values or to lexicographically compare the fitness
+                      tuples
         """
         for ind in population:
             is_dominated = False

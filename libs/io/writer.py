@@ -10,19 +10,21 @@ import libs.io.reader as reader
 from libs.space_planner.solution import Solution
 
 
-def save_as_json(data: Dict, output_folder: str, name: Optional[str] = None):
+def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None):
     """
     Saves the data to a json file
     :param data:
     :param output_folder:
-    :param name:
+    :param file_name:
     :return:
     """
-    name = name or data.get("name", "unnamed")
-    file_path = "{}.json".format(name)
+    if file_name:
+        assert file_name[len(file_name) - 5:] == ".json", "The filename must have a .json extension"
+
+    file_name = file_name or data.get("name", "unnamed") + ".json"
     module_path = os.path.dirname(__file__)
     output_folder_path = os.path.join(module_path, output_folder)
-    output_path = os.path.join(module_path, output_folder, file_path)
+    output_path = os.path.join(module_path, output_folder, file_name)
 
     if not os.path.exists(output_folder_path):
         os.makedirs(output_folder_path)
@@ -31,13 +33,13 @@ def save_as_json(data: Dict, output_folder: str, name: Optional[str] = None):
         json.dump(data, fp, sort_keys=True, indent=2)
 
 
-def save_plan_as_json(data: Dict, name: Optional[str] = None):
+def save_plan_as_json(data: Dict, file_name: Optional[str] = None):
     """
     Saves the serialized plan as a json
     :param data: the serialized data
-    :param name: the name of the file (without the extension)
+    :param file_name: the name of the file (without the extension)
     """
-    save_as_json(data, reader.DEFAULT_PLANS_OUTPUT_FOLDER, name)
+    save_as_json(data, reader.DEFAULT_PLANS_OUTPUT_FOLDER, file_name)
 
 
 def save_mesh_as_json(data: Dict, name: Optional[str] = None):
@@ -50,6 +52,12 @@ def save_mesh_as_json(data: Dict, name: Optional[str] = None):
 
 
 def generate_output_dict(input_data: dict, solution: Solution) -> dict:
+    """
+    Creates the data dict from the input_data
+    :param input_data:
+    :param solution:
+    :return:
+    """
     # deep copy is not thread safe, dict comprehension is not deep
     # so we use this hack (fast enough)
     assert "v2" in input_data.keys()
@@ -99,6 +107,12 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
 
 
 def generate_output_dict_from_file(input_file_name: str, solution: Solution) -> dict:
+    """
+    Compute the data dict from a specified file
+    :param input_file_name:
+    :param solution:
+    :return:
+    """
     floor_plan_dict = reader.get_json_from_file(input_file_name)
 
     if "v2" not in floor_plan_dict.keys():
@@ -109,6 +123,12 @@ def generate_output_dict_from_file(input_file_name: str, solution: Solution) -> 
 
 
 def save_json_solution(data, num_sol):
+    """
+    Save a json to file
+    :param data:
+    :param num_sol:
+    :return:
+    """
     with open(os.path.join(reader.DEFAULT_PLANS_OUTPUT_FOLDER,
                            "output" + str(num_sol) + ".json"), "w") as f:
         json.dump(data, f, sort_keys=True, indent=4)

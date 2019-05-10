@@ -91,11 +91,27 @@ def test_serialization():
     perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
     mesh = Mesh().from_boundary(perimeter)
     geometry = mesh.serialize()
-    writer.save_mesh_as_json(geometry, "test")
-    new_geometry = reader.get_mesh_from_json("test")
+    writer.save_mesh_as_json(geometry, "test.json")
+    new_geometry = reader.get_mesh_from_json("test.json")
     mesh.deserialize(new_geometry)
     mesh.plot()
     assert mesh.check()
+
+
+def test_custom_pickling():
+    """
+    Test the pickling of a mesh
+    :return:
+    """
+    import pickle
+    perimeter = [(0, 0), (200, 0), (200, 200), (100, 200), (100, 100), (0, 100)]
+    mesh = Mesh().from_boundary(perimeter)
+    for edge in list(mesh.faces[0].edges):
+        edge.recursive_barycenter_cut(0.5, 45)
+    data = pickle.dumps(mesh)
+    new_mesh = pickle.loads(data)
+    new_mesh.plot()
+    assert new_mesh.check()
 
 
 def test_remove_edge():
@@ -950,7 +966,7 @@ def test_max_distance_weird_mesh(weird_mesh):
     edge = weird_mesh.boundary_edge.pair
     other = edge.previous.previous
     weird_mesh.plot()
-    assert edge.max_distance(other) == 464.2383454426297
+    assert edge.max_distance(other) == 464.2383454426296
 
 
 def test_continuous_line(weird_mesh):

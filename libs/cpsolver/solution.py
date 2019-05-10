@@ -49,7 +49,7 @@ def create_seeds(plan: 'Plan'):
     """
     empty_space = plan.empty_space
     for face in list(empty_space.faces):
-        Space(plan, empty_space.floor, face.edge, SPACE_CATEGORIES["seed"])
+        plan.__class__.SpaceType(plan, empty_space.floor, face.edge, SPACE_CATEGORIES["seed"])
 
     empty_space.remove()
 
