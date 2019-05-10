@@ -2580,7 +2580,7 @@ class Face(MeshComponent):
         internal_edges = list(self.internal_edges)
         intersects_an_internal_edge = False
         for edge in internal_edges:
-            if edge.as_sp.intersects(face.as_sp):
+            if edge.as_sp.intersects(face.as_sp_eroded):
                 intersects_an_internal_edge = True
                 break
 
