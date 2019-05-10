@@ -243,7 +243,7 @@ class Space(PlanComponent):
         :param mesh_id:
         :return:
         """
-        return face_id in self._faces_id and mesh_id == self.floor.mesh.id
+        return mesh_id == self.floor.mesh.id and face_id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -408,7 +408,7 @@ class Space(PlanComponent):
         """
         Returns the angle between the edge and the opposite next edge on the boundary
         Note : this means that two aligned edge will have a "next_angle" of 180.0
-        and not 0.0 (this is more robust to test for alignement).
+        and not 0.0 (this is more robust to test for alignment).
         :param edge:
         :return:
         """
@@ -619,6 +619,8 @@ class Space(PlanComponent):
         return sorted(output.keys(), key=lambda k: output[k], reverse=True)
 
     def _directions(self, face: Optional['Face'] = None):
+        if face is None and self.edge is None:
+            return None
         edges = face.edges if face is not None else self.edges
         axes = self._external_axes(list(edges)) or self._axes(list(edges))
         x = unit_vector(axes[0])
@@ -2376,6 +2378,9 @@ class Plan:
         """
         logging.debug("Plan: Updating plan from mesh watcher")
 
+        if not modifications:
+            return
+
         inserted_faces = (modification for _id, modification in modifications.items()
                           if modification[0] == MeshOps.INSERT
                           and modification[1][0] == MeshComponentType.FACE)
@@ -2401,7 +2406,8 @@ class Plan:
             face_space = self.get_space_from_face_id(face_add[1][1], mesh_id)
             if face_space:
                 logging.debug("Plan: Adding face from mesh "
-                              "update %s buf face is already in a space", face_space)
+                              "update %s buf face is already in a space %s", face_space,
+                              face_add[1][1])
                 continue
 
             space = self.get_space_from_face_id(face_add[2][1], mesh_id)
@@ -2740,31 +2746,31 @@ class Plan:
         self.linears.remove(linear)
 
     def get_components(self,
-                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
+                       *cat_names: str) -> Generator['PlanComponent', None, None]:
         """
         Returns an iterator of the components contained in the plan.
         Can be filtered according to a category name
-        :param cat_name: the name of the category
+        :param cat_names: the names of the category
         :return:
         """
-        yield from self.get_spaces(cat_name)
-        yield from self.get_linears(cat_name)
+        yield from self.get_spaces(*cat_names)
+        yield from self.get_linears(*cat_names)
 
     def get_spaces(self,
-                   category_name: Optional[str] = None,
+                   *category_names: str,
                    floor: Optional['Floor'] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
-        :param category_name:
+        :param category_names:
         :param floor:
         :return:
         """
         assert floor is None or floor.id in self.floors, (
             "The floor specified does not exist in the plan floors: {}".format(floor, self.floors))
 
-        if category_name is not None:
+        if category_names:
             return (space for space in self.spaces
-                    if space.category.name == category_name
+                    if space.category.name in category_names
                     and (floor is None or space.floor is floor))
         else:
             return (space for space in self.spaces
@@ -2842,14 +2848,14 @@ class Plan:
                 return linear
         return None
 
-    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
+    def get_linears(self, *category_names: str) -> Generator['Linear', None, None]:
         """
         Returns an iterator of the linears contained in the place
-        :param category_name:
+        :param category_names:
         :return:
         """
-        if category_name is not None:
-            return (linear for linear in self.linears if linear.category.name == category_name)
+        if category_names:
+            return (linear for linear in self.linears if linear.category.name in category_names)
 
         return (linear for linear in self.linears)
 
@@ -2912,7 +2918,7 @@ class Plan:
         The empty spaces of the plan
         :return:
         """
-        return self.get_spaces(category_name='empty')
+        return self.get_spaces('empty')
 
     def empty_spaces_of_floor(self, floor: 'Floor') -> Generator['Space', None, None]:
         """
@@ -2920,7 +2926,7 @@ class Plan:
         :param floor:
         :return:
         """
-        return self.get_spaces(category_name="empty", floor=floor)
+        return self.get_spaces("empty", floor=floor)
 
     @property
     def empty_space(self) -> Optional['Space']:
