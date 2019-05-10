@@ -228,7 +228,7 @@ class Optimizer:
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
         # refiner
-        t0_shuffle = time.process_time()
+        t0_refiner = time.process_time()
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions and space_planner:
@@ -239,7 +239,7 @@ class Optimizer:
                                                                       params.refiner_params)
                     if params.do_plot:
                         sol.plan.plot()
-        elapsed_times["refiner"] = time.process_time() - t0_shuffle
+        elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
         # output

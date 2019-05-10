@@ -1195,3 +1195,16 @@ def test_corner_stone():
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
 
     assert not space.corner_stone(*faces)
+
+
+def test_boundary_polygon(l_plan):
+    from libs.modelers.grid import GRIDS
+
+    boundaries = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
+                  (500, 1000), (200, 500), (0, 500)]
+    assert l_plan.empty_space.boundary_polygon() == boundaries
+    GRIDS["simple_grid"].apply_to(l_plan)
+    l_plan.plot()
+    assert l_plan.empty_space.boundary_polygon() == boundaries
+
+
