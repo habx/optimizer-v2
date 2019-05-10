@@ -103,7 +103,7 @@ def test_t3_balcony():
     plan_t3_balcony.insert_linear((275, 600), (25, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_balcony.insert_linear((675, 600), (425, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_balcony.insert_linear((975, 600), (725, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    balcony_coords = [(400, 600), (700, 600), (700, 800), (400, 800)]
+    balcony_coords = [(400, 600), (700, 600), (700, 900), (400, 900)]
     plan_t3_balcony.insert_space_from_boundary(balcony_coords, SPACE_CATEGORIES["balcony"], floor_1)
     plan_t3_balcony.plot()
 
@@ -130,6 +130,8 @@ def test_t3_balcony():
 
     space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
     best_t3 = space_planner_t3_balcony.solution_research()
+    for sol in best_t3:
+        sol.plan.plot()
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
 
