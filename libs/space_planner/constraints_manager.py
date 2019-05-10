@@ -40,13 +40,14 @@ BIG_VARIANTS = ["m", "l", "xl"]
 SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
-BIG_EXTERNAL_SPACE = 7000
+
 
 SQM = 10000
+BIG_EXTERNAL_SPACE = 7*SQM
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
-INSIDE_ADJACENCY_LENGTH = 40
+INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
 SEARCH_SOLUTIONS_LIMIT = 1000
@@ -659,12 +660,14 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
         param = min(max(25, plan_ratio + 10), 35)
     elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "dressing",
                                  "laundry"]
-          or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
+          or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
         param = min(max(25, plan_ratio), 32)
-    elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
+    elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
+        param = 26
+    elif item.category.name is "bedroom" and item.variant in ["xs"]:
         param = 22
     else:
-        param = 22 # toilet / bedroom / entrance
+        param = 22 # toilet / entrance
 
     if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
@@ -1000,11 +1003,10 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
-            if max([ext_space.area for ext_space in space.connected_spaces()
+            if (max([ext_space.area for ext_space in space.connected_spaces()
                     if ext_space is not None and ext_space.category.external],
-                   default=0) > BIG_EXTERNAL_SPACE)
+                   default=0) > BIG_EXTERNAL_SPACE))
         ct = (adjacency_sum >= 1)
-
     return ct
 
 def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
@@ -1053,7 +1055,7 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
             front_door_space = space
             break
 
-    if front_door_space and front_door_space.area > 4*SQM:
+    if front_door_space and front_door_space.area > 5*SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
@@ -1099,8 +1101,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [large_windows_constraint, {}]
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "livingKitchen": [
         [item_attribution_constraint, {}],
@@ -1108,8 +1109,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
-         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [large_windows_constraint, {}]
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
     ],
     "dining": [
         [item_attribution_constraint, {}],
@@ -1180,15 +1180,15 @@ T1_T2_ITEMS_CONSTRAINTS = {
 }
 
 T2_MORE_ITEMS_CONSTRAINTS = {
-    "entrance": [
-        [conditional_entrance_constraint, {}],
-    ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
     ]
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [conditional_entrance_constraint, {}],
+    ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}]
     ],
@@ -1197,10 +1197,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "living": [
-        [externals_connection_constraint, {}]
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}]
     ],
     "livingKitchen": [
-        [externals_connection_constraint, {}]
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}]
     ],
     "dressing": [
     ]
