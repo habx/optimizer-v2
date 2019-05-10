@@ -433,14 +433,13 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("paris-venelles_B2E2L01.json")
+        plan = reader.create_plan_from_file("007.json")
         plan.check()
         plan.plot(save=False)
         plt.show()
         start_time = time.time()
-        new_plan = GRIDS["optimal_grid"].apply_to(plan, show=True)
+        new_plan = GRIDS["optimal_finer_grid"].apply_to(plan, show=True)
         end_time = time.time()
-        # new_plan.check()
         logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)
         plt.show()

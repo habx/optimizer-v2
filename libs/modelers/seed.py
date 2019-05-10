@@ -814,7 +814,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        plan_name = "paris-venelles_B2E2L01"
+        plan_name = "007"
 
         # to not run each time the grid generation
         try:
@@ -822,7 +822,7 @@ if __name__ == '__main__':
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS["optimal_grid"].apply_to(plan)
+            GRIDS["optimal_finer_grid"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         plan.check()
