@@ -101,7 +101,8 @@ class Seeder:
         if show:
             self._initialize_plot()
 
-        self.plant(show).grow(show).fill(show)
+        #self.plant(show).grow(show).fill(show)
+        self.plant(show).grow(show).divide_along_seed_borders(SELECTORS["not_aligned_edges"])
 
     def plant(self, show: bool = False) -> 'Seeder':
         """
@@ -171,6 +172,124 @@ class Seeder:
         for method in self.fill_methods:
             self._execute_fill_method(method, show)
 
+        return self
+
+    def divide_along_line(self, space: 'Space', line_edges: List['Edge']):
+        """
+        Divides the space into two sub-spaces, cut performed along the line formed by line_edges
+        :param space:
+        :param line_edges:
+        :return:
+        """
+
+        def face_on_side() -> Generator['Face', bool, None]:
+            """
+            Generator over the faces of the space that are on one of both sides
+            defined by line_edges
+            :return: Generator
+            """
+            if line_edges:
+                face_ini = line_edges[0].face
+                list_side_face = [face_ini]
+                add = [face_ini]
+                added = True
+                while added:
+                    added = False
+                    for face_ini in add:
+                        for face in space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
+                            # adds faces adjacent to those already added
+                            # do not add faces on the other side of the line
+                            if (not [edge for edge in line_edges if edge.pair in face.edges]
+                                    and face not in list_side_face):
+                                list_side_face.append(face)
+                                add.append(face)
+                                added = True
+                for f in list_side_face:
+                    yield f
+
+        if not line_edges:
+            return
+
+        list_side_faces = [face for face in face_on_side()]
+        if not list_side_faces:
+            return
+
+        # removes the side faces from the space they belong to
+        for face in list_side_faces:
+            space.plan.get_space_of_face(face).remove_face(face)
+        # create new empty space
+        space_created = Space(self.plan, space.floor,
+                              list_side_faces[0].edge,
+                              SPACE_CATEGORIES[space.category.name])
+        list_side_faces.remove(list_side_faces[0])
+
+        # adds side faces to the new space in an order preserving connectivity
+        while list_side_faces:
+            for face in list_side_faces:
+                if space_created.face_is_adjacent(face):
+                    space_created.add_face(face)
+                    list_side_faces.remove(face)
+
+    def line_from_edge(self, edge_origin: 'Edge') -> List['Edge']:
+        """
+        Returns list of edges forming contiguous lines from edge_origin
+        and belonging to empty spaces
+        :return: list
+        """
+        contiguous_edges = []
+
+        current = edge_origin
+        # forward selection
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+        # backward selection
+        current = edge_origin.pair
+        while current:
+            current = current.aligned_edge or current.continuous_edge
+            if current:
+                space_of_current = self.plan.get_space_of_edge(current)
+                if (space_of_current and space_of_current.category
+                        and space_of_current.category.name == "empty"):
+                    contiguous_edges.append(current)
+                else:
+                    break
+
+        return contiguous_edges
+
+    def divide_along_seed_borders(self, selector: 'Selector'):
+        """
+        divide empty spaces along all lines drawn from selected edges
+        Iterates though seed spaces, at each iteration :
+        1 - a corner edge of a seed_space is selected
+        2 - the list of its contiguous edges is built
+        3 - each empty space cut by a set of those contiguous edges is cut into two parts
+        :param selector:
+        :return:
+        """
+        for seed_space in self.plan.get_spaces("seed"):
+            for edge_selected in selector.yield_from(seed_space):
+
+                # lists of edges along which empty spaces division will be performed
+                contiguous_edges = self.line_from_edge(edge_selected)
+
+                divided_spaces = []
+                for edge in contiguous_edges:
+                    space = self.plan.get_space_of_edge(edge)
+                    # once a space has been divided, it is not considered any more
+                    if space not in divided_spaces:
+                        divided_spaces.append(space)
+                        edges_in_space = list(
+                            edge for edge in contiguous_edges if space.has_edge(edge))
+                        self.divide_along_line(space, edges_in_space)
+
+        self.plan.plot()
         return self
 
     def _execute_fill_method(self, fill_method: 'fill_method_type', show: bool):
@@ -822,7 +941,7 @@ if __name__ == '__main__':
 
         import argparse
 
-        logging.getLogger().setLevel(logging.DEBUG)
+        #logging.getLogger().setLevel(logging.DEBUG)
 
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--plan_index", help="choose plan index",
