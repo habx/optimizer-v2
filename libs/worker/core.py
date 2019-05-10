@@ -1,4 +1,3 @@
-import copy
 import glob
 import json
 import logging
@@ -11,74 +10,8 @@ from typing import List, Optional
 
 import boto3
 
-from libs.utils.executor import Executor
+from libs.utils.executor import Executor, TaskDefinition
 from libs.worker.config import Config
-
-
-class TaskDefinition:
-    """Definition of the task we're about to process"""
-
-    def __init__(self):
-        # All these parameters are fetched from the API
-        self.blueprint: dict = None
-        self.setup: dict = None
-        self.params: dict = None
-        self.context: dict = {}
-        self.local_params: dict = {}
-        self.task_id: str = None
-
-    def copy_for_processing(self) -> 'TaskDefinition':
-        """
-        Create a copy of the parameters to avoid instance modification in the optimizer code.
-
-        Please note the context and local_params are left uncopied on purpose.
-
-        :return: New instance duplicated from the first one.
-        """
-        new = TaskDefinition()
-        new.blueprint = copy.deepcopy(self.blueprint)
-        new.setup = copy.deepcopy(self.setup)
-        new.params = copy.deepcopy(self.params)
-        new.local_params = self.local_params
-        new.context = self.context
-        return new
-
-    def check(self):
-        """Check the input is correct"""
-        assert self.blueprint is not None
-        assert self.setup is not None
-        assert self.params is not None
-
-    def __str__(self):
-        return \
-            "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
-            "LocalParams: {local_params}, Context: {context}".format(
-                blueprint=self.blueprint,
-                setup=self.setup,
-                params=self.params,
-                local_params=self.local_params,
-                context=self.context,
-            )
-
-    @staticmethod
-    def from_json(data: dict) -> 'TaskDefinition':
-        """
-        Create a task from a given JSON input
-        :param data: JSON input
-        :return: A TaskDefinition
-        """
-        td = TaskDefinition()
-
-        # Preferring blueprint to lot (as it describes more precisely what we are actually
-        # processing.
-        td.blueprint = data.get('blueprint')
-        if not td.blueprint:
-            td.blueprint = data.get('lot')
-        td.setup = data.get('setup')
-        td.params = data.get('params')
-        td.context = data.get('context')
-        td.check()
-        return td
 
 
 class TaskProcessor:
@@ -233,7 +166,7 @@ class TaskProcessor:
         }
 
         # Processing it
-        executor_result = self.executor.run(td.blueprint, td.setup, td.params, td.local_params)
+        executor_result = self.executor.run(td)
         result = {
             'type': 'optimizer-processing-result',
             'data': {

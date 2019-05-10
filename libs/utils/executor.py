@@ -1,4 +1,5 @@
 import cProfile  # for CProfile
+import copy
 import logging  # for LoggingLevel and LoggingToFile
 import os
 import pstats  # for CProfile
@@ -18,25 +19,90 @@ ExecWrapper can, if he wants to, apply treatments before and after the processin
 """
 
 
+class TaskDefinition:
+    """Definition of the task we're about to process"""
+
+    def __init__(self):
+        # All these parameters are fetched from the API
+        self.blueprint: dict = None
+        self.setup: dict = None
+        self.params: dict = None
+        self.context: dict = {}
+        self.local_params: dict = {}
+        self.task_id: str = None
+
+    def copy_for_processing(self) -> 'TaskDefinition':
+        """
+        Create a copy of the parameters to avoid instance modification in the optimizer code.
+
+        Please note the context and local_params are left uncopied on purpose.
+
+        :return: New instance duplicated from the first one.
+        """
+        new = TaskDefinition()
+        new.blueprint = copy.deepcopy(self.blueprint)
+        new.setup = copy.deepcopy(self.setup)
+        new.params = copy.deepcopy(self.params)
+        new.local_params = self.local_params
+        new.context = self.context
+        return new
+
+    def check(self):
+        """Check the input is correct"""
+        if not self.blueprint:
+            raise ValueError('blueprint is invalid')
+        if not self.setup:
+            raise ValueError('setup is invalid')
+        if self.params is None:
+            raise ValueError('params is invalid')
+
+    def __str__(self):
+        return \
+            "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
+            "LocalParams: {local_params}, Context: {context}".format(
+                blueprint=self.blueprint,
+                setup=self.setup,
+                params=self.params,
+                local_params=self.local_params,
+                context=self.context,
+            )
+
+    @staticmethod
+    def from_json(data: dict) -> 'TaskDefinition':
+        """
+        Create a task from a given JSON input
+        :param data: JSON input
+        :return: A TaskDefinition
+        """
+        td = TaskDefinition()
+
+        # Preferring blueprint to lot (as it describes more precisely what we are actually
+        # processing.
+        td.blueprint = data.get('blueprint')
+        if not td.blueprint:
+            td.blueprint = data.get('lot')
+        td.setup = data.get('setup')
+        td.params = data.get('params')
+        td.context = data.get('context')
+        td.check()
+        return td
+
+
 class ExecWrapper:
     """Base class that defines how an ExecWrapper works."""
 
     def __init__(self):
         self.next: Optional[ExecWrapper] = None
 
-    def run(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
+    def run(self, td: TaskDefinition) -> opt.Response:
         """
         Execution method
-        :param lot: Blueprint to work one
-        :param setup: Setup to use
-        :param params: Parameters that will define how optimizer behave
-        :param local_params: Parameters that are specific to the local environment (and don't change
-                             the optimizer behavior)
+        :param td: Task definition
         :return: The optimizer response
         """
         self._before()
         try:
-            return self._exec(lot, setup, params, local_params)
+            return self._exec(td)
         finally:
             self._after()
 
@@ -46,8 +112,8 @@ class ExecWrapper:
     def _after(self):
         pass
 
-    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
-        return self.next.run(lot, setup, params, local_params) if self.next else None
+    def _exec(self, td: TaskDefinition) -> opt.Response:
+        return self.next.run(td) if self.next else None
 
     @staticmethod
     def instantiate(params: dict, local_params: dict):
@@ -60,11 +126,11 @@ class OptimizerRun(ExecWrapper):
     """
     OPTIMIZER = opt.Optimizer()
 
-    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict) -> opt.Response:
-        output_path = local_params.get('output_dir')
+    def _exec(self, td: TaskDefinition) -> opt.Response:
+        output_path = td.local_params.get('output_dir')
         if output_path:
             plt.output_path = output_path
-        return self.OPTIMIZER.run(lot, setup, params, local_params)
+        return self.OPTIMIZER.run(td.blueprint, td.setup, td.params, td.local_params)
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
@@ -78,7 +144,7 @@ class Crasher(ExecWrapper):
     Crashing the execution if a "crash" parameter is specified
     """
 
-    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
+    def _exec(self, td: TaskDefinition):
         raise Exception("Crashing !")
 
     @staticmethod
@@ -107,8 +173,8 @@ class Timeout(ExecWrapper):
     def _after(self):
         signal.alarm(0)
 
-    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
-        super()._exec(lot, setup, params, local_params)
+    def _exec(self, td: TaskDefinition):
+        super()._exec(td)
 
     @staticmethod
     def instantiate(params: dict, local_params: dict = None):
@@ -121,10 +187,10 @@ class PProfile(ExecWrapper):
         super().__init__()
         self.output_dir = output_dir
 
-    def _exec(self, lot: dict, setup: dict, params: dict, local_params: dict):
+    def _exec(self, td: TaskDefinition):
         prof = pprofile.Profile()
         with prof:
-            res = super()._exec(lot, setup, params, local_params)
+            res = super()._exec(td)
         prof.dump_stats(os.path.join(self.output_dir, 'pprofile_stats.out'))
         return res
 
@@ -291,11 +357,9 @@ class Executor:
     EXEC_BUILDERS: List[ExecWrapper] = [OptimizerRun, Crasher, Timeout, CProfile, PProfile,
                                         PyInstrument, TraceMalloc, LoggingToFile, LoggingLevel, ]
 
-    def run(self, lot: dict, setup: dict, params: dict, local_params: Optional[dict] = None) -> opt.Response:
-        if local_params is None:
-            local_params = {}
-        first_exec = self.create_exec_wrappers(params, local_params)
-        return first_exec.run(lot, setup, params, local_params)
+    def run(self, td: TaskDefinition) -> opt.Response:
+        first_exec = self.create_exec_wrappers(td.params, td.local_params)
+        return first_exec.run(td)
 
     def create_exec_wrappers(self, params: dict = None, local_params: dict = None) -> ExecWrapper:
         """
