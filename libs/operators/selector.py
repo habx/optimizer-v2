@@ -324,7 +324,7 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-    face is added to space, the ratio perimeter/area is smallest
+    face is added to space, the ratio perimeter**2/area is smallest
     """
 
     biggest_shape_factor = math.inf
@@ -351,7 +351,7 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     face is added to space, the ratio perimeter/area is reduced
     """
 
-    best_shape_factor = space.perimeter**2 / space.area
+    best_shape_factor = space.perimeter ** 2 / space.area
     edge_homogeneous_growth = None
 
     for edge in space.edges:
@@ -508,6 +508,7 @@ def small_faces(max_area: float = 2500.0) -> EdgeQuery:
     :param max_area:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         """
         Returns the biggest edge of each face
@@ -532,6 +533,7 @@ def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQ
     :param min_distance:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         """
         Returns the edges on a face that has a window linear
@@ -973,6 +975,7 @@ def specific_category(*category_names: str) -> EdgeQuery:
     :param category_names:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         plan = space.plan
         if space and space.category.name in category_names:
@@ -980,6 +983,7 @@ def specific_category(*category_names: str) -> EdgeQuery:
                 other = plan.get_space_of_edge(e.pair)
                 if other and other.mutable:
                     yield e
+
     return _query
 
 
@@ -1301,6 +1305,7 @@ def pair(predicate: Predicate) -> Predicate:
     :param predicate:
     :return:
     """
+
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         pair_edge = edge.pair
         pair_space = space.plan.get_space_of_edge(pair_edge)
@@ -1513,9 +1518,9 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
             previous_linear = space.plan.get_linear(edge.previous)
             if ((previous_linear and (not category_names
                                       or previous_linear.category.name in category_names))
-                and (next_linear and (not category_names
-                                      or next_linear.category.name in category_names))):
-                    return True
+                    and (next_linear and (not category_names
+                                          or next_linear.category.name in category_names))):
+                return True
             return False
 
     return _predicate
@@ -1721,6 +1726,7 @@ def face_area(max_area: Optional[float] = None, min_area: Optional[float] = None
     :param max_area
     :param min_area
     """
+
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
         if not edge.face:
             return False
@@ -1996,7 +2002,7 @@ SELECTORS = {
 
     "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
-    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+    "improved_aspect_ratio": Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
