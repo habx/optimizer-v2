@@ -25,15 +25,8 @@ class SpacePlanner:
     Space planner Class
     """
 
-    def __init__(self, name: str, spec: 'Specification'):
+    def __init__(self, name: str):
         self.name = name
-        self._init_spec(spec)
-        self._plan_cleaner()
-        logging.debug(self.spec)
-
-        self.manager = ConstraintsManager(self)
-
-        self.solutions_collector = SolutionsCollector(self.spec)
 
     def __repr__(self):
         output = "SpacePlanner" + self.name
@@ -155,8 +148,6 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
-    def apply_to (self, spec):
-
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
@@ -189,6 +180,22 @@ class SpacePlanner:
                 return best_sol
 
         return []
+
+    def apply_to(self, spec: 'Specification') -> 'SolutionsCollector':
+        """
+        Runs the space planner
+        :param spec:
+        :return: SolutionsCollector
+        """
+        self._init_spec(spec)
+        self._plan_cleaner()
+        logging.debug(self.spec)
+
+        self.manager = ConstraintsManager(self)
+
+        solutions_collector = SolutionsCollector(self.spec)
+
+        return solutions_collector
 
 standard_space_planner = SpacePlanner("standard")
 
