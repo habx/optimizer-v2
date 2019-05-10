@@ -155,7 +155,8 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
                  evaluation.score_bounding_box,
-                 evaluation.fc_score_area]
+                 evaluation.score_area,
+                 evaluation.score_connectivity]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
     toolbox.register("mutate", mutation.compose, mutations)

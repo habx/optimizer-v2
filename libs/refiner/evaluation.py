@@ -11,14 +11,14 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 """
 import math
 import logging
-from typing import TYPE_CHECKING, Sequence, List, Callable, Dict
+from typing import TYPE_CHECKING, Sequence, List, Callable, Dict, Optional
 
-from libs.utils.geometry import ccw_angle, pseudo_equal
+from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space
+    from libs.plan.plan import Space, Plan
 
 scoreFunc = Callable[['Individual'], float]
 
@@ -34,7 +34,7 @@ def compose(funcs: List[scoreFunc], spec: 'Specification', ind: 'Individual') ->
     return tuple(map(lambda x: x(spec, ind), funcs))
 
 
-def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
+def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     """
     Creates a 1-to-1 dict between spaces and items of the specification
     :param _spec:
@@ -47,15 +47,18 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, 'Item']:
             continue
         corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
                                           spec_items))
+        # Note : corridors have no corresponding spec item
         best_item = min(corresponding_items,
-                        key=lambda i: math.fabs(i.required_area - sp.cached_area()))
-        assert best_item, "Score: Each space should have a corresponding item in the spec"
+                        key=lambda i: math.fabs(i.required_area - sp.cached_area()), default=None)
+        if sp.category.name != "circulation":
+            assert best_item, "Score: Each space should have a corresponding item in the spec"
         output[sp.id] = best_item
-        spec_items.remove(best_item)
+        if best_item is not None:
+            spec_items.remove(best_item)
     return output
 
 
-def fc_score_area(spec: 'Specification', ind: 'Individual') -> float:
+def score_area(spec: 'Specification', ind: 'Individual') -> float:
     """
     Returns a score that evaluates the proximity of the individual to a specification
     instance
@@ -73,6 +76,8 @@ def fc_score_area(spec: 'Specification', ind: 'Individual') -> float:
             if not space.category.mutable:
                 continue
             item = space_to_item[space.id]
+            if item is None:
+                continue
             space_area = space.cached_area()
             if space_area < item.min_size.area:
                 space_score = ((space_area - item.min_size.area)/space_area)**2
@@ -133,7 +138,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:
     :param ind:
     :return:
     """
-    excluded_spaces = ()
+    excluded_spaces = ("circulation",)
     score = 0.0
     for space in ind.spaces:
         if not space.category.mutable or space.category.name in excluded_spaces:
@@ -170,7 +175,7 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> float:
     return score
 
 
-def check_area(plan, spec):
+def check_area(plan: 'Plan', spec: 'Specification') -> None:
     """
     Compares the plan area with the specification objectives
     :param plan:
@@ -181,6 +186,8 @@ def check_area(plan, spec):
 
     item_dict = create_item_dict(spec)
     for space in plan.mutable_spaces():
+        if item_dict[space.id] is None:
+            continue
         area = round(space.cached_area()) / (100 ** 2)
         min_area = item_dict[space.id].min_size.area / (100 ** 2)
         max_area = item_dict[space.id].max_size.area / (100 ** 2)
@@ -189,5 +196,89 @@ def check_area(plan, spec):
                                                                max_area, "✅" if ok else "❌"))
 
 
-__all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'fc_score_area', 'score_corner',
+def score_connectivity(_: 'Specification', ind: 'Individual') -> float:
+    """
+    Returns a score indicating whether the plan is connected
+    :param _:
+    :param ind:
+    :return:
+    """
+    min_length = 90.0
+    cost_per_unconnected_space = 1.0
+    score = 0
+
+    front_door = list(ind.get_linears("frontDoor"))[0]
+    front_door_space = ind.get_space_of_edge(front_door.edge)
+    connected_circulation_spaces = [front_door_space]
+
+    circulation_spaces = list(ind.circulation_spaces())
+    if front_door_space in circulation_spaces:
+        circulation_spaces.remove(front_door_space)
+    # for simplicity we estimate that at maximum a circulation space is connected
+    # to the front door through 3 others spaces.
+    for _ in range(3):
+        for circulation_space in circulation_spaces[:]:
+            for connected_space in connected_circulation_spaces:
+                if circulation_space.adjacent_to(connected_space, 90.0):
+                    # we place the newly found spaces at the beginning of the array
+                    connected_circulation_spaces.insert(0, circulation_space)
+                    circulation_spaces.remove(circulation_space)
+                    break
+
+    score += len(circulation_spaces) * cost_per_unconnected_space
+
+    for space in ind.mutable_spaces():
+        if space.category.circulation:
+            continue
+
+        found_adjacency = False
+        for edge in space.exterior_edges:
+            if edge.pair.face is None:
+                continue
+            other = ind.get_space_of_edge(edge.pair)
+            if not other or not other.category.circulation:
+                continue
+            # forward check
+            shared_length = edge.length
+            for e in space.siblings(edge):
+                if e is edge:
+                    continue
+                if other.has_edge(e.pair):
+                    shared_length += e.length
+
+            # backward check
+            for e in other.siblings(edge.pair):
+                if e is edge.pair:
+                    continue
+                if space.has_edge(e.pair):
+                    shared_length += e.length
+
+            if shared_length >= min_length:
+                found_adjacency = True
+                break
+
+        score += cost_per_unconnected_space if not found_adjacency else 0
+
+    return score
+
+
+def score_corridor_width(_: 'Specification', ind: 'Individual') -> float:
+    """
+    Computes a score of the min width of each corridor
+    :param _:
+    :param ind:
+    :return:
+    """
+    min_width = 90.0
+    score = 0
+    corridors = ind.get_spaces("circulation")
+    for corridor in corridors:
+        polygon = corridor.boundary_polygon()
+        width = min_section(polygon)
+        score += ((width - min_width)/min_width)**2
+
+    return score
+
+
+__all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'score_area', 'score_corner',
            'create_item_dict', 'check_area']
