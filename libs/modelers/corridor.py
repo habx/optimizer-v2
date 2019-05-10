@@ -92,6 +92,8 @@ class Corridor:
         for path in self.paths:
             self.cut(path, show).grow(path, show)
 
+        self.plan.remove_null_spaces()
+
     def _add_penetration_vertices(self, vertex_list: List['Vertex']):
         """
         Possibly adds vertices at the beginning and end of the path
@@ -225,8 +227,7 @@ class Corridor:
             edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
-        for edge in edge_path:
-            self._ortho_slice(edge, start=True, show=show)
+        self._ortho_slice(edge_path[0], show=show)
         self._ortho_slice(edge_path[-1], show=show)
 
         return self
@@ -817,5 +818,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "020.json"
+    plan_name = "007.json"
     main(input_file=plan_name)
