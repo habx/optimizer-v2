@@ -3411,9 +3411,7 @@ class Mesh:
         directions_dict = {}
 
         for edge in self.boundary_edges:
-            angle = edge.absolute_angle % 180.0
-            # we round the angle to the desired precision given by the ANGLE_EPSILON constant
-            angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
+            angle = round(edge.absolute_angle % 180.0)
             if angle in directions_dict:
                 directions_dict[angle] += edge.length
             else:
