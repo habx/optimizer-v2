@@ -130,8 +130,8 @@ class EdgeGraph:
             raise ValueError('graph library does not exit')
 
     def get_shortest_path(self,
-                          edges1: Sequence[Edge],
-                          edges2: Sequence[Edge]) -> Tuple[List[Vertex], float]:
+                          edges1: List[Edge],
+                          edges2: List[Edge]) -> Tuple[List[Vertex], float]:
         """
         get the shortest path between two edges sequences
         :return: list of vertices on the path and cost of the path
@@ -154,7 +154,7 @@ class EdgeGraph:
         if self.graph_lib == 'networkx':
             # for each edges sequence add a virtual node connected with cost 0 to all edges
             virtual_1 = Vertex(edges1[0].mesh)
-            virtual_2 = Vertex(edges1[0].mesh)
+            virtual_2 = Vertex(edges2[0].mesh)
             for edge in edges1:
                 self.graph_struct.add_edge(virtual_1, edge.start, cost=0)
                 self.graph_struct.add_edge(virtual_1, edge.end, cost=0)
