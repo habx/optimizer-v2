@@ -496,6 +496,10 @@ class Vertex(MeshComponent):
 
                 # check if we have a correct edge in case of an internal edge
                 new_angle = ccw_angle(new_edge.vector, self.edge.vector)
+                # note : we must check that the edge is not just slightly on the clockwise side
+                # of the new_edge
+                if pseudo_equal(new_angle, 360.0, ANGLE_EPSILON):
+                    new_angle = 0.0
                 if min_angle is None or min_angle > new_angle:
                     best_edge = new_edge
                     min_angle = new_angle
