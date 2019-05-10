@@ -12,7 +12,8 @@ CORRIDOR_RULES = {
     "nb_layer": 5,
     "recursive_cut_length": 400,
     "width": 100,
-    "penetration_length": 90
+    "penetration_length": 90,
+    "layer_cut": True
 }
 
 
@@ -73,3 +74,5 @@ def test_simple_grid():
     plan.check()
     corridor.grow(circulation_path)
     plan.check()
+
+test_simple_grid()
