@@ -155,6 +155,8 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
+    def apply_to (self, spec):
+
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
@@ -188,6 +190,11 @@ class SpacePlanner:
 
         return []
 
+standard_space_planner = SpacePlanner("standard")
+
+SPACE_PLANNERS = {
+    "standard": standard_space_planner
+}
 
 if __name__ == '__main__':
     import libs.io.reader as reader
