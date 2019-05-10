@@ -3402,16 +3402,17 @@ class Mesh:
             return self._cached_area
 
     @property
-    def directions(self) -> Sequence[Tuple[float, float]]:
+    def directions(self) -> List[Tuple[float, float]]:
         """
         Returns the main directions of the mesh as a tuple containing an angle and a length
         For each boundary edge we calculate the absolute ccw angle and we add it to a dict
         :return:
         """
-        directions_dict = {}
+        directions_dict: Dict[float, float] = {}
 
         for edge in self.boundary_edges:
-            angle = round(edge.absolute_angle % 180.0)
+            # TODO : this should be coherent with ANGLE_EPSILON and not just an integer round
+            angle = float(round(edge.absolute_angle % 180.0))
             if angle in directions_dict:
                 directions_dict[angle] += edge.length
             else:

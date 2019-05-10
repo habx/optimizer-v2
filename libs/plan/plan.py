@@ -609,7 +609,8 @@ class Space(PlanComponent):
         edges = edges or self.exterior_edges
         # check for the angle of each edge
         for _edge in edges:
-            angle = round(ccw_angle((1, 0), _edge.vector) % 90.0)
+            # TODO : this should be coherent with ANGLE_EPSILON and not just an integer round
+            angle = float(round(ccw_angle((1, 0), _edge.vector) % 90.0))
 
             if angle in output:
                 output[angle] += _edge.length
