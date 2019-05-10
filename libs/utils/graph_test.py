@@ -18,8 +18,8 @@ def test_shortest_path():
     g = graph.EdgeGraph()
     for edge in edges:
         g.add_edge(edge, edge.length)
-    first_group = (edges[0], edges[5])
-    second_group = (edges[2], edges[3])
+    first_group = [edges[0], edges[5]]
+    second_group = [edges[2], edges[3]]
     path, cost = g.get_shortest_path(first_group, second_group)
     assert len(path) == 2
     assert cost == 200

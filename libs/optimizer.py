@@ -87,7 +87,8 @@ class ExecParams:
             "nb_layer": 5,
             "recursive_cut_length": 400,
             "width": 100,
-            "penetration_length": 90
+            "penetration_length": 90,
+            "layer_cut": False
         }
 
         self.grid_type = params.get('grid_type', 'optimal_grid')

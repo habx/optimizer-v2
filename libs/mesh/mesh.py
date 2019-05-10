@@ -29,7 +29,8 @@ from libs.utils.geometry import (
     dot_product,
     normal_vector,
     truncate,
-    distance
+    distance,
+    project_point_on_segment
 )
 from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
@@ -984,13 +985,13 @@ class Edge(MeshComponent):
 
         return output
 
-    def max_distance(self, other: 'Edge', parallel: bool = False) -> Optional[float]:
+    def max_distance(self, other: 'Edge', parallel: bool = False) -> float:
         """
         Returns the max distance between to edges of the same face, according to the normal
-        vector of the edge. If the distance is infinite return None per convention.
+        vector of the edge. If the distance is infinite return INFINITY per convention.
         :param other:
         :param parallel: flag to indicate whether we only consider pseudo parallel edges
-        :return: the distance or None
+        :return: the distance
 
         Example:
           ^
@@ -1013,31 +1014,24 @@ class Edge(MeshComponent):
         if parallel and not pseudo_equal(ccw_angle(other.vector, self.vector), 180.0, 15.0):
             return INFINITY
 
-        d1, d2, d3, d4 = None, None, None, None
+        normal = self.normal
+        opposite_normal = opposite_vector(normal)
+        self_start, self_end = self.start.coords, self.end.coords
+        other_start, other_end = other.start.coords, other.end.coords
 
-        start_line = self.start.sp_half_line(self.normal)
-        end_line = self.end.sp_half_line(self.normal)
-        p1 = start_line.intersection(other.as_sp)
-        p2 = end_line.intersection(other.as_sp)
+        p1 = project_point_on_segment(self_start, normal, (other_start, other_end))
+        d1 = distance(self_start, p1) if p1 is not None else None
 
-        other_start_line = other.start.sp_half_line(opposite_vector(self.normal))
-        other_end_line = other.end.sp_half_line(opposite_vector(self.normal))
-        p3 = other_start_line.intersection(self.as_sp)
-        p4 = other_end_line.intersection(self.as_sp)
+        p2 = project_point_on_segment(self_end, normal, (other_start, other_end))
+        d2 = distance(self_end, p2) if p2 is not None else None
 
-        if not p1.is_empty and p1.geom_type == 'Point':
-            d1 = p1.distance(self.start.as_sp)
-        if not p2.is_empty and p2.geom_type == 'Point':
-            d2 = p2.distance(self.end.as_sp)
-        if not p3.is_empty and p3.geom_type == 'Point':
-            d3 = p3.distance(other.start.as_sp)
-        if not p4.is_empty and p4.geom_type == 'Point':
-            d4 = p4.distance(other.end.as_sp)
+        p3 = project_point_on_segment(other_start, opposite_normal, (self_start, self_end))
+        d3 = distance(other_start, p3) if p3 is not None else None
 
-        if not d1 and not d2 and not d3 and not d4:
-            return INFINITY
+        p4 = project_point_on_segment(other_end, opposite_normal, (self_start, self_end))
+        d4 = distance(other_end, p4) if p4 is not None else None
 
-        dist_max_to_edge = max(d for d in (d1, d2, d3, d4) if d is not None)
+        dist_max_to_edge = max((d for d in (d1, d2, d3, d4) if d is not None), default=INFINITY)
         return dist_max_to_edge
 
     @property
@@ -1070,6 +1064,7 @@ class Edge(MeshComponent):
         """
         return self.as_sp.buffer(COORD_EPSILON, 1)
 
+    # noinspection PyUnreachableCode
     @property
     def siblings(self) -> Generator['Edge', None, None]:
         """
@@ -1079,13 +1074,14 @@ class Edge(MeshComponent):
         yield self
         edge = self.next
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
             if __debug__ and edge in seen:
                 raise Exception('Infinite loop' +
                                 ' starting from edge:{0}'.format(self))
             if __debug__:
-                seen.append(edge)  # noinspection PyUnreachableCode
+                seen.append(edge)
             yield edge
             edge = edge.next
 
