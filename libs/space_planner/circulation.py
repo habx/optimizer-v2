@@ -37,7 +37,7 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        path, cost = graph.get_shortest_path(space1.edges, space2.edges)
+        path, cost = graph.get_shortest_path(list(space1.edges), list(space2.edges))
         return path, cost
 
     def multilevel_connection(self):
