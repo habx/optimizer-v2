@@ -17,6 +17,7 @@ until the space is totally filled
 from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence, Set, Tuple, Callable
 import logging
 import copy
+import time
 
 import matplotlib.pyplot as plt
 
@@ -101,7 +102,7 @@ class Seeder:
         if show:
             self._initialize_plot()
 
-        #self.plant(show).grow(show).fill(show)
+        # self.plant(show).grow(show).fill(show)
         self.plant(show).grow(show).divide_along_seed_borders(SELECTORS["not_aligned_edges"])
 
     def plant(self, show: bool = False) -> 'Seeder':
@@ -138,6 +139,8 @@ class Seeder:
         """
         logging.debug("Seeder: Starting to grow")
 
+        to_grow = time.process_time()
+
         # Real time plot updates
         if show:
             self._initialize_plot()
@@ -153,6 +156,9 @@ class Seeder:
                 break
 
         self.plan.remove_null_spaces()
+
+        final_grow = time.process_time() - to_grow
+        print("TIME GROWTH", final_grow)
 
         self.plan.plot()
 
@@ -214,21 +220,36 @@ class Seeder:
         if not list_side_faces:
             return
 
-        # removes the side faces from the space they belong to
-        for face in list_side_faces:
-            space.plan.get_space_of_face(face).remove_face(face)
-        # create new empty space
-        space_created = Space(self.plan, space.floor,
-                              list_side_faces[0].edge,
-                              SPACE_CATEGORIES[space.category.name])
-        list_side_faces.remove(list_side_faces[0])
-
-        # adds side faces to the new space in an order preserving connectivity
-        while list_side_faces:
+        method = "new"
+        if method is "old":
+            # removes the side faces from the space they belong to
             for face in list_side_faces:
-                if space_created.face_is_adjacent(face):
-                    space_created.add_face(face)
-                    list_side_faces.remove(face)
+                space.plan.get_space_of_face(face).remove_face(face)
+            # create new empty space
+            space_created = Space(self.plan, space.floor,
+                                  list_side_faces[0].edge,
+                                  SPACE_CATEGORIES[space.category.name])
+
+            list_side_faces.remove(list_side_faces[0])
+
+            # adds side faces to the new space in an order preserving connectivity
+            while list_side_faces:
+                for face in list_side_faces:
+                    if space_created.face_is_adjacent(face):
+                        space_created.add_face(face)
+                        list_side_faces.remove(face)
+        else:
+            space_1 = Space(self.plan, space.floor,
+                            list_side_faces[0].edge,
+                            SPACE_CATEGORIES[space.category.name])
+            for face in list_side_faces:
+                if face in space.faces:
+                    space.remove_face_id(face.id)
+                    space_1.add_face_id(face.id)
+
+            space_1.set_edges()
+            space.set_edges()
+        return self
 
     def line_from_edge(self, edge_origin: 'Edge') -> List['Edge']:
         """
@@ -273,6 +294,9 @@ class Seeder:
         :param selector:
         :return:
         """
+
+        t0_divideline = time.process_time()
+
         for seed_space in self.plan.get_spaces("seed"):
             for edge_selected in selector.yield_from(seed_space):
 
@@ -289,7 +313,24 @@ class Seeder:
                             edge for edge in contiguous_edges if space.has_edge(edge))
                         self.divide_along_line(space, edges_in_space)
 
-        self.plan.plot()
+                # for sp in divided_spaces:
+                #    sp.remove()
+
+        final_divideline = time.process_time() - t0_divideline
+        print("TIME DIVIDE", final_divideline)
+
+        # self.plan.plot()
+        return self._from_space_empty_to_seed()
+
+    def _from_space_empty_to_seed(self):
+        """
+        converts empty spaces into seed spaces
+        :return:
+        """
+        self.plan.remove_null_spaces()
+        for space in self.plan.spaces:
+            if space.category.name is 'empty':
+                space.category = SPACE_CATEGORIES["seed"]
         return self
 
     def _execute_fill_method(self, fill_method: 'fill_method_type', show: bool):
@@ -941,7 +982,7 @@ if __name__ == '__main__':
 
         import argparse
 
-        #logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.INFO)
 
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--plan_index", help="choose plan index",
@@ -956,7 +997,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "001"
+        plan_name = "001"
 
         # to not run each time the grid generation
         try:
