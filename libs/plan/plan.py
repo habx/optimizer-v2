@@ -609,7 +609,8 @@ class Space(PlanComponent):
         edges = edges or self.exterior_edges
         # check for the angle of each edge
         for _edge in edges:
-            angle = ccw_angle((1, 0), _edge.vector) % 90.0
+            # TODO : this should be coherent with ANGLE_EPSILON and not just an integer round
+            angle = float(round(ccw_angle((1, 0), _edge.vector) % 90.0))
 
             if angle in output:
                 output[angle] += _edge.length
@@ -1215,25 +1216,32 @@ class Space(PlanComponent):
         """
         assert len(self._edges_id) == len(list(set(self._edges_id))), "Duplicate in edges !"
 
-        for edge in self.reference_edges:
+        first_edge = True
+        for edge in list(self.reference_edges):
             if edge not in forbidden_edges:
+                first_edge = False
                 continue
-            i = self._edges_id.index(edge.id)
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
                     assert other_edge.id not in self._edges_id, ("The edge cannot "
                                                                  "already be a reference")
                     # we replace the edge id in place to preserve the list order
-                    self._edges_id[i] = other_edge.id
+                    if first_edge:
+                        self._edges_id[0] = other_edge.id
+                    else:
+                        self.remove_reference_edge(edge)
+                        self._edges_id.append(other_edge.id)
+                    first_edge = False
                     break
             else:
-                if i == 0:
+                if first_edge:
                     logging.warning("Space: removing the first reference edge: %s", edge)
                     if not boundary_edge:
                         raise ValueError("Space: changing reference edges, you should have"
                                          "specified a boundary edge !")
                     self._edges_id[0] = boundary_edge.id
                 self.remove_reference_edge(edge)
+                first_edge = False
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
