@@ -345,6 +345,27 @@ def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield edge_homogeneous_growth
 
 
+def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns among all edges on the space border the one such as when the pair
+    face is added to space, the ratio perimeter**2/area is smallest
+    """
+
+    def get_space_of_sibling_pair(edge: 'Edge', next: bool = False):
+        sibling = space.previous_edge(edge) if not next else space.next_edge(edge)
+        space_sibling_pair = space.plan.get_space_of_edge(sibling.pair)
+        if space_sibling_pair:
+            return space_sibling_pair.category.name
+        else:
+            return None
+
+    for edge in space.edges:
+        if get_space_of_sibling_pair(edge) is 'duct':
+            yield edge
+        if get_space_of_sibling_pair(edge, next=True) is 'duct':
+            yield edge
+
+
 def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
@@ -2003,6 +2024,8 @@ SELECTORS = {
     "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
     "improved_aspect_ratio": Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+
+    "along_duct_side": Selector(along_duct_side, name='along_duct_side'),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,

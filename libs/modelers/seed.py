@@ -568,11 +568,21 @@ GROWTH_METHODS = {
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         )
     ),
+    # "duct": GrowthMethod(
+    #     'duct',
+    #     (CONSTRAINTS["max_size_duct_constraint_seed"],),
+    #     (
+    #         Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face']),
+    #     )
+    # ),
     "duct": GrowthMethod(
         'duct',
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face']),
+            Action(SELECTORS['along_duct_side'], MUTATIONS['swap_face']),
+            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
+                   True),
+            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         )
     ),
     "frontDoor": GrowthMethod(
