@@ -29,24 +29,11 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 output_dir: str):
+                 generated_files: Dict[str, Dict] = None
+                 ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
-        self._output_dir = output_dir
-
-    def get_generated_files(self) -> Dict[str, dict]:
-        mimetypes.init()
-        files = {}
-        for file in os.listdir(self._output_dir):
-            extension = os.path.splitext(file)[-1].lower()
-            if extension in (".tif", ".tiff",
-                             ".jpeg", ".jpg", ".jif", ".jfif",
-                             ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
-                files[file] = {"type": os.path.splitext(file)[0],
-                               "title": os.path.splitext(file)[0].capitalize(),
-                               "mime": mimetypes.types_map[extension]}
-        return files
+        self.generated_files = generated_files
 
 
 class ExecParams:
@@ -121,6 +108,7 @@ class Optimizer:
         :param lot_file_name: name of lot file, file has to be in resources/blueprints
         :param setup_file_name: name of setup file, file has to be in resources/specifications
         :param params: Execution parameters
+        :param local_params: Local execution parameters
         :return: optimizer response
         """
         lot = reader.get_json_from_file(lot_file_name)
@@ -128,6 +116,21 @@ class Optimizer:
                                           reader.DEFAULT_SPECIFICATION_INPUT_FOLDER)
 
         return self.run(lot, setup, params, local_params)
+
+    @staticmethod
+    def get_generated_files(output_dir) -> Dict[str, dict]:
+        mimetypes.init()
+        files = {}
+        for file in os.listdir(output_dir):
+            extension = os.path.splitext(file)[-1].lower()
+            if extension in (".tif", ".tiff",
+                             ".jpeg", ".jpg", ".jif", ".jfif",
+                             ".jp2", ".jpx", ".j2k", ".j2c",
+                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
+                files[file] = {"type": os.path.splitext(file)[0],
+                               "title": os.path.splitext(file)[0].capitalize(),
+                               "mime": mimetypes.types_map[extension]}
+        return files
 
     def run(self,
             lot: dict,
@@ -254,7 +257,11 @@ class Optimizer:
                      elapsed_times["total"],
                      elapsed_times["totalReal"])
 
-        return Response(solutions, elapsed_times, libs.io.plot.output_path)
+        return Response(
+            solutions,
+            elapsed_times,
+            Optimizer.get_generated_files(libs.io.plot.output_path)
+        )
 
 
 if __name__ == '__main__':

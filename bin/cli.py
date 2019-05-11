@@ -16,8 +16,11 @@ import argparse
 import logging
 import json
 import os
-import libpath
-from libs.utils.executor import Executor, TaskDefinition
+import tempfile
+
+import uuid
+
+from libs.executor.executor import Executor, TaskDefinition
 
 
 def _exists_path(parser, path, file=None):
@@ -39,7 +42,8 @@ Example usage:
 ==============
 
 bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json
-bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json -p resources/params/timeout.json
+bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json \
+           -p resources/params/timeout.json
 """
 
     parser = argparse.ArgumentParser(
@@ -56,7 +60,7 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
     parser.add_argument("-p", dest="params", required=False, metavar="FILE",
                         type=lambda x: _exists_path(parser, x, True),
                         help="the input params file path")
-    parser.add_argument("-o", dest="output", required=True,
+    parser.add_argument("-o", dest="output", required=False,
                         help="the output solutions dir")
     parser.add_argument("-g", dest="grid", required=False,
                         help="grid type")
@@ -74,6 +78,10 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
     do_plot: bool = args.plot
     task_id: str = args.task_id
 
+    if not output_dir:
+        output_dir = tempfile.mkdtemp('opt-cli')
+        logging.info("Using \"%s\" as output dir", output_dir)
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -85,6 +93,14 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
 
     td = TaskDefinition()
     td.task_id = task_id
+
+    if td.task_id == 'rand':
+        td.local_params['s3_repository'] = 'habx-{env}-optimizer-v2'.format(
+            env=os.getenv('HABX_ENV', 'dev')
+        )
+
+    if td.task_id:
+        td.task_id = str(uuid.uuid4())
 
     with open(blueprint_path, 'r') as blueprint_fp:
         td.blueprint = json.load(blueprint_fp)

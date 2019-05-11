@@ -8,9 +8,7 @@ import time
 import traceback
 from typing import List, Optional
 
-import boto3
-
-from libs.utils.executor import Executor, TaskDefinition
+from libs.executor.executor import Executor, TaskDefinition
 from libs.worker.config import Config
 
 
@@ -24,7 +22,6 @@ class TaskProcessor:
         self.my_name = my_name
         self.output_dir = None
         self.log_handler = None
-        self.s3_client = boto3.client('s3')
 
     def prepare(self):
         """Start the message processor"""
@@ -80,48 +77,12 @@ class TaskProcessor:
             data['params'] = td.params
             data['context'] = td.context
 
-            if data.get('status') != 'ok':
-                # If we had an issue, we save the output
-                for k in ['lot', 'setup', 'params', 'context', 'solutions', 'version']:
-                    if k in data:
-                        with open(os.path.join(self.output_dir, '%s.json' % k), 'w') as f:
-                            json.dump(data[k], f)
-
-        self._process_task_after(td)
+        self._process_task_after()
 
         if td.task_id:
             result['taskId'] = td.task_id
 
         return result
-
-    def _save_output_files(self, task_id: str):
-        files = self._output_files()
-
-        if not files:
-            return
-
-        logging.info("Uploading some files on S3...")
-
-        for src_file in files:
-            # OPT-89: Storing files in a "tasks" directory
-            dst_file = "tasks/{task_id}/{file}".format(
-                task_id=task_id,
-                file=src_file[len(self.output_dir) + 1:]
-            )
-            logging.info(
-                "Uploading \"%s\" to s3://%s/%s",
-                src_file,
-                self.config.s3_repository,
-                dst_file
-            )
-            self.s3_client.upload_file(
-                src_file,
-                self.config.s3_repository,
-                dst_file,
-                ExtraArgs={'ACL': 'public-read'}
-            )
-
-        logging.info("Upload done...")
 
     def _output_files(self) -> List[str]:
         return glob.glob(os.path.join(self.output_dir, '*'))
@@ -134,13 +95,8 @@ class TaskProcessor:
     def _process_task_before(self):
         self._cleanup_output_dir()
 
-    def _process_task_after(self, td: TaskDefinition):
-        # OPT-106: Fixing S3 upload
-        if td.task_id:
-            self._save_output_files(td.task_id)
-        else:
-            logging.warning("You didn't specify a task ID, no upload was performed. "
-                            "Are you sure you want that ?")
+    def _process_task_after(self):
+        pass
 
     def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
         """
@@ -163,6 +119,7 @@ class TaskProcessor:
 
         td.local_params = {
             'output_dir': self.output_dir,
+            's3_repository': self.config.s3_repository,
         }
 
         # Processing it
@@ -173,7 +130,7 @@ class TaskProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
-                'files': executor_result.get_generated_files()
+                'files': executor_result.generated_files,
                 # TODO add other files created outside optimizer.run() like profiling
             },
         }
