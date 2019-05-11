@@ -8,12 +8,12 @@ class TaskDefinition:
     """Definition of the task we're about to process"""
 
     def __init__(self):
-        self.blueprint: dict = None  # Blueprint to be processed
-        self.setup: dict = None  # Setup to be processed
-        self.params: dict = None  # Parameters that control the behavior of the processing
-        self.context: dict = {}  # Context execution (outside the scope of optimizer)
-        self.local_params: dict = {}  # Local execution parameters
+        self.blueprint: dict = None  # Blueprint to be processed (immutable)
+        self.setup: dict = None  # Setup to be processed (immutable)
+        self.params: dict = None  # Parameters controlling the processing behavior (immutable)
+        self.context: dict = {}  # Why / Who / When / Where it was started
         self.task_id: str = None  # Task ID used for storage
+        self.local_context: opt.LocalContext = opt.LocalContext()  # Local execution context
 
     def copy_for_processing(self) -> 'TaskDefinition':
         """
@@ -27,7 +27,7 @@ class TaskDefinition:
         new.blueprint = copy.deepcopy(self.blueprint)
         new.setup = copy.deepcopy(self.setup)
         new.params = copy.deepcopy(self.params)
-        new.local_params = self.local_params
+        new.local_context = self.local_context
         new.context = self.context
         return new
 
@@ -43,11 +43,11 @@ class TaskDefinition:
     def __str__(self):
         return \
             "Blueprint: {blueprint}, Setup: {setup}, Params: {params}, " \
-            "LocalParams: {local_params}, Context: {context}".format(
+            "LocalContext: {local_context}, Context: {context}".format(
                 blueprint=self.blueprint,
                 setup=self.setup,
                 params=self.params,
-                local_params=self.local_params,
+                local_context=self.local_context,
                 context=self.context,
             )
 
@@ -86,12 +86,10 @@ class ExecWrapper:
         """
         self._before()
 
-        resp: Optional[opt.Response] = None
         try:
-            resp = self._exec(td)
-            return resp
+            return self._exec(td)
         finally:
-            self._after(resp)
+            self._after()
 
     def _before(self):
         """
@@ -99,11 +97,9 @@ class ExecWrapper:
         """
         pass
 
-    def _after(self, resp: opt.Response):
+    def _after(self):
         """
         Called after the execution
-
-
         """
         pass
 

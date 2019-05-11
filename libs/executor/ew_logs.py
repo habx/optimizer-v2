@@ -1,8 +1,8 @@
 import logging
 import os
 
-import libs.optimizer as opt
 from libs.executor.defs import ExecWrapper, TaskDefinition
+import libs.optimizer as opt
 
 
 class LoggingToFile(ExecWrapper):
@@ -32,21 +32,27 @@ class LoggingToFile(ExecWrapper):
         self.log_handler = handler
         logger.addHandler(handler)
 
-    def _after(self, resp: opt.Response):
+    def _exec(self, td: TaskDefinition) -> opt.Response:
+        try:
+            return super()._exec(td)
+        finally:
+            td.local_context.add_file(
+                self.FILENAME,
+                ftype='logging',
+                title='Logs',
+                mime='text/plain'
+            )
+
+    def _after(self):
         if self.log_handler:
             self.log_handler.close()
             logging.getLogger('').removeHandler(self.log_handler)
             self.log_handler = None
-            resp.generated_files['output.log'] = {
-                'type': 'logging',
-                'mime': 'text/plain',
-                'title': 'Logs',
-            }
 
     @staticmethod
     def instantiate(td: TaskDefinition):
         if not td.params.get('skip_file_logging', False):
-            return __class__(td.local_params['output_dir'])
+            return __class__(td.local_context.output_dir)
         return None
 
 
@@ -72,7 +78,7 @@ class LoggingLevel(ExecWrapper):
         self.previous_level = logger.level
         logger.setLevel(self.logging_level)
 
-    def _after(self, resp: opt.Response):
+    def _after(self):
         logging.getLogger('').setLevel(self.previous_level)
 
     @staticmethod

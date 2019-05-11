@@ -1,5 +1,4 @@
 import glob
-import json
 import logging
 import os
 import sys
@@ -117,10 +116,7 @@ class TaskProcessor:
             )
             return None
 
-        td.local_params = {
-            'output_dir': self.output_dir,
-            's3_repository': self.config.s3_repository,
-        }
+        td.local_context.output_dir = self.output_dir
 
         # Processing it
         executor_result = self.executor.run(td)
@@ -130,8 +126,8 @@ class TaskProcessor:
                 'status': 'ok',
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
-                'files': executor_result.generated_files,
-                # TODO add other files created outside optimizer.run() like profiling
+                'files': td.local_context.files,
+                # ^- This is not supposed to be used by service-optimizer-v2
             },
         }
 

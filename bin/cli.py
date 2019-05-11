@@ -94,11 +94,6 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
     td = TaskDefinition()
     td.task_id = task_id
 
-    if td.task_id == 'rand':
-        td.local_params['s3_repository'] = 'habx-{env}-optimizer-v2'.format(
-            env=os.getenv('HABX_ENV', 'dev')
-        )
-
     if td.task_id:
         td.task_id = str(uuid.uuid4())
 
@@ -116,7 +111,7 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
         td.params['do_plot'] = True
 
     if output_dir:
-        td.local_params['output_dir'] = output_dir
+        td.local_context.output_dir = output_dir
 
     td.check()
 

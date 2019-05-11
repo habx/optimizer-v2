@@ -12,10 +12,10 @@ class OptimizerRun(ExecWrapper):
     OPTIMIZER = opt.Optimizer()
 
     def _exec(self, td: TaskDefinition) -> opt.Response:
-        output_path = td.local_params.get('output_dir')
+        output_path = td.local_context.output_dir
         if output_path:
             plt.output_path = output_path
-        return self.OPTIMIZER.run(td.blueprint, td.setup, td.params, td.local_params)
+        return self.OPTIMIZER.run(td.blueprint, td.setup, td.params, td.local_context)
 
     @staticmethod
     def instantiate(td: TaskDefinition):
@@ -55,7 +55,7 @@ class Timeout(ExecWrapper):
         signal.signal(signal.SIGALRM, self.throw_timeout)
         signal.alarm(self.timeout)
 
-    def _after(self, resp: opt.Response):
+    def _after(self):
         signal.alarm(0)
 
     def _exec(self, td: TaskDefinition):
