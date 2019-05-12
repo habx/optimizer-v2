@@ -70,6 +70,10 @@ class TaskProcessor:
                 result['data'] = data
             data['version'] = Executor.VERSION
 
+            # OPT-116: Transmitting the hostname so that we can at least properly diagnose from
+            #          which host the duplicate tasks are coming.
+            data['hostname'] = socket.gethostname()
+
             # OPT-99: All the feedback shall only be done from the source data except for the
             #         context which is allowed to be modified by the processing.
             data['lot'] = td.blueprint
