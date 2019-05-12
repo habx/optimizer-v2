@@ -7,6 +7,7 @@ import pprofile
 import pyinstrument
 
 from libs.executor.defs import ExecWrapper, TaskDefinition
+import libs.optimizer as opt
 
 
 class PProfile(ExecWrapper):
@@ -29,20 +30,37 @@ class PProfile(ExecWrapper):
 
 
 class PyInstrument(ExecWrapper):
+    FILENAME_HTML = 'pyinstrument.html'
+    FILENAME_TXT = 'pyinstrument.txt'
+
     def __init__(self, output_dir: str):
         super().__init__()
         self.output_dir = output_dir
         self.profiler = pyinstrument.Profiler()
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         self.profiler.start()
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         self.profiler.stop()
-        with open(os.path.join(self.output_dir, 'pyinstrument.html'), 'w') as fp:
+        with open(os.path.join(self.output_dir, self.FILENAME_HTML), 'w') as fp:
             fp.write(self.profiler.output_html())
-        with open(os.path.join(self.output_dir, 'pyinstrument.txt'), 'w') as fp:
+        with open(os.path.join(self.output_dir, self.FILENAME_TXT), 'w') as fp:
             fp.write(self.profiler.output_text())
+
+        td.local_context.add_file(
+            self.FILENAME_HTML,
+            ftype='profiling_html',
+            title='PyInstrument profiling (HTML)',
+            mime='text/html'
+        )
+
+        td.local_context.add_file(
+            self.FILENAME_TXT,
+            ftype='profiling_text',
+            title='PyInstrument profiling (text)',
+            mime='text/plain'
+        )
 
     @staticmethod
     def instantiate(td: TaskDefinition):
@@ -60,11 +78,11 @@ class CProfile(ExecWrapper):
         super().__init__()
         self.output_dir = output_dir
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         self.cpu_prof = cProfile.Profile()
         self.cpu_prof.enable()
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         self.cpu_prof.disable()
         self.cpu_prof.dump_stats(os.path.join(self.output_dir, "cProfile.prof"))
         with open(os.path.join(self.output_dir, 'cProfile.txt'), 'w') as fp:
@@ -90,10 +108,10 @@ class TraceMalloc(ExecWrapper):
         super().__init__()
         self.output_dir = output_dir
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         tracemalloc.start()
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         snapshot = tracemalloc.take_snapshot()
         top_stats = snapshot.statistics('lineno')
 

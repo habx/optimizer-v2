@@ -17,7 +17,7 @@ class LoggingToFile(ExecWrapper):
         self.output_dir = output_dir
         self.log_handler: logging.FileHandler = None
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         logger = logging.getLogger('')
         log_file = os.path.join(self.output_dir, self.FILENAME)
         logging.info("Writing logs to %s", log_file)
@@ -32,22 +32,17 @@ class LoggingToFile(ExecWrapper):
         self.log_handler = handler
         logger.addHandler(handler)
 
-    def _exec(self, td: TaskDefinition) -> opt.Response:
-        try:
-            return super()._exec(td)
-        finally:
+    def _after(self, td: TaskDefinition, resp: opt.Response):
+        if self.log_handler:
+            self.log_handler.close()
+            logging.getLogger('').removeHandler(self.log_handler)
+            self.log_handler = None
             td.local_context.add_file(
                 self.FILENAME,
                 ftype='logging',
                 title='Logs',
                 mime='text/plain'
             )
-
-    def _after(self):
-        if self.log_handler:
-            self.log_handler.close()
-            logging.getLogger('').removeHandler(self.log_handler)
-            self.log_handler = None
 
     @staticmethod
     def instantiate(td: TaskDefinition):
@@ -73,12 +68,12 @@ class LoggingLevel(ExecWrapper):
         self.logging_level = level
         self.previous_level: int = 0
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         logger = logging.getLogger('')
         self.previous_level = logger.level
         logger.setLevel(self.logging_level)
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         logging.getLogger('').setLevel(self.previous_level)
 
     @staticmethod

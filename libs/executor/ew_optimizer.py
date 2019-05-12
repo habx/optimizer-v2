@@ -51,11 +51,11 @@ class Timeout(ExecWrapper):
         super().__init__()
         self.timeout = timeout
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         signal.signal(signal.SIGALRM, self.throw_timeout)
         signal.alarm(self.timeout)
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         signal.alarm(0)
 
     def _exec(self, td: TaskDefinition):

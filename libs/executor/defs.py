@@ -84,20 +84,22 @@ class ExecWrapper:
         :param td: Task definition
         :return: The optimizer response
         """
-        self._before()
+        self._before(td)
 
+        resp: opt.Response = None
         try:
-            return self._exec(td)
+            resp = self._exec(td)
+            return resp
         finally:
-            self._after()
+            self._after(td, resp)
 
-    def _before(self):
+    def _before(self, td: TaskDefinition):
         """
         Called before the execution
         """
         pass
 
-    def _after(self):
+    def _after(self, td: TaskDefinition, resp: opt.Response):
         """
         Called after the execution
         """
