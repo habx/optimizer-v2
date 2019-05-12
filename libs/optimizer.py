@@ -94,7 +94,8 @@ class ExecParams:
             "nb_layer": 5,
             "recursive_cut_length": 400,
             "width": 100,
-            "penetration_length": 90
+            "penetration_length": 90,
+            "layer_cut": False
         }
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
@@ -253,7 +254,7 @@ class Optimizer:
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
         # refiner
-        t0_shuffle = time.process_time()
+        t0_refiner = time.process_time()
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions and space_planner:
@@ -264,7 +265,7 @@ class Optimizer:
                                                                       params.refiner_params)
                     if params.do_plot:
                         sol.plan.plot()
-        elapsed_times["refiner"] = time.process_time() - t0_shuffle
+        elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
         # output
