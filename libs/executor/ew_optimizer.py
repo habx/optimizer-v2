@@ -58,9 +58,6 @@ class Timeout(ExecWrapper):
     def _after(self, td: TaskDefinition, resp: opt.Response):
         signal.alarm(0)
 
-    def _exec(self, td: TaskDefinition):
-        super()._exec(td)
-
     @staticmethod
     def instantiate(td: TaskDefinition):
         timeout = int(td.params.get('timeout', '0'))

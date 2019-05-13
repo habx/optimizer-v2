@@ -20,7 +20,13 @@ import tempfile
 
 import uuid
 
+# OPT-119 & OPT-120: Dirty path handling
+import libpath
+
 from libs.executor.executor import Executor, TaskDefinition
+
+# OPT-120: Only to make sure libpath won't be removed
+libpath.add_local_libs()
 
 
 def _exists_path(parser, path, file=None):
@@ -43,7 +49,7 @@ Example usage:
 
 bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json
 bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json \
-           -p resources/params/timeout.json
+           -p resources/params/timeout_2s.json
 """
 
     parser = argparse.ArgumentParser(

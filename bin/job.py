@@ -8,8 +8,8 @@ import requests
 
 import sentry_sdk
 
-# OPT-119: Still dirty, but won't break itself with a simple reformat
-from .libpath import add_local_libs
+# OPT-119 & OPT-120: Dirty path handling
+import libpath
 
 from libs.executor.executor import Executor
 from libs.worker.config import Config
@@ -23,7 +23,8 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
     'release': Executor.VERSION,
 })
 
-add_local_libs()
+# OPT-120: Only to make sure libpath won't be removed
+libpath.add_local_libs()
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
