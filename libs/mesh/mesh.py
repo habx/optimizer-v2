@@ -134,7 +134,7 @@ class MeshComponent:
         return self.id
 
     def __eq__(self, other):
-        if other is None or other.mesh != self.mesh:
+        if other is None:
             return False
         return self.id == other.id
 

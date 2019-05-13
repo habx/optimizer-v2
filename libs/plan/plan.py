@@ -259,7 +259,10 @@ class Space(PlanComponent):
         :param linear:
         :return:
         """
-        return linear.edge in self.edges
+        if linear.floor == self.floor:
+            return linear.edge in self.edges
+        else:
+            return False
 
     @property
     def faces(self) -> Generator[Face, None, None]:
