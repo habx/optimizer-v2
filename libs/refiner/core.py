@@ -4,8 +4,7 @@ Inspired from DEAP https://github.com/DEAP
 
 A custom fitness class must be created for the corresponding pb:
 ex. fitness = Fitness.new((-1.0, -1.0, -3.0))
-A custom individual class must than be created
-Individual.new(
+
 
 
 """
