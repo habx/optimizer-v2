@@ -8,6 +8,9 @@ import requests
 
 import sentry_sdk
 
+# OPT-119: Still dirty, but won't break itself with a simple reformat
+from .libpath import add_local_libs
+
 from libs.executor.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
@@ -19,6 +22,8 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
     'environment': os.getenv('HABX_ENV', 'local'),
     'release': Executor.VERSION,
 })
+
+add_local_libs()
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
