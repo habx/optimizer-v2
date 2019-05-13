@@ -12,7 +12,7 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
             "weights": (-2.0, -1.0, -1.0, -10.0),
-            "ngen": 100,
+            "ngen": 10,
             "mu": 28,
             "cxpb": 0.5
           }
@@ -58,7 +58,7 @@ def apply():
     import time
     import tools.cache
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     spec, plan = tools.cache.get_plan("007")  # 052
 

@@ -12,7 +12,7 @@ import logging
 import copy
 from functools import partial
 
-from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator
+from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator, Dict
 from libs.plan.plan import Plan, Floor
 
 
@@ -21,6 +21,7 @@ class Fitness:
     A fitness class
     """
     _weights: Optional[Sequence[float]] = None
+    cache: Dict = {}  # a class attribute to store cached values needed for fitness calculation
 
     @classmethod
     def new(cls, alias: str, weights: Optional[Sequence[float]]) -> type:
@@ -36,7 +37,8 @@ class Fitness:
                             "creation of that class or rename it.".format(alias))
 
         custom_class = type(alias, (Fitness,), {"_weights": weights})
-        globals()[alias] = custom_class  # needed for pickling
+        # the custom class must be added to the global namespace for pickling
+        globals()[alias] = custom_class
         return custom_class
 
     """The weights are used in the fitness comparison. They are shared among
@@ -46,7 +48,18 @@ class Fitness:
        the associated objective and positive weight to the maximization."""
 
     def __init__(self):
-        self._wvalues = ()
+        # dict containing the weighted values for each space
+        self._wspvalues: Dict[int, Tuple[float, ...]] = {}
+        self._wvalues = self.compute_wvalues(self._wspvalues)  # global weighted values
+
+    @staticmethod
+    def compute_wvalues(spwvalues: Dict[int, Tuple[float, ...]]) -> Tuple[float, ...]:
+        """
+        Sums the weighted values of each space
+        :param spwvalues:
+        :return:
+        """
+        return tuple(sum(t) for t in zip(*spwvalues.values()))
 
     @property
     def value(self) -> float:
@@ -65,20 +78,45 @@ class Fitness:
         property
         :return:
         """
-        return tuple(map(lambda x, y: x / y, self._wvalues, self._weights))
+        return tuple(x / y for x, y in zip(self._wvalues, self._weights))
 
-    @values.setter
-    def values(self, values: Sequence[float]):
-        if not values:
+    @property
+    def sp_values(self):
+        """
+        property
+        :return:
+        """
+        return {i: tuple(x / y for x, y in zip(values, self._weights))
+                for i, values in self._wspvalues.items()}
+
+    @sp_values.setter
+    def sp_values(self, values_dict: Dict[int, Tuple[float, ...]]) -> None:
+        """
+        The values dict contains UNWEIGHTED values of the fitness.
+        The values for every space are expected as the whole object will
+        be replaced. If you want to only update certain spaces value, use the
+        update method.
+        Note : the length of each tuple must be the same as the cls._weights tuple
+        """
+        if not values_dict:
             return
-        assert len(values) == len(self._weights), ("Refiner: Fitness, the values provided are "
-                                                   "incoherent with the fitness weights {} - "
-                                                   "{}".format(values, self._weights))
+        self._wspvalues = {i: tuple(x * y for x, y in zip(values, self._weights)) for
+                           i, values in values_dict.items()}
+        self._wvalues = self.compute_wvalues(self._wspvalues)
 
-        self._wvalues = tuple(map(lambda x, y: x * y, values, self._weights))
+    def update(self, values_dict: Dict[int, Tuple[float, ...]]) -> None:
+        """
+        Updates the values of the fitness with the ones contained in the specified dict.
+        :param values_dict:
+        :return:
+        """
+        self._wspvalues.update({i: tuple(map(lambda x, y: x * y, values, self._weights))
+                                for i, values in values_dict.items()})
+        self._wvalues = self.compute_wvalues(self._wspvalues)
 
     def clear(self):
         """ Clears the values of the fitness """
+        self._wspvalues = {}
         self._wvalues = ()
 
     def dominates(self, other: 'Fitness', obj: slice = slice(None)):
@@ -127,11 +165,12 @@ class Fitness:
     def __deepcopy__(self, memo):
         """Replace the basic deepcopy function with a faster one.
 
-        It assumes that the elements in the :attr:`values` tuple are
+        It assumes that the elements in the :attr:`_wvalues` tuple are
         immutable and the fitness does not contain any other object
-        than :attr:`values` and :attr:`weights`.
+        than :attr:``_wvalues`, :attr:`_spwvalues` and :attr:`weights`.
         """
         copy_ = self.__class__()
+        copy_._wspvalues = self._wspvalues.copy()
         copy_._wvalues = self._wvalues
         return copy_
 
@@ -225,7 +264,7 @@ cloneFunc = Callable[['Individual'], 'Individual']
 mapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
 selectFunc = Callable[[List['Individual']], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
-evaluateFunc = Callable[['Individual'], Sequence[float]]
+evaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
 mutateFunc = Callable[['Individual'], 'Individual']
 populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
 mateMutateFunc = Callable[[Tuple['Individual', 'Individual']], Tuple['Individual', 'Individual']]
@@ -324,13 +363,14 @@ class Toolbox:
     def unregister(self, alias):
         """Unregister *alias* from the toolbox.
 
+
         :param alias: The name of the operator to remove from the toolbox.
         """
         delattr(self, alias)
 
     @staticmethod
-    def evaluate_pop(map_func,
-                     eval_func,
+    def evaluate_pop(map_func: mapFunc,
+                     eval_func: evaluateFunc,
                      pop: Sequence['Individual'],
                      refresh: bool = False) -> None:
         """
@@ -338,12 +378,12 @@ class Toolbox:
         for multiprocessing purposes.
         :param map_func: a mapping function
         :param eval_func: an evaluation function (NOTE: we cannot refer to self.evaluate for
-               multiprocessing concerns
+               multiprocessing concerns)
         :param pop: a list of individuals
         :param refresh: whether to refresh the fitness if it is still valid
         :return:
         """
-        invalid_fit = [ind for ind in pop if not ind.fitness.valid or refresh]
-        fitnesses = map_func(eval_func, invalid_fit)
-        for ind, fit in zip(invalid_fit, fitnesses):
-            ind.fitness.values = fit
+        invalid_fit_individuals = [ind for ind in pop if not ind.fitness.valid or refresh]
+        fitnesses = map_func(eval_func, invalid_fit_individuals)
+        for ind, fit in zip(invalid_fit_individuals, fitnesses):
+            ind.fitness.sp_values = fit

@@ -11,7 +11,7 @@ my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_
 """
 import math
 import logging
-from typing import TYPE_CHECKING, Sequence, List, Callable, Dict, Optional
+from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
 
@@ -20,10 +20,18 @@ if TYPE_CHECKING:
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Plan
 
-scoreFunc = Callable[['Individual'], float]
+# a score function returns a specific score for each space of the plan. It takes
+# as arguments a specification object and an individual
+scoreFunc = Callable[['Specification', 'Individual'], Dict[int, float]]
 
 
-def compose(funcs: List[scoreFunc], spec: 'Specification', ind: 'Individual') -> Sequence[float]:
+def dict_zip(*dicts):
+    """ zips dicts together"""
+    return {k: tuple(d[k] for d in dicts) for k in dicts[0].keys()}
+
+
+def compose(funcs: List[scoreFunc],
+            spec: 'Specification', ind: 'Individual') -> Dict[int, Tuple[float, ...]]:
     """
     A factory to compose evaluation function from a list of score function
     :param funcs:
@@ -31,7 +39,8 @@ def compose(funcs: List[scoreFunc], spec: 'Specification', ind: 'Individual') ->
     :param ind:
     :return:
     """
-    return tuple(map(lambda x: x(spec, ind), funcs))
+    mutable_spaces_id = {space.id for space in spec.plan.mutable_spaces()}
+    return {k: tuple(d.get(k, 0) for d in (f(spec, ind) for f in funcs)) for k in mutable_spaces_id}
 
 
 def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
@@ -42,9 +51,7 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     """
     output = {}
     spec_items = _spec.items[:]
-    for sp in _spec.plan.spaces:
-        if not sp.category.mutable:
-            continue
+    for sp in _spec.plan.mutable_spaces():
         corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
                                           spec_items))
         # Note : corridors have no corresponding spec item
@@ -58,60 +65,65 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     return output
 
 
-def score_area(spec: 'Specification', ind: 'Individual') -> float:
+def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Returns a score that evaluates the proximity of the individual to a specification
     instance
-    Note: The dictionary matching spaces to specification items is memoized in the factory
     :param spec:
     :param ind
     :return:
     """
-    space_to_item = create_item_dict(spec)
+    excluded_spaces = ("circulation",)  # circulation space have no target areas in the spec
+    space_to_item = ind.fitness.cache.get("space_to_item", None)
+
+    if space_to_item is None:
+        logging.debug("Refiner: Score: computing space_to_item dictionary")
+        space_to_item = create_item_dict(spec)
+        ind.fitness.cache["space_to_item"] = space_to_item
 
     # create the item_to_space dict
-    area_score = 0.0
-    if spec is not None:
-        for space in ind.spaces:
-            if not space.category.mutable:
-                continue
-            item = space_to_item[space.id]
-            if item is None:
-                continue
-            space_area = space.cached_area()
-            if space_area < item.min_size.area:
-                space_score = ((space_area - item.min_size.area)/space_area)**2
-            elif space_area > item.max_size.area:
-                space_score = ((space_area - item.max_size.area)/space_area)**2
-            else:
-                space_score = 0
-            area_score += space_score
+    area_score = {}
+    if spec is None:
+        logging.warning("Refiner: score area: not spec specified")
+        return {}
+
+    for space in ind.mutable_spaces():
+        if space.category.name in excluded_spaces:
+            area_score[space.id] = 0.0
+            continue
+        item = space_to_item[space.id]
+        space_area = space.cached_area()
+        if space_area < item.min_size.area:
+            space_score = ((space_area - item.min_size.area)/space_area)**2
+        elif space_area > item.max_size.area:
+            space_score = ((space_area - item.max_size.area)/space_area)**2
+        else:
+            space_score = 0
+        area_score[space.id] = space_score
 
     return area_score
 
 
-def score_corner(_: 'Specification', ind: 'Individual') -> float:
+def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     :param _:
     :param ind:
     :return:
     """
     excluded_spaces = ()
-    min_corners = 4
-    score = 0.0
-    num_space = 0
-    for space in ind.spaces:
-        if not space.category.mutable or space.category.name in excluded_spaces:
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.category.name in excluded_spaces:
+            score[space.id] = 0.0
             continue
-        score += (space.number_of_corners() - min_corners) / min_corners
-        num_space += 1
-    return score / num_space
+        score[space.id] = space.number_of_corners()
+    return score
 
 
 def number_of_corners(space: 'Space') -> int:
     """
     Returns the number of "inside" corners. The corners of the boundary edges of a space
-    that are adjacent to another mutable space.
+    that are not adjacent to an external space.
     :param space:
     :return:
     """
@@ -132,45 +144,49 @@ def number_of_corners(space: 'Space') -> int:
     return num_corners
 
 
-def score_bounding_box(_: 'Specification', ind: 'Individual') -> float:
+def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
+    Computes a score as the difference between the area of a space and its bounding box
     :param _:
     :param ind:
     :return:
     """
     excluded_spaces = ("circulation",)
-    score = 0.0
-    for space in ind.spaces:
-        if not space.category.mutable or space.category.name in excluded_spaces:
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.category.name in excluded_spaces:
+            score[space.id] = 0.0
             continue
         if space.cached_area() == 0:
-            score += 1000
+            score[space.id] = 100
             continue
         box = space.bounding_box()
         box_area = box[0] * box[1]
         area = space.cached_area()
         space_score = math.fabs((area - box_area) / area)
-        score += space_score
+        score[space.id] = space_score
 
     return score
 
 
-def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> float:
+def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     :param _
     :param ind:
     :return:
     """
-    score = 0.0
+    excluded_spaces = ("living", "livingKitchen", "circulation")
+    score = {}
     min_aspect_ratio = 16
-    for space in ind.spaces:
-        if not space.category.mutable or space.category.name == "living":
+    for space in ind.mutable_spaces():
+        if space.category.name in excluded_spaces:
+            score[space.id] = 0
             continue
         if space.cached_area() == 0:
-            score += 1000
+            score[space.id] = 100
             continue
         space_score = math.fabs(space.perimeter**2/space.cached_area()/min_aspect_ratio - 1.0)
-        score += space_score
+        score[space.id] = space_score
 
     return score
 
@@ -196,7 +212,7 @@ def check_area(plan: 'Plan', spec: 'Specification') -> None:
                                                                max_area, "✅" if ok else "❌"))
 
 
-def score_connectivity(_: 'Specification', ind: 'Individual') -> float:
+def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Returns a score indicating whether the plan is connected
     :param _:
@@ -205,11 +221,12 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> float:
     """
     min_length = 90.0
     cost_per_unconnected_space = 1.0
-    score = 0
+    score = {}
 
     front_door = list(ind.get_linears("frontDoor"))[0]
     front_door_space = ind.get_space_of_edge(front_door.edge)
     connected_circulation_spaces = [front_door_space]
+    score[front_door_space.id] = 0.0
 
     circulation_spaces = list(ind.circulation_spaces())
     if front_door_space in circulation_spaces:
@@ -223,12 +240,14 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> float:
                     # we place the newly found spaces at the beginning of the array
                     connected_circulation_spaces.insert(0, circulation_space)
                     circulation_spaces.remove(circulation_space)
+                    score[circulation_space.id] = 0.0
                     break
 
-    score += len(circulation_spaces) * cost_per_unconnected_space
+    for unconnected_space in circulation_spaces:
+        score[unconnected_space.id] = cost_per_unconnected_space
 
     for space in ind.mutable_spaces():
-        if space.category.circulation:
+        if space.category.circulation or space is front_door_space:
             continue
 
         found_adjacency = False
@@ -257,12 +276,12 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> float:
                 found_adjacency = True
                 break
 
-        score += cost_per_unconnected_space if not found_adjacency else 0
+        score[space.id] = cost_per_unconnected_space if not found_adjacency else 0
 
     return score
 
 
-def score_corridor_width(_: 'Specification', ind: 'Individual') -> float:
+def score_corridor_width(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Computes a score of the min width of each corridor
     :param _:
@@ -270,12 +289,12 @@ def score_corridor_width(_: 'Specification', ind: 'Individual') -> float:
     :return:
     """
     min_width = 90.0
-    score = 0
+    score = {}
     corridors = ind.get_spaces("circulation")
     for corridor in corridors:
         polygon = corridor.boundary_polygon()
         width = min_section(polygon)
-        score += ((width - min_width)/min_width)**2
+        score[corridor.id] = ((width - min_width)/min_width)**2
 
     return score
 
