@@ -8,9 +8,7 @@ import requests
 
 import sentry_sdk
 
-import libpath
-
-from libs.utils.executor import Executor
+from libs.executor.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.mq import Exchanger
