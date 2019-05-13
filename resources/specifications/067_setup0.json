@@ -1,0 +1,120 @@
+{
+  "rooms": [
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "kitchen"
+      ],
+      "requiredArea": {
+        "max": 240000,
+        "min": 200000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "m"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [
+        "living"
+      ],
+      "requiredArea": {
+        "max": 90000,
+        "min": 50000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 70000,
+        "min": 30000
+      },
+      "tags": [
+        "bathtype:tub",
+        "washbasin:double"
+      ],
+      "type": "bathroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 50000,
+        "min": 10000
+      },
+      "tags": [
+        "bathtype:shower",
+        "washbasin:single"
+      ],
+      "type": "bathroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 30000,
+        "min": 10000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 130000,
+        "min": 90000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "s"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "linkedTo": [],
+      "opensOn": [],
+      "requiredArea": {
+        "max": 110000,
+        "min": 70000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "requiredArea": {
+        "max": 130000,
+        "min": 110000
+      },
+      "type": "circulation"
+    }
+  ]
+}
