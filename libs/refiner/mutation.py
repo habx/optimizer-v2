@@ -49,7 +49,8 @@ def mutate_aligned(ind: 'Individual') -> 'Individual':
     Mutates the plan.
     1. select a random space
     2. select a random mutable edge
-    3. mutate the edge
+    3. mutate
+    TODO : we must check that we are not removing an essential edge of the space !!
     :param ind:
     :return: a single element tuple containing the mutated individual
     """
@@ -65,7 +66,7 @@ def mutate_simple(ind: 'Individual') -> 'Individual':
     Mutates the plan.
     1. select a random space
     2. select a random mutable edge
-    3. mutate the edge
+    3. remove the edge face from the space and gives it to the pair space
     :param ind:
     :return: a single element tuple containing the mutated individual
     """
