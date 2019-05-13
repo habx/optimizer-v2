@@ -93,7 +93,7 @@ class ExecParams:
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
         self.seeder_type = params.get('seeder_type', 'simple_seeder')
-        self.space_planner_type = params.get('space_planner_type', 'default_space_planner')
+        self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
@@ -196,8 +196,8 @@ class Optimizer:
         # space planner
         logging.info("Space planner")
         t0_space_planner = time.process_time()
-        space_planner = SPACE_PLANNERS[params.space_planner_type].apply_to(spec)
-        best_solutions = space_planner.best_solutions
+        space_planner = SPACE_PLANNERS[params.space_planner_type]
+        best_solutions = space_planner.apply_to(spec)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])

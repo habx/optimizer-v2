@@ -101,7 +101,21 @@ class Seeder:
         if show:
             self._initialize_plot()
 
-        self.plant(show).grow(show).fill(show)
+        # temporary dirty implementation
+        nbr_grid_cells = 0
+        for space in plan.spaces:
+            if space.category.name == "empty":
+                nbr_grid_cells += len(list(space.faces))
+        if nbr_grid_cells > 25:
+            self.plant(show).grow(show).fill(show)
+        else:
+            for floor in plan.floors.values():
+                for face in floor.mesh.faces:
+                    if plan.get_space_of_face(face).category.name == "empty":
+                        Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
+            for space in plan.spaces:
+                if space.category.name == "empty":
+                    space.remove()
 
     def plant(self, show: bool = False) -> 'Seeder':
         """

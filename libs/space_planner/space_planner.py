@@ -27,6 +27,9 @@ class SpacePlanner:
 
     def __init__(self, name: str):
         self.name = name
+        self.spec = None
+        self.manager = None
+        self.solutions_collector = None
 
     def __repr__(self):
         output = "SpacePlanner" + self.name
@@ -193,14 +196,16 @@ class SpacePlanner:
 
         self.manager = ConstraintsManager(self)
 
-        solutions_collector = SolutionsCollector(self.spec)
+        self.solutions_collector = SolutionsCollector(self.spec)
 
-        return solutions_collector
+        self.solution_research()
+
+        return self.solutions_collector.best()
 
 standard_space_planner = SpacePlanner("standard")
 
 SPACE_PLANNERS = {
-    "standard": standard_space_planner
+    "standard_space_planner": standard_space_planner
 }
 
 if __name__ == '__main__':
@@ -224,7 +229,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "paris-venelles_B2E2L01.json"
+        input_file = "011.json"
         print("input_file", input_file)
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -234,29 +239,7 @@ if __name__ == '__main__':
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
-
-        nbr_grid_cells = 0
-        for space in plan.spaces:
-            if space.category.name == "empty":
-                nbr_grid_cells += len(list(space.faces))
-        print("nbr_grid_cells : ", nbr_grid_cells)
-
-        if nbr_grid_cells > 30:
-            SEEDERS["simple_seeder"].apply_to(plan)
-        else:
-            for space in plan.spaces:
-                if space.category.name == "empty":
-                    for face in space.faces:
-                        Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-            has_empty_space = True
-            while has_empty_space:
-                has_empty_space = False
-                for space in plan.spaces:
-                    if space.category.name == "empty":
-                        plan.remove(space)
-                        has_empty_space = True
-            plan.remove_null_spaces()
-
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
         print(list(space.components_category_associated() for space in plan.mutable_spaces()))
@@ -272,7 +255,8 @@ if __name__ == '__main__':
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         t0 = time.process_time()
-        space_planner = SpacePlanner("test", spec)
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
+        best_solutions = space_planner.apply_to(spec)
         print(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -286,11 +270,8 @@ if __name__ == '__main__':
                            ** 2 / space_planner.spec.plan.indoor_area)
         print("PLAN Ratio : %i", plan_ratio)
         print("space_planner time : ", time.process_time() - t0)
-        t1 = time.process_time()
-        best_solutions = space_planner.solution_research()
-        print("solution_research time : ", time.process_time() - t1)
         print("number of solutions : ", len(space_planner.solutions_collector.solutions))
-        logging.debug("solution_research time: %f", time.process_time() - t1)
+        logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
         # Output
