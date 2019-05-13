@@ -16,6 +16,7 @@ pyinstrument
 
 # For the worker:
 boto3
+requests
 
 # For tests and linting:
 pytest
