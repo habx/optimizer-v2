@@ -8,7 +8,7 @@ import socket
 import uuid
 import sentry_sdk
 
-# OPT-119: Still dirty, but won't break itself with a simple refactoring
+# OPT-119: Still dirty, but won't break itself with a simple reformat
 from .libpath import add_local_libs
 
 from libs.executor.executor import Executor
