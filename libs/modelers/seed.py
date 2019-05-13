@@ -160,8 +160,6 @@ class Seeder:
         final_grow = time.process_time() - to_grow
         print("TIME GROWTH", final_grow)
 
-        self.plan.plot()
-
         return self
 
     def fill(self, show: bool = False) -> 'Seeder':
@@ -471,6 +469,7 @@ class Seed:
                                                       [self.max_size_constraint])
         if modified_spaces and show:
             self.seeder.plot.update(modified_spaces)
+            # input("s")
 
         if not modified_spaces:
             if self._number_of_pass >= self.growth_action.number_of_pass - 1:
@@ -568,21 +567,14 @@ GROWTH_METHODS = {
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
         )
     ),
-    # "duct": GrowthMethod(
-    #     'duct',
-    #     (CONSTRAINTS["max_size_duct_constraint_seed"],),
-    #     (
-    #         Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face']),
-    #     )
-    # ),
     "duct": GrowthMethod(
         'duct',
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
+            # Action(SELECTORS['along_duct_side'], MUTATIONS['swap_face']),
             Action(SELECTORS['along_duct_side'], MUTATIONS['swap_face']),
-            Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
-                   True),
-            Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'])
+            Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face'])
+            # Action(SELECTORS['smallest_perimeter'], MUTATIONS['swap_face'],number_of_pass=2)
         )
     ),
     "frontDoor": GrowthMethod(
@@ -737,6 +729,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     :param show:
     :return: the list of modified spaces
     """
+
     epsilon_length = 20
     min_cell_area = 10000
     target_number_of_spaces = 25
@@ -825,6 +818,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']):
 
     other_space.set_edges()
     space.set_edges()
+    return [space, other_space]
 
 
 def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
@@ -835,14 +829,14 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     """
     contiguous_edges = []
 
-    def get_contiguous_edges(contiguous_edges, current_edge: 'Edge'):
+    def get_contiguous_edges(list_contiguous_edges: List['Edge'], current_edge: 'Edge'):
         while current_edge:
             current_edge = current_edge.aligned_edge or current_edge.continuous_edge
             if current_edge:
                 space_of_current = plan.get_space_of_edge(current_edge)
                 if (space_of_current and space_of_current.category
                         and space_of_current.category.name == "empty"):
-                    contiguous_edges.append(current_edge)
+                    list_contiguous_edges.append(current_edge)
                 else:
                     break
 
@@ -882,7 +876,8 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     1 - a corner edge of a seed_space is selected
     2 - the list of its contiguous edges is built
     3 - each empty space cut by a set of those contiguous edges is cut into two parts
-    :param selector:
+    :param seeder:
+    :param show:
     :return:
     """
 
@@ -903,7 +898,9 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
                     divided_spaces.append(space)
                     edges_in_space = list(
                         edge for edge in contiguous_edges if space.has_edge(edge))
-                    divide_along_line(space, edges_in_space)
+                    modified_spaces = divide_along_line(space, edges_in_space)
+                    if show:
+                        seeder.plot.update(modified_spaces)
 
     final_divideline = time.process_time() - t0_divideline
     print("TIME DIVIDE", final_divideline)
@@ -960,7 +957,9 @@ SEEDERS = {
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed, merge_corners]),
     "trames_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                            [divide_along_seed_borders, empty_to_seed, merge_small_cells])
+                            [divide_along_seed_borders, empty_to_seed, merge_small_cells]),
+    # "trames_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+    #                        [divide_along_seed_borders, empty_to_seed])
 }
 
 if __name__ == '__main__':
@@ -995,7 +994,9 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "001"
+        plan_name = "001"
+        # splan_name = "021"
+        # plan_name = "013"
 
         # to not run each time the grid generation
         try:
