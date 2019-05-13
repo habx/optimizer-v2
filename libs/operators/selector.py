@@ -340,29 +340,39 @@ def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
             if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
-
     if edge_homogeneous_growth:
         yield edge_homogeneous_growth
 
 
 def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns among all edges on the space border the one such as when the pair
-    face is added to space, the ratio perimeter**2/area is smallest
+    Space is in contact with a duct
+    Returns edges such that
+    *edge.pair.face has a contact with this duct
+    *the contact edge between edge.pair.face and the duct is parallel to a contact edge
+    between the space and the duct
     """
 
-    def get_space_of_sibling_pair(edge: 'Edge', next: bool = False):
-        sibling = space.previous_edge(edge) if not next else space.next_edge(edge)
-        space_sibling_pair = space.plan.get_space_of_edge(sibling.pair)
+    def get_space_of_sibling_pair(e: 'Edge', next_edge: bool = False):
+        sp = space.plan.get_space_of_edge(e)
+        if not sp or not sp.is_boundary(e):
+            return None, None
+        sibling = sp.previous_edge(e) if not next_edge else sp.next_edge(e)
+        space_sibling_pair = sp.plan.get_space_of_edge(sibling.pair)
         if space_sibling_pair:
-            return space_sibling_pair.category.name
+            return space_sibling_pair.category.name, sibling.pair.unit_vector
         else:
-            return None
+            return None, None
 
     for edge in space.edges:
-        if get_space_of_sibling_pair(edge) is 'duct':
+        out = get_space_of_sibling_pair(edge)
+        out_pair = get_space_of_sibling_pair(edge.pair, next_edge=True)
+        if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
-        if get_space_of_sibling_pair(edge, next=True) is 'duct':
+            continue
+        out = get_space_of_sibling_pair(edge, next_edge=True)
+        out_pair = get_space_of_sibling_pair(edge.pair)
+        if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
 
 
@@ -1213,6 +1223,16 @@ def is_mutable(_: 'Edge', space: 'Space') -> bool:
     return space and space.mutable
 
 
+def is_empty(_: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge space is empty
+    :param _:
+    :param space:
+    :return:
+    """
+    return space.category.name == "empty"
+
+
 def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
@@ -2023,9 +2043,15 @@ SELECTORS = {
 
     "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
-    "improved_aspect_ratio": Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 
-    "along_duct_side": Selector(along_duct_side, name='along_duct_side'),
+    "along_duct_side": Selector(
+        along_duct_side,
+        [
+            pair(is_mutable),
+            pair(is_empty)
+        ]
+    ),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,
