@@ -884,6 +884,8 @@ def test_maximum_adjacency_length():
     length = plan.spaces[0].maximum_adjacency_length(plan.spaces[2])
 
     assert length == 200, "test_maximum_adjacency_length"
+    assert plan.spaces[0].adjacent_to(plan.spaces[2], 200)
+    assert not plan.spaces[0].adjacent_to(plan.spaces[2], 201)
 
 
 def test_contact_length():
