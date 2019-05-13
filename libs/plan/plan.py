@@ -1688,25 +1688,29 @@ class Space(PlanComponent):
                 continue
             # forward check
             shared_length = edge.length
+            if shared_length >= length:
+                return True
             seen.append(edge)
             for e in self.siblings(edge):
                 if e is edge:
                     continue
-                if other.has_edge(e.pair):
-                    shared_length += e.length
-                    if shared_length >= length:
-                        return True
-                    seen.append(e)
+                if not other.has_edge(e.pair):
+                    break
+                shared_length += e.length
+                if shared_length >= length:
+                    return True
+                seen.append(e)
 
             # backward check
             for e in other.siblings(edge.pair):
                 if e is edge.pair:
                     continue
-                if self.has_edge(e.pair):
-                    shared_length += e.length
-                    if shared_length >= length:
-                        return True
-                    seen.append(e)
+                if not self.has_edge(e.pair):
+                    break
+                shared_length += e.length
+                if shared_length >= length:
+                    return True
+                seen.append(e.pair)
 
         return False
 
