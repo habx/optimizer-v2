@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # coding=utf-8
 """
 module used to run optimizer
@@ -169,6 +170,10 @@ class Optimizer:
         :return: optimizer response
         """
         assert "v2" in lot.keys(), "lot must contain v2 data"
+
+        # OPT-119: If we don't have a local_context, we create one
+        if not local_context:
+            local_context = LocalContext()
 
         params = ExecParams(params_dict)
 
