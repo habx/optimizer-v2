@@ -7,7 +7,7 @@ Creates the following classes:
 TODO : fusion of the entrance for small apartment untreated
 
 """
-from typing import List, Dict, Optional
+from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, COST_RULES
@@ -70,7 +70,7 @@ class SolutionsCollector:
 
         return distance
 
-    def best(self) -> Optional[List['Solution']]:
+    def best(self) -> List['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score

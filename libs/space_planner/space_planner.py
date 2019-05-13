@@ -184,7 +184,7 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification') -> 'SolutionsCollector':
+    def apply_to(self, spec: 'Specification') -> List['Solution']:
         """
         Runs the space planner
         :param spec:
@@ -200,7 +200,9 @@ class SpacePlanner:
 
         self.solution_research()
 
-        return self.solutions_collector.best()
+        best_solutions = self.solutions_collector.best()
+
+        return best_solutions
 
 standard_space_planner = SpacePlanner("standard")
 
@@ -228,8 +230,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "011.json"
+        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = "011.json"
         print("input_file", input_file)
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -275,13 +277,14 @@ if __name__ == '__main__':
         logging.debug(best_solutions)
 
         # Output
-        for sol in best_solutions:
-            sol.plan.plot()
-            print(sol, sol.score)
-            for space in sol.plan.mutable_spaces():
-                print(space.category.name, " : ", space.area)
-            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-            writer.save_json_solution(solution_dict, sol.id)
+        if best_solutions:
+            for sol in best_solutions:
+                sol.plan.plot()
+                print(sol, sol.score)
+                for space in sol.plan.mutable_spaces():
+                    print(space.category.name, " : ", space.area)
+                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
+                writer.save_json_solution(solution_dict, sol.id)
 
         # shuffle
         # if best_solutions:
