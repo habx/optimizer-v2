@@ -31,7 +31,7 @@ def fc_mutate(mutation: mutateFunc) -> populateFunc:
     :return: a list of individual
     """
     def _population_func(seed: 'Individual', length: int) -> List['Individual']:
-        return [mutation(seed.clone()) for _ in range(length)]
+        return [mutation(seed.clone().all_spaces_modified()) for _ in range(length)]
 
     return _population_func
 

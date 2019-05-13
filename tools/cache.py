@@ -19,24 +19,26 @@ if TYPE_CHECKING:
 
 def get_plan(plan_name: str = "001",
              spec_name: str = "0",
-             solution_number: int = 0) -> Tuple['Specification', Optional['Plan']]:
+             solution_number: int = 0,
+             grid: str = "optimal_grid") -> Tuple['Specification', Optional['Plan']]:
     """
     Returns a specification and the corresponding solution plan
     :param plan_name: The name of the file of the plan blueprint source
     :param spec_name: The number of the setup of the corresponding plan
     :param solution_number: The solution number (note if the solution number is higher than the
     total number of solutions found, it returns the last solution)
+    :param grid: the name of the grid to use
     """
 
     spec_file_name = plan_name + "_setup" + spec_name + ".json"
-    plan_file_name = plan_name + "_solution_" + str(solution_number) + ".json"
+    plan_file_name = plan_name + "_solution_" + str(solution_number) + "_" + grid + ".json"
 
     try:
         return _retrieve_from_cache(plan_file_name, spec_file_name)
 
     except FileNotFoundError:
 
-        return _compute_from_start(plan_name, spec_file_name, solution_number)
+        return _compute_from_start(plan_name, spec_file_name, solution_number, grid)
 
 
 def _retrieve_from_cache(plan_file_name: str, spec_file_name: str) -> Tuple['Specification', 'Plan']:
@@ -57,13 +59,14 @@ def _retrieve_from_cache(plan_file_name: str, spec_file_name: str) -> Tuple['Spe
 
 def _compute_from_start(plan_name: str,
                         spec_file_name: str,
-                        solution_number: int) -> Tuple['Specification', Optional['Plan']]:
+                        solution_number: int,
+                        grid: str) -> Tuple['Specification', Optional['Plan']]:
     """
     Computes the plan and the spec file directly from the input json
     :param plan_name:
     :param spec_file_name:
     :param solution_number:
-    :param refine:
+    :param grid:
     :return:
     """
     corridor_params = {
@@ -76,12 +79,12 @@ def _compute_from_start(plan_name: str,
     }
 
     folder = reader.DEFAULT_PLANS_OUTPUT_FOLDER
-    plan_file_name = plan_name + "_solution_" + str(solution_number) + ".json"
+    plan_file_name = plan_name + "_solution_" + str(solution_number) + "_" + grid + ".json"
 
     plan = reader.create_plan_from_file(plan_name + ".json")
     spec = reader.create_specification_from_file(spec_file_name)
 
-    GRIDS["optimal_finer_grid"].apply_to(plan)
+    GRIDS[grid].apply_to(plan)
     SEEDERS["simple_seeder"].apply_to(plan)
     spec.plan = plan
     space_planner = SpacePlanner("test", spec)

@@ -12,7 +12,7 @@ import logging
 import copy
 from functools import partial
 
-from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator, Dict
+from typing import Optional, Tuple, List, Callable, Sequence, Type, Any, Iterator, Dict, Set
 from libs.plan.plan import Plan, Floor
 
 
@@ -20,7 +20,7 @@ class Fitness:
     """
     A fitness class
     """
-    _weights: Optional[Sequence[float]] = None
+    _weights: Optional[Tuple[float, ...]] = None
     cache: Dict = {}  # a class attribute to store cached values needed for fitness calculation
 
     @classmethod
@@ -49,45 +49,51 @@ class Fitness:
 
     def __init__(self):
         # dict containing the weighted values for each space
-        self._wspvalues: Dict[int, Tuple[float, ...]] = {}
-        self._wvalues = self.compute_wvalues(self._wspvalues)  # global weighted values
+        self._spvalues: Dict[int, Tuple[float, ...]] = {}
+        # tuple containing the added values of each space for each constraint
+        self._values = self.compute_values(self._spvalues)
 
     @staticmethod
-    def compute_wvalues(spwvalues: Dict[int, Tuple[float, ...]]) -> Tuple[float, ...]:
+    def compute_values(spvalues: Dict[int, Tuple[float, ...]]) -> Tuple[float, ...]:
         """
         Sums the weighted values of each space
-        :param spwvalues:
+        :param spvalues:
         :return:
         """
-        return tuple(sum(t) for t in zip(*spwvalues.values()))
+        return tuple(sum(t) for t in zip(*spvalues.values()))
 
     @property
     def value(self) -> float:
-        """ property : returns the arithmetic sum of the values
+        """ property : returns the arithmetic sum of the weighted values of the fitness
         """
-        return sum(self._wvalues)
+        return sum(x * y for x, y in zip(self._values, self._weights))
 
     @property
-    def weights(self):
+    def sp_value(self) -> Dict[int, float]:
+        """ property: returns the arithmetic sum of the weighted values for each space
+        """
+        return {i: sum(x * y for x, y in zip(v, self._weights)) for i, v in self._spvalues.items()}
+
+    @property
+    def weights(self) -> Optional[Tuple[float, ...]]:
         """ property : returns the class attribute _weights"""
         return self._weights
 
     @property
-    def values(self):
+    def values(self) -> Tuple[float, ...]:
         """
         property
         :return:
         """
-        return tuple(x / y for x, y in zip(self._wvalues, self._weights))
+        return tuple(x / y for x, y in zip(self._values, self._weights))
 
     @property
-    def sp_values(self):
+    def sp_values(self) -> Dict[int, Tuple[float, ...]]:
         """
         property
         :return:
         """
-        return {i: tuple(x / y for x, y in zip(values, self._weights))
-                for i, values in self._wspvalues.items()}
+        return self._spvalues
 
     @sp_values.setter
     def sp_values(self, values_dict: Dict[int, Tuple[float, ...]]) -> None:
@@ -100,9 +106,8 @@ class Fitness:
         """
         if not values_dict:
             return
-        self._wspvalues = {i: tuple(x * y for x, y in zip(values, self._weights)) for
-                           i, values in values_dict.items()}
-        self._wvalues = self.compute_wvalues(self._wspvalues)
+        self._spvalues = values_dict
+        self._values = self.compute_values(self._spvalues)
 
     def update(self, values_dict: Dict[int, Tuple[float, ...]]) -> None:
         """
@@ -110,14 +115,13 @@ class Fitness:
         :param values_dict:
         :return:
         """
-        self._wspvalues.update({i: tuple(map(lambda x, y: x * y, values, self._weights))
-                                for i, values in values_dict.items()})
-        self._wvalues = self.compute_wvalues(self._wspvalues)
+        self._spvalues.update(values_dict)
+        self._values = self.compute_values(self._spvalues)
 
     def clear(self):
         """ Clears the values of the fitness """
-        self._wspvalues = {}
-        self._wvalues = ()
+        self._spvalues = {}
+        self._values = ()
 
     def dominates(self, other: 'Fitness', obj: slice = slice(None)):
         """Return true if each objective of *self* is not strictly worse than
@@ -129,20 +133,20 @@ class Fitness:
                     every objectives.
         """
         not_equal = False
-        for self_wvalue, other_wvalue in zip(self._wvalues[obj], other._wvalues[obj]):
-            if self_wvalue > other_wvalue:
+        for self_value, other_value in zip(self._values[obj], other._values[obj]):
+            if self_value > other_value:
                 not_equal = True
-            elif self_wvalue < other_wvalue:
+            elif self_value < other_value:
                 return False
         return not_equal
 
     @property
     def valid(self):
         """Assess if a fitness is valid or not."""
-        return len(self._wvalues) != 0
+        return len(self._values) != 0
 
     def __hash__(self):
-        return hash(self._wvalues)
+        return hash(self._values)
 
     def __gt__(self, other: 'Fitness'):
         return not self.__le__(other)
@@ -151,13 +155,13 @@ class Fitness:
         return not self.__lt__(other)
 
     def __le__(self, other: 'Fitness'):
-        return self._wvalues <= other._wvalues
+        return self._values <= other._values
 
     def __lt__(self, other: 'Fitness'):
-        return self._wvalues < other._wvalues
+        return self._values < other._values
 
     def __eq__(self, other: 'Fitness'):
-        return self._wvalues == other._wvalues
+        return self._values == other._values
 
     def __ne__(self, other: 'Fitness'):
         return not self.__eq__(other)
@@ -165,13 +169,13 @@ class Fitness:
     def __deepcopy__(self, memo):
         """Replace the basic deepcopy function with a faster one.
 
-        It assumes that the elements in the :attr:`_wvalues` tuple are
+        It assumes that the elements in the :attr:`_values` tuple are
         immutable and the fitness does not contain any other object
-        than :attr:``_wvalues`, :attr:`_spwvalues` and :attr:`weights`.
+        than :attr:``_values`, :attr:`_spvalues` and :attr:`weights`.
         """
         copy_ = self.__class__()
-        copy_._wspvalues = self._wspvalues.copy()
-        copy_._wvalues = self._wvalues
+        copy_._spvalues = self._spvalues.copy()
+        copy_._values = self._values
         return copy_
 
     def __str__(self):
@@ -179,7 +183,7 @@ class Fitness:
         return str(self.values if self.valid else tuple())
 
     def __repr__(self):
-        """Return the Python code to build a copy of the object."""
+        """Return a name."""
         return "%s.%s(%r)" % (self.__module__, self.__class__.__name__,
                               self.values if self.valid else tuple())
 
@@ -202,7 +206,6 @@ class Individual(Plan):
     """
     An individual
     """
-    __slots__ = 'fitness'
     _fitness_class = Fitness
     FloorType = UnwatchedFloor
 
@@ -226,9 +229,36 @@ class Individual(Plan):
     def __init__(self, plan: Optional[Plan] = None):
         super().__init__()
         self.fitness = self._fitness_class()
-
+        self.modified_spaces: Set[int] = set()  # used to store the set of modified spaces_id
         if plan:
             self.copy(plan)
+
+    def plot(self,
+             show: bool = False,
+             save: bool = True,
+             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
+             floor: Optional['Floor'] = None,
+             name: Optional[str] = None):
+        """
+        Plots the plan with the fitness value
+        :param show:
+        :param save:
+        :param options:
+        :param floor:
+        :param name:
+        :return:
+        """
+        from libs.io.plot import plot_save
+
+        ax = super().plot(False, False, options, floor, name)
+        msg = ""
+        for space in self.mutable_spaces():
+            value = ' '.join(format(f, '.2f') for f in self.fitness.sp_values[space.id])
+            msg += "\n{}: {} • {:.2f}".format(space.category.name, value,
+                                              self.fitness.sp_value[space.id])
+        msg += "\nSCORE: {}".format(self.fitness.value)
+        ax.set_xlabel(msg, fontsize=8)
+        plot_save(save, show, self.name)
 
     def clone(self, name: str = "") -> 'Individual':
         """
@@ -239,16 +269,28 @@ class Individual(Plan):
         new_plan = super().clone()
         new_ind = type(self)(new_plan)
         new_ind.fitness = copy.deepcopy(self.fitness)
+        new_ind.modified_spaces = self.modified_spaces
         return new_ind
+
+    def all_spaces_modified(self) -> 'Individual':
+        """
+        Flag all spaces as modified
+        Useful when you want to force evaluation of the fitness
+        :return:
+        """
+        self.modified_spaces = {s.id for s in self.mutable_spaces()}
+        return self
 
     def __getstate__(self) -> dict:
         data = self.serialize(embedded_mesh=False)
         data["fitness"] = self.fitness
+        data["modified_spaces"] = self.modified_spaces
         return data
 
     def __setstate__(self, state: dict):
         self.deserialize(state, embedded_mesh=False)
         self.fitness = state["fitness"]
+        self.modified_spaces = state["modified_spaces"]
 
     def __deepcopy__(self, memo) -> 'Individual':
         """
@@ -296,11 +338,7 @@ class Toolbox:
         "evaluate",
         "mate_and_mutate"
     )
-
     class_list = ("individual", "fitness")
-
-    __slots__ = op_list + class_list
-
     classes = {"fitness": Fitness, "individual": Individual}
 
     def __init__(self):
@@ -386,4 +424,5 @@ class Toolbox:
         invalid_fit_individuals = [ind for ind in pop if not ind.fitness.valid or refresh]
         fitnesses = map_func(eval_func, invalid_fit_individuals)
         for ind, fit in zip(invalid_fit_individuals, fitnesses):
-            ind.fitness.sp_values = fit
+            ind.fitness.update(fit)
+            ind.modified_spaces = set()

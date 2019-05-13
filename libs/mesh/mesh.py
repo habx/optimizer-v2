@@ -2827,8 +2827,6 @@ class Mesh:
     """
     Mesh Class
     """
-    __slots__ = ('_edge', '_faces', '_edges', '_vertices',
-                 '_watchers', '_modifications', 'id', '_counter', '_cached_area')
 
     def __init__(self, _id: Optional[int] = None):
         self._edge = None  # boundary edge of the mesh

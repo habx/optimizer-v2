@@ -79,9 +79,11 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
         # make sure the plan structure is correct
         for space in modified_spaces_ind_1:
             space.set_edges()
+            ind_1.modified_spaces.add(space.id)
 
         for space in modified_spaces_ind_2:
             space.set_edges()
+            ind_2.modified_spaces.add(space.id)
 
         return ind_1, ind_2
 

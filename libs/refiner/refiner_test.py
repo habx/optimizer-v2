@@ -13,7 +13,7 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 PARAMS = {
             "weights": (-2.0, -1.0, -1.0, -10.0),
             "ngen": 10,
-            "mu": 28,
+            "mu": 8,
             "cxpb": 0.5
           }
 
@@ -34,7 +34,7 @@ def run():
         # run genetic algorithm
 
         start = time.time()
-        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=4, hof=1)
+        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=1, hof=1)
         end = time.time()
 
         # analyse found solutions
@@ -58,9 +58,9 @@ def apply():
     import time
     import tools.cache
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("007")  # 052
+    spec, plan = tools.cache.get_plan("001")  # 052
 
     if plan:
         plan.name = "original"
@@ -78,7 +78,7 @@ def apply():
         logging.info("Solution found : {} - {}".format(improved_plan.fitness.value,
                                                        improved_plan.fitness.values))
 
-        evaluation.check_area(improved_plan, spec)
+        evaluation.check(improved_plan, spec)
 
 
 if __name__ == '__main__':

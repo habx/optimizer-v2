@@ -16,7 +16,6 @@ It implements a simple version of the NSGA-II algorithm:
     optimization: NSGA-II", 2002.
 
 TODO LIST:
-    • refine grid prior to genetic search
     • create efficient all aligned edges mutation
     • check edge selector to make sure we are not eliminating needed scenarios
 
@@ -87,10 +86,7 @@ class Refiner:
         """
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
 
-        # 1. refine mesh of the plan
-        # TODO : implement this
-
-        # 2. create plan cache for performance reason
+        # 1. create plan cache for performance reason
         for floor in plan.floors.values():
             floor.mesh.compute_cache()
 
@@ -103,7 +99,7 @@ class Refiner:
         map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
         toolbox.register("map", map_func)
 
-        # 3. run the algorithm
+        # 2. run the algorithm
         initial_ind = toolbox.individual(plan)
         results = self._algorithm(toolbox, initial_ind, params, _hof)
 
@@ -133,8 +129,6 @@ def mate_and_mutate(mate_func,
         mate_func(_ind1, _ind2)
     mutate_func(_ind1)
     mutate_func(_ind2)
-    _ind1.fitness.clear()
-    _ind2.fitness.clear()
 
     return _ind1, _ind2
 
@@ -212,6 +206,10 @@ def simple_ga(toolbox: 'core.Toolbox',
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
+
+        for i, ind in enumerate(pop):
+            ind.name = "Gen n°{}-{} • Ind n°{}-{}".format(gen, ngen, i+1, mu)
+            ind.plot()
 
         # store best individuals in hof
         if hof is not None:

@@ -18,16 +18,11 @@ from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space, Plan
+    from libs.plan.plan import Space
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
 scoreFunc = Callable[['Specification', 'Individual'], Dict[int, float]]
-
-
-def dict_zip(*dicts):
-    """ zips dicts together"""
-    return {k: tuple(d[k] for d in dicts) for k in dicts[0].keys()}
 
 
 def compose(funcs: List[scoreFunc],
@@ -40,7 +35,10 @@ def compose(funcs: List[scoreFunc],
     :return:
     """
     mutable_spaces_id = {space.id for space in spec.plan.mutable_spaces()}
-    return {k: tuple(d.get(k, 0) for d in (f(spec, ind) for f in funcs)) for k in mutable_spaces_id}
+    output = {k: tuple(d.get(k, 0) for d in (f(spec, ind) for f in funcs))
+              for k in mutable_spaces_id}
+    ind.modified_spaces = set()
+    return output
 
 
 def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
@@ -88,6 +86,8 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         return {}
 
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if space.category.name in excluded_spaces:
             area_score[space.id] = 0.0
             continue
@@ -113,10 +113,12 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     excluded_spaces = ()
     score = {}
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if space.category.name in excluded_spaces:
             score[space.id] = 0.0
             continue
-        score[space.id] = space.number_of_corners()
+        score[space.id] = number_of_corners(space)
     return score
 
 
@@ -129,17 +131,25 @@ def number_of_corners(space: 'Space') -> int:
     """
     corner_min_angle = 20.0
     num_corners = 0
-    internal_edges = []
+    previous_corner = False
     for e in space.exterior_edges:
-        other = space.plan.get_space_of_edge(e)
+        other = space.plan.get_space_of_edge(e.pair)
         if not other or other.category.external:
+            if previous_corner:
+                num_corners -= 1
+                previous_corner = False
             continue
-        internal_edges.append(e)
-
-    for edge in internal_edges:
-        angle = ccw_angle(edge.opposite_vector, space.next_edge(edge).vector)
+        angle = ccw_angle(e.opposite_vector, space.next_edge(e).vector)
         if not pseudo_equal(angle, 180.0, corner_min_angle):
             num_corners += 1
+            previous_corner = True
+        else:
+            previous_corner = False
+    # loop back to initial edge
+    other = space.plan.get_space_of_edge(space.edge.pair)
+    if not other or other.category.external:
+        if previous_corner:
+            num_corners -= 1
 
     return num_corners
 
@@ -154,6 +164,8 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     excluded_spaces = ("circulation",)
     score = {}
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if space.category.name in excluded_spaces:
             score[space.id] = 0.0
             continue
@@ -163,7 +175,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
         box = space.bounding_box()
         box_area = box[0] * box[1]
         area = space.cached_area()
-        space_score = math.fabs((area - box_area) / area)
+        space_score = math.fabs((area - box_area) / area) * 100.0
         score[space.id] = space_score
 
     return score
@@ -179,6 +191,8 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if space.category.name in excluded_spaces:
             score[space.id] = 0
             continue
@@ -189,27 +203,6 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float
         score[space.id] = space_score
 
     return score
-
-
-def check_area(plan: 'Plan', spec: 'Specification') -> None:
-    """
-    Compares the plan area with the specification objectives
-    :param plan:
-    :param spec:
-    :return:
-    """
-    logging.info("Refiner: Checking Plan Surface: %s", plan.name)
-
-    item_dict = create_item_dict(spec)
-    for space in plan.mutable_spaces():
-        if item_dict[space.id] is None:
-            continue
-        area = round(space.cached_area()) / (100 ** 2)
-        min_area = item_dict[space.id].min_size.area / (100 ** 2)
-        max_area = item_dict[space.id].max_size.area / (100 ** 2)
-        ok = min_area <= area <= max_area
-        logging.info("  • Area {} : {} -> [{}, {}]: {}".format(space.category.name, area, min_area,
-                                                               max_area, "✅" if ok else "❌"))
 
 
 def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
@@ -255,7 +248,7 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
             if edge.pair.face is None:
                 continue
             other = ind.get_space_of_edge(edge.pair)
-            if not other or not other.category.circulation:
+            if not other or other not in connected_circulation_spaces:
                 continue
             # forward check
             shared_length = edge.length
@@ -292,6 +285,8 @@ def score_corridor_width(_: 'Specification', ind: 'Individual') -> Dict[int, flo
     score = {}
     corridors = ind.get_spaces("circulation")
     for corridor in corridors:
+        if corridor.id not in ind.modified_spaces:
+            continue
         polygon = corridor.boundary_polygon()
         width = min_section(polygon)
         score[corridor.id] = ((width - min_width)/min_width)**2
@@ -299,5 +294,35 @@ def score_corridor_width(_: 'Specification', ind: 'Individual') -> Dict[int, flo
     return score
 
 
+"""
+UTILITY Function
+"""
+
+
+def check(ind: 'Individual', spec: 'Specification') -> None:
+    """
+    Compares the plan area with the specification objectives
+    :param ind:
+    :param spec:
+    :return:
+    """
+    logging.info("Refiner: Checking Plan : %s", ind.name)
+
+    item_dict = create_item_dict(spec)
+    for space in ind.mutable_spaces():
+        item = item_dict[space.id]
+
+        area = round(space.cached_area()) / (100 ** 2)
+        min_area = item_dict[space.id].min_size.area / (100 ** 2) if item else "x"
+        max_area = item_dict[space.id].max_size.area / (100 ** 2) if item else "x"
+        ok = min_area <= area <= max_area if item else "x"
+        msg = " • {} = {}: {} -> [{}, {}]: {} | {} - {}".format(space.id,
+                                                                space.category.name, area, min_area,
+                                                                max_area, "✅" if ok else "❌",
+                                                                ind.fitness.sp_values[space.id],
+                                                                ind.fitness.sp_value[space.id])
+        logging.info(msg)
+
+
 __all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'score_area', 'score_corner',
-           'create_item_dict', 'check_area']
+           'create_item_dict', 'check']

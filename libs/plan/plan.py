@@ -2167,8 +2167,6 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
 
-    __slots__ = 'plan', 'id', 'mesh', 'level', 'meta'
-
     def __init__(self,
                  plan: 'Plan',
                  mesh: Optional['Mesh'] = None,
@@ -2285,8 +2283,6 @@ class Plan:
     FloorType = Floor
     SpaceType = Space
     LinearType = Linear
-
-    __slots__ = 'name', 'spaces', 'linears', 'floors', 'id', '_counter'
 
     def __init__(self,
                  name: str = 'unnamed_plan',
