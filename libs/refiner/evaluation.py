@@ -94,9 +94,9 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         item = space_to_item[space.id]
         space_area = space.cached_area()
         if space_area < item.min_size.area:
-            space_score = ((space_area - item.min_size.area)/space_area)**2
+            space_score = math.fabs((space_area - item.min_size.area)/space_area)*100
         elif space_area > item.max_size.area:
-            space_score = ((space_area - item.max_size.area)/space_area)**2
+            space_score = math.fabs((space_area - item.max_size.area)/space_area)*100
         else:
             space_score = 0
         area_score[space.id] = space_score
@@ -320,7 +320,7 @@ def check(ind: 'Individual', spec: 'Specification') -> None:
                                                                 space.category.name, area, min_area,
                                                                 max_area, "✅" if ok else "❌",
                                                                 ind.fitness.sp_values[space.id],
-                                                                ind.fitness.sp_value[space.id])
+                                                                ind.fitness.sp_wvalue[space.id])
         logging.info(msg)
 
 

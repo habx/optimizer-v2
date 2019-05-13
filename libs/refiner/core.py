@@ -48,28 +48,33 @@ class Fitness:
        the associated objective and positive weight to the maximization."""
 
     def __init__(self):
-        # dict containing the weighted values for each space
+        # dict containing the fitness values for each space
         self._spvalues: Dict[int, Tuple[float, ...]] = {}
-        # tuple containing the added values of each space for each constraint
+        # tuple containing the added fitness values of each space for each constraint
         self._values = self.compute_values(self._spvalues)
 
     @staticmethod
     def compute_values(spvalues: Dict[int, Tuple[float, ...]]) -> Tuple[float, ...]:
         """
-        Sums the weighted values of each space
+        Sums the values of each space
         :param spvalues:
         :return:
         """
         return tuple(sum(t) for t in zip(*spvalues.values()))
 
     @property
-    def value(self) -> float:
-        """ property : returns the arithmetic sum of the weighted values of the fitness
-        """
-        return sum(x * y for x, y in zip(self._values, self._weights))
+    def wvalues(self):
+        """ property returns the weighted values"""
+        return tuple(x * y for x, y in zip(self._values, self._weights))
 
     @property
-    def sp_value(self) -> Dict[int, float]:
+    def wvalue(self) -> float:
+        """ property : returns the arithmetic sum of the weighted values of the fitness
+        """
+        return sum(self.wvalues)
+
+    @property
+    def sp_wvalue(self) -> Dict[int, float]:
         """ property: returns the arithmetic sum of the weighted values for each space
         """
         return {i: sum(x * y for x, y in zip(v, self._weights)) for i, v in self._spvalues.items()}
@@ -85,7 +90,7 @@ class Fitness:
         property
         :return:
         """
-        return tuple(x / y for x, y in zip(self._values, self._weights))
+        return self._values
 
     @property
     def sp_values(self) -> Dict[int, Tuple[float, ...]]:
@@ -132,13 +137,13 @@ class Fitness:
                     tested. The default value is `slice(None)`, representing
                     every objectives.
         """
-        not_equal = False
-        for self_value, other_value in zip(self._values[obj], other._values[obj]):
-            if self_value > other_value:
-                not_equal = True
-            elif self_value < other_value:
+        dominates = False
+        for self_wvalue, other_wvalue in zip(self.wvalues[obj], other.wvalues[obj]):
+            if self_wvalue > other_wvalue:
+                dominates = True
+            elif self_wvalue < other_wvalue:
                 return False
-        return not_equal
+        return dominates
 
     @property
     def valid(self):
@@ -155,13 +160,13 @@ class Fitness:
         return not self.__lt__(other)
 
     def __le__(self, other: 'Fitness'):
-        return self._values <= other._values
+        return self.wvalues <= other.wvalues
 
     def __lt__(self, other: 'Fitness'):
-        return self._values < other._values
+        return self.wvalues < other.wvalues
 
     def __eq__(self, other: 'Fitness'):
-        return self._values == other._values
+        return self.wvalues == other.wvalues
 
     def __ne__(self, other: 'Fitness'):
         return not self.__eq__(other)
@@ -255,8 +260,8 @@ class Individual(Plan):
         for space in self.mutable_spaces():
             value = ' '.join(format(f, '.2f') for f in self.fitness.sp_values[space.id])
             msg += "\n{}: {} • {:.2f}".format(space.category.name, value,
-                                              self.fitness.sp_value[space.id])
-        msg += "\nSCORE: {}".format(self.fitness.value)
+                                              self.fitness.sp_wvalue[space.id])
+        msg += "\nSCORE: {}".format(self.fitness.wvalue)
         ax.set_xlabel(msg, fontsize=8)
         plot_save(save, show, self.name)
 
@@ -269,7 +274,7 @@ class Individual(Plan):
         new_plan = super().clone()
         new_ind = type(self)(new_plan)
         new_ind.fitness = copy.deepcopy(self.fitness)
-        new_ind.modified_spaces = self.modified_spaces
+        new_ind.modified_spaces = self.modified_spaces.copy()
         return new_ind
 
     def all_spaces_modified(self) -> 'Individual':

@@ -129,6 +129,8 @@ def mate_and_mutate(mate_func,
         mate_func(_ind1, _ind2)
     mutate_func(_ind1)
     mutate_func(_ind2)
+    _ind1.all_spaces_modified()
+    _ind2.all_spaces_modified()
 
     return _ind1, _ind2
 
@@ -201,15 +203,15 @@ def simple_ga(toolbox: 'core.Toolbox',
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
 
         # best score
-        best_ind = max(offspring, key=lambda i: i.fitness.value)
-        logging.info("Best : {} - {}".format(best_ind.fitness.value, best_ind.fitness.values))
+        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
+        logging.info("Best : {} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
 
         for i, ind in enumerate(pop):
-            ind.name = "Gen n°{}-{} • Ind n°{}-{}".format(gen, ngen, i+1, mu)
-            ind.plot()
+           ind.name = "Gen n°{}-{} • Ind n°{}-{}".format(gen, ngen, i+1, mu)
+           ind.plot()
 
         # store best individuals in hof
         if hof is not None:

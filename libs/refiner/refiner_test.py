@@ -11,10 +11,10 @@ from libs.io import reader_test
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
-            "weights": (-2.0, -1.0, -1.0, -10.0),
-            "ngen": 10,
+            "weights": (-10.0, -1.0, -1.0, -100.0),
+            "ngen": 20,
             "mu": 8,
-            "cxpb": 0.5
+            "cxpb": 0.8
           }
 
 
@@ -34,14 +34,14 @@ def run():
         # run genetic algorithm
 
         start = time.time()
-        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=1, hof=1)
+        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=4, hof=1)
         end = time.time()
 
         # analyse found solutions
         for n, ind in enumerate(sols):
             ind.name = str(n)
             ind.plot()
-            print("n°{} | Fitness: {} - {}".format(n, ind.fitness.value, ind.fitness.values))
+            print("n°{} | Fitness: {} - {}".format(n, ind.fitness.wvalue, ind.fitness.values))
         print("Time elapsed: {}".format(end - start))
         best = sols[0]
         item_dict = evaluation.create_item_dict(spec)
@@ -60,7 +60,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("001")  # 052
+    spec, plan = tools.cache.get_plan("001", grid="optimal_finer_grid")  # 052
 
     if plan:
         plan.name = "original"
@@ -75,7 +75,7 @@ def apply():
         improved_plan.plot()
         # analyse found solutions
         logging.info("Time elapsed: {}".format(end - start))
-        logging.info("Solution found : {} - {}".format(improved_plan.fitness.value,
+        logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                        improved_plan.fitness.values))
 
         evaluation.check(improved_plan, spec)
