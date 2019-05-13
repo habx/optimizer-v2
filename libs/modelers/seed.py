@@ -112,10 +112,15 @@ class Seeder:
             for floor in plan.floors.values():
                 for face in floor.mesh.faces:
                     if plan.get_space_of_face(face).category.name == "empty":
-                        Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-            for space in plan.spaces:
-                if space.category.name == "empty":
-                    space.remove()
+                        Space(plan, floor, face.edge, SPACE_CATEGORIES["seed"])
+            has_empty_space = True
+            while has_empty_space:
+                has_empty_space = False
+                for space in plan.spaces:
+                    if space.category.name == "empty":
+                        plan.remove(space)
+                        has_empty_space = True
+            plan.remove_null_spaces()
 
     def plant(self, show: bool = False) -> 'Seeder':
         """
