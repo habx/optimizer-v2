@@ -884,6 +884,8 @@ def test_maximum_adjacency_length():
     length = plan.spaces[0].maximum_adjacency_length(plan.spaces[2])
 
     assert length == 200, "test_maximum_adjacency_length"
+    assert plan.spaces[0].adjacent_to(plan.spaces[2], 200)
+    assert not plan.spaces[0].adjacent_to(plan.spaces[2], 201)
 
 
 def test_contact_length():
@@ -1195,3 +1197,16 @@ def test_corner_stone():
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
 
     assert not space.corner_stone(*faces)
+
+
+def test_boundary_polygon(l_plan):
+    from libs.modelers.grid import GRIDS
+
+    boundaries = [(0, 0), (500, 200), (1000, 0), (1000, 400), (1200, 400), (1200, 1200),
+                  (500, 1000), (200, 500), (0, 500)]
+    assert l_plan.empty_space.boundary_polygon() == boundaries
+    GRIDS["simple_grid"].apply_to(l_plan)
+    l_plan.plot()
+    assert l_plan.empty_space.boundary_polygon() == boundaries
+
+

@@ -2210,8 +2210,8 @@ SELECTORS = {
                                           pair(is_not(corner_stone))]),
 
     "is_mutable": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
-                                                     is_not(has_needed_linear),
                                                      is_not(only_face),
+                                                     is_not(has_needed_linear),
                                                      is_not(only_adjacent_to_immutable),
                                                      is_not(corner_stone)]),
 

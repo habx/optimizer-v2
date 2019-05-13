@@ -496,6 +496,10 @@ class Vertex(MeshComponent):
 
                 # check if we have a correct edge in case of an internal edge
                 new_angle = ccw_angle(new_edge.vector, self.edge.vector)
+                # note : we must check that the edge is not just slightly on the clockwise side
+                # of the new_edge
+                if pseudo_equal(new_angle, 360.0, ANGLE_EPSILON):
+                    new_angle = 0.0
                 if min_angle is None or min_angle > new_angle:
                     best_edge = new_edge
                     min_angle = new_angle
@@ -2576,7 +2580,7 @@ class Face(MeshComponent):
         internal_edges = list(self.internal_edges)
         intersects_an_internal_edge = False
         for edge in internal_edges:
-            if edge.as_sp.intersects(face.as_sp):
+            if edge.as_sp.intersects(face.as_sp_eroded):
                 intersects_an_internal_edge = True
                 break
 
@@ -3398,18 +3402,17 @@ class Mesh:
             return self._cached_area
 
     @property
-    def directions(self) -> Sequence[Tuple[float, float]]:
+    def directions(self) -> List[Tuple[float, float]]:
         """
         Returns the main directions of the mesh as a tuple containing an angle and a length
         For each boundary edge we calculate the absolute ccw angle and we add it to a dict
         :return:
         """
-        directions_dict = {}
+        directions_dict: Dict[float, float] = {}
 
         for edge in self.boundary_edges:
-            angle = edge.absolute_angle % 180.0
-            # we round the angle to the desired precision given by the ANGLE_EPSILON constant
-            angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
+            # TODO : this should be coherent with ANGLE_EPSILON and not just an integer round
+            angle = float(round(edge.absolute_angle % 180.0))
             if angle in directions_dict:
                 directions_dict[angle] += edge.length
             else:
