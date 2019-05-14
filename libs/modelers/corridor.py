@@ -77,6 +77,9 @@ class Corridor:
         self.circulator.connect()
         self.circulator.plot()
 
+        import sys
+        sys.exit()
+
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
             for vertex_path in vertex_paths:
@@ -227,7 +230,7 @@ class Corridor:
             edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
-        self._ortho_slice(edge_path[0],start=True, show=show)
+        self._ortho_slice(edge_path[0], start=True, show=show)
         self._ortho_slice(edge_path[-1], show=show)
 
         return self
@@ -781,8 +784,8 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            # GRIDS['optimal_grid'].apply_to(plan)
-            GRIDS['optimal_finer_grid'].apply_to(plan)
+            GRIDS['optimal_grid'].apply_to(plan)
+            # GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
             spec.plan = plan
             space_planner = SpacePlanner("test", spec)
@@ -818,5 +821,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "007.json"
+    plan_name = "026.json"
     main(input_file=plan_name)

@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--module", help="choose launched module",
-                        default="space_planner/space_planner")
+                        default="modelers/corridor")
     args = parser.parse_args()
     module = args.module
     files = reader.get_list_from_folder("../resources/blueprints")

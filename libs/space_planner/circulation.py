@@ -13,6 +13,7 @@ from libs.mesh.mesh import Edge
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
+from libs.utils.geometry import parallel
 
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
@@ -28,6 +29,7 @@ class Circulator:
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
         self.connectivity_graph = GraphNx()
+        self.corner_edges = {space: [] for space in plan.spaces}
         self.connecting_paths = {level: [] for level in plan.list_level}
         self.circulation_cost = 0
 
@@ -37,7 +39,12 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        path, cost = graph.get_shortest_path(list(space1.edges), list(space2.edges))
+        speed_up = False
+        if speed_up:
+            path, cost = graph.get_shortest_path(self.corner_edges[space1],
+                                                 self.corner_edges[space2])
+        else:
+            path, cost = graph.get_shortest_path(list(space1.edges), list(space2.edges))
         return path, cost
 
     def multilevel_connection(self):
@@ -58,6 +65,41 @@ class Circulator:
         for i in range(number_of_floors - 1):
             self.connectivity_graph.add_edge(space_connection_between_floors[i],
                                              space_connection_between_floors[i + 1])
+
+    def init_corner_edges(self):
+
+        def parallel_neighbor(e: 'Edge', sp: 'Space', next_edge: bool = True):
+            neighbor_edge = sp.next_edge(e) if next_edge else sp.previous_edge(e)
+            if parallel(e.vector, neighbor_edge.vector):
+                return True
+            return False
+
+        def is_corner_edge(e: 'Edge', sp: 'Space'):
+
+            if (not parallel_neighbor(e, sp) or
+                    not parallel_neighbor(e, sp, next_edge=False)):
+                return True
+            sp_pair = self.plan.get_space_of_edge(e.pair)
+            if sp_pair:
+                if (not parallel_neighbor(e.pair, sp_pair) or
+                        not parallel_neighbor(e.pair, sp_pair, next_edge=False)):
+                    return True
+            return False
+
+        def is_adjacent_to_other_space(e: 'Edge', sp: 'Space'):
+            sp_pair = self.plan.get_space_of_edge(e.pair)
+            if not sp_pair:
+                return False
+            return True
+
+        def get_corner_edges(sp: 'Space'):
+            corner_edges = list(edge for edge in sp.edges if
+                                is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge, sp))
+            return corner_edges
+
+        mutable_spaces = [space for space in self.plan.spaces if space.mutable]
+        for space in mutable_spaces:
+            self.corner_edges[space] = get_corner_edges(space)
 
     def init_connectivity_graph(self):
         """
@@ -169,6 +211,8 @@ class Circulator:
         detects isolated rooms and generate a path to connect them
         :return:
         """
+
+        self.init_corner_edges()
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
 
@@ -284,6 +328,9 @@ class PathCalculator:
             else:
                 rule = 'window_room_default'
 
+        elif (edge in self.component_edges['window_edges']):
+            rule = 'circulation_along_window'
+
         return rule
 
     def cost(self, edge: Edge, space: Space) -> float:
@@ -307,6 +354,7 @@ COST_RULES = {
     'water_room_default': 1000,
     'window_room_less_than_two_windows': 10e10,
     'window_room_default': 5000,
+    'circulation_along_window': 5000,
     'default': 0
 }
 
