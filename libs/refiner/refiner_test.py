@@ -13,8 +13,8 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 PARAMS = {
             "weights": (-10.0, -1.0, -1.0, -100.0),
             "ngen": 20,
-            "mu": 8,
-            "cxpb": 0.8
+            "mu": 28,
+            "cxpb": 0.5
           }
 
 

@@ -117,10 +117,13 @@ class Fitness:
     def update(self, values_dict: Dict[int, Tuple[float, ...]]) -> None:
         """
         Updates the values of the fitness with the ones contained in the specified dict.
+        If a value is None, the initial value of self._spvalues is kept.
         :param values_dict:
         :return:
         """
-        self._spvalues.update(values_dict)
+        for k, t in values_dict.items():
+            self._spvalues[k] = tuple(t[i] if t[i] is not None else self._spvalues[k][i]
+                                      for i in range(len(t)))
         self._values = self.compute_values(self._spvalues)
 
     def clear(self):
@@ -289,7 +292,7 @@ class Individual(Plan):
     def __getstate__(self) -> dict:
         data = self.serialize(embedded_mesh=False)
         data["fitness"] = self.fitness
-        data["modified_spaces"] = self.modified_spaces
+        data["modified_spaces"] = self.modified_spaces.copy()
         return data
 
     def __setstate__(self, state: dict):
@@ -414,8 +417,7 @@ class Toolbox:
     @staticmethod
     def evaluate_pop(map_func: mapFunc,
                      eval_func: evaluateFunc,
-                     pop: Sequence['Individual'],
-                     refresh: bool = False) -> None:
+                     pop: Sequence['Individual']) -> None:
         """
         Evaluates the fitness of a specified population. Note: the method has to be made static
         for multiprocessing purposes.
@@ -423,11 +425,9 @@ class Toolbox:
         :param eval_func: an evaluation function (NOTE: we cannot refer to self.evaluate for
                multiprocessing concerns)
         :param pop: a list of individuals
-        :param refresh: whether to refresh the fitness if it is still valid
         :return:
         """
-        invalid_fit_individuals = [ind for ind in pop if not ind.fitness.valid or refresh]
-        fitnesses = map_func(eval_func, invalid_fit_individuals)
-        for ind, fit in zip(invalid_fit_individuals, fitnesses):
+        fitnesses = map_func(eval_func, pop)
+        for ind, fit in zip(pop, fitnesses):
             ind.fitness.update(fit)
             ind.modified_spaces = set()

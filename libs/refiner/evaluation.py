@@ -35,9 +35,8 @@ def compose(funcs: List[scoreFunc],
     :return:
     """
     mutable_spaces_id = {space.id for space in spec.plan.mutable_spaces()}
-    output = {k: tuple(d.get(k, 0) for d in (f(spec, ind) for f in funcs))
+    output = {k: tuple(d.get(k, None) for d in (f(spec, ind) for f in funcs))
               for k in mutable_spaces_id}
-    ind.modified_spaces = set()
     return output
 
 
@@ -269,7 +268,7 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
                 found_adjacency = True
                 break
 
-        score[space.id] = cost_per_unconnected_space if not found_adjacency else 0
+        score[space.id] = cost_per_unconnected_space if not found_adjacency else 0.0
 
     return score
 

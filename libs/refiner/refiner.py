@@ -129,8 +129,6 @@ def mate_and_mutate(mate_func,
         mate_func(_ind1, _ind2)
     mutate_func(_ind1)
     mutate_func(_ind2)
-    _ind1.all_spaces_modified()
-    _ind2.all_spaces_modified()
 
     return _ind1, _ind2
 
@@ -189,8 +187,8 @@ def simple_ga(toolbox: 'core.Toolbox',
     pop = toolbox.select(pop, len(pop))
 
     # Begin the generational process
-    for gen in range(1, ngen):
-        logging.info("Refiner: generation %i : %f prct", gen, gen / ngen * 100.0)
+    for gen in range(1, ngen + 1):
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
@@ -204,14 +202,10 @@ def simple_ga(toolbox: 'core.Toolbox',
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.info("Best : {} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
-
-        for i, ind in enumerate(pop):
-           ind.name = "Gen n°{}-{} • Ind n°{}-{}".format(gen, ngen, i+1, mu)
-           ind.plot()
 
         # store best individuals in hof
         if hof is not None:
