@@ -937,7 +937,7 @@ SEEDERS = {
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed, merge_corners]),
     "directional_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                            [divide_along_seed_borders, empty_to_seed, merge_small_cells]),
+                                 [divide_along_seed_borders, empty_to_seed, merge_small_cells]),
 }
 
 if __name__ == '__main__':
@@ -972,7 +972,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "011"
+        # plan_name = "001"
 
         # to not run each time the grid generation
         try:
