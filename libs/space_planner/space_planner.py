@@ -25,15 +25,11 @@ class SpacePlanner:
     Space planner Class
     """
 
-    def __init__(self, name: str, spec: 'Specification'):
+    def __init__(self, name: str):
         self.name = name
-        self._init_spec(spec)
-        self._plan_cleaner()
-        logging.debug(self.spec)
-
-        self.manager = ConstraintsManager(self)
-
-        self.solutions_collector = SolutionsCollector(self.spec)
+        self.spec = None
+        self.manager = None
+        self.solutions_collector = None
 
     def __repr__(self):
         output = "SpacePlanner" + self.name
@@ -188,6 +184,31 @@ class SpacePlanner:
 
         return []
 
+    def apply_to(self, spec: 'Specification') -> List['Solution']:
+        """
+        Runs the space planner
+        :param spec:
+        :return: SolutionsCollector
+        """
+        self._init_spec(spec)
+        self._plan_cleaner()
+        logging.debug(self.spec)
+
+        self.manager = ConstraintsManager(self)
+
+        self.solutions_collector = SolutionsCollector(self.spec)
+
+        self.solution_research()
+
+        best_solutions = self.solutions_collector.best()
+
+        return best_solutions
+
+standard_space_planner = SpacePlanner("standard")
+
+SPACE_PLANNERS = {
+    "standard_space_planner": standard_space_planner
+}
 
 if __name__ == '__main__':
     import libs.io.reader as reader
@@ -210,7 +231,7 @@ if __name__ == '__main__':
         :return:
         """
         input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        # input_file = "001.json"
+        #input_file = "011.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -218,30 +239,7 @@ if __name__ == '__main__':
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['optimal_grid'].apply_to(plan)
-
-        nbr_grid_cells = 0
-        for space in plan.spaces:
-            if space.category.name == "empty":
-                nbr_grid_cells += len(list(space.faces))
-        logging.debug("nbr_grid_cells : ", nbr_grid_cells)
-
-        if nbr_grid_cells > 25:
-            SEEDERS["simple_seeder"].apply_to(plan)
-        else:
-            new_space_list = []
-            for space in plan.spaces:
-                if space.category.name == "empty":
-                    for face in space.faces:
-                        new_space = Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
-                        new_space_list.append(new_space)
-            has_empty_space = True
-            while has_empty_space:
-                has_empty_space = False
-                for space in plan.spaces:
-                    if space.category.name == "empty":
-                        plan.remove(space)
-                        has_empty_space = True
-                plan.remove_null_spaces()
+        SEEDERS["simple_seeder"].apply_to(plan)
 
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
@@ -257,7 +255,8 @@ if __name__ == '__main__':
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         t0 = time.process_time()
-        space_planner = SpacePlanner("test", spec)
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
+        best_solutions = space_planner.apply_to(spec)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -271,21 +270,19 @@ if __name__ == '__main__':
                            ** 2 / space_planner.spec.plan.indoor_area)
         logging.debug("PLAN Ratio : %i", plan_ratio)
         logging.debug("space_planner time : ", time.process_time() - t0)
-        t1 = time.process_time()
-        best_solutions = space_planner.solution_research()
-        logging.debug("solution_research time : ", time.process_time() - t1)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
-        logging.debug("solution_research time: %f", time.process_time() - t1)
+        logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
         # Output
-        for sol in best_solutions:
-            sol.plan.plot()
-            logging.debug(sol, sol.score)
-            for space in sol.plan.mutable_spaces():
-                logging.debug(space.category.name, " : ", space.area)
-            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-            writer.save_json_solution(solution_dict, sol.id)
+        if best_solutions:
+            for sol in best_solutions:
+                sol.plan.plot()
+                logging.debug(sol, sol.score)
+                for space in sol.plan.mutable_spaces():
+                    logging.debug(space.category.name, " : ", space.area)
+                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
+                writer.save_json_solution(solution_dict, sol.id)
 
         # shuffle
         # if best_solutions:

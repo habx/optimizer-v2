@@ -11,7 +11,7 @@ from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.io import reader
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 
 
 def test_solution_distance():
@@ -150,8 +150,8 @@ def test_duplex():
     spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
     spec.plan = plan
 
-    space_planner = SpacePlanner("test", spec)
-    best_solutions = space_planner.solution_research()
+    space_planner = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner.apply_to(spec)
 
     for solution in best_solutions:
         solution.plan.plot()

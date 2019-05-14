@@ -9,9 +9,8 @@ from libs.io import reader
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
-from libs.operators.selector import SELECTORS
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 
 test_files = [("011.json", "011_setup0.json"),
               ("043.json", "043_setup0.json")]
@@ -32,8 +31,8 @@ def test_space_planner(input_file, input_setup):
     spec = reader.create_specification_from_file(input_setup)
     spec.plan = plan
 
-    space_planner = SpacePlanner("test", spec)
-    best_solutions = space_planner.solution_research()
+    space_planner = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner.apply_to(spec)
 
 
 def test_duplex():
@@ -79,7 +78,7 @@ def test_duplex():
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 
-    space_planner = SpacePlanner("test", spec)
-    best_solutions = space_planner.solution_research()
+    space_planner = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner.apply_to(spec)
 
 
