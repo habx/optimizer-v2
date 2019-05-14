@@ -5,7 +5,7 @@ Constraint manager Module Tests
 
 from libs.plan.plan import Plan
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.specification.specification import Specification, Item, Size
 
 
@@ -39,8 +39,8 @@ def test_t1():
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
     spec = Specification("simple_test", plan_t1, [bathroom, circulation, living])
 
-    space_planner_t1 = SpacePlanner("t1", spec)
-    best_t1 = space_planner_t1.solution_research()
+    space_planner_t1 = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t1.apply_to(spec)
     assert len(space_planner_t1.solutions_collector.solutions) == 2
 
 
@@ -78,8 +78,8 @@ def test_t1_bis():
 
     print(spec)
 
-    space_planner_t1_bis = SpacePlanner("t1_bis", spec)
-    best_t1_bis = space_planner_t1_bis.solution_research()
+    space_planner_t1_bis = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t1_bis.apply_to(spec)
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1
 
 
@@ -122,8 +122,8 @@ def test_t3_balcony():
     spec = Specification("simple_test", plan_t3_balcony, [bathroom, circulation, living, bedroom1,
                                                           bedroom2])
 
-    space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
-    best_t3 = space_planner_t3_balcony.solution_research()
+    space_planner_t3_balcony = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t3_balcony.apply_to(spec)
 
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
@@ -165,8 +165,8 @@ def test_t3_bis():
     spec = Specification("simple_test", plan_t3_bis, [bathroom, circulation, living, bedroom1,
                                                       bedroom2])
 
-    space_planner_t3_bis = SpacePlanner("t3_bis", spec)
-    best_t3_bis = space_planner_t3_bis.solution_research()
+    space_planner_t3_bis = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t3_bis.apply_to(spec)
 
     assert len(space_planner_t3_bis.solutions_collector.solutions) == 1
 
