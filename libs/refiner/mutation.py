@@ -20,17 +20,18 @@ Note : a mutation should set the modified spaces flag of the individual
 
 """
 import random
+import math
 import logging
-from typing import TYPE_CHECKING, Optional, Callable, Tuple, List
+from typing import TYPE_CHECKING, Optional, Callable, Tuple, List, Container
 
 from libs.operators.selector import SELECTORS
 
 if TYPE_CHECKING:
-    from libs.plan.plan import Plan, Space
+    from libs.plan.plan import Space
     from libs.mesh.mesh import Edge
     from libs.refiner.core import Individual
 
-MutationType = Callable[['Individual'], 'Individual']
+MutationType = Callable[['Space'], 'Individual']
 MutationProbability = float
 
 
@@ -48,10 +49,12 @@ def compose(mutations: List[Tuple[MutationType, MutationProbability]],
     # Note : Make sure the mutations are ordered from rarest to more frequent
     # per convention : only one mutation can occur so it is important to start from the
     # rarest
+    space = _random_space(ind)
+
     dice = random.random()
     for mutation, pb in mutations:
         if dice <= pb:
-            ind = mutation(ind)
+            ind = mutation(space)
             break
     else:
         logging.debug("Refiner: No mutation occurred")
@@ -59,44 +62,76 @@ def compose(mutations: List[Tuple[MutationType, MutationProbability]],
     return ind
 
 
-def mutate_aligned(ind: 'Individual') -> 'Individual':
+def composite(ind: 'Individual') -> 'Individual':
+    """
+    A composite mutation
+    Mutations
+    :param ind:
+    :return:
+    """
+    mutations = (add_face, remove_face, add_aligned_faces, remove_aligned_faces)
+    pbx = {
+        "small": (0.2, 0.0, 1.0, 0.0),
+        "neutral": (0.1, 0.2, 0.6, 1.0),
+        "big": (0.0, 0.2, 0.0, 1.0)
+    }
+    space = _random_space(ind)
+    if not space:
+        return ind
+
+    item = ind.fitness.cache.get("space_to_item", None)[space.id]
+
+    space_size = "neutral"
+    if item:  # corridor space has no item in spec
+        if space.cached_area() < item.min_size.area:
+            space_size = "small"
+        elif space.cached_area() > item.max_size.area:
+            space_size = "big"
+
+    dice = random.random()
+    for i, mutation in enumerate(mutations):
+        if dice <= pbx[space_size][i]:
+            modified_spaces = mutation(space)
+            ind.modified_spaces |= {s.id for s in modified_spaces}
+            break
+    else:
+        logging.debug("Refiner: No mutation occurred")
+
+    return ind
+
+
+def mutate_aligned(space: 'Space') -> 'Individual':
     """
     Mutates the plan.
     1. select a random space
     2. select a random mutable edge
     3. mutate
-    TODO : we must check that we are not removing an essential edge of the space !!
-    :param ind:
+    :param space:
     :return: a single element tuple containing the mutated individual
     """
-    space = _random_space(ind)
-    edge = _random_mutable_edge(space)
-    if edge:
-        modified_spaces = add_aligned_face(edge, space)
-        ind.modified_spaces |= {s.id for s in modified_spaces}
+    ind = space.plan
+    modified_spaces = add_aligned_faces(space)
+    ind.modified_spaces |= {s.id for s in modified_spaces}
 
     return ind
 
 
-def mutate_simple(ind: 'Individual') -> 'Individual':
+def mutate_simple(space: 'Space') -> 'Individual':
     """
     Mutates the plan.
     1. select a random space
     2. select a random mutable edge
     3. remove the edge face from the space and gives it to the pair space
-    :param ind:
+    :param: space:
     :return: a single element tuple containing the mutated individual
     """
-    space = _random_space(ind)
-    edge = _random_mutable_edge(space)
-    if edge:
-        modified_spaces = remove_face(edge, space)
-        if __debug__ and len(modified_spaces) > 2:
-            logging.warning("Refiner: Mutation: A space was split !! %s", modified_spaces[2])
-        if __debug__ and space.number_of_faces == 0:
-            logging.warning("Refiner: A space has no face left !!")
-        ind.modified_spaces |= {s.id for s in modified_spaces}
-
+    ind = space.plan
+    modified_spaces = remove_face(space)
+    if __debug__ and len(modified_spaces) > 2:
+        logging.warning("Refiner: Mutation: A space was split !! %s", modified_spaces[2])
+    if __debug__ and space.number_of_faces == 0:
+        logging.warning("Refiner: A space has no face left !!")
+    ind.modified_spaces |= {s.id for s in modified_spaces}
     return ind
 
 
@@ -105,26 +140,42 @@ PICKERS operators
 """
 
 
-def _random_space(plan: 'Plan') -> Optional['Space']:
+def _random_space(ind: 'Individual') -> Optional['Space']:
     """
     Returns a random mutable space of the plan
-    :param plan:
+    :param ind:
     :return:
     """
-    mutable_spaces = list(plan.mutable_spaces())
+    mutable_spaces = list(ind.mutable_spaces())
     if not mutable_spaces:
         logging.warning("Mutation: Random space, no mutable space was found !!")
         return None
-    return random.choice(mutable_spaces)
+    spaces_fitnesses = (math.fabs(ind.fitness.sp_wvalue[s.id]) for s in mutable_spaces)
+    # we randomly select a space with higher weights for the spaces with lower fitnesses
+    # Note : weighted fitnesses are negative hence the absolute value
+    return random.choices(mutable_spaces, weights=spaces_fitnesses)[0]
 
 
-def _random_mutable_edge(space: 'Space') -> Optional['Edge']:
+def _random_removable_edge(space: 'Space') -> Optional['Edge']:
     """
     Returns a random edge of the space
     :param space:
     :return:
     """
-    mutable_edges = list(SELECTORS["is_mutable"].yield_from(space))
+    mutable_edges = list(SELECTORS["can_be_removed"].yield_from(space))
+    if not mutable_edges:
+        logging.debug("Mutation: Random edge, no edge was found !! %s", space)
+        return None
+    return random.choice(mutable_edges)
+
+
+def _random_addable_edge(space: 'Space') -> Optional['Edge']:
+    """
+    Returns a random edge of the space
+    :param space:
+    :return:
+    """
+    mutable_edges = list(SELECTORS["can_be_added"].yield_from(space))
     if not mutable_edges:
         logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
@@ -136,7 +187,7 @@ MUTATIONS operators
 """
 
 
-def add_aligned_face(edge: 'Edge', space: 'Space') -> List['Space']:
+def add_aligned_faces(space: 'Space') -> List['Space']:
     """
     Adds to space all the faces of the aligned edges
     • checks if the edge is just after a corner
@@ -144,42 +195,142 @@ def add_aligned_face(edge: 'Edge', space: 'Space') -> List['Space']:
     • for each edge add the corresponding faces
     :return:
     """
-    assert space.has_edge(edge), "Mutation: The edge must belong to the first space"
+    edge = _random_addable_edge(space)
+    if not edge:
+        return []
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
     # retrieve all the aligned edges
-    edges_and_spaces = map(lambda e: (space.plan.get_space_of_edge(e.pair), e.pair),
+    spaces_and_edges = map(lambda e: (space.plan.get_space_of_edge(e.pair), e.pair),
                            space.aligned_siblings(edge, max_angle))
-    # group faces by spaces
-    faces_by_spaces = {}
-    for _space, _edge in edges_and_spaces:
-        if _space is None:
+    # group edges by spaces
+    edges_by_spaces = {}
+    for other, _edge in spaces_and_edges:
+        if other is None:
             continue
-        if _space not in faces_by_spaces:
-            faces_by_spaces[_space] = {_edge.face}
+        if other not in edges_by_spaces:
+            edges_by_spaces[other] = {_edge}
         else:
-            faces_by_spaces[_space].add(_edge.face)
+            edges_by_spaces[other].add(_edge)
 
     modified_spaces = [space]
-    for _space in faces_by_spaces:
-        if not _space.mutable:
+    for other in edges_by_spaces:
+        if not other.mutable:
             continue
         # check if we are breaking the space if we remove the faces
-        if _space.corner_stone(*faces_by_spaces[_space]):
+        if other.corner_stone(*list(e.face for e in edges_by_spaces[other])):
             continue
-        faces_id = list(map(lambda f: f.id, faces_by_spaces[_space]))
+
+        # remove all edges that have a needed linear for the space
+        for e in edges_by_spaces[other].copy():
+            if _has_needed_linear(e, other):
+                edges_by_spaces[other].remove(e)
+
+        # remove all edges that are the only ones whose face is adjacent to a needed space
+        for e in edges_by_spaces[other].copy():
+            if _adjacent_to_needed_space(e, other, edges_by_spaces[other]):
+                edges_by_spaces[other].remove(e)
+
+        faces_id = list(set(map(lambda e: e.face.id, edges_by_spaces[other])))
         space.add_face_id(*faces_id)
-        _space.remove_face_id(*faces_id)
+        other.remove_face_id(*faces_id)
         # set the reference edges of each spaces
         space.set_edges()
-        _space.set_edges()
-        modified_spaces.append(_space)
+        other.set_edges()
+        modified_spaces.append(other)
 
     return modified_spaces if len(modified_spaces) > 1 else []
 
 
-def remove_face(edge: 'Edge', space: 'Space') -> List['Space']:
+def add_face(space: 'Space') -> List['Space']:
+    """
+    Adds the face of the edge pair to the space
+    :param space:
+    :return:
+    """
+    edge = _random_addable_edge(space)
+    if not edge:
+        return []
+
+    plan = space.plan
+    face = edge.pair.face
+    other_space = plan.get_space_of_edge(edge.pair)
+    if not other_space:
+        return []
+
+    logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
+                  other_space)
+
+    created_spaces = other_space.remove_face(face)
+    space.add_face(face)
+    return [space] + list(created_spaces)
+
+
+def remove_aligned_faces(space: 'Space') -> List['Space']:
+    """
+    Removes all aligned faces with the edge from the space and add them to their
+    corresponding pair spaces
+    :param space:
+    :return:
+    """
+    if space.number_of_faces <= 1:
+        return []
+
+    edge = _random_removable_edge(space)
+    if not edge:
+        return []
+
+    plan = space.plan
+
+    max_angle = 25.0  # the angle used to determine if two edges are aligned
+
+    # check that we are not removing any important faces
+    edges = space.aligned_siblings(edge, max_angle)
+    if space.corner_stone(*list(e.face for e in edges)):
+        return []
+
+    # we must check also that the list of faces does not remove any needed linears or adjacent
+    # spaces. We remove all the needed faces.
+    for edge in edges[:]:
+        if _has_needed_linear(edge, space):
+            edges.remove(edge)
+
+    for edge in edges[:]:
+        if _adjacent_to_needed_space(edge, space, edges):
+            edges.remove(edge)
+
+    if not edges:
+        return []
+
+    modified_spaces = [space]
+
+    faces_by_spaces = {}
+
+    for edge in edges:
+        other = plan.get_space_of_edge(edge.pair)
+        if other is None:
+            continue
+        if other not in faces_by_spaces:
+            faces_by_spaces[other] = {edge.face}
+        else:
+            faces_by_spaces[other].add(edge.face)
+
+    for other in faces_by_spaces:
+        if not other.mutable:
+            continue
+        faces_id = list(map(lambda f: f.id, faces_by_spaces[other]))
+        other.add_face_id(*faces_id)
+        space.remove_face_id(*faces_id)
+        # set the reference edges of each spaces
+        space.set_edges()
+        other.set_edges()
+        modified_spaces.append(other)
+
+    return modified_spaces
+
+
+def remove_face(space: 'Space') -> List['Space']:
     """
     remove the edge face: by removing to the specified space and adding it to the other space
     Eventually merge the second space with all other specified spaces
@@ -187,11 +338,12 @@ def remove_face(edge: 'Edge', space: 'Space') -> List['Space']:
     • the merged space
     • the newly created spaces by the removal of the face
     The mutation is reversible : swap_face(edge.pair, swap_face(edge, spaces))
-    :param edge:
     :param space:
     :return: a list of space
     """
-    assert space.has_edge(edge), "Mutation: The edge must belong to the space"
+    edge = _random_removable_edge(space)
+    if not edge:
+        return []
 
     plan = space.plan
     face = edge.face
@@ -199,13 +351,73 @@ def remove_face(edge: 'Edge', space: 'Space') -> List['Space']:
     if not other_space:
         return []
 
-    logging.debug("Mutation: Swapping face %s of space %s to space %s", face, space, other_space)
+    logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
+                  other_space)
 
-    # only remove the face if it belongs to a space
     created_spaces = space.remove_face(face)
     other_space.add_face(face)
 
     return [other_space] + list(created_spaces)
+
+
+"""
+UTILITY Functions
+"""
+
+
+def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge face has an immutable component
+    :param edge:
+    :param space:
+    :return:
+    """
+    face = edge.face
+
+    if not space.category.needed_linears or not face:
+        return False
+
+    for _edge in edge.face.edges:
+        linear = space.plan.get_linear_from_edge(_edge)
+        if linear and linear.category in space.category.needed_linears:
+            return True
+    return False
+
+
+def _adjacent_to_needed_space(edge: 'Edge', space: 'Space',
+                              removed_edges: Container['Edge']) -> bool:
+    """
+    Returns True if the edge face has an immutable component
+    :param edge:
+    :param space:
+    :param removed_edges: other edges removed from the space
+    :return:
+    """
+    face = edge.face
+
+    if not space.category.needed_spaces or not face:
+        return False
+
+    # check if the face of the edge is adjacent to a needed space
+    for _edge in face.edges:
+        if space.is_boundary(_edge):
+            other = space.plan.get_space_of_edge(_edge.pair)
+            if other and other.category in space.category.needed_spaces:
+                break
+    else:
+        return False
+
+    # check if another face maintains the needed adjacency
+    for _edge in space.edges:
+        if _edge.face is face or _edge in removed_edges:
+            continue
+        _other = space.plan.get_space_of_edge(_edge.pair)
+        if not _other:
+            continue
+        if _other.category is other.category:
+            return False
+
+    return True
 
 
 __all__ = ['mutate_simple', 'mutate_aligned']

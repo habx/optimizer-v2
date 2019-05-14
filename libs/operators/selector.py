@@ -1207,7 +1207,7 @@ def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     return False
 
 
-def only_adjacent_to_immutable(edge: 'Edge', space: 'Space') -> bool:
+def adjacent_to_needed_space(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     :param edge:
@@ -2154,11 +2154,17 @@ SELECTORS = {
                                           pair(is_not(only_face)),
                                           pair(is_not(corner_stone))]),
 
-    "is_mutable": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
-                                                     is_not(only_face),
-                                                     is_not(has_needed_linear),
-                                                     is_not(only_adjacent_to_immutable),
-                                                     is_not(corner_stone)]),
+    "can_be_removed": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                       is_not(only_face),
+                                                       is_not(has_needed_linear),
+                                                       is_not(adjacent_to_needed_space),
+                                                       is_not(corner_stone)]),
+
+    "can_be_added": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                     pair(is_not(only_face)),
+                                                     pair(is_not(has_needed_linear)),
+                                                     pair(is_not(adjacent_to_needed_space)),
+                                                     pair(is_not(corner_stone))]),
 
     "plan_boundary_no_linear": Selector(space_boundary,
                                         [edge_length(min_length=40),

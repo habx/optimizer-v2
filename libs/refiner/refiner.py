@@ -152,8 +152,8 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
                  evaluation.score_area,
                  evaluation.score_connectivity]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
-    mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
-    toolbox.register("mutate", mutation.compose, mutations)
+    # mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
+    toolbox.register("mutate", mutation.composite)
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
@@ -178,7 +178,8 @@ def simple_ga(toolbox: 'core.Toolbox',
     # algorithm parameters
     ngen = params["ngen"]
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
-
+    initial_ind.all_spaces_modified()
+    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
