@@ -371,5 +371,5 @@ if __name__ == '__main__':
         logging.debug("total time :", time.process_time() - t00)
 
 
-    # space_planning()
-    space_planning_nico()
+    space_planning()
+    #space_planning_nico()
