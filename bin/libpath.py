@@ -1,14 +1,15 @@
 import os
 import sys
 
+
 # There has to be a better way to do this.
-sys.path.append(
-    os.path.realpath(
-        os.path.join(
-            os.path.dirname(
-                os.path.realpath(__file__)
-            ),
-            os.pardir
-        )
-    )
-)
+# OPT-119: Fix around this bad implementation
+def add_local_libs():
+    path = os.path.realpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ),os.pardir))
+
+    if path not in sys.path:
+        sys.path.append(path)
+
+
+add_local_libs()
+
