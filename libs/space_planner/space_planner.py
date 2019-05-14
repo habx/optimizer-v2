@@ -316,7 +316,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = '011'
+        plan_name = '007'
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
@@ -372,9 +372,6 @@ if __name__ == '__main__':
             writer.save_json_solution(solution_dict, sol.id)
 
         logging.debug("total time :", time.process_time() - t00)
-
-        for sp in plan.spaces:
-            print(sp, "sp.arae", sp.area,"sp.peroimeter",sp.perimeter)
 
 
     # space_planning()
