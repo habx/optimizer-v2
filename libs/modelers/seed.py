@@ -41,6 +41,7 @@ fill_method_type = Callable[['Seeder', bool], List['Space']]
 
 EPSILON_MAX_SIZE = 10.0
 SQM = 10000
+SEEDER_ACTIVATION_NBR_CELLS = 25
 
 
 class Seeder:
@@ -106,21 +107,15 @@ class Seeder:
         for space in plan.spaces:
             if space.category.name == "empty":
                 nbr_grid_cells += len(list(space.faces))
-        if nbr_grid_cells > 25:
+        if nbr_grid_cells > SEEDER_ACTIVATION_NBR_CELLS:
             self.plant(show).grow(show).fill(show)
         else:
             for floor in plan.floors.values():
                 for face in floor.mesh.faces:
                     if plan.get_space_of_face(face).category.name == "empty":
                         Space(plan, floor, face.edge, SPACE_CATEGORIES["seed"])
-            has_empty_space = True
-            while has_empty_space:
-                has_empty_space = False
-                for space in plan.spaces:
-                    if space.category.name == "empty":
-                        plan.remove(space)
-                        has_empty_space = True
-            plan.remove_null_spaces()
+            for space in list(plan.get_spaces("empty")):
+                plan.remove(space)
 
     def plant(self, show: bool = False) -> 'Seeder':
         """
