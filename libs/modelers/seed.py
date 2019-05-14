@@ -1008,7 +1008,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["trames_seeder"].apply_to(plan, show=True)
+        SEEDERS["trames_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
