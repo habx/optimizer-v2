@@ -324,7 +324,7 @@ def homogeneous(space: 'Space', *_) -> Generator['Edge', bool, None]:
 def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns among all edges on the space border the one such as when the pair
-    face is added to space, the ratio perimeter/area is smallest
+    face is added to space, the ratio perimeter**2/area is smallest
     """
 
     biggest_shape_factor = math.inf
@@ -340,9 +340,40 @@ def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
             if current_shape_factor < biggest_shape_factor:
                 biggest_shape_factor = current_shape_factor
                 edge_homogeneous_growth = edge
-
     if edge_homogeneous_growth:
         yield edge_homogeneous_growth
+
+
+def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    the input space is in contact with a duct
+    Returns edges such that :
+    *edge.pair.face has a contact with this duct
+    *the contact edge between edge.pair.face and the duct is parallel to a contact edge
+    between the space and the duct
+    """
+
+    def get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
+        sp = space.plan.get_space_of_edge(e)
+        if not sp or not sp.is_boundary(e):
+            return None, None
+        sibling = sp.previous_edge(e) if not next_edge else sp.next_edge(e)
+        space_sibling_pair = sp.plan.get_space_of_edge(sibling.pair)
+        if space_sibling_pair:
+            return space_sibling_pair.category.name, sibling.pair.unit_vector
+        else:
+            return None, None
+
+    for edge in space.edges:
+        out = get_space_of_neighbor_pair(edge)
+        out_pair = get_space_of_neighbor_pair(edge.pair, next_edge=True)
+        if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
+            yield edge
+            continue
+        out = get_space_of_neighbor_pair(edge, next_edge=True)
+        out_pair = get_space_of_neighbor_pair(edge.pair)
+        if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
+            yield edge
 
 
 def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
@@ -351,7 +382,7 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
     face is added to space, the ratio perimeter/area is reduced
     """
 
-    best_shape_factor = space.perimeter**2 / space.area
+    best_shape_factor = space.perimeter ** 2 / space.area
     edge_homogeneous_growth = None
 
     for edge in space.edges:
@@ -508,6 +539,7 @@ def small_faces(max_area: float = 2500.0) -> EdgeQuery:
     :param max_area:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         """
         Returns the biggest edge of each face
@@ -532,6 +564,7 @@ def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQ
     :param min_distance:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         """
         Returns the edges on a face that has a window linear
@@ -973,6 +1006,7 @@ def specific_category(*category_names: str) -> EdgeQuery:
     :param category_names:
     :return:
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         plan = space.plan
         if space and space.category.name in category_names:
@@ -980,6 +1014,7 @@ def specific_category(*category_names: str) -> EdgeQuery:
                 other = plan.get_space_of_edge(e.pair)
                 if other and other.mutable:
                     yield e
+
     return _query
 
 
@@ -1188,6 +1223,16 @@ def is_mutable(_: 'Edge', space: 'Space') -> bool:
     return space and space.mutable
 
 
+def is_empty(_: 'Edge', space: 'Space') -> bool:
+    """
+    Returns True if the edge space is empty
+    :param _:
+    :param space:
+    :return:
+    """
+    return space.category.name == "empty"
+
+
 def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
@@ -1301,6 +1346,7 @@ def pair(predicate: Predicate) -> Predicate:
     :param predicate:
     :return:
     """
+
     def _predicate(edge: 'Edge', space: 'Space') -> bool:
         pair_edge = edge.pair
         pair_space = space.plan.get_space_of_edge(pair_edge)
@@ -1513,9 +1559,9 @@ def touches_linear(*category_names: str, position: str = 'before') -> Predicate:
             previous_linear = space.plan.get_linear(edge.previous)
             if ((previous_linear and (not category_names
                                       or previous_linear.category.name in category_names))
-                and (next_linear and (not category_names
-                                      or next_linear.category.name in category_names))):
-                    return True
+                    and (next_linear and (not category_names
+                                          or next_linear.category.name in category_names))):
+                return True
             return False
 
     return _predicate
@@ -1721,6 +1767,7 @@ def face_area(max_area: Optional[float] = None, min_area: Optional[float] = None
     :param max_area
     :param min_area
     """
+
     def _predicate(edge: 'Edge', _: 'Space') -> bool:
         if not edge.face:
             return False
@@ -1996,7 +2043,15 @@ SELECTORS = {
 
     "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
-    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+    "improved_aspect_ratio": Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+
+    "along_duct_side": Selector(
+        along_duct_side,
+        [
+            pair(is_mutable),
+            pair(is_empty)
+        ]
+    ),
 
     "fuse_very_small_cell_mutable": Selector(
         boundary_unique_longest,

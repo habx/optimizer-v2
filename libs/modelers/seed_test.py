@@ -109,3 +109,15 @@ def test_simple_seed_test():
     SEEDERS["simple_seeder"].apply_to(my_plan)
     my_plan.plot()
     assert my_plan.check()
+
+
+def test_directionnal_seed_test():
+    """
+    Test
+    :return:
+    """
+    my_plan = plan_with_duct(300, 300)
+    GRIDS['optimal_finer_grid'].apply_to(my_plan)
+    SEEDERS["directional_seeder"].apply_to(my_plan)
+    my_plan.plot()
+    assert my_plan.check()
