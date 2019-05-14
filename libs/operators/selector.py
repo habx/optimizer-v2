@@ -346,14 +346,14 @@ def best_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Space is in contact with a duct
-    Returns edges such that
+    the input space is in contact with a duct
+    Returns edges such that :
     *edge.pair.face has a contact with this duct
     *the contact edge between edge.pair.face and the duct is parallel to a contact edge
     between the space and the duct
     """
 
-    def get_space_of_sibling_pair(e: 'Edge', next_edge: bool = False):
+    def get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
         sp = space.plan.get_space_of_edge(e)
         if not sp or not sp.is_boundary(e):
             return None, None
@@ -365,13 +365,13 @@ def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
             return None, None
 
     for edge in space.edges:
-        out = get_space_of_sibling_pair(edge)
-        out_pair = get_space_of_sibling_pair(edge.pair, next_edge=True)
+        out = get_space_of_neighbor_pair(edge)
+        out_pair = get_space_of_neighbor_pair(edge.pair, next_edge=True)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
             continue
-        out = get_space_of_sibling_pair(edge, next_edge=True)
-        out_pair = get_space_of_sibling_pair(edge.pair)
+        out = get_space_of_neighbor_pair(edge, next_edge=True)
+        out_pair = get_space_of_neighbor_pair(edge.pair)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
 
@@ -2043,7 +2043,7 @@ SELECTORS = {
 
     "best_aspect_ratio": Selector(best_aspect_ratio, name='homogeneous_aspect_ratio'),
 
-    "improved_aspect_ratio":  Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
+    "improved_aspect_ratio": Selector(improved_aspect_ratio, name='improved_aspect_ratio'),
 
     "along_duct_side": Selector(
         along_duct_side,
