@@ -39,7 +39,7 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        speed_up = False
+        speed_up = True
         if speed_up:
             path, cost = graph.get_shortest_path(self.corner_edges[space1],
                                                  self.corner_edges[space2])
