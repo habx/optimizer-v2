@@ -330,7 +330,7 @@ if __name__ == '__main__':
         plan.remove_null_spaces()
         plan.plot()
 
-        input_file_setup = input_file[:-5] + "_setup0.json"
+        input_file_setup = plan_name + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan
@@ -372,6 +372,9 @@ if __name__ == '__main__':
             writer.save_json_solution(solution_dict, sol.id)
 
         logging.debug("total time :", time.process_time() - t00)
+
+        for sp in plan.spaces:
+            print(sp, "sp.arae", sp.area,"sp.peroimeter",sp.perimeter)
 
 
     # space_planning()
