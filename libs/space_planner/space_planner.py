@@ -313,7 +313,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = '007'
+        #plan_name = '007'
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
@@ -337,7 +337,7 @@ if __name__ == '__main__':
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         t0 = time.process_time()
-        space_planner = SpacePlanner("test", spec)
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
