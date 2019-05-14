@@ -227,7 +227,7 @@ class Corridor:
             edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
-        self._ortho_slice(edge_path[0], show=show)
+        self._ortho_slice(edge_path[0],start=True, show=show)
         self._ortho_slice(edge_path[-1], show=show)
 
         return self
@@ -818,5 +818,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "020.json"
+    #plan_name = "007.json"
     main(input_file=plan_name)
