@@ -7,7 +7,7 @@ import sys
 def add_local_libs():
     path = os.path.realpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ),os.pardir))
 
-    if not path in sys.path:
+    if path not in sys.path:
         sys.path.append(path)
 
 

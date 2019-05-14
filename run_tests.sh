@@ -11,7 +11,7 @@ tests=$(circleci tests glob "**/*_test.py" | circleci tests split) ||:
 #pip install -q -r requirements.txt
 
 # Verbose view
-pytest -v $tests
+pytest --durations=10 -v $tests
 
 # To compare the packages
 pip list
