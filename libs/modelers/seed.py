@@ -722,8 +722,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     """
     Merges small spaces with neighbor space that has highest contact length
     If several neighbor spaces have same contact length, the smallest one is chosen
-    Do not merge two spaces containing non mutable components, except for those in the list
-    excluded_components
+    Do not merge two spaces containing non mutable components
     Stop merge when the number of spaces is under the target number of spaces
     :param seeder:
     :param show:
@@ -768,7 +767,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     return modified_spaces
 
 
-def divide_along_line(space: 'Space', line_edges: List['Edge']):
+def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']:
     """
     Divides the space into two sub-spaces, cut performed along the line formed by line_edges
     :param space:
@@ -825,8 +824,11 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     """
     Returns list of edges forming contiguous lines from edge_origin
     and belonging to empty spaces
-    :return: list
+    :param plan:
+    :param edge_origin:
+    :return:
     """
+
     contiguous_edges = []
 
     def get_contiguous_edges(list_contiguous_edges: List['Edge'], current_edge: 'Edge'):
@@ -842,29 +844,6 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
 
     get_contiguous_edges(contiguous_edges, edge_origin)
     get_contiguous_edges(contiguous_edges, edge_origin.pair)
-
-    # current = edge_origin
-    # # forward selection
-    # while current:
-    #     current = current.aligned_edge or current.continuous_edge
-    #     if current:
-    #         space_of_current = plan.get_space_of_edge(current)
-    #         if (space_of_current and space_of_current.category
-    #                 and space_of_current.category.name == "empty"):
-    #             contiguous_edges.append(current)
-    #         else:
-    #             break
-    # # backward selection
-    # current = edge_origin.pair
-    # while current:
-    #     current = current.aligned_edge or current.continuous_edge
-    #     if current:
-    #         space_of_current = plan.get_space_of_edge(current)
-    #         if (space_of_current and space_of_current.category
-    #                 and space_of_current.category.name == "empty"):
-    #             contiguous_edges.append(current)
-    #         else:
-    #             break
 
     return contiguous_edges
 
@@ -904,6 +883,9 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
 
     final_divideline = time.process_time() - t0_divideline
     print("TIME DIVIDE", final_divideline)
+
+    # TODO : remove
+    seeder.plan.plot()
 
     return []
 
@@ -994,8 +976,8 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "011"
-        # splan_name = "021"
+        # plan_name = "004"
+        # plan_name = "021"
         # plan_name = "013"
 
         # to not run each time the grid generation
