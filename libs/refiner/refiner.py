@@ -84,7 +84,7 @@ class Refiner:
         :param hof: number of individual to store in a hof. If hof > 0 then the output is the hof
         :return:
         """
-        _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
+        _hof = support.HallOfFame(hof) if hof > 0 else None
 
         # 1. create plan cache for performance reason
         for floor in plan.floors.values():
@@ -150,7 +150,8 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     scores_fc = [evaluation.score_corner,
                  evaluation.score_bounding_box,
                  evaluation.score_area,
-                 evaluation.score_connectivity]
+                 evaluation.score_connectivity,
+                 evaluation.score_circulation_width]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
     # mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
     toolbox.register("mutate", mutation.composite)
@@ -215,6 +216,61 @@ def simple_ga(toolbox: 'core.Toolbox',
     return pop
 
 
+def naive_ga(toolbox: 'core.Toolbox',
+             initial_ind: 'core.Individual',
+             params: dict,
+             hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+    """
+    A simple implementation of a genetic algorithm.
+    :param toolbox: a refiner toolbox
+    :param initial_ind: an initial individual
+    :param params: the parameters of the algorithm
+    :param hof: an optional hall of fame to store best individuals
+    :return: the best plan
+    """
+    # algorithm parameters
+    ngen = params["ngen"]
+    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
+    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
+    pop = toolbox.populate(initial_ind, mu)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+
+    # This is just to assign the crowding distance to the individuals
+    # no actual selection is done
+    pop = toolbox.select(pop, len(pop))
+
+    # Begin the generational process
+    for gen in range(1, ngen + 1):
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        # Vary the population
+        offspring = nsga.select_tournament_dcd(pop, len(pop))
+        offspring = [toolbox.clone(ind) for ind in offspring]
+
+        # note : list is needed because map lazy evaluates
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        offspring = [i for t in modified for i in t]
+
+        # Evaluate the individuals with an invalid fitness
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+
+        # best score
+        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+
+        # Select the next generation population
+        pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
+        pop = pop[:mu]
+        pop = toolbox.select(pop, len(pop))
+
+        # store best individuals in hof
+        if hof is not None:
+            hof.update(pop, value=True)
+
+    return pop
+
+
 REFINERS = {
-    "simple": Refiner(fc_nsga_toolbox, simple_ga)
+    "simple": Refiner(fc_nsga_toolbox, simple_ga),
+    "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }

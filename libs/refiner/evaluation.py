@@ -88,7 +88,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         if space.id not in ind.modified_spaces:
             continue
         if space.category.name in excluded_spaces:
-            area_score[space.id] = 0.0
+            area_score[space.id] = space.cached_area()/100.0
             continue
         item = space_to_item[space.id]
         space_area = space.cached_area()
@@ -273,7 +273,7 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
     return score
 
 
-def score_corridor_width(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Computes a score of the min width of each corridor
     :param _:
@@ -282,13 +282,15 @@ def score_corridor_width(_: 'Specification', ind: 'Individual') -> Dict[int, flo
     """
     min_width = 90.0
     score = {}
-    corridors = ind.get_spaces("circulation")
-    for corridor in corridors:
-        if corridor.id not in ind.modified_spaces:
+    for space in ind.mutable_spaces():
+        if space.category.name != "circulation":
+            score[space.id] = 0.0
             continue
-        polygon = corridor.boundary_polygon()
+        if space.id not in ind.modified_spaces:
+            continue
+        polygon = space.boundary_polygon()
         width = min_section(polygon)
-        score[corridor.id] = ((width - min_width)/min_width)**2
+        score[space.id] = math.fabs((width - min_width)/min_width)*100.0
 
     return score
 
