@@ -732,7 +732,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
 
     epsilon_length = 20
     min_cell_area = 10000
-    target_number_of_spaces = 25
+    target_number_of_spaces = 1
     modified_spaces = []
 
     if len([s for s in seeder.plan.spaces if s.mutable]) < target_number_of_spaces:
@@ -994,7 +994,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "001"
+        plan_name = "011"
         # splan_name = "021"
         # plan_name = "013"
 
@@ -1008,7 +1008,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["trames_seeder"].apply_to(plan, show=False)
+        SEEDERS["trames_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
