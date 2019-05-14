@@ -8,6 +8,9 @@ import socket
 import uuid
 import sentry_sdk
 
+# OPT-119 & OPT-120: Dirty path handling
+import libpath
+
 from libs.executor.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
@@ -19,6 +22,9 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
     'environment': os.getenv('HABX_ENV', 'local'),
     'release': Executor.VERSION,
 })
+
+# OPT-120: Only to make sure libpath won't be removed
+libpath.add_local_libs()
 
 
 def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
@@ -122,7 +128,7 @@ bin/worker.py
 # Will send a task towards processing workers
 bin/worker.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json
 bin/worker.py -b resources/blueprints/001.json -s resources/specifications/001_setup0.json \
-              -p resources/params/timeout.json
+              -p resources/params/timeout_2s.json
     """
 
     parser = argparse.ArgumentParser(
