@@ -236,16 +236,12 @@ def naive_ga(toolbox: 'core.Toolbox',
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
-    # This is just to assign the crowding distance to the individuals
-    # no actual selection is done
-    pop = toolbox.select(pop, len(pop))
-
     # Begin the generational process
     for gen in range(1, ngen + 1):
         logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
-        offspring = nsga.select_tournament_dcd(pop, len(pop))
-        offspring = [toolbox.clone(ind) for ind in offspring]
+        offspring = [toolbox.clone(ind) for ind in pop]
+        random.shuffle(offspring)
 
         # note : list is needed because map lazy evaluates
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
@@ -261,7 +257,6 @@ def naive_ga(toolbox: 'core.Toolbox',
         # Select the next generation population
         pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
         pop = pop[:mu]
-        pop = toolbox.select(pop, len(pop))
 
         # store best individuals in hof
         if hof is not None:

@@ -60,7 +60,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("001", grid="optimal_finer_grid")  # 052
+    spec, plan = tools.cache.get_plan("052", grid="optimal_finer_grid")  # 052
 
     if plan:
         plan.name = "original"
