@@ -17,7 +17,6 @@ until the space is totally filled
 from typing import TYPE_CHECKING, List, Optional, Dict, Generator, Sequence, Set, Tuple, Callable
 import logging
 import copy
-import time
 
 import matplotlib.pyplot as plt
 
@@ -152,8 +151,6 @@ class Seeder:
         """
         logging.debug("Seeder: Starting to grow")
 
-        to_grow = time.process_time()
-
         # Real time plot updates
         if show:
             self._initialize_plot()
@@ -169,9 +166,6 @@ class Seeder:
                 break
 
         self.plan.remove_null_spaces()
-
-        final_grow = time.process_time() - to_grow
-        print("TIME GROWTH", final_grow)
 
         return self
 
@@ -584,10 +578,8 @@ GROWTH_METHODS = {
         'duct',
         (CONSTRAINTS["max_size_duct_constraint_seed"],),
         (
-            # Action(SELECTORS['along_duct_side'], MUTATIONS['swap_face']),
             Action(SELECTORS['along_duct_side'], MUTATIONS['swap_face']),
             Action(SELECTORS['best_aspect_ratio'], MUTATIONS['swap_face'])
-            # Action(SELECTORS['smallest_perimeter'], MUTATIONS['swap_face'],number_of_pass=2)
         )
     ),
     "frontDoor": GrowthMethod(
@@ -748,7 +740,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     modified_spaces = []
 
     if len([s for s in seeder.plan.spaces if s.mutable]) < target_number_of_spaces:
-        return []
+        return modified_spaces
 
     for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):
         # adjacent mutable spaces of small_space
@@ -814,11 +806,11 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
                 yield f
 
     if not line_edges:
-        return
+        return []
 
     list_side_faces = [face for face in face_on_side()]
     if not list_side_faces:
-        return
+        return []
 
     other_space = Space(space.plan, space.floor,
                         list_side_faces[0].edge,
@@ -874,7 +866,6 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     """
 
     selector = SELECTORS["not_aligned_edges"]
-    t0_divideline = time.process_time()
 
     for seed_space in seeder.plan.get_spaces("seed"):
         for edge_selected in selector.yield_from(seed_space):
@@ -893,12 +884,6 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
                     modified_spaces = divide_along_line(space, edges_in_space)
                     if show:
                         seeder.plot.update(modified_spaces)
-
-    final_divideline = time.process_time() - t0_divideline
-    print("TIME DIVIDE", final_divideline)
-
-    # TODO : remove
-    seeder.plan.plot()
 
     return []
 
@@ -951,10 +936,8 @@ SEEDERS = {
                              [adjacent_faces, empty_to_seed, merge_small_cells]),
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed, merge_corners]),
-    "trames_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
+    "directional_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [divide_along_seed_borders, empty_to_seed, merge_small_cells]),
-    # "trames_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-    #                        [divide_along_seed_borders, empty_to_seed])
 }
 
 if __name__ == '__main__':
@@ -989,9 +972,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "004"
-        # plan_name = "021"
-        # plan_name = "013"
+        # plan_name = "011"
 
         # to not run each time the grid generation
         try:
@@ -1003,7 +984,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["trames_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
