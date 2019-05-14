@@ -321,7 +321,7 @@ if __name__ == '__main__':
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
             GRIDS["optimal_finer_grid"].apply_to(plan)
-            SEEDERS["trames_seeder"].apply_to(plan)
+            SEEDERS["directional_seeder"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         plan.remove_null_spaces()
