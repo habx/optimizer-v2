@@ -67,13 +67,13 @@ class SpacePlanner:
                                         size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
-        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
+        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulation"]
         space_planner_spec.init_id(category_name_list)
 
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing", "circulation",
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
                                 "misc"]
         invariant_area = sum(item.required_area for item in space_planner_spec.items
                              if item.category.name in invariant_categories)
@@ -230,8 +230,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "011.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "011.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
