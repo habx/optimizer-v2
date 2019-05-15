@@ -1897,10 +1897,7 @@ class Space(PlanComponent):
         :return: float
         """
 
-        number_ducts = sum(
-            space is not self and space.adjacent_to(self) and space.category
-            and space.category.name is 'duct' for space in
-            self.plan.spaces)
+        number_ducts = len([sp for sp in self.adjacent_spaces() if sp.category.name == "duct"])
 
         return number_ducts
 
