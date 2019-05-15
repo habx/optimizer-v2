@@ -15,7 +15,5 @@ if __name__ == '__main__':
     files = [x for x in files if x.endswith('.json')]
     num_files = len(files)
     for index_plan in range(num_files):
-        if index_plan < 24:
-            continue
         command_lauch_grid = "python3 ../libs/" + module + ".py -p " + str(index_plan)
         os.system(command_lauch_grid)
