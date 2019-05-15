@@ -61,6 +61,7 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional[int] = None):
+
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id
@@ -1898,20 +1899,6 @@ class Space(PlanComponent):
 
         number_ducts = len([sp for sp in self.adjacent_spaces() if sp.category.name == "duct"])
 
-        # number_ducts = 0
-        # ducts = [sp for sp in self.plan.spaces if sp.category.name == "duct"]
-        # for d in ducts:
-        #     if [e for e in d.edges if e.pair in self.edges]:
-        #         number_ducts += 1
-        #         continue
-
-        # number_ducts = sum(
-        #    space is not self and space.adjacent_to(self) and space.category
-        #    and space.category.name is 'duct' for space in
-        #    self.plan.spaces)
-
-        # print('number_ducts_t', number_ducts_t, number_ducts)
-
         return number_ducts
 
     def count_windows(self) -> float:
@@ -3061,9 +3048,8 @@ class Plan:
         for space in self.spaces:
             for edge in space.edges:
                 if (edge.pair.face is None or
-                        edge.pair in list(space.edge
-                                          for space in self.spaces if
-                                          space.category.external is True)):
+                    edge.pair in list(space.edge
+                                      for space in self.spaces if space.category.external is True)):
                     _perimeter += edge.length
         return _perimeter
 

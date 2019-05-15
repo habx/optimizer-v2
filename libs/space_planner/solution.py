@@ -263,10 +263,10 @@ class Solution:
             if item.category.name in ["toilet", "bathroom"]:
                 logging.debug("room %s: P2/A : %i", item.id,
                               int((space.perimeter_without_duct *
-                                   space.perimeter_without_duct) / space.area))
+                                   space.perimeter_without_duct)/space.area))
             else:
                 logging.debug("room %s: P2/A : %i", item.id,
-                              int((space.perimeter * space.perimeter) / space.area))
+                              int((space.perimeter*space.perimeter)/space.area))
             area = space.area
             box = space.bounding_box()
             difference = (box[0] * box[1] - area)
@@ -328,11 +328,11 @@ class Solution:
         Entrance bonus
         :return: score : float
         """
-        if (self.collector.spec.typology > 2
+        if(self.collector.spec.typology > 2
                 and [item for item in self.items_spaces if item.category.name == "entrance"]):
             return 10
-        elif (self.collector.spec.typology <= 2
-              and [item for item in self.items_spaces if item.category.name == "entrance"]):
+        elif(self.collector.spec.typology <= 2
+                and [item for item in self.items_spaces if item.category.name == "entrance"]):
             return -10
         return 0
 
@@ -455,7 +455,7 @@ class Solution:
             if [item for item in self.items_spaces if item.category.name == "entrance"]:
                 night_polygon_with_entrance = night_polygon.union(
                     self.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
-            else:
+            else :
                 night_polygon_with_entrance = night_polygon
             if night_polygon_with_entrance.geom_type != "Polygon":
                 if ((len(night_polygon) > 2 and len(night_polygon_with_entrance) > 2)
@@ -530,7 +530,7 @@ class Solution:
                     item_position_score = 100
                 else:
                     # distance from the entrance
-                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE * 2:
+                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE*2:
                         item_position_score = 100
 
             logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
@@ -575,7 +575,7 @@ class Solution:
                         return 0
                     elif (self.items_spaces[i_item].as_sp.is_valid and convex_hull.is_valid and
                           (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
-                                  space.area / 8)):
+                            space.area / 8)):
                         # Check i_item adjacency
                         other_room_adj = False
                         for j_item in self.items_spaces:
@@ -601,7 +601,7 @@ class Solution:
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
         solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus())  # - self._circulation_penalty())
+                          self._windows_good_distribution_bonus() + self._entrance_bonus())# - self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
