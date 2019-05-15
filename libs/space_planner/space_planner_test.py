@@ -12,8 +12,8 @@ from libs.modelers.grid import GRIDS
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 from libs.space_planner.space_planner import SPACE_PLANNERS
 
-test_files = [("011.json", "011_setup0.json"),
-              ("043.json", "043_setup0.json")]
+test_files = [("009.json", "009_setup0.json"),
+              ("012.json", "012_setup0.json")]
 
 
 @pytest.mark.parametrize("input_file, input_setup", test_files)
@@ -25,7 +25,7 @@ def test_space_planner(input_file, input_setup):
 
     plan = reader.create_plan_from_file(input_file)
 
-    GRIDS["ortho_grid"].apply_to(plan)
+    GRIDS['optimal_grid'].apply_to(plan)
     SEEDERS["simple_seeder"].apply_to(plan)
 
     spec = reader.create_specification_from_file(input_setup)
@@ -33,6 +33,13 @@ def test_space_planner(input_file, input_setup):
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
     best_solutions = space_planner.apply_to(spec)
+
+    if input_file == "009.json":
+        assert len(space_planner.solutions_collector.solutions) == 20
+        assert len(best_solutions) == 1
+    elif input_file == "012.json":
+        assert len(space_planner.solutions_collector.solutions) == 37
+        assert len(best_solutions) == 2
 
 
 def test_duplex():

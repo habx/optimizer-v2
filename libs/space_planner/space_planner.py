@@ -67,13 +67,13 @@ class SpacePlanner:
                                         size_max, opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
 
-        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "dressing", "kitchen",
+        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                               "circulation"]
         space_planner_spec.init_id(category_name_list)
 
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "dressing", "circulation",
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
                                 "misc"]
         invariant_area = sum(item.required_area for item in space_planner_spec.items
                              if item.category.name in invariant_categories)
@@ -220,7 +220,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -230,8 +230,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        #input_file = "011.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "009.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -299,8 +299,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        # input_file = "001.json"
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "019.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -338,6 +338,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
+        best_solutions = space_planner.apply_to(spec)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -351,12 +352,9 @@ if __name__ == '__main__':
         plan_ratio = round(space_planner.spec.plan.indoor_perimeter
                            ** 2 / space_planner.spec.plan.indoor_area)
         logging.debug("PLAN Ratio : %i", plan_ratio)
-        logging.debug("space_planner time : ", time.process_time() - t0)
-        t1 = time.process_time()
-        best_solutions = space_planner.solution_research()
-        logging.debug("solution_research time : ", time.process_time() - t1)
+        logging.debug("solution_research time : ", time.process_time() - t0)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
-        logging.debug("solution_research time: %f", time.process_time() - t1)
+        logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
         # Output
