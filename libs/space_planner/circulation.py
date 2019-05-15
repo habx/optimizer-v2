@@ -29,7 +29,7 @@ class Circulator:
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
         self.connectivity_graph = GraphNx()
-        self.corner_edges = {space: [] for space in plan.spaces}
+        self.reachable_edges = {space: [] for space in plan.spaces}
         self.connecting_paths = {level: [] for level in plan.list_level}
         self.circulation_cost = 0
 
@@ -38,9 +38,9 @@ class Circulator:
         Finds the shortest path between two spaces in the plan
         :return list of vertices on the path and cost of the path
         """
-        graph = self.path_calculator.graph
-        path, cost = graph.get_shortest_path(self.corner_edges[space1],
-                                             self.corner_edges[space2])
+        graph = self.path_calculator.graph[space1.floor.level]
+        path, cost = graph.get_shortest_path(self.reachable_edges[space1],
+                                             self.reachable_edges[space2])
 
         return path, cost
 
@@ -63,7 +63,12 @@ class Circulator:
             self.connectivity_graph.add_edge(space_connection_between_floors[i],
                                              space_connection_between_floors[i + 1])
 
-    def init_corner_edges(self):
+    def init_reachable_edges(self):
+        """
+        for each space, determines which edges can be the arrival of a circulation path
+        linking this space
+        :return:
+        """
 
         def parallel_neighbor(e: 'Edge', sp: 'Space', next_edge: bool = True):
             neighbor_edge = sp.next_edge(e) if next_edge else sp.previous_edge(e)
@@ -85,18 +90,18 @@ class Circulator:
 
         def is_adjacent_to_other_space(e: 'Edge'):
             sp_pair = self.plan.get_space_of_edge(e.pair)
-            if not sp_pair:
+            if not sp_pair or sp_pair.category.external:
                 return False
             return True
 
-        def get_corner_edges(sp: 'Space'):
-            corner_edges = list(edge for edge in sp.edges if
-                                is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge))
-            return corner_edges
+        def get_reachable_edges(sp: 'Space'):
+            reachable_edges = list(edge for edge in sp.edges if
+                                   is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge))
+            return reachable_edges
 
         mutable_spaces = [space for space in self.plan.spaces if space.mutable]
         for space in mutable_spaces:
-            self.corner_edges[space] = get_corner_edges(space)
+            self.reachable_edges[space] = get_reachable_edges(space)
 
     def init_connectivity_graph(self):
         """
@@ -180,7 +185,7 @@ class Circulator:
         self.connecting_paths[level].append(path)
         # when a circulation has been set, it can be used to connect every other spaces
         # without cost increase
-        self.path_calculator.set_corridor_to_zero_cost(path)
+        self.path_calculator.set_corridor_to_zero_cost(path, level)
 
     def connect_space_to_circulation_graph(self, space):
         """
@@ -209,7 +214,7 @@ class Circulator:
         :return:
         """
 
-        self.init_corner_edges()
+        self.init_reachable_edges()
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
 
@@ -271,7 +276,9 @@ class PathCalculator:
         runs through space edges and adds branches to the graph, for each branch computes a weight
         :return:
         """
-        self.graph = EdgeGraph(self.graph_lib)
+
+        self.graph = {level: EdgeGraph(self.graph_lib) for level in self.plan.list_level}
+        # self.graph = EdgeGraph(self.graph_lib)
         for space in self.plan.spaces:
             if space.mutable:
                 self._update(space)
@@ -281,7 +288,7 @@ class PathCalculator:
         add edge to the graph and computes its cost
         return:
         """
-        graph = self.graph
+        graph = self.graph[space.floor.level]
 
         def get_space_info():
             # info needed on the space to attribute a cost to each edge of this space
@@ -306,7 +313,7 @@ class PathCalculator:
             cost = self.cost(edge, space_info)
             graph.add_edge(edge, cost)
 
-    def set_corridor_to_zero_cost(self, path):
+    def set_corridor_to_zero_cost(self, path: List, level: int):
         """
         sets the const of circulation edges to zero
         :return:
@@ -316,7 +323,7 @@ class PathCalculator:
             for v in range(nb_vert - 1):
                 vert1 = path[v]
                 vert2 = path[v + 1]
-                self.graph.add_edge_by_vert(vert1, vert2, 0)
+                self.graph[level].add_edge_by_vert(vert1, vert2, 0)
 
     def rule_type(self, edge: Edge, space_info: Dict) -> str:
         """
