@@ -15,6 +15,8 @@ from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
 from libs.utils.geometry import parallel
 
+import time
+
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
 
@@ -39,16 +41,16 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        speed_up = False
+        speed_up = True
         if speed_up:
             path, cost = graph.get_shortest_path(self.corner_edges[space1],
                                                  self.corner_edges[space2])
         else:
             path, cost = graph.get_shortest_path(list(space1.edges), list(space2.edges))
 
-            print("space1", space1, '(list(space1.edges)', list(space1.edges))
-            print("space2", space2, '(list(space1.edges)', list(space2.edges))
-            print("path", path)
+            # print("space1", space1, '(list(space1.edges)', list(space1.edges))
+            # print("space2", space2, '(list(space1.edges)', list(space2.edges))
+            # print("path", path)
         return path, cost
 
     def multilevel_connection(self):
@@ -217,7 +219,9 @@ class Circulator:
         """
 
         self.init_corner_edges()
+
         self.init_connectivity_graph()
+
         self.expand_connectivity_graph()
 
     def plot(self, show: bool = False, save: bool = True):
@@ -280,9 +284,12 @@ class PathCalculator:
         """
         self.graph = EdgeGraph(self.graph_lib)
 
+        t_buildo = time.time()
+
         for space in self.plan.spaces:
             if space.mutable:
                 self._update(space)
+        print('t_build', time.time() - t_buildo)
 
     def _update(self, space: Space):
         """
@@ -290,8 +297,17 @@ class PathCalculator:
         return:
         """
         graph = self.graph
+        space_info = {}
+        space_info["num_ducts"] = space.count_ducts()
+        space_info["num_windows"] = space.count_windows()
+        space_info["needed_spaces"] = list(
+            needed_space for needed_space in space.category.needed_spaces if
+            needed_space.name is 'duct')
+        space_info["needed_linears"] = list(
+            needed_linear for needed_linear in space.category.needed_linears if
+            needed_linear.window_type)
         for edge in space.edges:
-            cost = self.cost(edge, space)
+            cost = self.cost(edge, space_info, space)
             graph.add_edge(edge, cost)
 
     def set_corridor_to_zero_cost(self, path):
@@ -306,27 +322,36 @@ class PathCalculator:
                 vert2 = path[v + 1]
                 self.graph.add_edge_by_vert(vert1, vert2, 0)
 
-    def rule_type(self, edge: Edge, space: Space) -> str:
+    def rule_type(self, edge: Edge, space_info: Dict, space: Space) -> str:
         """
         gets the rule for edge cost computation
         :return: float
         """
         rule = 'default'
 
-        num_ducts = space.count_ducts()
-        num_windows = space.count_windows()
+        # num_ducts = space.count_ducts()
+        # num_windows = space.count_windows()
+        num_ducts = space_info["num_ducts"]
+        num_windows = space_info["num_windows"]
+        needed_spaces = space_info["needed_spaces"]
+        needed_linears = space_info["needed_linears"]
 
+        # num_windows=0
+
+        # if (edge.pair and edge.pair in self.component_edges['duct_edges']
+        #         and list(needed_space for needed_space in space.category.needed_spaces if
+        #                  needed_space.name is 'duct')):
         if (edge.pair and edge.pair in self.component_edges['duct_edges']
-                and list(needed_space for needed_space in space.category.needed_spaces if
-                         needed_space.name is 'duct')):
+                and needed_spaces):
             if num_ducts <= 2:
                 rule = 'water_room_less_than_two_ducts'
             else:
                 rule = 'water_room_default'
 
-        elif (edge in self.component_edges['window_edges'] and list(
-                needed_linear for needed_linear in space.category.needed_linears if
-                needed_linear.window_type)):
+        elif (edge in self.component_edges['window_edges'] and needed_linears):
+            # elif (edge in self.component_edges['window_edges'] and list(
+            #         needed_linear for needed_linear in space.category.needed_linears if
+            #         needed_linear.window_type)):
             if num_windows <= 2:
                 rule = 'window_room_less_than_two_windows'
             else:
@@ -337,14 +362,14 @@ class PathCalculator:
 
         return rule
 
-    def cost(self, edge: Edge, space: Space) -> float:
+    def cost(self, edge: Edge, space_info: Dict, space: Space) -> float:
         """
         computes the cost of an edge
         :return: float
         """
         cost = edge.length
 
-        rule = self.rule_type(edge, space)
+        rule = self.rule_type(edge, space_info, space)
         # rule='default'
         if rule not in self.cost_rules.keys():
             raise ValueError('The rule dict does not contain this rule {0}'.format(rule))
