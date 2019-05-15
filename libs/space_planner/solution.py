@@ -366,18 +366,8 @@ class Solution:
         Circulation penalty
         :return: score : float
         """
-        import time
-
-        time_scoring_circulator0 = time.time()
         circulator = Circulator(plan=self.plan, cost_rules=COST_RULES)
-        time_scoring_circulator = time.time() - time_scoring_circulator0
-
-        time_scoring_connecto = time.time()
         circulator.connect()
-        time_scoring_connect = time_scoring_connecto - time.time()
-
-        time_scoring_costo = time.time()
-
         cost = circulator.circulation_cost
         circulation_penalty = 0
 
@@ -389,15 +379,8 @@ class Solution:
             circulation_penalty += 30
         elif cost - (self.collector.spec.typology - 1) * 300 > 0:
             circulation_penalty += 5
-
-        time_scoring_cost = time.time() - time_scoring_costo
-
-        print("times cost cirlcuatlion")
-        print('time tot', time_scoring_circulator + time_scoring_connect + time_scoring_cost)
-        print('')
-
-        # logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
-        # logging.info("Circulation penalty: %i", circulation_penalty)
+        logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
+        logging.info("Circulation penalty: %i", circulation_penalty)
         return circulation_penalty
 
     def _night_and_day_score(self) -> float:
@@ -618,7 +601,7 @@ class Solution:
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
         solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus() - self._circulation_penalty())
+                          self._windows_good_distribution_bonus() + self._entrance_bonus())  # - self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
