@@ -160,7 +160,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation",)
+    excluded_spaces = ("circulation", "living", "livingKitchen")
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:

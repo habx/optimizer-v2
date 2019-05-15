@@ -8,7 +8,7 @@ import logging
 import libs.io.writer as writer
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 import libs.io.reader as reader
 from libs.plan.plan import Plan
 from libs.modelers.corridor import Corridor
@@ -41,7 +41,8 @@ def get_plan(plan_name: str = "001",
         return _compute_from_start(plan_name, spec_file_name, solution_number, grid)
 
 
-def _retrieve_from_cache(plan_file_name: str, spec_file_name: str) -> Tuple['Specification', 'Plan']:
+def _retrieve_from_cache(plan_file_name: str,
+                         spec_file_name: str) -> Tuple['Specification', 'Plan']:
     """
     Retrieves a specification and a plan instances from cached serialized data
     :param plan_file_name:
@@ -85,10 +86,10 @@ def _compute_from_start(plan_name: str,
     spec = reader.create_specification_from_file(spec_file_name)
 
     GRIDS[grid].apply_to(plan)
-    SEEDERS["simple_seeder"].apply_to(plan)
+    SEEDERS["directional_seeder"].apply_to(plan)
     spec.plan = plan
-    space_planner = SpacePlanner("test", spec)
-    best_solutions = space_planner.solution_research()
+    space_planner = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner.apply_to(spec)
     new_spec = space_planner.spec
 
     if best_solutions:

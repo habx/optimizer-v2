@@ -266,7 +266,7 @@ class Individual(Plan):
                                               self.fitness.sp_wvalue[space.id])
         msg += "\nSCORE: {}".format(self.fitness.wvalue)
         ax.set_xlabel(msg, fontsize=8)
-        plot_save(save, show, self.name)
+        plot_save(save, show)
 
     def clone(self, name: str = "") -> 'Individual':
         """
