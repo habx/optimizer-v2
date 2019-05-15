@@ -39,12 +39,16 @@ class Circulator:
         :return list of vertices on the path and cost of the path
         """
         graph = self.path_calculator.graph
-        speed_up = True
+        speed_up = False
         if speed_up:
             path, cost = graph.get_shortest_path(self.corner_edges[space1],
                                                  self.corner_edges[space2])
         else:
             path, cost = graph.get_shortest_path(list(space1.edges), list(space2.edges))
+
+            print("space1", space1, '(list(space1.edges)', list(space1.edges))
+            print("space2", space2, '(list(space1.edges)', list(space2.edges))
+            print("path", path)
         return path, cost
 
     def multilevel_connection(self):
@@ -86,7 +90,7 @@ class Circulator:
                     return True
             return False
 
-        def is_adjacent_to_other_space(e: 'Edge', sp: 'Space'):
+        def is_adjacent_to_other_space(e: 'Edge'):
             sp_pair = self.plan.get_space_of_edge(e.pair)
             if not sp_pair:
                 return False
@@ -94,7 +98,7 @@ class Circulator:
 
         def get_corner_edges(sp: 'Space'):
             corner_edges = list(edge for edge in sp.edges if
-                                is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge, sp))
+                                is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge))
             return corner_edges
 
         mutable_spaces = [space for space in self.plan.spaces if space.mutable]
@@ -446,7 +450,7 @@ if __name__ == '__main__':
         if space_planner.solutions_collector.solutions:
             for solution in space_planner.solutions_collector.best():
                 circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
-                circulator.connect()
+                circulator.connxect()
                 circulator.plot()
                 logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
 

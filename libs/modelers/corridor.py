@@ -763,7 +763,7 @@ if __name__ == '__main__':
 
         import libs.io.reader as reader
         import libs.io.writer as writer
-        from libs.space_planner.space_planner import SpacePlanner
+        from libs.space_planner.space_planner import SPACE_PLANNERS
         from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
 
         folder = DEFAULT_PLANS_OUTPUT_FOLDER
@@ -788,8 +788,10 @@ if __name__ == '__main__':
             # GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
             spec.plan = plan
-            space_planner = SpacePlanner("test", spec)
-            best_solutions = space_planner.solution_research()
+
+            space_planner = SPACE_PLANNERS["standard_space_planner"]
+            best_solutions = space_planner.apply_to(spec)
+
             new_spec = space_planner.spec
 
             if best_solutions:
