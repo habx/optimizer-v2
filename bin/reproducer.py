@@ -4,8 +4,12 @@ import json
 import logging
 import os
 
+import libpath
+
 from libs.executor.defs import TaskDefinition
 from libs.executor.executor import Executor
+
+libpath.add_local_libs()
 
 logging.basicConfig(
     level=logging.INFO,
