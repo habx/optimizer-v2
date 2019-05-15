@@ -63,4 +63,12 @@ with open('%s/setup.json' % task_dir, 'r') as setup_fp:
 with open('%s/params.json' % task_dir, 'r') as params_fp:
     td.params = json.load(params_fp)
 
-executor.run(td)
+response = executor.run(td)
+
+with open(os.path.join(task_dir, "response.json"), 'w') as response_fp:
+    json.dump(response, response_fp, indent=2, sort_keys=True)
+
+for i, solution in enumerate(response.solutions):
+    solution_path = os.path.join(task_dir, "solution_%d.json" % i)
+    with open(solution_path, 'w') as solution_fp:
+        json.dump(solution, solution_fp, indent=2, sort_keys=True)
