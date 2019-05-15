@@ -35,20 +35,22 @@ task_id: str = args.task_id
 env: str = args.env
 habx_token: str = args.habx_token
 
-
 task_dir = 'tasks/%s' % task_id
 
-if not os.path.exists(task_dir):
-    os.makedirs(task_dir)
+completion_file = '%s/.done' % task_dir
+
+if not os.path.exists(completion_file):
+    os.makedirs(task_dir, exist_ok=True)
     cmd = "opt-replay {task_id} --env {env} --token {token} -o {task_dir}".format(
-            task_id=task_id,
-            env=env,
-            token=habx_token,
-            task_dir=task_dir,
-        )
+        task_id=task_id,
+        env=env,
+        token=habx_token,
+        task_dir=task_dir,
+    )
     logging.info("Executing %s", cmd)
     assert os.system(cmd) == 0
-
+    with open(completion_file, 'w') as fp:
+        pass
 
 executor = Executor()
 td = TaskDefinition()
@@ -65,8 +67,12 @@ with open('%s/params.json' % task_dir, 'r') as params_fp:
 
 response = executor.run(td)
 
-with open(os.path.join(task_dir, "response.json"), 'w') as response_fp:
-    json.dump(response, response_fp, indent=2, sort_keys=True)
+meta = {
+    'elapsed_times': response.elapsed_times,
+}
+
+with open(os.path.join(task_dir, "meta.json"), 'w') as response_fp:
+    json.dump(meta, response_fp, indent=2, sort_keys=True)
 
 for i, solution in enumerate(response.solutions):
     solution_path = os.path.join(task_dir, "solution_%d.json" % i)
