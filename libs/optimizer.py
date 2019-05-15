@@ -17,7 +17,7 @@ from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
 from libs.modelers.corridor import Corridor
 from libs.refiner.refiner import REFINERS
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.version import VERSION as OPTIMIZER_VERSION
 import libs.io.plot
 
@@ -67,7 +67,7 @@ class ExecParams:
                 params = {
                            'grid': {'name': 'optimal_grid', 'params': {}},
                            'seeder': {'name': 'simple_seeder, 'params': {}},
-                           'space_planner': {'name': 'default_planner', 'params': {}},
+                           'space_planner': {'name': 'default_space_planner', 'params': {}},
                            'shuffle': {'name': 'simple_shuffle', 'params': {}, 'run': False},
                            'refiner': {'name': 'simple', 'params': {'mu': 28, 'ngen': 100 ...},
                                        'run': True}
@@ -101,6 +101,7 @@ class ExecParams:
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
         self.seeder_type = params.get('seeder_type', 'simple_seeder')
+        self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
@@ -224,10 +225,10 @@ class Optimizer:
         logging.info("Setup read in %f", elapsed_times["setup"])
 
         # space planner
-        t0_space_planner = time.process_time()
         logging.info("Space planner")
-        space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
+        t0_space_planner = time.process_time()
+        space_planner = SPACE_PLANNERS[params.space_planner_type]
+        best_solutions = space_planner.apply_to(spec)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])

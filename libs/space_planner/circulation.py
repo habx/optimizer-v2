@@ -362,7 +362,7 @@ if __name__ == '__main__':
     import libs.io.reader as reader
     from libs.modelers.seed import SEEDERS
     from libs.modelers.grid import GRIDS
-    from libs.space_planner.space_planner import SpacePlanner
+    from libs.space_planner.space_planner import SPACE_PLANNERS
     from libs.plan.category import SPACE_CATEGORIES
     import argparse
 
@@ -429,8 +429,8 @@ if __name__ == '__main__':
         spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
         spec.plan = plan
         plan.plot()
-        space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
+        best_solutions = space_planner.apply_to(spec)
 
         return space_planner
 
