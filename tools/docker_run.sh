@@ -1,7 +1,7 @@
 #!/bin/sh -ex
 
 # Example usage:
-# tools/docker_cli.sh bin/cli.py -l resources/blueprints/009.json -s resources/specifications/009_setup1.json -o out
+# tools/docker_run.sh bin/cli.py -b resources/blueprints/009.json -s resources/specifications/009_setup1.json -o out
 
 DOCKER_IMAGE=optimizer-v2:$(cat requirements.txt Dockerfile | shasum |cut -f 1 -d' ')
 
