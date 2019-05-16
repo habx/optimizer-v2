@@ -12,46 +12,10 @@ INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
             "weights": (-20.0, -1.0, -1.0, -1000.0, -20.0),
-            "ngen": 40,
+            "ngen": 120,
             "mu": 28,
             "cxpb": 0.2
           }
-
-
-def run():
-    """ test function """
-    import time
-    import tools.cache
-
-    logging.getLogger().setLevel(logging.INFO)
-
-    spec, plan = tools.cache.get_plan("052", "1")  # 052
-
-    if plan:
-        plan.name = "original"
-        plan.plot()
-
-        # run genetic algorithm
-
-        start = time.time()
-        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=4, hof=1)
-        end = time.time()
-
-        # analyse found solutions
-        for n, ind in enumerate(sols):
-            ind.name = str(n)
-            ind.plot()
-            print("n°{} | Fitness: {} - {}".format(n, ind.fitness.wvalue, ind.fitness.values))
-        print("Time elapsed: {}".format(end - start))
-        best = sols[0]
-        item_dict = evaluation.create_item_dict(spec)
-        for space in best.mutable_spaces():
-            if item_dict[space.id]:
-                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
-                                                          round(space.cached_area()),
-                                                          item_dict[space.id].min_size.area,
-                                                          item_dict[space.id].max_size.area))
-
 
 def apply():
     """ test function """
@@ -60,7 +24,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("055", grid="optimal_finer_grid")  # 052
+    spec, plan = tools.cache.get_plan("003", grid="optimal_grid")  # 052
 
     if plan:
         plan.name = "original"
@@ -69,7 +33,7 @@ def apply():
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
+        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
         improved_plan.name = "Refined"
         improved_plan.plot()

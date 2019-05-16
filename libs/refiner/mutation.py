@@ -22,7 +22,8 @@ Note : a mutation should set the modified spaces flag of the individual
 import random
 import math
 import logging
-from typing import TYPE_CHECKING, Optional, Callable, Tuple, List, Container
+import enum
+from typing import TYPE_CHECKING, Optional, Callable, Tuple, List, Container, Dict
 
 from libs.operators.selector import SELECTORS
 
@@ -31,67 +32,46 @@ if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
     from libs.refiner.core import Individual
 
-MutationType = Callable[['Space'], 'Individual']
+
+class Case(enum.Enum):
+    """
+    Enum of different spaces cases
+    """
+    SMALL = "small"
+    BIG = "big"
+    DEFAULT = "default"
+
+
+MutationType = Callable[['Space'], List['Space']]
 MutationProbability = float
+MutationTuple = Tuple[Tuple[MutationType, Dict[Case, MutationProbability]], ...]
 
 
-def compose(mutations: List[Tuple[MutationType, MutationProbability]],
-            ind: 'Individual') -> 'Individual':
-    """
-    Creates a mutation composed of different mutations
-    :param mutations: a list of tuples of mutation and associated probability
-                      ordered from rarest to most frequent.
-                      ex: [(mutate_simple, 0.1), (mutate_aligned, 1.0)]
-                          mutate_aligned will occur 90% of the time
-    :param ind:
-    :return: the mutated individual
-    """
-    # Note : Make sure the mutations are ordered from rarest to more frequent
-    # per convention : only one mutation can occur so it is important to start from the
-    # rarest
-    space = _random_space(ind)
-
-    dice = random.random()
-    for mutation, pb in mutations:
-        if dice <= pb:
-            ind = mutation(space)
-            break
-    else:
-        logging.debug("Refiner: No mutation occurred")
-
-    return ind
-
-
-def composite(ind: 'Individual') -> 'Individual':
+def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
     """
     A composite mutation
     Mutations
     :param ind:
+    :param mutations_pbx:
     :return:
     """
-    mutations = (add_face, remove_face, add_aligned_faces, remove_aligned_faces)
-    pbx = {
-        "small": (0.2, 0.0, 1.0, 0.0),
-        "neutral": (0.1, 0.2, 0.6, 1.0),
-        "big": (0.0, 0.2, 0.0, 1.0)
-    }
     space = _random_space(ind)
     if not space:
         return ind
 
     item = ind.fitness.cache.get("space_to_item", None)[space.id]
 
-    space_size = "neutral"
+    space_size = Case.DEFAULT
     if item:  # corridor space has no item in spec
         if space.cached_area() < item.min_size.area:
-            space_size = "small"
+            space_size = Case.SMALL
         elif space.cached_area() > item.max_size.area:
-            space_size = "big"
+            space_size = Case.BIG
 
     dice = random.random()
-    for i, mutation in enumerate(mutations):
-        if dice <= pbx[space_size][i]:
-            modified_spaces = mutation(space)
+    for mutation_pbx in mutations_pbx:
+        if dice <= mutation_pbx[1][space_size]:
+            modified_spaces = mutation_pbx[0](space)
             ind.modified_spaces |= {s.id for s in modified_spaces}
             break
     else:
@@ -166,7 +146,8 @@ def _random_removable_edge(space: 'Space') -> Optional['Edge']:
     if not mutable_edges:
         logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
-    return random.choice(mutable_edges)
+    weights = [1.0/len(list(e.aligned_siblings)) for e in mutable_edges]
+    return random.choices(mutable_edges, weights=weights, k=1)[0]
 
 
 def _random_addable_edge(space: 'Space') -> Optional['Edge']:
@@ -179,7 +160,9 @@ def _random_addable_edge(space: 'Space') -> Optional['Edge']:
     if not mutable_edges:
         logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
-    return random.choice(mutable_edges)
+
+    weights = [1.0/len(list(e.aligned_siblings)) for e in mutable_edges]
+    return random.choices(mutable_edges, weights=weights, k=1)[0]
 
 
 """

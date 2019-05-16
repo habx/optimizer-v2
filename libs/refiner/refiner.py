@@ -16,8 +16,8 @@ It implements a simple version of the NSGA-II algorithm:
     optimization: NSGA-II", 2002.
 
 TODO LIST:
-    • create efficient all aligned edges mutation
-    • check edge selector to make sure we are not eliminating needed scenarios
+    • modify edge mutation selector to adjust selection probability for small edge
+    •
 
 """
 import random
@@ -153,8 +153,21 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
                  evaluation.score_connectivity,
                  evaluation.score_circulation_width]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
-    # mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
-    toolbox.register("mutate", mutation.composite)
+
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
+                                      mutation.Case.SMALL: 0.2,
+                                      mutation.Case.BIG: 0.0}),
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
+                                         mutation.Case.SMALL: 0.0,
+                                         mutation.Case.BIG: 0.2}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.45,
+                                               mutation.Case.SMALL: 0.8,
+                                               mutation.Case.BIG: 0.0}),
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.45,
+                                                  mutation.Case.SMALL: 0.0,
+                                                  mutation.Case.BIG: 0.8}))
+
+    toolbox.register("mutate", mutation.composite, mutations)
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})

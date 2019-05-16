@@ -84,10 +84,10 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "weights": (-2.0, -1.0, -1.0),
+            "weights": (-20.0, -1.0, -1.0, -1000.0, -20.0),
             "ngen": 120,
             "mu": 28,
-            "cxpb": 0.9
+            "cxpb": 0.5
         }
 
         corridor_params = {
@@ -108,7 +108,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', corridor_params)
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'simple')
+        self.refiner_type = params.get('refiner_type', 'naive')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
