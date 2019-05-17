@@ -60,5 +60,5 @@ class Timeout(ExecWrapper):
 
     @staticmethod
     def instantiate(td: TaskDefinition):
-        timeout = int(td.params.get('timeout', '0'))
+        timeout = int(td.params.get('timeout', '3600'))
         return __class__(timeout) if timeout > 0 else None
