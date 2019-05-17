@@ -49,6 +49,11 @@ class S3Upload(ExecWrapper):
         with open(os.path.join(self.output_dir, 'files.json'), 'w') as fp:
             json.dump(files, fp)
 
+        files['files.json'] = {
+            'mime': 'application/json',
+            'title': 'Files listing'
+        }
+
         # Updating the found files with the new 'files.json' file
         files_found = self._output_files()
 
@@ -58,22 +63,34 @@ class S3Upload(ExecWrapper):
         logging.info("Uploading some files on S3...")
 
         for src_file in files_found:
+            file_name = src_file[len(self.output_dir) + 1:]
             # OPT-89: Storing files in a "tasks" directory
             dst_file = "tasks/{task_id}/{file}".format(
                 task_id=self.task_id,
-                file=src_file[len(self.output_dir) + 1:]
+                file=file_name
             )
+            file = files.get(file_name, {})
+
             logging.info(
                 "Uploading \"%s\" to s3://%s/%s",
                 src_file,
                 self.s3_repository,
                 dst_file
             )
+
+            extra_args = {
+                'ACL': 'public-read',
+                'ContentDisposition': 'inline',
+            }
+
+            if file.get('mime'):
+                extra_args['ContentType'] = file.get('mime')
+
             self.s3_client.upload_file(
                 src_file,
                 self.s3_repository,
                 dst_file,
-                ExtraArgs={'ACL': 'public-read'}
+                ExtraArgs=extra_args,
             )
 
         logging.info("Upload done...")
@@ -99,12 +116,10 @@ class SaveFilesOnError(ExecWrapper):
 
     def _exec(self, td: TaskDefinition):
         try:
-            response = self.next.run(td)
+            return self.next.run(td)
         except:
             self._save_input(td)
             raise
-
-        return response
 
     def _save_input(self, td: TaskDefinition):
         # If we had an issue, we save the output
