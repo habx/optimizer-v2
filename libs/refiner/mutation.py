@@ -273,7 +273,12 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
 
     # check that we are not removing any important faces
     edges = space.aligned_siblings(edge, max_angle)
-    if space.corner_stone(*list(e.face for e in edges)):
+    faces = set(list(e.face for e in edges))
+
+    if len(faces) == space.number_of_faces:
+        return []
+
+    if space.corner_stone(*faces):
         return []
 
     # we must check also that the list of faces does not remove any needed linears or adjacent

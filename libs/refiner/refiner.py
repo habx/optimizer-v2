@@ -248,7 +248,7 @@ def naive_ga(toolbox: 'core.Toolbox',
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
-        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        logging.debug("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = [toolbox.clone(ind) for ind in pop]
         random.shuffle(offspring)
@@ -262,7 +262,7 @@ def naive_ga(toolbox: 'core.Toolbox',
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+        logging.debug("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
@@ -284,7 +284,6 @@ REFINERS = {
 if __name__ == '__main__':
     PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
-
     def apply():
         import tools.cache
         import time
@@ -292,7 +291,7 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        spec, plan = tools.cache.get_plan("014", grid="001", seeder="directional_seeder")  # 052
+        spec, plan = tools.cache.get_plan("059", grid="001", seeder="directional_seeder")  # 052
 
         if plan:
             plan.name = "original"
