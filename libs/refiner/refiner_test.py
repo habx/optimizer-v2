@@ -23,12 +23,12 @@ def refiner_simple(input_file):
     :return:
     """
     logging.getLogger().setLevel(logging.INFO)
+    plan_number = input_file[:len(input_file) - 5]
 
-    spec, plan = tools.cache.get_plan(str(input_file[:len(input_file) - 5]),
-                                      grid="001", seeder="directional_seeder")
+    spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
     if plan:
-        plan.name = "original"
+        plan.name = "original" + "_" + plan_number
         plan.remove_null_spaces()
         plan.plot()
 
@@ -36,7 +36,7 @@ def refiner_simple(input_file):
         start = time.time()
         improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
-        improved_plan.name = "Refined"
+        improved_plan.name = "Refined_" + plan_number
         improved_plan.plot()
 
         # analyse found solutions

@@ -181,7 +181,7 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = ("living", "livingKitchen", "circulation")
+    excluded_spaces = ("circulation",)
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():

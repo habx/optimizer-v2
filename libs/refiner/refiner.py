@@ -285,16 +285,21 @@ if __name__ == '__main__':
     PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
     def apply():
+        """
+        Test
+        :return:
+        """
         import tools.cache
         import time
         """ test function """
 
         logging.getLogger().setLevel(logging.INFO)
+        plan_number = "059"
 
-        spec, plan = tools.cache.get_plan("059", grid="001", seeder="directional_seeder")  # 052
+        spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
         if plan:
-            plan.name = "original"
+            plan.name = "original_" + plan_number
             plan.remove_null_spaces()
             plan.plot()
 
@@ -302,7 +307,7 @@ if __name__ == '__main__':
             start = time.time()
             improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
             end = time.time()
-            improved_plan.name = "Refined"
+            improved_plan.name = "Refined_" + plan_number
             improved_plan.plot()
             # analyse found solutions
             logging.info("Time elapsed: {}".format(end - start))
