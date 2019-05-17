@@ -84,8 +84,7 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "weights": (-20.0, -1.0, -1.0, -1000.0, -20.0),
-            "ngen": 120,
+            "ngen": 50,
             "mu": 28,
             "cxpb": 0.5
         }

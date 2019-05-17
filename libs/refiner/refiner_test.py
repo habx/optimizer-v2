@@ -10,11 +10,7 @@ from libs.io import reader_test
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
-PARAMS = {
-            "ngen": 50,
-            "mu": 28,
-            "cxpb": 0.2
-          }
+PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
 
 def apply():
@@ -24,7 +20,7 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("004", grid="optimal_grid")  # 052
+    spec, plan = tools.cache.get_plan("002", grid="001", seeder="directional_seeder")  # 052
 
     if plan:
         plan.name = "original"
@@ -33,7 +29,7 @@ def apply():
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
+        improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
         improved_plan.name = "Refined"
         improved_plan.plot()

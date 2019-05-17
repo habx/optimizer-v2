@@ -140,7 +140,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -1.0, -1.0)
+    weights = (-1.0, -5.0, -30.0)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -149,22 +149,22 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
-                 evaluation.score_bounding_box,
-                 evaluation.score_area]
+                 evaluation.score_area,
+                 evaluation.score_perimeter_area_ratio]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
-                                      mutation.Case.SMALL: 0.5,
-                                      mutation.Case.BIG: 0.0}),
+                                      mutation.Case.SMALL: 0.4,
+                                      mutation.Case.BIG: 0.1}),
                  (mutation.remove_face, {mutation.Case.DEFAULT: 0.2,
-                                         mutation.Case.SMALL: 0.0,
-                                         mutation.Case.BIG: 0.5}),
+                                         mutation.Case.SMALL: 0.1,
+                                         mutation.Case.BIG: 0.4}),
                  (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.3,
-                                               mutation.Case.SMALL: 0.5,
-                                               mutation.Case.BIG: 0.0}),
+                                               mutation.Case.SMALL: 0.4,
+                                               mutation.Case.BIG: 0.1}),
                  (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.3,
-                                                  mutation.Case.SMALL: 0.0,
-                                                  mutation.Case.BIG: 0.5}))
+                                                  mutation.Case.SMALL: 0.1,
+                                                  mutation.Case.BIG: 0.4}))
 
     toolbox.register("mutate", mutation.composite, mutations)
     toolbox.register("mate", crossover.connected_differences)
@@ -176,10 +176,10 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     return toolbox
 
 
-def simple_ga(toolbox: 'core.Toolbox',
-              initial_ind: 'core.Individual',
-              params: dict,
-              hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+def nsga_ga(toolbox: 'core.Toolbox',
+            initial_ind: 'core.Individual',
+            params: dict,
+            hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
     A simple implementation of a genetic algorithm.
     :param toolbox: a refiner toolbox
@@ -278,6 +278,6 @@ def naive_ga(toolbox: 'core.Toolbox',
 
 
 REFINERS = {
-    "simple": Refiner(fc_nsga_toolbox, simple_ga),
+    "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
     "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }

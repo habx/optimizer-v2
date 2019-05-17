@@ -93,9 +93,9 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         item = space_to_item[space.id]
         space_area = space.cached_area()
         if space_area < item.min_size.area:
-            space_score = math.fabs((space_area - item.min_size.area)/space_area)*100
+            space_score = (((item.min_size.area - space_area)/item.min_size.area)**2)*100
         elif space_area > item.max_size.area:
-            space_score = math.fabs((space_area - item.max_size.area)/space_area)*100
+            space_score = (((space_area - item.max_size.area)/item.max_size.area)**2)*100
         else:
             space_score = 0
         area_score[space.id] = space_score
@@ -180,7 +180,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     return score
 
 
-def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     :param _
     :param ind:
@@ -200,6 +200,39 @@ def score_aspect_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float
             continue
         space_score = math.fabs(space.perimeter**2/space.cached_area()/min_aspect_ratio - 1.0)
         score[space.id] = space_score
+
+    return score
+
+
+def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+    """
+
+    :param _:
+    :param ind:
+    :return:
+    """
+    excluded_spaces = ("circulation",)
+    ratios = {
+        "bedroom": 1.2,
+        "toilet": 1.7,
+        "bathroom": 1.2,
+        "entrance": 1.7,
+        "default": 1.5
+    }
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
+        if space.category.name in excluded_spaces:
+            score[space.id] = 0
+            continue
+        box = space.bounding_box()
+        space_ratio = max(box)/min(box)
+        ratio = ratios.get(space.category.name, ratios["default"])
+        if space_ratio >= ratio:
+            score[space.id] = (space_ratio - ratio)**2
+        else:
+            score[space.id] = 0
 
     return score
 
@@ -325,5 +358,5 @@ def check(ind: 'Individual', spec: 'Specification') -> None:
         logging.info(msg)
 
 
-__all__ = ['compose', 'score_aspect_ratio', 'score_bounding_box', 'score_area', 'score_corner',
-           'create_item_dict', 'check']
+__all__ = ['compose', 'score_perimeter_area_ratio', 'score_bounding_box', 'score_area',
+           'score_corner', 'create_item_dict', 'check']

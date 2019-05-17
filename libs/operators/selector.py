@@ -2142,7 +2142,7 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
-    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(90, 5)]),
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(80, 15)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
@@ -2210,16 +2210,16 @@ SELECTORS = {
                                           pair(is_not(corner_stone))]),
 
     "can_be_removed": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
-                                                       is_not(only_face),
-                                                       is_not(has_needed_linear),
-                                                       is_not(adjacent_to_needed_space),
-                                                       is_not(corner_stone)]),
+                                                         is_not(only_face),
+                                                         is_not(has_needed_linear),
+                                                         is_not(adjacent_to_needed_space),
+                                                         is_not(corner_stone)]),
 
     "can_be_added": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
-                                                     pair(is_not(only_face)),
-                                                     pair(is_not(has_needed_linear)),
-                                                     pair(is_not(adjacent_to_needed_space)),
-                                                     pair(is_not(corner_stone))]),
+                                                       pair(is_not(only_face)),
+                                                       pair(is_not(has_needed_linear)),
+                                                       pair(is_not(adjacent_to_needed_space)),
+                                                       pair(is_not(corner_stone))]),
 
     "plan_boundary_no_linear": Selector(space_boundary,
                                         [edge_length(min_length=40),

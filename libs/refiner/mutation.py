@@ -305,7 +305,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     for other in faces_by_spaces:
         if not other.mutable:
             continue
-        faces_id = list(map(lambda f: f.id, faces_by_spaces[other]))
+        faces_id = set(map(lambda f: f.id, faces_by_spaces[other])) & set(space._faces_id)
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces
