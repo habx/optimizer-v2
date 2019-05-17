@@ -15,9 +15,6 @@ It implements a simple version of the NSGA-II algorithm:
     non-dominated sorting genetic algorithm for multi-objective
     optimization: NSGA-II", 2002.
 
-TODO LIST:
-    • modify edge mutation selector to adjust selection probability for small edge
-    •
 
 """
 import random
@@ -56,7 +53,7 @@ class Refiner:
     def apply_to(self,
                  plan: 'Plan',
                  spec: 'Specification',
-                 params: dict, processes: int = 1) -> 'Plan':
+                 params: dict, processes: int = 1) -> 'Individual':
         """
         Applies the refiner to the plan and returns the result.
         :param plan:
@@ -146,6 +143,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
 
     toolbox = core.Toolbox()
     toolbox.configure("fitness", "CustomFitness", weights)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
@@ -281,3 +279,36 @@ REFINERS = {
     "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
     "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }
+
+
+if __name__ == '__main__':
+    PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
+
+
+    def apply():
+        import tools.cache
+        import time
+        """ test function """
+
+        logging.getLogger().setLevel(logging.INFO)
+
+        spec, plan = tools.cache.get_plan("014", grid="001", seeder="directional_seeder")  # 052
+
+        if plan:
+            plan.name = "original"
+            plan.remove_null_spaces()
+            plan.plot()
+
+            # run genetic algorithm
+            start = time.time()
+            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+            end = time.time()
+            improved_plan.name = "Refined"
+            improved_plan.plot()
+            # analyse found solutions
+            logging.info("Time elapsed: {}".format(end - start))
+            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                           improved_plan.fitness.values))
+
+            evaluation.check(improved_plan, spec)
+    apply()

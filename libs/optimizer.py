@@ -85,8 +85,8 @@ class ExecParams:
 
         refiner_params = {
             "ngen": 50,
-            "mu": 28,
-            "cxpb": 0.5
+            "mu": 64,
+            "cxpb": 0.2
         }
 
         corridor_params = {
@@ -107,7 +107,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', corridor_params)
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'naive')
+        self.refiner_type = params.get('refiner_type', 'nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 

@@ -73,11 +73,6 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     excluded_spaces = ("circulation",)  # circulation space have no target areas in the spec
     space_to_item = ind.fitness.cache.get("space_to_item", None)
 
-    if space_to_item is None:
-        logging.debug("Refiner: Score: computing space_to_item dictionary")
-        space_to_item = create_item_dict(spec)
-        ind.fitness.cache["space_to_item"] = space_to_item
-
     # create the item_to_space dict
     area_score = {}
     if spec is None:
