@@ -69,8 +69,11 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
             space_size = Case.BIG
 
     dice = random.random()
+    accumulated_pb = 0
     for mutation_pbx in mutations_pbx:
-        if dice <= mutation_pbx[1][space_size]:
+        pb = mutation_pbx[1][space_size]
+        accumulated_pb += pb
+        if dice <= accumulated_pb:
             modified_spaces = mutation_pbx[0](space)
             ind.modified_spaces |= {s.id for s in modified_spaces}
             break

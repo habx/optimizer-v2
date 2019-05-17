@@ -140,7 +140,8 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = params["weights"]  # a tuple containing the weights of the fitness
+    weights = (-20.0, -1.0, -1.0)
+    # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
     toolbox = core.Toolbox()
@@ -149,23 +150,21 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
                  evaluation.score_bounding_box,
-                 evaluation.score_area,
-                 evaluation.score_connectivity,
-                 evaluation.score_circulation_width]
+                 evaluation.score_area]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
-    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
-                                      mutation.Case.SMALL: 0.2,
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
+                                      mutation.Case.SMALL: 0.5,
                                       mutation.Case.BIG: 0.0}),
-                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.2,
                                          mutation.Case.SMALL: 0.0,
-                                         mutation.Case.BIG: 0.2}),
-                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.45,
-                                               mutation.Case.SMALL: 0.8,
+                                         mutation.Case.BIG: 0.5}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.3,
+                                               mutation.Case.SMALL: 0.5,
                                                mutation.Case.BIG: 0.0}),
-                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.45,
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.3,
                                                   mutation.Case.SMALL: 0.0,
-                                                  mutation.Case.BIG: 0.8}))
+                                                  mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
     toolbox.register("mate", crossover.connected_differences)
