@@ -205,7 +205,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
         if not other.mutable:
             continue
         # check if we are breaking the space if we remove the faces
-        if other.corner_stone(*list(e.face for e in edges_by_spaces[other])):
+        if other.corner_stone(*set(e.face for e in edges_by_spaces[other])):
             continue
 
         # remove all edges that have a needed linear for the space
@@ -274,9 +274,6 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     # check that we are not removing any important faces
     edges = space.aligned_siblings(edge, max_angle)
     faces = set(list(e.face for e in edges))
-
-    if len(faces) == space.number_of_faces:
-        return []
 
     if space.corner_stone(*faces):
         return []
