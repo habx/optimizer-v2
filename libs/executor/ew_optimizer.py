@@ -60,5 +60,6 @@ class Timeout(ExecWrapper):
 
     @staticmethod
     def instantiate(td: TaskDefinition):
+        # OPT-4791: Adding a 1h timeout by default
         timeout = int(td.params.get('timeout', '3600'))
         return __class__(timeout) if timeout > 0 else None
