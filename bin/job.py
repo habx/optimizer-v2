@@ -89,13 +89,14 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         metavar="ID", help="Params ID"
     )
     parser.add_argument(
-        "-B", "--batch-execution-id", dest="batch_execution_id",
-        default=os.getenv('BATCH_EXECUTION_ID'), metavar="ID", help="BatchExecution ID"
+        "-B", "--batch-execution-id", dest="batch_execution_id", default=os.getenv('BATCH_EXECUTION_ID'),
+        metavar="ID", help="BatchExecution ID"
     )
 
     # OPT-106: Allowing to specify a taskId
     parser.add_argument(
-        "-t", "--task-id", dest="task_id", metavar="ID", help="Task ID"
+        "-t", "--task-id", dest="task_id",  default=os.getenv('TASK_ID'),
+        metavar="ID", help="Task ID",
     )
     args = parser.parse_args()
 
