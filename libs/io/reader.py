@@ -427,13 +427,15 @@ def create_specification_from_data(input_data: dict,
 
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use("TkAgg")
 
     def specification_read():
         """
         Test
         :return:
         """
-        input_file = "011_setup0.json"
+        input_file = "015_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -446,7 +448,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "011.json"
+        input_file = "015.json"
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)

@@ -265,7 +265,11 @@ class Individual(Plan):
             msg += "\n{}: {} • {:.2f}".format(space.category.name, value,
                                               self.fitness.sp_wvalue[space.id])
         msg += "\nSCORE: {}".format(self.fitness.wvalue)
-        ax.set_xlabel(msg, fontsize=8)
+        if self.floor_count > 1:
+            ax[0].mar
+            ax[0].set_xlabel(msg, fontsize=8)
+        else:
+            ax.set_xlabel(msg, fontsize=8)
         plot_save(save, show)
 
     def clone(self, name: str = "") -> 'Individual':

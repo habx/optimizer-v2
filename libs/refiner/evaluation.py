@@ -8,6 +8,9 @@ We use a composition factory:
 ex.
 my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_box)
 
+TODO : • when no entrance -> front_door must go to living or livingKitchen
+       • penalize rooms with holes
+
 """
 import math
 import logging

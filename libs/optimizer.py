@@ -99,7 +99,7 @@ class ExecParams:
         }
 
         self.grid_type = params.get('grid_type', 'optimal_grid')
-        self.seeder_type = params.get('seeder_type', 'simple_seeder')
+        self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')

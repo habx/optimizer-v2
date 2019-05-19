@@ -216,7 +216,7 @@ class Vertex(MeshComponent):
         property
         Sets the x coordinate
         """
-        self._x = float(value)
+        self._x = truncate(float(value))
 
     @property
     def y(self) -> float:
@@ -232,7 +232,7 @@ class Vertex(MeshComponent):
         property
         Sets the y coordinate
         """
-        self._y = float(value)
+        self._y = truncate(float(value))
 
     @property
     def edge(self):
@@ -475,36 +475,46 @@ class Vertex(MeshComponent):
         """
         best_edge = None
         min_angle = None
+        vector = self.edge.vector if self.edge else None
         for edge in edges:
+            new_edge = None
             # if the vertex has an edge we make sure that we snap to the correct edge pair.
             # this is needed only for internal edge
-            dist = edge.as_sp.distance(self.as_sp)
-            if dist <= COORD_EPSILON:
-                new_edge = edge.split(self)
-                if new_edge is None:
-                    continue
-                if self.edge is None:
-                    best_edge = new_edge
+            # NOTE : very important, the vertex must move not the edge !
+            if self is edge.start or self.snap_to(edge.start) is not self:
+                new_edge = edge
+            elif self is edge.end or self.snap_to(edge.end) is not self:
+                new_edge = edge.next
+            else:
+                closest_point = project_point_on_segment(self.coords, edge.normal,
+                                                         (edge.start.coords, edge.end.coords),
+                                                         no_direction=True)
+                dist = distance(self.coords, closest_point) if closest_point else math.inf
+                if dist <= COORD_EPSILON:
+                    self.coords = closest_point
+                    new_edge = edge.split(self)
+
+            if new_edge is None:
+                continue
+
+            internal_edge = (edge.is_internal or edge.pair.next
+                             or edge.pair.next.pair.next.is_internal)
+
+            if not internal_edge or not self.edge:
+                best_edge = new_edge
+                break
+
+            # check if we have a correct edge in case of an internal edge
+            new_angle = ccw_angle(new_edge.vector, vector)
+            # note : we must check that the edge is not just slightly on the clockwise side
+            # of the new_edge
+            if pseudo_equal(new_angle, 360.0, ANGLE_EPSILON):
+                new_angle = 0.0
+            if min_angle is None or min_angle > new_angle:
+                best_edge = new_edge
+                min_angle = new_angle
+                if pseudo_equal(min_angle, 0.0, ANGLE_EPSILON):
                     break
-
-                internal_edge = (edge.is_internal or edge.pair.next
-                                 or edge.pair.next.pair.next.is_internal)
-
-                if not internal_edge:
-                    best_edge = new_edge
-                    break
-
-                # check if we have a correct edge in case of an internal edge
-                new_angle = ccw_angle(new_edge.vector, self.edge.vector)
-                # note : we must check that the edge is not just slightly on the clockwise side
-                # of the new_edge
-                if pseudo_equal(new_angle, 360.0, ANGLE_EPSILON):
-                    new_angle = 0.0
-                if min_angle is None or min_angle > new_angle:
-                    best_edge = new_edge
-                    min_angle = new_angle
-                    if pseudo_equal(min_angle, 0.0, ANGLE_EPSILON):
-                        break
         return best_edge
 
     def vector(self, other: 'Vertex') -> Vector2d:
@@ -2217,6 +2227,8 @@ class Face(MeshComponent):
               length: Optional[float] = LINE_LENGTH) -> List['Face']:
         """
         Cuts a face according to a linestring crossing the vertex and along the vector
+        TODO : if the linestring is very close to an edge of the face, the result of the slice
+               can be just the creation of a single vertex
         :param vertex:
         :param vector:
         :param length
@@ -2446,12 +2458,20 @@ class Face(MeshComponent):
 
         # split the face edges if they touch a vertex of the container face
         # TODO : this is highly inefficient as we try to intersect every edge with every vertex
-
-        for _vertex in self.vertices:
-            face_edges = list(face.edges)
-            new_edge = _vertex.snap_to_edge(*face_edges)
-            if new_edge is not None:
-                logging.debug('Mesh: Snapped a vertex from the receiving face: %s', _vertex)
+        # NOTE : per convention we do not modify the alignments of the receiving faces
+        # this means that only the vertices and the edges of the inserted face can be modified
+        # trough the snapping. If a vertex has to be created on an edge of the receiving face
+        # it must be aligned with the existing edge.
+        for _edge in face.edges:
+            _edge.start.snap_to(*self.vertices)
+            _edge.end.snap_to(*self.vertices)
+            for _vertex in self.vertices:
+                closest_point = project_point_on_segment(_vertex.coords, _edge.normal,
+                                                         (_edge.start.coords, _edge.end.coords),
+                                                         no_direction=True)
+                dist = distance(_vertex.coords, closest_point) if closest_point else math.inf
+                if dist <= COORD_EPSILON:
+                    _edge.split(_vertex)
 
         # snap face vertices to edges of the container face
         # for performance purpose we store the snapped vertices and the corresponding edge
@@ -2546,12 +2566,15 @@ class Face(MeshComponent):
 
         # merge the faces
         remaining_face = new_faces[0]
-        for new_face in new_faces:
-            for edge in new_face.edges:
-                if edge.pair.face in new_faces:
-                    # we must not clean vertices to prevent the deletion of an edge on
-                    # which we are currently iterating thus creating an infinite loop
-                    remaining_face = edge.remove(clean_vertex=False)
+        edges_to_remove = [e for new_face in new_faces
+                           for e in new_face.edges if e.pair.face in new_faces]
+        for edge in edges_to_remove:
+            if not edge.mesh:  # we check if the edge has already been removed
+                continue
+            if edge.pair.face in new_faces:
+                # we must not clean vertices to prevent the deletion of an edge on
+                # which we are currently iterating thus creating an infinite loop
+                remaining_face = edge.remove(clean_vertex=False)
 
         # we clean the vertices afterwards
         for vertex in list(remaining_face.vertices):

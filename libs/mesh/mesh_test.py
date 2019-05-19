@@ -580,6 +580,9 @@ def test_insert_multiple_overlapping():
     Test
     :return:
     """
+    import matplotlib
+    matplotlib.use("TkAgg")
+
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
     hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
@@ -655,6 +658,9 @@ def test_insert_multiple_overlapping_closing():
     Test
     :return:
     """
+    import matplotlib
+    matplotlib.use("TkAgg")
+
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
     hole_2 = [(90, 100), (300, 100), (300, 200), (90, 200)]
