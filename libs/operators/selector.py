@@ -30,6 +30,8 @@ from libs.utils.geometry import (
     parallel
 )
 
+from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
+
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
     from libs.plan.plan import Space, Plan
@@ -1240,14 +1242,25 @@ def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    face = edge.face
+    other_entrances = (SPACE_CATEGORIES["living"], SPACE_CATEGORIES["livingKitchen"])
 
-    if not space.category.needed_linears or not face:
+    face = edge.face
+    has_entrance = True
+
+    if SPACE_CATEGORIES["entrance"] not in (s.category for s in space.plan.mutable_spaces()):
+        has_entrance = False
+
+    if ((not space.category.needed_linears or not face)
+            and (has_entrance or space.category not in other_entrances)):
         return False
+
+    needed_linears = list(space.category.needed_linears)
+    if not has_entrance and space.category in other_entrances:
+        needed_linears.append(LINEAR_CATEGORIES["frontDoor"])
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
-        if linear and linear.category in space.category.needed_linears:
+        if linear and linear.category in needed_linears:
             return True
     return False
 

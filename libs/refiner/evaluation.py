@@ -31,7 +31,9 @@ scoreFunc = Callable[['Specification', 'Individual'], Dict[int, float]]
 def compose(funcs: List[scoreFunc],
             spec: 'Specification', ind: 'Individual') -> Dict[int, Tuple[float, ...]]:
     """
-    A factory to compose evaluation function from a list of score function
+    The main function to create an evaluation function from a list of score functions.
+    The function is expected to be used with a Toolbox instance that will create the corresponding
+    partial function by fixing the left parameters *funcs* and *specs*.
     :param funcs:
     :param spec:
     :param ind:
