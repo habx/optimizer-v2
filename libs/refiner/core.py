@@ -266,7 +266,6 @@ class Individual(Plan):
                                               self.fitness.sp_wvalue[space.id])
         msg += "\nSCORE: {}".format(self.fitness.wvalue)
         if self.floor_count > 1:
-            ax[0].mar
             ax[0].set_xlabel(msg, fontsize=8)
         else:
             ax.set_xlabel(msg, fontsize=8)
