@@ -20,6 +20,7 @@ PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 def refiner_simple(input_file):
     """
     Test refiner on all plan files
+    26 / 51 / 006 / 009 / 057 / 055
     :return:
     """
     logging.getLogger().setLevel(logging.INFO)
