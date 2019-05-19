@@ -17,7 +17,7 @@ PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
-def test_refiner_simple(input_file):
+def refiner_simple(input_file):
     """
     Test refiner on all plan files
     :return:
