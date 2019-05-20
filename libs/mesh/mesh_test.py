@@ -412,9 +412,11 @@ def test_remove_complex_edge():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
 
+    mesh.plot()
+
     mesh.faces[1].edge.remove()
 
-    mesh.plot()
+    # mesh.plot()
 
     assert mesh.check()
 
@@ -617,6 +619,9 @@ def test_insert_between_holes():
 
     :return:
     """
+    import matplotlib
+    matplotlib.use("TkAgg")
+
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(150, 300), (300, 300), (300, 400), (150, 400)]
     hole_2 = [(150, 200), (300, 200), (300, 250), (150, 250)]

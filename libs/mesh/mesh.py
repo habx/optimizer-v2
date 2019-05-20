@@ -38,7 +38,7 @@ from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot
 
 # arbitrary value for the length of the line :
 # it should be long enough to approximate infinity
-LINE_LENGTH = 500000
+LINE_LENGTH = 50000000
 ANGLE_EPSILON = 2.0  # value to check if an angle has a specific value
 COORD_EPSILON = 1.0  # coordinates precision for snapping purposes
 MIN_ANGLE = 5.0  # min. acceptable angle in grid
@@ -488,7 +488,7 @@ class Vertex(MeshComponent):
             else:
                 closest_point = project_point_on_segment(self.coords, edge.normal,
                                                          (edge.start.coords, edge.end.coords),
-                                                         no_direction=True)
+                                                         no_direction=True, epsilon=COORD_EPSILON)
                 dist = distance(self.coords, closest_point) if closest_point else math.inf
                 if dist <= COORD_EPSILON:
                     self.coords = closest_point
@@ -1273,15 +1273,22 @@ class Edge(MeshComponent):
         3. attribute correct face to orphan edges
         :return: the remaining face after the edge was removed
         """
-        other_face = self.pair.face
-        remaining_face = self.face
-
         # attribute new face to orphan
         # note if the edge is a boundary edge we attribute the edge face
         # to the pair edge siblings, not the other way around
-        if self.face is self.pair.face:
+        other_face = self.pair.face
+        removed_face = self.face if self.face is not None else other_face
+        remaining_face = other_face if self.face is not None else None
+
+        if self.face is None or self.pair.face is None:
+            logging.warning("Edge: Removing and edge on the boundary of the plan")
+
+        # Check if the *self* edge is an internal edge of the face
+        # we can only remove it if it's also an isolated edge, meaning it should end on a lone
+        # vertex
+        if self.is_internal:
             # we cannot remove an edge that is needed to connect a face hole to the face
-            # boundary
+            # boundary, so we have to check that the edge ends in a lone vertex
             if self.next is not self.pair and self.pair.next is not self:
                 raise ValueError('cannot remove an edge that will create an' +
                                  ' unconnected hole in a face: {0}'.format(self))
@@ -1289,47 +1296,41 @@ class Edge(MeshComponent):
             logging.debug('Mesh: Removing an isolated edge: {0}'.format(self))
             isolated_edge = self if self.next is self.pair else self.pair
             # remove end vertex from mesh
-            isolated_edge.end.remove_from_mesh()
             isolated_edge.preserve_references(isolated_edge.pair.next)
             isolated_edge.pair.preserve_references(isolated_edge.pair.next)
             isolated_edge.previous.next = isolated_edge.pair.next
+            isolated_edge.end.remove_from_mesh()
             isolated_edge.start.clean()
         else:
-            if self.face is not None:
-                self.face.remove_from_mesh()
-                remaining_face = other_face
-            else:
-                other_face.remove_from_mesh()
-                for edge in self.pair.siblings:
-                    edge.face = self.face
-
-            for edge in self.siblings:
-                edge.face = remaining_face
-
             # preserve references
             self.preserve_references()
             self.pair.preserve_references()
+
+            # change face references
+            for edge in removed_face.edges:
+                edge.face = remaining_face
+
+            removed_face.remove_from_mesh()
 
             # stitch the edge extremities
             self.pair.previous.next = self.next
             self.previous.next = self.pair.next
 
-            # clean useless vertices
+            # clean potentially useless vertices
             if clean_vertex:
                 self.start.clean()
                 self.end.clean()
 
-        # remove isolated edges
+        # Finish :
+        # remove the edge and its pair, and the removed face from the mesh
+        self.remove_from_mesh()
+        self.pair.remove_from_mesh()
+
+        # remove the potentially remaining isolated edges in the face
         for edge in remaining_face.edges:
-            if edge is self:
-                continue
             if edge.next is edge.pair:
                 edge.remove()
                 break
-
-        # remove the edge and its pair from the mesh
-        self.remove_from_mesh()
-        self.pair.remove_from_mesh()
 
         return remaining_face
 
@@ -2229,52 +2230,47 @@ class Face(MeshComponent):
         Cuts a face according to a linestring crossing the vertex and along the vector
         TODO : if the linestring is very close to an edge of the face, the result of the slice
                can be just the creation of a single vertex
+        We must first create a point outside the face, in order to find every intersection point in
+        the face. Then we link every point.
         :param vertex:
         :param vector:
         :param length
         :return:
         """
-        line = vertex.sp_full_line(vector, length=length)
-        intersection_points = self.as_sp_linear_ring.intersection(line)
-        new_faces = [self]
+        translation_vector = unit(vector)
+        # We move the point far from the mesh to ensure that we are outside the face
+        # note this is a fast way but not guaranteed if we have a very large face (larger or close
+        # to the LINE_LENGTH
+        reference_point = move_point(vertex.coords, translation_vector, -LINE_LENGTH)
+        intersected_edges = set()
+        for edge in self.edges:
+            if dot_product(edge.normal, vector) <= 0:
+                continue
+            intersection_point = project_point_on_segment(reference_point, vector,
+                                                          (edge.start.coords, edge.end.coords),
+                                                          no_direction=True,
+                                                          epsilon=COORD_EPSILON)
+            if intersection_point:
+                # we try to snap the vertex to the edge extremities
+                intersected_edge = Vertex(self.mesh, *intersection_point).snap_to_edge(edge)
+                intersected_edges.add(intersected_edge)
 
-        if intersection_points.is_empty:
-            logging.debug('Mesh: Cannot slice a face with a segment that does not intersect it')
-            return new_faces
+        if not intersected_edges:
+            return [self]
+        intersected_edges = list(intersected_edges)
+        # sort the points via their distance to the reference point
+        sorted(intersected_edges, key=lambda e: distance(reference_point, e.start.coords))
 
-        if intersection_points.geom_type == 'LineString':
-            logging.debug('Mesh: While slicing only found a lineString as intersection')
-            return new_faces
+        modified_faces = [self]
 
-        if intersection_points.geom_type == 'Point':
-            logging.debug('Mesh: While slicing only found a point as intersection')
-            return new_faces
-
-        new_vertices = []
-
-        for geom_object in intersection_points:
-            if geom_object.geom_type == 'Point':
-                new_vertices.append(Vertex(self.mesh, *geom_object.coords[0]))
-
-            if geom_object.geom_type == 'LineString':
-                new_vertices.append(Vertex(self.mesh, *geom_object.coords[0]))
-                new_vertices.append(Vertex(self.mesh, *geom_object.coords[-1]))
-
-        if new_vertices:
-            logging.debug("Mesh: Slicing a face on multiple vertices: %s", new_vertices)
-
-        face_edges = list(self.edges)
-        for vertex in new_vertices:
-            new_edge = vertex.snap_to_edge(*face_edges)
-            if new_edge is None:
-                raise Exception('This is impossible ! We should have found an intersection !!')
-            new_mesh_objects = new_edge.cut(vertex, vector=vector)
+        for intersected_edge in intersected_edges:
+            new_mesh_objects = intersected_edge.cut(intersected_edge.start, vector=vector)
             if new_mesh_objects:
                 start_edge, end_edge, new_face = new_mesh_objects
-                if new_face and new_face not in new_faces:
-                    new_faces.append(new_face)
+                if new_face and new_face not in modified_faces:
+                    modified_faces.append(new_face)
 
-        return new_faces
+        return modified_faces
 
     def _insert_enclosed_face(self, face: 'Face') -> List['Face']:
         """
