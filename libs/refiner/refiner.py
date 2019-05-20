@@ -283,6 +283,7 @@ REFINERS = {
 
 if __name__ == '__main__':
     PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
+    # problematic floor plans : 051 / 009 / 062 / 055
 
     def apply():
         """
@@ -291,12 +292,14 @@ if __name__ == '__main__':
         """
         import tools.cache
         import time
-        # import matplotlib
-        # matplotlib.use("TkAgg")
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("TkAgg")
         """ test function """
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "051"
+        plan_number = "009"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -317,4 +320,6 @@ if __name__ == '__main__':
                                                            improved_plan.fitness.values))
 
             evaluation.check(improved_plan, spec)
+            improved_plan.plot(save=False)
+            plt.show()
     apply()

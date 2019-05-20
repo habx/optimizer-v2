@@ -362,6 +362,7 @@ UTILITY Functions
 def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
+    TODO : number of linears (example : living or bedroom if small windows)
     :param edge:
     :param space:
     :return:

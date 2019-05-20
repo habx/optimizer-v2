@@ -30,7 +30,7 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
         return ind_1, ind_2
     for floor in ind_1.floors.values():
         differences = [f for f in floor.mesh.faces
-                       if ind_1.get_space_of_face(f).id != ind_2.get_space_of_face(f).id]
+                       if ind_1.get_space_of_face(f) != ind_2.get_space_of_face(f)]
 
         if len(differences) <= 1:
             # nothing to do

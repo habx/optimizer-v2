@@ -98,7 +98,7 @@ class ExecParams:
             "layer_cut": False
         }
 
-        self.grid_type = params.get('grid_type', 'optimal_grid')
+        self.grid_type = params.get('grid_type', '001')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)

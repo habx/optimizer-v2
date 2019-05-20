@@ -623,6 +623,11 @@ class Solution:
         for floor in self.plan.floors.values():
             for face in floor.mesh.faces:
                 space = self.plan.get_space_of_face(face)
+                # Note: sometimes a few faces of the mesh will no be assigned to a space
+                if not space:
+                    logging.warning("Solution: A face of the mesh "
+                                    "has no assigned space: %s - floor: %s", face, floor)
+                    continue
                 if space.category.mutable:
                     mesh_area += face.area
                     other_space = other_solution.plan.get_space_of_face(face)

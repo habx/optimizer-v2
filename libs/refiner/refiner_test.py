@@ -17,10 +17,10 @@ PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
-def refiner_simple(input_file):
+def test_refiner_simple(input_file):
     """
     Test refiner on all plan files
-    26 / 51 / 006 / 009 / 057 / 055
+    051 / 009 / 062 / 055
     :return:
     """
     logging.getLogger().setLevel(logging.INFO)

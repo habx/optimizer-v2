@@ -76,6 +76,10 @@ class PlanComponent:
         return self.id
 
     def __eq__(self, other):
+        """
+        Note: two spaces with same id but from two separate plans will be considered equal
+        We are not comparing plan id for performance purpose
+        """
         if other is None:
             return False
         return self.id == other.id
