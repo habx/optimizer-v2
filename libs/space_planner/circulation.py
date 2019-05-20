@@ -33,11 +33,9 @@ class Circulator:
         self.path_calculator.build()
         self.connectivity_graph = GraphNx()
         self.spec = spec
-
-    def clear(self):
         self.reachable_edges = {space: [] for space in self.plan.spaces}
-        self.connecting_paths = {level: [] for level in self.plan.list_level}
-        self.connecting_edges = {level: [] for level in self.plan.list_level}
+        self.connecting_paths = {'vert': {level: [] for level in self.plan.list_level},
+                                 'edge': {level: [] for level in self.plan.list_level}}
         self.growing_directions = {level: {} for level in self.plan.list_level}
         self.circulation_cost = 0
 
@@ -246,23 +244,33 @@ class Circulator:
                 else:
                     return lines
 
-        def get_score(space: 'Space', e: 'Edge') -> float:
+        def get_score(area_space: 'Dict', path_line: List['Edge'], pair: bool = False) -> float:
             """
-            returns min_required_space_area-edge.length*corridor_width if positive, else zero
-            :param space:
-            :param e:
+            computes the area of each space amputated when a corridor of the path grows on it
+            :param area_space:
+            :param path_line:
+            :param pair:
             :return:
             """
+            score = 0
             corridor_width = 90
-            spec_items = self.spec.items[:]
-            corresponding_items = list(filter(lambda i: i.category.name == space.category.name,
-                                              spec_items))
-            best_item = min(corresponding_items,
-                            key=lambda i: math.fabs(i.required_area - space.cached_area()),
-                            default=None)
 
-            shift = best_item.min_size.area - (space.cached_area() - corridor_width * e.length)
-            return shift * (shift > 0)
+            path_line_selected = [e.pair for e in path_line] if pair else path_line
+
+            for e in path_line_selected:
+                sp = self.plan.get_space_of_edge(e)
+                area_space[sp] -= e.length * corridor_width
+
+            for sp in area_space:
+                spec_items = self.spec.items[:]
+                corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
+                                                  spec_items))
+                best_item = min(corresponding_items,
+                                key=lambda i: math.fabs(i.required_area - sp.cached_area()),
+                                default=None)
+                current = (best_item.min_size.area - area_space[sp]) / best_item.min_size.area
+                score += current * (current > 0)
+            return score
 
         def get_growing_direction(path_line: List['Edge']):
             """
@@ -274,21 +282,22 @@ class Circulator:
             """
             dir_ccw = path_line[0].normal
             dir_cw = opposite_vector(dir_ccw)
-            score_ccw = 0
-            score_cw = 0
+            area_space_cw = {}
+            area_space_ccw = {}
             for e in path_line:
                 space_ccw = self.plan.get_space_of_edge(e)
                 if not space_ccw or not space_ccw.mutable:
-                    # corridor cannot grow outside of the plan or on a non mutable space
                     return dir_cw
                 else:
-                    score_ccw += get_score(space_ccw, e)
+                    area_space_ccw[space_ccw] = space_ccw.cached_area()
                 space_cw = self.plan.get_space_of_edge(e.pair)
                 if not space_cw or not space_cw.mutable:
-                    # corridor cannot grow outside of the plan or on a non mutable space
                     return dir_ccw
                 else:
-                    score_cw += get_score(space_cw, e)
+                    area_space_cw[space_cw] = space_cw.cached_area()
+
+            score_cw = get_score(area_space_cw, path_line, pair=True)
+            score_ccw = get_score(area_space_ccw, path_line)
             return dir_ccw if score_ccw < score_cw else dir_cw
 
         path_lines = get_lines_of_path(edge_path)
@@ -303,9 +312,9 @@ class Circulator:
         update based on computed circulation path
         :return: the list of spaces connected by path
         """
-        self.connecting_paths[level].append(path)
+        self.connecting_paths['vert'][level].append(path)
         edge_path = self.get_edge_path(path)
-        self.connecting_edges[level].append(edge_path)
+        self.connecting_paths['edge'][level].append(edge_path)
 
         self.set_growing_directions(edge_path, level)
 
@@ -341,8 +350,8 @@ class Circulator:
                     cost_min = cost
                     path_min = path
                     connected_room = other
-        # compute path betwenn space and every existing circulation path
-        for edge_path in self.connecting_edges[space.floor.level]:
+        # compute path between space and every existing circulation path
+        for edge_path in self.connecting_paths['edge'][space.floor.level]:
             if edge_path:
                 path, cost = self.draw_path(self.reachable_edges[space], edge_path,
                                             space.floor.level)
@@ -364,7 +373,6 @@ class Circulator:
         detects isolated rooms and generate a path to connect them
         :return:
         """
-        self.clear()
         self.init_reachable_edges()
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
@@ -382,7 +390,7 @@ class Circulator:
         if plot_edge:
             for f in self.plan.list_level:
                 _ax = ax[f] if number_of_floors > 1 else ax
-                paths = self.connecting_edges[f]
+                paths = self.connecting_paths['edge'][f]
                 for path in paths:
                     for edge in path:
                         edge.plot(ax=_ax, color='blue')
@@ -393,7 +401,7 @@ class Circulator:
         else:
             for f in self.plan.list_level:
                 _ax = ax[f] if number_of_floors > 1 else ax
-                paths = self.connecting_paths[f]
+                paths = self.connecting_paths['vert'][f]
                 for path in paths:
                     if len(path) == 1:
                         _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
@@ -628,7 +636,7 @@ if __name__ == '__main__':
                                         cost_rules=COST_RULES)
                 circulator.connect()
                 circulator.plot()
-                logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
+                logging.debug('connecting paths: {0}'.format(circulator.connecting_paths['vert']))
 
 
     connect_plan()
