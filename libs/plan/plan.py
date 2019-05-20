@@ -1080,6 +1080,7 @@ class Space(PlanComponent):
                     self.edge = edge.pair
                     break
             else:
+                self.plan.plot()
                 raise Exception("This should never happen!!")
             self.remove_face_id(face.id)
             self._clean_hole_disappearance()

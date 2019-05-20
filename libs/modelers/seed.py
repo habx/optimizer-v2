@@ -40,9 +40,12 @@ if TYPE_CHECKING:
 
 FillMethod = MergeMethod = Callable[['Seeder', bool], List['Space']]
 
-EPSILON_MAX_SIZE = 10.0
 SQM = 10000
+
+# TODO: these globals should really be members of the Seeder instance
+EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 25
+MIN_SEEDER_SPACE_AREA = 1000
 
 
 class Seeder:
@@ -754,7 +757,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     """
 
     epsilon_length = 20
-    min_cell_area = 1000
+    min_cell_area = MIN_SEEDER_SPACE_AREA
     target_number_of_spaces = 1
     modified_spaces = []
 
@@ -916,7 +919,7 @@ def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
     :param show:
     :return: the list of modified spaces
     """
-    min_cell_area = 1000
+    min_cell_area = MIN_SEEDER_SPACE_AREA
     modified_spaces = []
 
     for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):

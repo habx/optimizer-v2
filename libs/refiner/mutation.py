@@ -221,10 +221,11 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
         # check if we are breaking the space if we remove the faces
         # Note : we must check after removing the edges linked to a needed linear or space
-        if other.corner_stone(*set(e.face for e in edges_by_spaces[other])):
+        faces = set(e.face for e in edges_by_spaces[other])
+        if other.corner_stone(*faces):
             continue
 
-        faces_id = list(set(map(lambda e: e.face.id, edges_by_spaces[other])))
+        faces_id = [f.id for f in faces]
         space.add_face_id(*faces_id)
         other.remove_face_id(*faces_id)
         # set the reference edges of each spaces
@@ -293,26 +294,29 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     if not edges:
         return []
 
-    faces = set(list(e.face for e in edges))
-    if space.corner_stone(*faces):
-        return []
-
     modified_spaces = [space]
-
     faces_by_spaces = {}
+    faces = set(list(e.face for e in edges))
 
     for edge in edges:
         other = plan.get_space_of_edge(edge.pair)
-        if other is None:
+        if other is None or not other.mutable:
+            faces.remove(edge.face)
             continue
         if other not in faces_by_spaces:
             faces_by_spaces[other] = {edge.face}
         else:
             faces_by_spaces[other].add(edge.face)
 
+    if not faces or space.corner_stone(*faces):
+        return []
+
     for other in faces_by_spaces:
         if not other.mutable:
             continue
+        # Note : a face can be adjacent to multiple other spaces. We must check that the face
+        #        has not already been given to another space. This is why we only retain
+        #        the intersection of the identified faces set with the remaining faces of the space
         faces_id = set(map(lambda f: f.id, faces_by_spaces[other])) & set(space._faces_id)
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)

@@ -283,7 +283,7 @@ REFINERS = {
 
 if __name__ == '__main__':
     PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
-    # problematic floor plans : 051 / 009 / 062 / 055
+    # problematic floor plans : 062 / 055
 
     def apply():
         """
@@ -295,11 +295,11 @@ if __name__ == '__main__':
         import matplotlib
         import matplotlib.pyplot as plt
 
-        matplotlib.use("TkAgg")
+        # matplotlib.use("TkAgg")
         """ test function """
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "009"
+        plan_number = "055"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
