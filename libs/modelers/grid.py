@@ -316,8 +316,7 @@ duct_grid = Grid("duct", [
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
     (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
     (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
-    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
-     True),
+    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
 ])
 
 entrance_grid = Grid("front_door", [
@@ -392,8 +391,7 @@ duct_grid_finer = Grid("duct", [
     (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
     (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
     (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
-    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
-     True),
+    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
 ])
 
 entrance_grid_finer = Grid("front_door", [
@@ -410,6 +408,12 @@ stair_grid_finer = Grid("starting_step", [
 
 optimal_grid = (section_grid + duct_grid + corner_grid + load_bearing_wall_grid + window_grid +
                 entrance_grid + stair_grid + completion_grid + cleanup_grid)
+
+test_grid = Grid("Test", [
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+])
 
 
 """
@@ -470,6 +474,7 @@ grid_01 = Grid("GRID_01", [
     # CLEANUP
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTOR_FACTORIES["small_angle_boundary"]([5.0]), MUTATIONS["remove_edge"], True),
     (SELECTORS["close_to_wall_finer"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
@@ -506,7 +511,7 @@ if __name__ == '__main__':
         plan.check()
         plt.show()
         start_time = time.time()
-        new_plan = GRIDS["duct"].apply_to(plan, show=True)
+        new_plan = GRIDS["001"].apply_to(plan, show=True)
         end_time = time.time()
         logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)

@@ -1021,3 +1021,61 @@ def test_close_faces_insertion():
     mesh.faces[0].insert_face_from_boundary(hole_2)
     assert mesh.check()
 
+
+def test_slice_over_hole():
+    """
+    Test
+    :return:
+    """
+    mesh = rectangular_mesh(400, 800)
+    hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+
+    mesh.boundary_edge.pair.slice(205, (1, 0))
+    mesh.plot()
+
+    assert mesh.check()
+
+
+def test_cut_over_hole():
+    """
+    Test
+    :return:
+    """
+    mesh = rectangular_mesh(400, 800)
+    hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    mesh.boundary_edge.pair.barycenter_cut()
+    mesh.plot()
+
+    assert mesh.check()
+
+
+def test_cut_over_internal_edge():
+    """
+    Test
+    :return:
+    """
+    mesh = rectangular_mesh(400, 800)
+    hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    list(mesh.faces[0].edges)[0].recursive_barycenter_cut(0.9, traverse="absolute")
+    mesh.plot()
+
+    assert mesh.check()
+
+
+def test_cut_over_internal_edge_other_direction():
+    """
+    Test
+    :return:
+    """
+    import matplotlib
+    matplotlib.use("TkAgg")
+    mesh = rectangular_mesh(400, 800)
+    hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    mesh.faces[0].insert_face_from_boundary(hole)
+    list(mesh.faces[0].edges)[9].recursive_barycenter_cut(0.1, traverse="absolute")
+    mesh.plot()
+
+    assert mesh.check()

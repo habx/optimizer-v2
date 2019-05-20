@@ -355,7 +355,7 @@ def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
     between the space and the duct
     """
 
-    def get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
+    def _get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
         sp = space.plan.get_space_of_edge(e)
         if not sp or not sp.is_boundary(e):
             return None, None
@@ -367,13 +367,13 @@ def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
             return None, None
 
     for edge in space.edges:
-        out = get_space_of_neighbor_pair(edge)
-        out_pair = get_space_of_neighbor_pair(edge.pair, next_edge=True)
+        out = _get_space_of_neighbor_pair(edge)
+        out_pair = _get_space_of_neighbor_pair(edge.pair, next_edge=True)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
             continue
-        out = get_space_of_neighbor_pair(edge, next_edge=True)
-        out_pair = get_space_of_neighbor_pair(edge.pair)
+        out = _get_space_of_neighbor_pair(edge, next_edge=True)
+        out_pair = _get_space_of_neighbor_pair(edge.pair)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
 
@@ -515,7 +515,7 @@ def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
     :param edge:
     :return:
     """
-    min_lbwall_length = 15.0
+    min_lbwall_length = 25.0
     other = plan.get_space_of_edge(edge.pair)
     return (not other or other.category.external
             or (other.category.name == "loadBearingWall" and edge.length > min_lbwall_length))
@@ -1016,6 +1016,20 @@ def specific_category(*category_names: str) -> EdgeQuery:
                 other = plan.get_space_of_edge(e.pair)
                 if other and other.mutable:
                     yield e
+
+    return _query
+
+
+def small_angle_to_boundary(max_angle: float = 5.0) -> EdgeQuery:
+    """
+    Returns the edge touching the boundary with a small angle
+    :param max_angle: the maximum angle between the edge and the space boundary edge
+    """
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        yield from (e.next for e in space.edges
+                    if not space.is_boundary(e.next) and e.next_angle < max_angle)
+        yield from (e.previous for e in space.edges
+                    if not space.is_boundary(e.previous) and e.previous_angle < max_angle)
 
     return _query
 
@@ -2245,6 +2259,7 @@ SELECTORS = {
     "previous_close_to_corner_wall": Selector(space_boundary,
                                               [edge_length(min_length=110.0),
                                                space_previous_has(close_to_corner_wall)]),
+
 }
 
 SELECTOR_FACTORIES = {
@@ -2253,5 +2268,6 @@ SELECTOR_FACTORIES = {
     "min_depth": SelectorFactory(min_depth),
     "tight_lines": SelectorFactory(tight_lines),
     "category": SelectorFactory(specific_category),
-    "small_faces": SelectorFactory(small_faces)
+    "small_faces": SelectorFactory(small_faces),
+    "small_angle_boundary": SelectorFactory(small_angle_to_boundary)
 }

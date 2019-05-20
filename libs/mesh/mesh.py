@@ -13,12 +13,11 @@ import enum
 
 from shapely.geometry.polygon import Polygon
 from shapely.geometry import Point, LineString, LinearRing
-import numpy as np
 
 import libs.mesh.transformation as transformation
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
 from libs.utils.custom_types import Vector2d, SpaceCutCb, Coords2d, TwoEdgesAndAFace
-from libs.utils.geometry import magnitude, ccw_angle, nearest_point
+from libs.utils.geometry import magnitude, ccw_angle
 from libs.utils.geometry import (
     unit_vector,
     unit,
@@ -277,22 +276,6 @@ class Vertex(MeshComponent):
         return Point(self.x, self.y)
 
     @property
-    def previous(self):
-        """
-        Returns the previous vertex according to edge flow
-        :return: vertex
-        """
-        return self.edge.previous.start
-
-    @property
-    def next(self):
-        """
-        Returns the next vertex according to edge flow
-        :return: vertex
-        """
-        return self.edge.next.start
-
-    @property
     def edges(self) -> Generator['Edge', 'Edge', None]:
         """
         Returns all edges starting from the vertex
@@ -307,7 +290,8 @@ class Vertex(MeshComponent):
     def clean(self) -> List['Edge']:
         """
         Removes an unneeded vertex.
-        It is a vertex that is used only by one edge.
+        It is a vertex that is used only by two aligned edges, which could be replaced by
+        one unique edge (and its pair edge of course).
         :return: the list of modified edges
         """
         # only clean a mutable vertex
@@ -349,28 +333,13 @@ class Vertex(MeshComponent):
 
                 return [edge, edge.pair.next]
 
-    def is_equal(self, other: 'Vertex') -> bool:
+    def is_close(self, other: 'Vertex') -> bool:
         """
-        Pseudo equality operator in order
-        to avoid near misses due to floating point precision
+        Pseudo equality operator used for snapping
         :param other:
         :return:
         """
         return self.distance_to(other) <= COORD_EPSILON
-
-    def nearest_point(self, face: 'Face') -> Optional[Tuple['Vertex', 'Edge', float]]:
-        """
-        Returns the nearest point on the perimeter of the given face,
-        to the vertex
-        :param face:
-        :return: vertex
-        """
-        point = nearest_point(self.as_sp, face.as_sp_linear_ring)
-        for edge in face.edges:
-            if edge.as_sp_dilated.intersects(point):
-                nearest_vertex = Vertex(self.mesh, *point.coords[0])
-                return nearest_vertex, edge, self.distance_to(nearest_vertex)
-        raise Exception('Something that should be impossible happened !:{0}'.format(point))
 
     def project_point(self, face: 'Face',
                       vector: Vector2d) -> Optional[Tuple['Vertex', 'Edge', float]]:
@@ -389,6 +358,9 @@ class Vertex(MeshComponent):
         closest_point = None
         shortest_distance = math.inf
         for edge in face.edges:
+
+            if dot_product(edge.normal, vector) >= 0:
+                continue
 
             # do not project on edges that starts or end with the vertex
             if self in (edge.start, edge.end):
@@ -437,7 +409,7 @@ class Vertex(MeshComponent):
             # case we try to snap a vertex to itself
             if self is other:
                 return self
-            if self.is_equal(other):
+            if self.is_close(other):
                 # ensure that the reference to the vertex are still valid
                 if self.edge is not None:
                     for edge in list(self.edges):
@@ -529,28 +501,6 @@ class Vertex(MeshComponent):
         # to ensure proper intersection we shift slightly the start point
         start_point = move_point(self.coords, vector, -1 / 2 * COORD_EPSILON)
         end_point = move_point(start_point, vector, length)
-        return LineString([start_point, end_point])
-
-    def sp_full_line(self,
-                     vector: Vector2d,
-                     length: float = LINE_LENGTH) -> LineString:
-        """
-        Returns a shapely LineString of length = 2 * specified length, centered on the
-        specified vertex and with the specified vector orientation
-
-        Example :
-                Full line
-        <----------- * ------------->
-           length  vertex  length
-
-        :param vector: direction of the lineString
-        :param length: float length of the lineString
-        :return: a Linestring object
-        """
-        length = length or LINE_LENGTH
-        vector = unit(vector)
-        start_point = move_point(self.coords, vector, -length)
-        end_point = move_point(self.coords, vector, length)
         return LineString([start_point, end_point])
 
 
@@ -647,6 +597,7 @@ class Edge(MeshComponent):
         """
         self._next = value
         # check the size
+        # TODO: is this necessary ?
         self.check_size()
 
     @property
@@ -835,15 +786,6 @@ class Edge(MeshComponent):
             return None
         return self.next.start
 
-    @end.setter
-    def end(self, value: Vertex):
-        """
-        Sets the end vertex of the edge
-        :param value:
-        :return:
-        """
-        self.next.start = value
-
     @property
     def previous(self) -> 'Edge':
         """
@@ -915,11 +857,12 @@ class Edge(MeshComponent):
         min_depth = math.inf
 
         for edge in self.siblings:
+            if edge is self:
+                continue
             point = project_point_on_segment(middle_point, vector,
                                              (edge.start.coords, edge.end.coords))
             if not point:
                 continue
-
             distance_to_point = distance(point, middle_point)
             if distance_to_point < min_depth:
                 min_depth = distance_to_point
@@ -1477,12 +1420,6 @@ class Edge(MeshComponent):
 
         # do not cut an edge on the boundary
         if self.face is None:
-            return None
-
-        # do not cut if the vertex is not inside the edge (Note this could be removed)
-        if not self.contains(vertex):
-            logging.warning('Mesh: Trying to cut an edge on an outside vertex:' +
-                            ' {0} - {1}'.format(self, vertex))
             return None
 
         first_edge = self
@@ -2151,8 +2088,7 @@ class Face(MeshComponent):
 
     def slice(self,
               vertex: Vertex,
-              vector: Vector2d,
-              length: Optional[float] = LINE_LENGTH) -> List['Face']:
+              vector: Vector2d) -> List['Face']:
         """
         Cuts a face according to a linestring crossing the vertex and along the vector
         TODO : if the linestring is very close to an edge of the face, the result of the slice
@@ -2161,7 +2097,6 @@ class Face(MeshComponent):
         the face. Then we link every point.
         :param vertex:
         :param vector:
-        :param length
         :return:
         """
         translation_vector = unit(vector)
@@ -2186,7 +2121,7 @@ class Face(MeshComponent):
             return [self]
         intersected_edges = list(intersected_edges)
         # sort the points via their distance to the reference point
-        intersected_edges = sorted(intersected_edges, key=lambda e: distance(reference_point, e.start.coords))
+        intersected_edges.sort(key=lambda e: distance(reference_point, e.start.coords))
 
         modified_faces = [self]
 
@@ -3345,6 +3280,8 @@ class Mesh:
             self._cached_area = self.as_sp.area
             return self._cached_area
 
+    # noinspection PyTypeChecker
+    # There seems to be a bug in Typing for .items() of a typed Dict
     @property
     def directions(self) -> List[Tuple[float, float]]:
         """
