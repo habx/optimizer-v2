@@ -49,6 +49,7 @@ class SpacePlanner:
         size_max = Size(area=5 * SQM)
         new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
         space_planner_spec.add_item(new_item)
+        living_kitchen = False
 
         for item in spec.items:
             if item.category.name == "circulation":
@@ -62,10 +63,11 @@ class SpacePlanner:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        opens_on = item.opens_on.remove("kitchen")
+                        #opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, opens_on, item.linked_to)
+                                        size_max, item.opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
+                        living_kitchen = True
 
         category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
@@ -82,6 +84,10 @@ class SpacePlanner:
             item.category.name not in invariant_categories)))
 
         for item in space_planner_spec.items:
+            if living_kitchen:
+                if "living" in item.opens_on:
+                    item.opens_on.remove("living")
+                    item.opens_on.append("livingKitchen")
             if item.category.name not in invariant_categories:
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)

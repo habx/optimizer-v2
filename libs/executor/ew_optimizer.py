@@ -12,6 +12,9 @@ class OptimizerRun(ExecWrapper):
     OPTIMIZER = opt.Optimizer()
 
     def _exec(self, td: TaskDefinition) -> opt.Response:
+        # APP-4810: Creating a duplicate instance before processing
+        td = td.copy_for_processing()
+
         output_path = td.local_context.output_dir
         if output_path:
             plt.output_path = output_path
@@ -60,5 +63,6 @@ class Timeout(ExecWrapper):
 
     @staticmethod
     def instantiate(td: TaskDefinition):
-        timeout = int(td.params.get('timeout', '0'))
+        # OPT-4791: Adding a 1h timeout by default
+        timeout = int(td.params.get('timeout', '3600'))
         return __class__(timeout) if timeout > 0 else None
