@@ -50,14 +50,14 @@ class Corridor:
         self.corridor_rules = corridor_rules
         self.circulation_cost_rules = circulation_cost_rules
         self.plot = plot
-        self.spec = None
+        self.spec: Specification = None
         self.plan: Plan = None
         self.circulator: Circulator = None
         self.corner_data: Dict = None
 
     def _clear(self):
         self.plan = None
-        self.plan = None
+        self.spec = None
         self.circulator = None
         self.paths = []
         self.corner_data = {}
@@ -69,6 +69,7 @@ class Corridor:
         -refines the mesh around those paths
         -grows corridor spaces around those paths
         :param plan:
+        :param spec:
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
@@ -79,10 +80,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot(plot_edge=True)
-
-        import sys
-        sys.exit()
+        # self.circulator.plot(plot_edge=True)
 
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
@@ -785,7 +783,6 @@ if __name__ == '__main__':
             return plan, spec
 
         except FileNotFoundError:
-            return None, None
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 

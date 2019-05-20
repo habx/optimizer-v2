@@ -146,13 +146,13 @@ class Circulator:
 
         for node in list(self.connectivity_graph.nodes()):
             if not self.connectivity_graph.node_connected(node):
-                # connected_rooms contains the list of rooms connected by drawing a
-                # circulation to node
                 connected_rooms = self.connect_space_to_circulation_graph(node)
+                # connected_rooms contains the list of rooms connected by connecting node to a
+                # circulation space
                 for connected_room in connected_rooms:
                     if not self.connectivity_graph.node_connected(connected_room):
+                        # connected_room is no longer isolated
                         self.connectivity_graph.add_edge(connected_room, node)
-                # self.connectivity_graph.add_edge(connected_room, node)
 
     def set_circulation_path(self):
         """
@@ -189,11 +189,16 @@ class Circulator:
                 path, cost = self.draw_path(self.reachable_edges[father_nodes[node.floor.level]],
                                             self.reachable_edges[node], node.floor.level)
                 self.circulation_cost += cost
-                self.actualize_path(path, node.floor.level, father_nodes[node.floor.level])
+                self.actualize_path(path, node.floor.level)
                 self.connectivity_graph.add_edge(node, father_nodes[node.floor.level])
 
-    def get_edge_path(self, path: List['Vertex']):
-
+    @staticmethod
+    def get_edge_path(path: List['Vertex']) -> List['Edge']:
+        """
+        from a list of vertices, gets the list of edges connecting those vertices
+        :param path:
+        :return:
+        """
         edge_path = []
         for v, vert in enumerate(path[:-1]):
             for edge in vert.edges:
@@ -203,28 +208,52 @@ class Circulator:
         return edge_path
 
     def set_growing_directions(self, edge_path, level):
+        """
+        for each edge of a circulation path, gets the direction in which the corridor has to grow
+        so as to bite preferentially on rooms which area is still higher than the minimum spec
+        when amputated by the corridor.
+        process:
+        *decompose the path into its straight portions
+        *for each edge of a considered straight portion, computes the most adapted growth direction
+        *deduce the most adapted growth direction for the considered portion
+        :param edge_path:
+        :param level:
+        :return:
+        """
 
-        def get_lines_of_path(edges: List['Edge']):
+        def get_lines_of_path(edges: List['Edge']) -> List[List['Edge']]:
+            """
+            gets the straight portions from a circulation path
+            :param edges:
+            :return:
+            """
             lines = []
             if not edges:
                 return lines
-            edge = edges[0]
+            e = edges[0]
             count = 0
-            while edge:
+            while e:
                 current_line = []
                 # going forward
-                current = edge
+                current = e
                 while current and current in edges:
                     current_line.append(current)
-                    current = current.aligned_edge or current.continuous_edge
+                    current = current.aligned_edge
                     count += 1
                 lines.append(current_line)
                 if count < len(edges):
-                    edge = edges[count]
+                    e = edges[count]
                 else:
                     return lines
 
-        def get_area_overlap(space, edge):
+        def get_score(space: 'Space', e: 'Edge') -> float:
+            """
+            returns min_required_space_area-edge.length*corridor_width if positive, else zero
+            :param space:
+            :param e:
+            :return:
+            """
+            corridor_width = 90
             spec_items = self.spec.items[:]
             corresponding_items = list(filter(lambda i: i.category.name == space.category.name,
                                               spec_items))
@@ -232,37 +261,43 @@ class Circulator:
                             key=lambda i: math.fabs(i.required_area - space.cached_area()),
                             default=None)
 
-            shift_max = space.cached_area() - best_item.max_size.area
-            shift_min = best_item.min_size.area - space.cached_area()
-            shift = shift_max * (shift_max > 0) + shift_min * (shift_min > 0)
-            return shift * edge.length
+            shift = best_item.min_size.area - (space.cached_area() - corridor_width * e.length)
+            return shift * (shift > 0)
 
-        def get_growing_direction(path_line):
-            dir_cw = path_line[0].normal
-            dir_ccw = opposite_vector(dir_cw)
-            score_cw = 0
+        def get_growing_direction(path_line: List['Edge']):
+            """
+            for a given line of edges, gets the direction the corridor has to grow so as to bite
+            preferentially on rooms which area is still higher than the minimum spec
+            when amputated by the corridor.
+            :param path_line:
+            :return:
+            """
+            dir_ccw = path_line[0].normal
+            dir_cw = opposite_vector(dir_ccw)
             score_ccw = 0
-            for edge in path_line:
-                space_cw = self.plan.get_space_of_edge(edge)
-                if not space_cw or not space_cw.mutable:
-                    return dir_ccw
-                else:
-                    score_cw += get_area_overlap(space_cw, edge)
-                space_ccw = self.plan.get_space_of_edge(edge.pair)
+            score_cw = 0
+            for e in path_line:
+                space_ccw = self.plan.get_space_of_edge(e)
                 if not space_ccw or not space_ccw.mutable:
+                    # corridor cannot grow outside of the plan or on a non mutable space
                     return dir_cw
                 else:
-                    score_ccw += get_area_overlap(space_ccw, edge)
-            return dir_cw if score_cw < score_ccw else dir_ccw
+                    score_ccw += get_score(space_ccw, e)
+                space_cw = self.plan.get_space_of_edge(e.pair)
+                if not space_cw or not space_cw.mutable:
+                    # corridor cannot grow outside of the plan or on a non mutable space
+                    return dir_ccw
+                else:
+                    score_cw += get_score(space_cw, e)
+            return dir_ccw if score_ccw < score_cw else dir_cw
 
         path_lines = get_lines_of_path(edge_path)
-        print("path_lines", path_lines)
         for line in path_lines:
             growing_direction = get_growing_direction(line)
             for edge in line:
                 self.growing_directions[level][edge] = growing_direction
 
-    def actualize_path(self, path: List['Vertex'], level: int, space: 'Space' = None) -> List[
+    def actualize_path(self, path: List['Vertex'], level: int) -> List[
         'Space']:
         """
         update based on computed circulation path
@@ -278,7 +313,7 @@ class Circulator:
         # without cost increase
         # self.path_calculator.set_corridor_to_zero_cost(path, level)
 
-        connected_rooms = []
+        connected_rooms = []  # will contain the list of rooms connected by the path
         for e in edge_path:
             connected = self.plan.get_space_of_edge(e)
             if connected and connected not in connected_rooms and connected.mutable:
@@ -286,6 +321,7 @@ class Circulator:
             connected = self.plan.get_space_of_edge(e.pair)
             if connected and connected not in connected_rooms and connected.mutable:
                 connected_rooms.append(connected)
+
         return connected_rooms
 
     def connect_space_to_circulation_graph(self, space) -> List['Space']:
@@ -316,7 +352,7 @@ class Circulator:
 
         connected_rooms = []
         if path_min is not None:
-            connected_rooms = self.actualize_path(path_min, space.floor.level, space)
+            connected_rooms = self.actualize_path(path_min, space.floor.level)
             self.circulation_cost += cost_min
 
         if connected_room not in connected_rooms:
@@ -350,9 +386,9 @@ class Circulator:
                 for path in paths:
                     for edge in path:
                         edge.plot(ax=_ax, color='blue')
-                        dir = self.growing_directions[f][edge]
+                        # representing the growing direction
                         pt_tmp = move_point([edge.start.x, edge.start.y], edge.vector, 0.5)
-                        pt = move_point(pt_tmp, dir, edge.length / 5)
+                        pt = move_point(pt_tmp, self.growing_directions[f][edge], edge.length / 5)
                         _ax.scatter(pt[0], pt[1], marker='o', color='k')
         else:
             for f in self.plan.list_level:
