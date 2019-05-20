@@ -80,7 +80,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot(plot_edge=True)
+        self.circulator.plot(plot_edge=True)
 
         for level in self.circulator.connecting_paths:
             vertex_paths = self.circulator.connecting_paths[level]
@@ -827,5 +827,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "001.json"
+    #plan_name = "001.json"
     main(input_file=plan_name)
