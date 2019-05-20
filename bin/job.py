@@ -16,12 +16,10 @@ from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.mq import Exchanger
 
+import config
+import habx_logger
 
-# Initializing sentry at the earliest stage to detect any issue that might happen later
-sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
-    'environment': os.getenv('HABX_ENV', 'local'),
-    'release': Executor.VERSION,
-})
+logger = habx_logger.HabxLogger(config.from_file())
 
 # OPT-120: Only to make sure libpath won't be removed
 libpath.add_local_libs()
@@ -58,11 +56,6 @@ def process_task(config: Config, td: TaskDefinition):
 
 
 def _cli():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s",
-    )
-
     example_text = """
 Example usage:
 ==============
