@@ -372,7 +372,8 @@ class Vertex(MeshComponent):
                 return nearest_vertex, edge, self.distance_to(nearest_vertex)
         raise Exception('Something that should be impossible happened !:{0}'.format(point))
 
-    def project_point(self, face: 'Face', vector: Vector2d) -> Tuple['Vertex', 'Edge', float]:
+    def project_point(self, face: 'Face',
+                      vector: Vector2d) -> Optional[Tuple['Vertex', 'Edge', float]]:
         """
         Returns the projected point according to the vector direction
         on the face boundary according to the provided vector.
@@ -383,51 +384,34 @@ class Vertex(MeshComponent):
         :return: a tuple containing the new vertex and the associated edge, and the distance from
         the projected vertex
         """
-        # check whether the face contains the vertex
-        if not face.as_sp.intersects(self.as_sp):
-            raise ValueError('Can not project a vertex' +
-                             ' that is outside the face: {0} - {1}'.format(self, face))
-
-        # find the intersection
+        # iterate trough every edge of the face
         closest_edge = None
-        intersection_vertex = None
-        smallest_distance = None
-
-        # iterate trough every edge of the face but the laser_cut edge
+        closest_point = None
+        shortest_distance = math.inf
         for edge in face.edges:
 
             # do not project on edges that starts or end with the vertex
             if self in (edge.start, edge.end):
                 continue
 
-            projected_vertex = (transformation.get['projection']
-                                .config(vector=vector, edge=edge)
-                                .apply_to(self))
-
-            if projected_vertex is None:
+            projected_point = project_point_on_segment(self.coords, vector,
+                                                       (edge.start.coords, edge.end.coords),
+                                                       epsilon=COORD_EPSILON)
+            if projected_point is None:
                 continue
 
-            new_distance = projected_vertex.distance_to(self)
-
-            # only keep the closest point
-            # Note: we need to check it the new_distance is superior to coord_epsilon
-            # to prevent projection unto itself (for example when a face contains internal edges)
-            # or when the face is really small
-            if new_distance > COORD_EPSILON and (
-                    not smallest_distance or new_distance < smallest_distance):
-                smallest_distance = new_distance
+            distance_to_point = distance(projected_point, self.coords)
+            if distance_to_point < shortest_distance:
                 closest_edge = edge
-                # clean the vertex data structure
-                if intersection_vertex:
-                    intersection_vertex.remove_from_mesh()
-                intersection_vertex = projected_vertex
-            else:
-                # clean the vertex data structure
-                projected_vertex.remove_from_mesh()
+                closest_point = projected_point
+                shortest_distance = distance_to_point
 
-        return (intersection_vertex,
-                closest_edge,
-                smallest_distance) if smallest_distance else None
+        if not closest_point:
+            return None
+
+        new_vertex = Vertex(face.mesh, *closest_point)
+
+        return (new_vertex, closest_edge, shortest_distance) if closest_edge else None
 
     def distance_to(self, other: 'Vertex') -> float:
         """
@@ -896,29 +880,6 @@ class Edge(MeshComponent):
         return self.pair.next
 
     @property
-    def bowtie(self) -> Optional['Edge']:
-        """
-        Returns an edge starting from the same vertex and pointing to the same face.
-        Only useful in the case of a "bowtie" polygon
-        Example : E: the specified Edge, R: the returned Edge
-        • -> •
-        ^    |
-        |    v  E
-        • <- • -> •
-           R ^    |
-             |    v
-             • <- •
-        :return: a boolean
-        """
-        other = self.ccw
-        face = self.face
-        while other is not self:
-            if other.face is face:
-                return other
-            other = other.ccw
-        return None
-
-    @property
     def normal(self) -> Vector2d:
         """
         A CCW normal of the edge of length 1
@@ -931,29 +892,6 @@ class Edge(MeshComponent):
         x, y = -self.vector[1], self.vector[0]
         length = math.sqrt(x ** 2 + y ** 2)
         return x / length, y / length
-
-    @property
-    def max_length(self) -> Optional[float]:
-        """
-        Returns the max length of the direction of the edge
-        Totally arbitrary formula
-        :return:
-        """
-        angle = self.absolute_angle % 180.0
-        # we round the angle to the desired precision given by the ANGLE_EPSILON constant
-        angle = np.round(angle / ANGLE_EPSILON) * ANGLE_EPSILON
-        max_l = next((l for deg, l in self.mesh.directions
-                      if pseudo_equal(deg, angle, ANGLE_EPSILON)), None)
-        return (max_l / 2) * 1.10 if max_l is not None else None
-
-    def sp_ortho_line(self, vertex) -> LineString:
-        """
-        Returns a shapely LineString othogonal
-        to the edge starting from the vertex
-        :param vertex:
-        :return: shapely LineString
-        """
-        return vertex.sp_half_line(self.normal)
 
     @property
     def depth(self) -> float:
@@ -972,32 +910,21 @@ class Edge(MeshComponent):
         if not self.face:
             return 0.0
 
-        vertex = self.barycenter(0.5)
-        line = vertex.sp_half_line(self.normal)
-        vertex.remove_from_mesh()
+        middle_point = barycenter(self.start.coords, self.end.coords, 0.5)
+        vector = self.normal
+        min_depth = math.inf
 
-        # if not self.face.as_sp_linear_ring.is_valid:
-        #    return 0
+        for edge in self.siblings:
+            point = project_point_on_segment(middle_point, vector,
+                                             (edge.start.coords, edge.end.coords))
+            if not point:
+                continue
 
-        intersection = line.intersection(self.face.as_sp_linear_ring)
+            distance_to_point = distance(point, middle_point)
+            if distance_to_point < min_depth:
+                min_depth = distance_to_point
 
-        if (intersection.is_empty
-                or intersection.geom_type not in ("Point", "MultiPoint", "GeometryCollection")):
-            raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
-
-        if intersection.geom_type == "GeometryCollection":
-            if intersection[0].geom_type != "Point":
-                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
-            if intersection[1].geom_type != "LineString":
-                raise Exception("Mesh: Clearance, wrong face structure ! %s", self)
-
-        # a zero depth edge
-        if intersection.geom_type == "Point":
-            return 0
-
-        output = distance(intersection[0].coords[0], intersection[1].coords[0])
-
-        return output
+        return min_depth
 
     def max_distance(self, other: 'Edge', parallel: bool = False) -> float:
         """
@@ -2259,7 +2186,7 @@ class Face(MeshComponent):
             return [self]
         intersected_edges = list(intersected_edges)
         # sort the points via their distance to the reference point
-        sorted(intersected_edges, key=lambda e: distance(reference_point, e.start.coords))
+        intersected_edges = sorted(intersected_edges, key=lambda e: distance(reference_point, e.start.coords))
 
         modified_faces = [self]
 

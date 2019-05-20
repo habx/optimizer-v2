@@ -502,11 +502,11 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("056.json")
+        plan = reader.create_plan_from_file("paris-venelles_B2E5L01.json")
         plan.check()
         plt.show()
         start_time = time.time()
-        new_plan = GRIDS["001"].apply_to(plan, show=True)
+        new_plan = GRIDS["duct"].apply_to(plan, show=True)
         end_time = time.time()
         logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)
