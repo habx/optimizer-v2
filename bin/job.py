@@ -8,9 +8,10 @@ import requests
 
 import sentry_sdk
 
+# OPT-119 & OPT-120: Dirty path handling
 import libpath
 
-from libs.utils.executor import Executor
+from libs.executor.executor import Executor
 from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.mq import Exchanger
@@ -21,6 +22,9 @@ sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
     'environment': os.getenv('HABX_ENV', 'local'),
     'release': Executor.VERSION,
 })
+
+# OPT-120: Only to make sure libpath won't be removed
+libpath.add_local_libs()
 
 
 def fetch_task_definition(context: dict) -> TaskDefinition:
@@ -85,13 +89,14 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         metavar="ID", help="Params ID"
     )
     parser.add_argument(
-        "-B", "--batch-execution-id", dest="batch_execution_id",
-        default=os.getenv('BATCH_EXECUTION_ID'), metavar="ID", help="BatchExecution ID"
+        "-B", "--batch-execution-id", dest="batch_execution_id", default=os.getenv('BATCH_EXECUTION_ID'),
+        metavar="ID", help="BatchExecution ID"
     )
 
     # OPT-106: Allowing to specify a taskId
     parser.add_argument(
-        "-t", "--task-id", dest="task_id", metavar="ID", help="Task ID"
+        "-t", "--task-id", dest="task_id",  default=os.getenv('TASK_ID'),
+        metavar="ID", help="Task ID",
     )
     args = parser.parse_args()
 

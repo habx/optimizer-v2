@@ -966,7 +966,7 @@ def test_max_distance_weird_mesh(weird_mesh):
     edge = weird_mesh.boundary_edge.pair
     other = edge.previous.previous
     weird_mesh.plot()
-    assert edge.max_distance(other) == 464.2383454426297
+    assert edge.max_distance(other) == 464.2383454426296
 
 
 def test_continuous_line(weird_mesh):
@@ -996,3 +996,17 @@ def test_face_perimeter():
 
 def test_number_of_corners(weird_mesh):
     assert weird_mesh.faces[0].number_of_corners() == 9
+
+
+def test_close_faces_insertion():
+    """
+    Tough bug linked to ccw_angle asymmetry when close to 360 ~ 0
+    :return:
+    """
+    mesh = rectangular_mesh(400, 800)
+    hole_1 = [(301, 400), (300, 500), (200, 500), (200, 400)]
+    hole_2 = [(350, 600), (300, 600), (300, 400), (350, 399)]
+    mesh.faces[0].insert_face_from_boundary(hole_1)
+    mesh.faces[0].insert_face_from_boundary(hole_2)
+    assert mesh.check()
+

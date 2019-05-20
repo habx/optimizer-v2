@@ -24,13 +24,11 @@ if TYPE_CHECKING:
 
 WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom"]
 
-DRESSING_NEIGHBOUR_ROOMS = ["entrance", "bedroom", "toilet", "bathroom"]
-
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulation"]
 
 DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar", "study"]
 
-PRIVATE_ROOMS = ["bedroom", "study", "bathroom", "laundry", "dressing", "entrance", "circulation",
+PRIVATE_ROOMS = ["bedroom", "study", "bathroom", "laundry", "wardrobe", "entrance", "circulation",
                  "toilet"]
 
 WINDOW_CATEGORY = ["window", "doorWindow"]
@@ -40,13 +38,14 @@ BIG_VARIANTS = ["m", "l", "xl"]
 SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
-BIG_EXTERNAL_SPACE = 7000
+
 
 SQM = 10000
+BIG_EXTERNAL_SPACE = 7*SQM
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
-INSIDE_ADJACENCY_LENGTH = 40
+INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
 SEARCH_SOLUTIONS_LIMIT = 1000
@@ -525,7 +524,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     # TODO : find best param
     # TODO : unit tests
     """
-    if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+    if item.category.name in ["living", "dining", "livingKitchen", "wardrobe", "laundry"]:
         param = 2
     elif item.category.name in ["bathroom"]:
         param = 1.9
@@ -672,10 +671,10 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
     if manager.sp.spec.typology <= 2:
-        if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+        if item.category.name in ["living", "dining", "livingKitchen", "wardrobe", "laundry"]:
             param = min(max(25, int(plan_ratio + 10)), 35)
         elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance",
-                                     "dressing", "laundry"]
+                                     "wardrobe", "laundry"]
               or (item.category.name is "bedroom" and item.variant in ["m", "l", "xl"])):
             param = min(max(25, plan_ratio), 32)
         elif item.category.name is "bedroom" and item.variant in ["xs", "s"]:
@@ -683,7 +682,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
         else:
             param = 22  # toilet / bedroom / entrance
     else:
-        if item.category.name in ["living", "dining", "livingKitchen", "dressing", "laundry"]:
+        if item.category.name in ["living", "dining", "livingKitchen", "wardrobe", "laundry"]:
             param = 26# min(max(30, int(plan_ratio + 10)), 40)
         elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
             param = 25#min(max(25, int(plan_ratio)), 35)
@@ -1106,11 +1105,10 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
-            if max([ext_space.area for ext_space in space.connected_spaces()
+            if (max([ext_space.area for ext_space in space.connected_spaces()
                     if ext_space is not None and ext_space.category.external],
-                   default=0) > BIG_EXTERNAL_SPACE)
+                   default=0) > BIG_EXTERNAL_SPACE))
         ct = (adjacency_sum >= 1)
-
     return ct
 
 def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
@@ -1159,7 +1157,7 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
             front_door_space = space
             break
 
-    if front_door_space and front_door_space.area > 4*SQM:
+    if front_door_space and front_door_space.area > 5*SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
@@ -1274,7 +1272,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
     ],
-    "dressing": [
+    "wardrobe": [
         [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
@@ -1286,6 +1284,13 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ],
+    "misc": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
     ],
     "laundry": [
         [item_attribution_constraint, {}],
@@ -1316,15 +1321,15 @@ T1_T2_ITEMS_CONSTRAINTS = {
 }
 
 T2_MORE_ITEMS_CONSTRAINTS = {
-    "entrance": [
-        [conditional_entrance_constraint, {}],
-    ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
     ]
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [conditional_entrance_constraint, {}],
+    ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
         [item_adjacency_constraint,
@@ -1337,10 +1342,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],
     "living": [
-        [externals_connection_constraint, {}]
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}]
     ],
     "livingKitchen": [
-        [externals_connection_constraint, {}]
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}]
     ],
     "bedroom": [
 

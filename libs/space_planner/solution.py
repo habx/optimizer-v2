@@ -7,7 +7,7 @@ Creates the following classes:
 TODO : fusion of the entrance for small apartment untreated
 
 """
-from typing import List, Dict, Optional
+from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, COST_RULES
@@ -70,7 +70,7 @@ class SolutionsCollector:
 
         return distance
 
-    def best(self) -> Optional[List['Solution']]:
+    def best(self) -> List['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
@@ -560,7 +560,7 @@ class Solution:
                               self._id, 0, item.category.name)
                 return 0
             #  isolated room
-            list_of_non_concerned_room = ["entrance", "circulation", "dressing", "study", "laundry"]
+            list_of_non_concerned_room = ["entrance", "circulation", "wardrobe", "study", "laundry", "misc"]
             convex_hull = space.as_sp.convex_hull
             for i_item in self.items_spaces:
                 if (i_item != item and
@@ -601,7 +601,8 @@ class Solution:
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
         solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus()) #- self._circulation_penalty())
+                          self._windows_good_distribution_bonus() + self._entrance_bonus()
+                          - self._circulation_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
@@ -616,7 +617,7 @@ class Solution:
         # Day group
         day_list = ["livingKitchen", "living", "kitchen", "dining"]
         # Night group
-        night_list = ["bedroom", "bathroom", "toilet", "laundry", "dressing", "study", "misc"]
+        night_list = ["bedroom", "bathroom", "toilet", "laundry", "wardrobe", "study", "misc"]
 
         difference_area = 0
         mesh_area = 0

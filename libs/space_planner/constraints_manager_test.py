@@ -5,7 +5,7 @@ Constraint manager Module Tests
 
 from libs.plan.plan import Plan
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.space_planner.space_planner import SpacePlanner
+from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.specification.specification import Specification, Item, Size
 
 
@@ -25,7 +25,6 @@ def test_t1():
     plan_t1.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
     plan_t1.insert_linear((210, 0), (290, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
     plan_t1.insert_linear((250, 600), (50, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t1.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t1.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
@@ -34,15 +33,14 @@ def test_t1():
     living_coord = [(40, 150), (400, 150), (400, 600), (0, 600), (0, 200), (40, 200)]
     plan_t1.insert_space_from_boundary(living_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t1.remove_null_spaces()
-    plan_t1.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "s", Size(area=140000), Size(area=200000))
     spec = Specification("simple_test", plan_t1, [bathroom, circulation, living])
 
-    space_planner_t1 = SpacePlanner("t1", spec)
-    best_t1 = space_planner_t1.solution_research()
+    space_planner_t1 = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t1.apply_to(spec)
     assert len(space_planner_t1.solutions_collector.solutions) == 2
 
 
@@ -60,7 +58,6 @@ def test_t1_bis():
     plan_t1_bis.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_1)
     plan_t1_bis.insert_linear((210, 0), (290, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
     plan_t1_bis.insert_linear((175, 400), (25, 400), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t1_bis.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t1_bis.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
@@ -71,7 +68,6 @@ def test_t1_bis():
     bedroom_coord = [(200, 150), (400, 150), (400, 400), (200, 400)]
     plan_t1_bis.insert_space_from_boundary(bedroom_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t1_bis.remove_null_spaces()
-    plan_t1_bis.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
@@ -82,8 +78,8 @@ def test_t1_bis():
 
     print(spec)
 
-    space_planner_t1_bis = SpacePlanner("t1_bis", spec)
-    best_t1_bis = space_planner_t1_bis.solution_research()
+    space_planner_t1_bis = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t1_bis.apply_to(spec)
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1
 
 
@@ -103,9 +99,8 @@ def test_t3_balcony():
     plan_t3_balcony.insert_linear((275, 600), (25, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_balcony.insert_linear((675, 600), (425, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_balcony.insert_linear((975, 600), (725, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    balcony_coords = [(400, 600), (700, 600), (700, 800), (400, 800)]
+    balcony_coords = [(400, 600), (700, 600), (700, 900), (400, 900)]
     plan_t3_balcony.insert_space_from_boundary(balcony_coords, SPACE_CATEGORIES["balcony"], floor_1)
-    plan_t3_balcony.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t3_balcony.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
@@ -118,7 +113,6 @@ def test_t3_balcony():
     bedroom_coord = [(700, 150), (1000, 150), (1000, 600), (700, 600)]
     plan_t3_balcony.insert_space_from_boundary(bedroom_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t3_balcony.remove_null_spaces()
-    plan_t3_balcony.plot()
 
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
@@ -128,8 +122,9 @@ def test_t3_balcony():
     spec = Specification("simple_test", plan_t3_balcony, [bathroom, circulation, living, bedroom1,
                                                           bedroom2])
 
-    space_planner_t3_balcony = SpacePlanner("t3_balcony", spec)
-    best_t3 = space_planner_t3_balcony.solution_research()
+    space_planner_t3_balcony = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t3_balcony.apply_to(spec)
+
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
 
@@ -149,7 +144,6 @@ def test_t3_bis():
     plan_t3_bis.insert_linear((350, 600), (50, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_bis.insert_linear((650, 600), (500, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
     plan_t3_bis.insert_linear((950, 600), (800, 600), LINEAR_CATEGORIES["doorWindow"], floor_1)
-    plan_t3_bis.plot()
 
     bathroom_coords = [(0, 0), (200, 0), (200, 150), (0, 150)]
     plan_t3_bis.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["seed"], floor_1)
@@ -162,7 +156,7 @@ def test_t3_bis():
     bedroom1_coord = [(700, 150), (1000, 150), (1000, 600), (700, 600)]
     plan_t3_bis.insert_space_from_boundary(bedroom1_coord, SPACE_CATEGORIES["seed"], floor_1)
     plan_t3_bis.remove_null_spaces()
-    plan_t3_bis.plot()
+
     bathroom = Item(SPACE_CATEGORIES["bathroom"], "xs", Size(area=25000), Size(area=35000))
     circulation = Item(SPACE_CATEGORIES["circulation"], "xs", Size(area=25000), Size(area=35000))
     living = Item(SPACE_CATEGORIES["living"], "m", Size(area=140000), Size(area=200000))
@@ -171,11 +165,9 @@ def test_t3_bis():
     spec = Specification("simple_test", plan_t3_bis, [bathroom, circulation, living, bedroom1,
                                                       bedroom2])
 
-    space_planner_t3_bis = SpacePlanner("t3_bis", spec)
-    best_t3_bis = space_planner_t3_bis.solution_research()
+    space_planner_t3_bis = SPACE_PLANNERS["standard_space_planner"]
+    best_solutions = space_planner_t3_bis.apply_to(spec)
 
-    for sol in best_t3_bis:
-        sol.plan.plot()
     assert len(space_planner_t3_bis.solutions_collector.solutions) == 1
 
 

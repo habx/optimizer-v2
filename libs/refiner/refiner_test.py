@@ -11,10 +11,10 @@ from libs.io import reader_test
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
 PARAMS = {
-            "weights": (-2.0, -1.0, -1.0),
-            "ngen": 50,
-            "mu": 20,
-            "cxpb": 0.9
+            "weights": (-2.0, -1.0, -1.0, -10.0),
+            "ngen": 100,
+            "mu": 28,
+            "cxpb": 0.5
           }
 
 
@@ -46,10 +46,11 @@ def run():
         best = sols[0]
         item_dict = evaluation.create_item_dict(spec)
         for space in best.mutable_spaces():
-            print("• Area {} : {} -> [{}, {}]".format(space.category.name,
-                                                      round(space.cached_area()),
-                                                      item_dict[space.id].min_size.area,
-                                                      item_dict[space.id].max_size.area))
+            if item_dict[space.id]:
+                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
+                                                          round(space.cached_area()),
+                                                          item_dict[space.id].min_size.area,
+                                                          item_dict[space.id].max_size.area))
 
 
 def apply():
@@ -59,10 +60,11 @@ def apply():
 
     logging.getLogger().setLevel(logging.INFO)
 
-    spec, plan = tools.cache.get_plan("022")  # 052
+    spec, plan = tools.cache.get_plan("007")  # 052
 
     if plan:
         plan.name = "original"
+        plan.remove_null_spaces()
         plan.plot()
 
         # run genetic algorithm

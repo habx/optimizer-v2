@@ -16,6 +16,6 @@ def local_dev_hack():
         os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
         if 'HABX_ENV_NS' not in os.environ:
             ns = socket.gethostname()
-            ns = re.sub('[^A-Za-z0-9]+', '', ns)
+            ns = re.sub('[^A-Za-z0-9\\-]+', '', ns)
             os.environ['HABX_ENV_NS'] = ns[:20]
 

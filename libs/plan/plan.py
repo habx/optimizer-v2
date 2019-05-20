@@ -243,7 +243,7 @@ class Space(PlanComponent):
         :param mesh_id:
         :return:
         """
-        return face_id in self._faces_id and mesh_id == self.floor.mesh.id
+        return mesh_id == self.floor.mesh.id and face_id in self._faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -259,7 +259,10 @@ class Space(PlanComponent):
         :param linear:
         :return:
         """
-        return linear.edge in self.edges
+        if linear.floor == self.floor:
+            return linear.edge in self.edges
+        else:
+            return False
 
     @property
     def faces(self) -> Generator[Face, None, None]:
@@ -408,7 +411,7 @@ class Space(PlanComponent):
         """
         Returns the angle between the edge and the opposite next edge on the boundary
         Note : this means that two aligned edge will have a "next_angle" of 180.0
-        and not 0.0 (this is more robust to test for alignement).
+        and not 0.0 (this is more robust to test for alignment).
         :param edge:
         :return:
         """
@@ -470,30 +473,32 @@ class Space(PlanComponent):
                 aligned = False
 
     def aligned_siblings(self, edge: 'Edge',
-                         max_angle: float = ANGLE_EPSILON) -> Generator['Edge', 'Edge', None]:
+                         max_angle: float = ANGLE_EPSILON) -> List['Edge']:
         """
         Returns all the edge on the space boundary that are aligned with the edge
         :param edge:
         :param max_angle: the maximum angle between to successive edge in order to consider
                           them aligned.
-        :return:
+        :return: a list of edge in the correct order
         """
         if not self.is_boundary(edge):
             raise ValueError("Space: The edge must belong to the boundary %s", edge)
 
-        yield edge
+        aligned_edges = [edge]
 
         # forward check
         current = edge
         while self.next_is_aligned(current, max_angle):
             current = self.next_edge(current)
-            yield current
+            aligned_edges.append(current)
 
         # backward check
         current = edge
         while self.previous_is_aligned(current, max_angle):
             current = self.previous_edge(current)
-            yield current
+            aligned_edges.insert(0, current)
+
+        return aligned_edges
 
     def line(self, edge: 'Edge', mesh_line: Optional[List['Edge']] = None) -> ['Edge']:
         """
@@ -609,7 +614,8 @@ class Space(PlanComponent):
         edges = edges or self.exterior_edges
         # check for the angle of each edge
         for _edge in edges:
-            angle = ccw_angle((1, 0), _edge.vector) % 90.0
+            # TODO : this should be coherent with ANGLE_EPSILON and not just an integer round
+            angle = float(round(ccw_angle((1, 0), _edge.vector) % 90.0))
 
             if angle in output:
                 output[angle] += _edge.length
@@ -619,6 +625,8 @@ class Space(PlanComponent):
         return sorted(output.keys(), key=lambda k: output[k], reverse=True)
 
     def _directions(self, face: Optional['Face'] = None):
+        if face is None and self.edge is None:
+            return None
         edges = face.edges if face is not None else self.edges
         axes = self._external_axes(list(edges)) or self._axes(list(edges))
         x = unit_vector(axes[0])
@@ -711,6 +719,25 @@ class Space(PlanComponent):
             holes.append(_vertices)
 
         return Polygon(list_vertices, holes)
+
+    def boundary_polygon(self) -> List[Coords2d]:
+        """
+        Returns the polygon of the exterior boundary of the space (no holes)
+        :return:
+        """
+        perimeter = []
+
+        aligned_edges = self.aligned_siblings(self.edge)
+        perimeter.append(aligned_edges[0].start.coords)
+        initial_edge = aligned_edges[0]
+        current_edge = self.next_edge(aligned_edges[len(aligned_edges) - 1])
+
+        while current_edge is not initial_edge:
+            aligned_edges = self.aligned_siblings(current_edge)
+            perimeter.append(aligned_edges[0].start.coords)
+            current_edge = self.next_edge(aligned_edges[len(aligned_edges) - 1])
+
+        return perimeter
 
     def bounding_box(self, vector: Vector2d = None) -> Tuple[float, float]:
         """
@@ -1213,25 +1240,32 @@ class Space(PlanComponent):
         """
         assert len(self._edges_id) == len(list(set(self._edges_id))), "Duplicate in edges !"
 
-        for edge in self.reference_edges:
+        first_edge = True
+        for edge in list(self.reference_edges):
             if edge not in forbidden_edges:
+                first_edge = False
                 continue
-            i = self._edges_id.index(edge.id)
             for other_edge in self.siblings(edge):
                 if other_edge not in forbidden_edges:
                     assert other_edge.id not in self._edges_id, ("The edge cannot "
                                                                  "already be a reference")
                     # we replace the edge id in place to preserve the list order
-                    self._edges_id[i] = other_edge.id
+                    if first_edge:
+                        self._edges_id[0] = other_edge.id
+                    else:
+                        self.remove_reference_edge(edge)
+                        self._edges_id.append(other_edge.id)
+                    first_edge = False
                     break
             else:
-                if i == 0:
+                if first_edge:
                     logging.warning("Space: removing the first reference edge: %s", edge)
                     if not boundary_edge:
                         raise ValueError("Space: changing reference edges, you should have"
                                          "specified a boundary edge !")
                     self._edges_id[0] = boundary_edge.id
                 self.remove_reference_edge(edge)
+                first_edge = False
 
     def connected_faces(self, face: Face) -> Generator[Face, None, None]:
         """
@@ -1635,22 +1669,53 @@ class Space(PlanComponent):
                     neighboring_spaces.append(edge.pair.face.space)
         return neighboring_spaces
 
-    def adjacent_to(self, other: Union['Space', 'Face'], length: int = None) -> bool:
+    def adjacent_to(self, other: 'Space', length: float = None) -> bool:
         """
         Check the adjacency with an other space or face
-        with constraint of adjacency length
+        with constraint of adjacency length.
+        Note: the adjacency must be on connected edges
         :return:
         """
+        # if no length is specified, we just check if the two spaces have a common edge
         if length is None:
             for edge in other.edges:
                 if self.has_edge(edge.pair):
                     return True
             return False
-        else:
-            if self.maximum_adjacency_length(other) >= length:
+
+        seen = []  # we check all consecutive edges at once
+        for edge in self.exterior_edges:
+            if edge in seen:
+                continue
+            if not other.has_edge(edge.pair):
+                continue
+            # forward check
+            shared_length = edge.length
+            if shared_length >= length:
                 return True
-            else:
-                return False
+            seen.append(edge)
+            for e in self.siblings(edge):
+                if e is edge:
+                    continue
+                if not other.has_edge(e.pair):
+                    break
+                shared_length += e.length
+                if shared_length >= length:
+                    return True
+                seen.append(e)
+
+            # backward check
+            for e in other.siblings(edge.pair):
+                if e is edge.pair:
+                    continue
+                if not self.has_edge(e.pair):
+                    break
+                shared_length += e.length
+                if shared_length >= length:
+                    return True
+                seen.append(e.pair)
+
+        return False
 
     def contact_length(self, space: 'Space') -> float:
         """
@@ -1701,8 +1766,8 @@ class Space(PlanComponent):
         for edge in self.edges:
             if edge.pair:
                 adjacent_space = self.plan.get_space_of_edge(edge.pair)
-                if adjacent_space and adjacent_space not in spaces_list and self.adjacent_to(
-                        adjacent_space, length):
+                if (adjacent_space and adjacent_space not in spaces_list
+                        and self.adjacent_to(adjacent_space, length)):
                     spaces_list.append(adjacent_space)
         return spaces_list
 
@@ -1832,10 +1897,7 @@ class Space(PlanComponent):
         :return: float
         """
 
-        number_ducts = sum(
-            space is not self and space.adjacent_to(self) and space.category
-            and space.category.name is 'duct' for space in
-            self.plan.spaces)
+        number_ducts = len([sp for sp in self.adjacent_spaces() if sp.category.name == "duct"])
 
         return number_ducts
 
@@ -2376,6 +2438,9 @@ class Plan:
         """
         logging.debug("Plan: Updating plan from mesh watcher")
 
+        if not modifications:
+            return
+
         inserted_faces = (modification for _id, modification in modifications.items()
                           if modification[0] == MeshOps.INSERT
                           and modification[1][0] == MeshComponentType.FACE)
@@ -2401,7 +2466,8 @@ class Plan:
             face_space = self.get_space_from_face_id(face_add[1][1], mesh_id)
             if face_space:
                 logging.debug("Plan: Adding face from mesh "
-                              "update %s buf face is already in a space", face_space)
+                              "update %s buf face is already in a space %s", face_space,
+                              face_add[1][1])
                 continue
 
             space = self.get_space_from_face_id(face_add[2][1], mesh_id)
@@ -2740,31 +2806,31 @@ class Plan:
         self.linears.remove(linear)
 
     def get_components(self,
-                       cat_name: Optional[str] = None) -> Generator['PlanComponent', None, None]:
+                       *cat_names: str) -> Generator['PlanComponent', None, None]:
         """
         Returns an iterator of the components contained in the plan.
         Can be filtered according to a category name
-        :param cat_name: the name of the category
+        :param cat_names: the names of the category
         :return:
         """
-        yield from self.get_spaces(cat_name)
-        yield from self.get_linears(cat_name)
+        yield from self.get_spaces(*cat_names)
+        yield from self.get_linears(*cat_names)
 
     def get_spaces(self,
-                   category_name: Optional[str] = None,
+                   *category_names: str,
                    floor: Optional['Floor'] = None) -> Generator['Space', None, None]:
         """
         Returns an iterator of the spaces contained in the place
-        :param category_name:
+        :param category_names:
         :param floor:
         :return:
         """
         assert floor is None or floor.id in self.floors, (
             "The floor specified does not exist in the plan floors: {}".format(floor, self.floors))
 
-        if category_name is not None:
+        if category_names:
             return (space for space in self.spaces
-                    if space.category.name == category_name
+                    if space.category.name in category_names
                     and (floor is None or space.floor is floor))
         else:
             return (space for space in self.spaces
@@ -2842,14 +2908,14 @@ class Plan:
                 return linear
         return None
 
-    def get_linears(self, category_name: Optional[str] = None) -> Generator['Linear', None, None]:
+    def get_linears(self, *category_names: str) -> Generator['Linear', None, None]:
         """
         Returns an iterator of the linears contained in the place
-        :param category_name:
+        :param category_names:
         :return:
         """
-        if category_name is not None:
-            return (linear for linear in self.linears if linear.category.name == category_name)
+        if category_names:
+            return (linear for linear in self.linears if linear.category.name in category_names)
 
         return (linear for linear in self.linears)
 
@@ -2912,7 +2978,7 @@ class Plan:
         The empty spaces of the plan
         :return:
         """
-        return self.get_spaces(category_name='empty')
+        return self.get_spaces('empty')
 
     def empty_spaces_of_floor(self, floor: 'Floor') -> Generator['Space', None, None]:
         """
@@ -2920,7 +2986,7 @@ class Plan:
         :param floor:
         :return:
         """
-        return self.get_spaces(category_name="empty", floor=floor)
+        return self.get_spaces("empty", floor=floor)
 
     @property
     def empty_space(self) -> Optional['Space']:

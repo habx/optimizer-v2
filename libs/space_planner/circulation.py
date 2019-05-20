@@ -13,6 +13,7 @@ from libs.mesh.mesh import Edge
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
+from libs.utils.geometry import parallel
 
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
@@ -28,6 +29,7 @@ class Circulator:
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
         self.connectivity_graph = GraphNx()
+        self.reachable_edges = {space: [] for space in plan.spaces}
         self.connecting_paths = {level: [] for level in plan.list_level}
         self.circulation_cost = 0
 
@@ -36,8 +38,10 @@ class Circulator:
         Finds the shortest path between two spaces in the plan
         :return list of vertices on the path and cost of the path
         """
-        graph = self.path_calculator.graph
-        path, cost = graph.get_shortest_path(space1.edges, space2.edges)
+        graph = self.path_calculator.graph[space1.floor.level]
+        path, cost = graph.get_shortest_path(self.reachable_edges[space1],
+                                             self.reachable_edges[space2])
+
         return path, cost
 
     def multilevel_connection(self):
@@ -58,6 +62,46 @@ class Circulator:
         for i in range(number_of_floors - 1):
             self.connectivity_graph.add_edge(space_connection_between_floors[i],
                                              space_connection_between_floors[i + 1])
+
+    def init_reachable_edges(self):
+        """
+        for each space, determines which edges can be the arrival of a circulation path
+        linking this space
+        :return:
+        """
+
+        def parallel_neighbor(e: 'Edge', sp: 'Space', next_edge: bool = True):
+            neighbor_edge = sp.next_edge(e) if next_edge else sp.previous_edge(e)
+            if parallel(e.vector, neighbor_edge.vector):
+                return True
+            return False
+
+        def is_corner_edge(e: 'Edge', sp: 'Space'):
+
+            if (not parallel_neighbor(e, sp) or
+                    not parallel_neighbor(e, sp, next_edge=False)):
+                return True
+            sp_pair = self.plan.get_space_of_edge(e.pair)
+            if sp_pair:
+                if (not parallel_neighbor(e.pair, sp_pair) or
+                        not parallel_neighbor(e.pair, sp_pair, next_edge=False)):
+                    return True
+            return False
+
+        def is_adjacent_to_other_space(e: 'Edge'):
+            sp_pair = self.plan.get_space_of_edge(e.pair)
+            if not sp_pair or sp_pair.category.external:
+                return False
+            return True
+
+        def get_reachable_edges(sp: 'Space'):
+            reachable_edges = list(edge for edge in sp.edges if
+                                   is_corner_edge(edge, sp) and is_adjacent_to_other_space(edge))
+            return reachable_edges
+
+        mutable_spaces = [space for space in self.plan.spaces if space.mutable]
+        for space in mutable_spaces:
+            self.reachable_edges[space] = get_reachable_edges(space)
 
     def init_connectivity_graph(self):
         """
@@ -141,7 +185,7 @@ class Circulator:
         self.connecting_paths[level].append(path)
         # when a circulation has been set, it can be used to connect every other spaces
         # without cost increase
-        self.path_calculator.set_corridor_to_zero_cost(path)
+        self.path_calculator.set_corridor_to_zero_cost(path, level)
 
     def connect_space_to_circulation_graph(self, space):
         """
@@ -169,6 +213,8 @@ class Circulator:
         detects isolated rooms and generate a path to connect them
         :return:
         """
+
+        self.init_reachable_edges()
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
 
@@ -230,8 +276,9 @@ class PathCalculator:
         runs through space edges and adds branches to the graph, for each branch computes a weight
         :return:
         """
-        self.graph = EdgeGraph(self.graph_lib)
 
+        self.graph = {level: EdgeGraph(self.graph_lib) for level in self.plan.list_level}
+        # self.graph = EdgeGraph(self.graph_lib)
         for space in self.plan.spaces:
             if space.mutable:
                 self._update(space)
@@ -241,12 +288,32 @@ class PathCalculator:
         add edge to the graph and computes its cost
         return:
         """
-        graph = self.graph
+        graph = self.graph[space.floor.level]
+
+        def get_space_info():
+            # info needed on the space to attribute a cost to each edge of this space
+            num_ducts = space.count_ducts()
+            num_windows = space.count_windows()
+            needed_ducts = list(
+                needed_space for needed_space in space.category.needed_spaces if
+                needed_space.name is 'duct')
+            needed_windows = list(
+                needed_linear for needed_linear in space.category.needed_linears if
+                needed_linear.window_type)
+            info = {
+                "num_ducts": num_ducts,
+                "num_windows": num_windows,
+                "needed_ducts": needed_ducts,
+                "needed_windows": needed_windows,
+            }
+            return info
+
+        space_info = get_space_info()
         for edge in space.edges:
-            cost = self.cost(edge, space)
+            cost = self.cost(edge, space_info)
             graph.add_edge(edge, cost)
 
-    def set_corridor_to_zero_cost(self, path):
+    def set_corridor_to_zero_cost(self, path: List, level: int):
         """
         sets the const of circulation edges to zero
         :return:
@@ -256,45 +323,41 @@ class PathCalculator:
             for v in range(nb_vert - 1):
                 vert1 = path[v]
                 vert2 = path[v + 1]
-                self.graph.add_edge_by_vert(vert1, vert2, 0)
+                self.graph[level].add_edge_by_vert(vert1, vert2, 0)
 
-    def rule_type(self, edge: Edge, space: Space) -> str:
+    def rule_type(self, edge: Edge, space_info: Dict) -> str:
         """
         gets the rule for edge cost computation
         :return: float
         """
         rule = 'default'
 
-        num_ducts = space.count_ducts()
-        num_windows = space.count_windows()
-
         if (edge.pair and edge.pair in self.component_edges['duct_edges']
-                and list(needed_space for needed_space in space.category.needed_spaces if
-                         needed_space.name is 'duct')):
-            if num_ducts <= 2:
+                and space_info["needed_ducts"]):
+            if space_info["num_ducts"] <= 2:
                 rule = 'water_room_less_than_two_ducts'
             else:
                 rule = 'water_room_default'
 
-        elif (edge in self.component_edges['window_edges'] and list(
-                needed_linear for needed_linear in space.category.needed_linears if
-                needed_linear.window_type)):
-            if num_windows <= 2:
+        elif edge in self.component_edges['window_edges'] and space_info["needed_windows"]:
+            if space_info["num_windows"] <= 2:
                 rule = 'window_room_less_than_two_windows'
             else:
                 rule = 'window_room_default'
 
+        elif edge in self.component_edges['window_edges']:
+            rule = 'circulation_along_window'
+
         return rule
 
-    def cost(self, edge: Edge, space: Space) -> float:
+    def cost(self, edge: Edge, space_info: Dict) -> float:
         """
         computes the cost of an edge
         :return: float
         """
         cost = edge.length
 
-        rule = self.rule_type(edge, space)
-        # rule='default'
+        rule = self.rule_type(edge, space_info)
         if rule not in self.cost_rules.keys():
             raise ValueError('The rule dict does not contain this rule {0}'.format(rule))
         cost += self.cost_rules[rule]
@@ -307,6 +370,7 @@ COST_RULES = {
     'water_room_default': 1000,
     'window_room_less_than_two_windows': 10e10,
     'window_room_default': 5000,
+    'circulation_along_window': 5000,
     'default': 0
 }
 
@@ -314,7 +378,7 @@ if __name__ == '__main__':
     import libs.io.reader as reader
     from libs.modelers.seed import SEEDERS
     from libs.modelers.grid import GRIDS
-    from libs.space_planner.space_planner import SpacePlanner
+    from libs.space_planner.space_planner import SPACE_PLANNERS
     from libs.plan.category import SPACE_CATEGORIES
     import argparse
 
@@ -381,8 +445,8 @@ if __name__ == '__main__':
         spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
         spec.plan = plan
         plan.plot()
-        space_planner = SpacePlanner("test", spec)
-        best_solutions = space_planner.solution_research()
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
+        # best_solutions = space_planner.apply_to(spec)
 
         return space_planner
 
