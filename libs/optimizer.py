@@ -303,7 +303,7 @@ if __name__ == '__main__':
             "002.json",
             "002_setup0.json",
             {
-                "grid_type": "optimal_finer_grid",
+                "grid_type": "001",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
             }
