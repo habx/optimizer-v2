@@ -82,8 +82,8 @@ class Corridor:
         self.circulator.connect()
         self.circulator.plot(plot_edge=True)
 
-        for level in self.circulator.connecting_paths:
-            vertex_paths = self.circulator.connecting_paths[level]
+        for level in self.circulator.connecting_paths['vert']:
+            vertex_paths = self.circulator.connecting_paths['vert'][level]
             for vertex_path in vertex_paths:
                 if len(vertex_path) > 1:  # TODO : deal with one vertice path
                     vertex_path = self._add_penetration_vertices(vertex_path)
@@ -827,5 +827,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "001.json"
+    # plan_name = "012.json"
     main(input_file=plan_name)
