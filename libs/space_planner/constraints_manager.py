@@ -832,11 +832,11 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     ct = None
     item_sym_id = str(item.category.name + item.variant)
     if item_sym_id in manager.symmetry_breaker_memo:
-        memo = manager.solver.solver.Sum(
-            2 ** j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j]
-            for j in range(manager.solver.spaces_nbr))
-        current = manager.solver.solver.Sum(2 ** j * manager.solver.positions[item.id, j]
-                                            for j in range(manager.solver.spaces_nbr))
+        memo = 0
+        current = 0
+        for j in range(manager.solver.spaces_nbr):
+            memo = manager.solver.solver.Max(j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
+            current = manager.solver.solver.Max(j * manager.solver.positions[item.id, j], current)
         ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
     manager.symmetry_breaker_memo[item_sym_id] = item.id
