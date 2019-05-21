@@ -300,7 +300,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
 
     for edge in edges:
         other = plan.get_space_of_edge(edge.pair)
-        if other is None or not other.mutable:
+        if other is None or not other.mutable and edge.face in faces:
             faces.remove(edge.face)
             continue
         if other not in faces_by_spaces:
