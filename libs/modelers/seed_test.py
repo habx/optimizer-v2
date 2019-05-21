@@ -50,7 +50,7 @@ def test_grow_a_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-    GRIDS['optimal_grid'].apply_to(plan)
+    GRIDS['001'].apply_to(plan)
 
     SEEDERS["simple_seeder"].apply_to(plan)
 
