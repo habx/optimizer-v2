@@ -451,6 +451,8 @@ grid_01 = Grid("GRID_01", [
     (SELECTORS["adjacent_to_load_bearing_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
 
     # WINDOWS
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](350), True),
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](410), True),
     (SELECTORS["between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
     (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
     (SELECTORS["before_window"],
@@ -474,12 +476,14 @@ grid_01 = Grid("GRID_01", [
     # CLEANUP
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
-    (SELECTOR_FACTORIES["small_angle_boundary"]([5.0]), MUTATIONS["remove_edge"], True),
+    (SELECTOR_FACTORIES["small_angle_boundary"]([20.0]), MUTATIONS["remove_edge"], True),
     (SELECTORS["close_to_wall_finer"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
     (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
+
 ])
 
 GRIDS = {
@@ -507,7 +511,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("paris-venelles_B2E5L01.json")
+        plan = reader.create_plan_from_file("005.json")
         plan.check()
         plt.show()
         start_time = time.time()

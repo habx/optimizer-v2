@@ -1187,13 +1187,13 @@ def test_corner_stone():
     GRIDS["simple_grid"].apply_to(plan)
     plan.plot()
 
-    faces_id = [365, 389]
+    faces_id = [372, 393]
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
     space = plan.spaces[1]
 
     assert space.corner_stone(*faces)
 
-    faces_id += [383, 16]
+    faces_id = [393, 397]
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
 
     assert not space.corner_stone(*faces)

@@ -9,7 +9,6 @@ from libs.modelers.seed import SEEDERS
 
 from libs.modelers.grid import GRIDS
 from libs.io.reader_test import BLUEPRINT_INPUT_FILES
-from libs.operators.selector import SELECTORS
 
 from libs.plan.plan import Plan
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
@@ -24,7 +23,7 @@ def test_seed_multiple_floors():
     boundaries_2 = [(0, 0), (800, 0), (900, 500), (0, 250)]
 
     plan = Plan("multiple_floors")
-    floor_1 = plan.add_floor_from_boundary(boundaries, floor_level=0)
+    floor_1 = plan.add_floor_from_boundary(boundaries)
     floor_2 = plan.add_floor_from_boundary(boundaries_2, floor_level=1)
 
     plan.insert_linear((50, 0), (100, 0), LINEAR_CATEGORIES["window"], floor_1)
@@ -51,11 +50,8 @@ def test_grow_a_plan(input_file):
     """
     plan = reader.create_plan_from_file(input_file)
     GRIDS['001'].apply_to(plan)
-
-    SEEDERS["simple_seeder"].apply_to(plan)
-
+    SEEDERS["directional_seeder"].apply_to(plan)
     plan.plot()
-
     assert plan.check()
 
 

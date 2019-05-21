@@ -802,35 +802,33 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
     :return:
     """
 
-    def face_on_side() -> Generator['Face', bool, None]:
+    def _face_on_side(_line_edges: List['Edge'], _space: 'Space') -> List['Face']:
         """
-        Generator over the faces of the space that are on one of both sides
+        List the faces of the space that are on one of both sides
         defined by line_edges
-        :return: Generator
         """
-        if line_edges:
-            face_ini = line_edges[0].face
+        if _line_edges:
+            face_ini = _line_edges[0].face
             list_side_face = [face_ini]
             add = [face_ini]
             added = True
             while added:
                 added = False
                 for face_ini in add:
-                    for face in space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
+                    for _face in _space.plan.get_space_of_face(face_ini).adjacent_faces(face_ini):
                         # adds faces adjacent to those already added
                         # do not add faces on the other side of the line
-                        if (not [edge for edge in line_edges if edge.pair in face.edges]
-                                and face not in list_side_face):
-                            list_side_face.append(face)
-                            add.append(face)
+                        if (not [edge for edge in _line_edges if edge.pair in _face.edges]
+                                and _face not in list_side_face):
+                            list_side_face.append(_face)
+                            add.append(_face)
                             added = True
-            for f in list_side_face:
-                yield f
+            return list_side_face
 
     if not line_edges:
         return []
 
-    list_side_faces = [face for face in face_on_side()]
+    list_side_faces = _face_on_side(line_edges, space)
     if not list_side_faces:
         return []
 

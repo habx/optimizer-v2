@@ -558,12 +558,15 @@ def small_faces(max_area: float = 2500.0) -> EdgeQuery:
     return _query
 
 
-def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQuery:
+def close_to_linear_query(*cat_names: str, min_distance: float = 150.0,
+                          linear_min_length: float = 70.0) -> EdgeQuery:
     """
     Returns the edges that are at less thant the specified distance to a linear
     of the specified categories.
     :param cat_names:
     :param min_distance:
+    :param linear_min_length: the min length of the linear, useful if you do not want to clear small
+                             windows for bathroom or wc
     :return:
     """
 
@@ -575,6 +578,8 @@ def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQ
         """
         plan = space.plan
         for linear in plan.get_linears(*cat_names):
+            if linear.length < linear_min_length:
+                continue
             for linear_edge in linear.edges:
                 if not space.has_linear(linear):
                     continue

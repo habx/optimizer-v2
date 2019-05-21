@@ -287,19 +287,17 @@ if __name__ == '__main__':
 
     def apply():
         """
-        Test
+        Test Function
         :return:
         """
         import tools.cache
         import time
-        import matplotlib
+        # import matplotlib
+        # matplotlib.use("TkAgg")
         import matplotlib.pyplot as plt
 
-        # matplotlib.use("TkAgg")
-        """ test function """
-
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "015"
+        plan_number = "017"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
