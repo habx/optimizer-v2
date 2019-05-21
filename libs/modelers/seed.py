@@ -45,7 +45,7 @@ SQM = 10000
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 25
-MIN_SEEDER_SPACE_AREA = 1000
+MIN_SEEDER_SPACE_AREA = 10000
 
 
 class Seeder:
@@ -1011,7 +1011,13 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_index = 6
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-p", "--plan_index", help="choose plan index",
+                            default=1)
+
+        args = parser.parse_args()
+        plan_index = int(args.plan_index)
 
         plan_name = None
         if plan_index < 10:
@@ -1019,7 +1025,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "017"
+        plan_name = "052"
 
         # to not run each time the grid generation
         try:
@@ -1031,7 +1037,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=True)
+        SEEDERS["directional_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
