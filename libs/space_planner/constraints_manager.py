@@ -1069,7 +1069,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         [distance_constraint, {}],
-        #[shape_constraint, {}],
+        [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
