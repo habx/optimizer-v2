@@ -24,6 +24,7 @@ import libs.io.plot
 
 class LocalContext:
     """Local execution context"""
+
     def __init__(self):
         self.files: Dict[str, Dict] = {}
         self.output_dir: str = None
@@ -252,7 +253,7 @@ class Optimizer:
                 spec = space_planner.spec
                 for sol in best_solutions:
                     spec.plan = sol.plan
-                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan)
+                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan, spec)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["corridor"] = time.process_time() - t0_corridor
