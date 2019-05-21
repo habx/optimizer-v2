@@ -914,9 +914,11 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     """
 
     selector = SELECTORS["not_aligned_edges"]
+
     space_cat = ["seed", "loadBearingWall"]
 
     list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
+
     for seed_space in list_sp:
         for edge_selected in selector.yield_from(seed_space):
 
@@ -1025,7 +1027,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "052"
+        # plan_name = "052"
 
         # to not run each time the grid generation
         try:
