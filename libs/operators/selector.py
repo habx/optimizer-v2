@@ -1039,6 +1039,32 @@ def small_angle_to_boundary(max_angle: float = 5.0) -> EdgeQuery:
     return _query
 
 
+def enclosed_face(ratio: float = 0.4) -> EdgeQuery:
+    """
+    Return the edge of each face that has more than *ratio* of its perimeter that is adjacent to
+    the same face : meaning the face is partially enclosed in the other face.
+    :param ratio: the min perimeter ratio adjacent to a single face
+    :return:
+    """
+
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        for face in space.faces:
+            adjacent_dict = {}
+            found = False
+            perimeter = face.perimeter
+            for edge in face.edges:
+                adjacent_dict[edge.pair.face.id] = (adjacent_dict.get(edge.pair.face.id, 0) +
+                                                    edge.length)
+                if adjacent_dict[edge.pair.face.id] > perimeter*ratio:
+                    yield edge
+                    found = True
+                    break
+            if found:
+                break
+
+    return _query
+
+
 # predicates
 
 def close_to_corner_wall(edge: 'Edge', space: 'Space') -> bool:
@@ -2274,5 +2300,6 @@ SELECTOR_FACTORIES = {
     "tight_lines": SelectorFactory(tight_lines),
     "category": SelectorFactory(specific_category),
     "small_faces": SelectorFactory(small_faces),
-    "small_angle_boundary": SelectorFactory(small_angle_to_boundary)
+    "small_angle_boundary": SelectorFactory(small_angle_to_boundary),
+    "enclosed_faces": SelectorFactory(enclosed_face)
 }

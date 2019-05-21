@@ -794,6 +794,34 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     return modified_spaces
 
 
+def merge_enclosed_faces(seeder: 'Seeder', show: bool) -> List['Space']:
+    """
+    Merge the enclosed face with the enclosing face
+    :param seeder:
+    :param show:
+    :return:
+    """
+    ratio = 0.45
+    modified_spaces = []
+    for space in seeder.plan.get_spaces("seed"):
+        adjacent_dict = {}
+        perimeter = space.perimeter
+        for edge in space.exterior_edges:
+            other = space.plan.get_space_of_edge(edge.pair)
+            if not other or other.category is not SPACE_CATEGORIES["seed"]:
+                continue
+            adjacent_dict[other.id] = adjacent_dict.get(other.id, 0) + edge.length
+            if adjacent_dict[other.id] > perimeter * ratio:
+                other.merge(space)
+                modified_spaces += [space, other]
+                break
+
+    if show:
+        seeder.plot.update(modified_spaces)
+
+    return modified_spaces
+
+
 def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']:
     """
     Divides the space into two sub-spaces, cut performed along the line formed by line_edges
@@ -957,7 +985,8 @@ SEEDERS = {
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed], [merge_corners]),
     "directional_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                                 [divide_along_seed_borders, empty_to_seed], [merge_small_cells]),
+                                 [divide_along_seed_borders, empty_to_seed], [merge_small_cells,
+                                                                              merge_enclosed_faces]),
 }
 
 if __name__ == '__main__':
@@ -980,7 +1009,7 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_index = 9
+        plan_index = 6
 
         plan_name = None
         if plan_index < 10:
