@@ -189,7 +189,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
     # retrieve all the aligned edges
-    spaces_and_edges = map(lambda e: (space.plan.get_space_of_edge(e.pair), e.pair),
+    spaces_and_edges = map(lambda _e: (space.plan.get_space_of_edge(_e.pair), _e.pair),
                            space.aligned_siblings(edge, max_angle))
     # group edges by spaces
     edges_by_spaces = {}
