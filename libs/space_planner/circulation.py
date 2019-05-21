@@ -395,9 +395,10 @@ class Circulator:
                     for edge in path:
                         edge.plot(ax=_ax, color='blue')
                         # representing the growing direction
-                        pt_tmp = move_point([edge.start.x, edge.start.y], edge.vector, 0.5)
-                        pt = move_point(pt_tmp, self.growing_directions[f][edge], edge.length / 5)
-                        _ax.scatter(pt[0], pt[1], marker='o', color='k')
+                        pt_ini = move_point([edge.start.x, edge.start.y], edge.vector, 0.5)
+                        pt_end = move_point(pt_ini, self.growing_directions[f][edge], 90)
+                        _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
+                                  pt_end[1] - pt_ini[1])
         else:
             for f in self.plan.list_level:
                 _ax = ax[f] if number_of_floors > 1 else ax
