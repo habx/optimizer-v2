@@ -810,10 +810,13 @@ def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                             manager.solver.positions[other_item.id, k] for
                             j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                         for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
-            if ct is None:
-                ct = (adjacency_sum >= length)
+            if adjacency_sum != 0:
+                if ct is None:
+                    ct = (adjacency_sum >= length)
+                else:
+                    ct = manager.and_(ct, (adjacency_sum >= length))
             else:
-                ct = manager.and_(ct, (adjacency_sum >= length))
+                logging.warning("ConstraintSolver: opens_on inconsistency")
     else:
         ct = components_adjacency_constraint(manager, item, WINDOW_CATEGORY, addition_rule="Or")
     return ct

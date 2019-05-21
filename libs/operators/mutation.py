@@ -436,7 +436,7 @@ def translation_cut(offset: float,
 
 def section_cut(coeff: float,
                 traverse: str = "no",
-                min_area: float = 40000,
+                min_area: float = 80000,
                 min_angle: float = 10) -> EdgeMutation:
     """
     Action Factory. Cuts the space and creates a new space if the face has a different main axis.

@@ -7,13 +7,16 @@ used to detect isolated rooms and generate a path to connect them
 """
 
 import logging
+import math
+
 from typing import Dict, List, Tuple
 from libs.plan.plan import Space, Plan, Vertex
 from libs.mesh.mesh import Edge
+from libs.specification.specification import Specification
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
-from libs.utils.geometry import parallel
+from libs.utils.geometry import parallel, opposite_vector, move_point
 
 
 # TODO : deal with load bearing walls by defining locations where they can be crossed
@@ -24,23 +27,27 @@ class Circulator:
     contains utilities to detect isolated rooms connect them to circulation spaces
     """
 
-    def __init__(self, plan: Plan, cost_rules: Dict = None):
+    def __init__(self, plan: Plan, spec: 'Specification', cost_rules: Dict = None):
         self.plan = plan
         self.path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self.path_calculator.build()
         self.connectivity_graph = GraphNx()
-        self.reachable_edges = {space: [] for space in plan.spaces}
-        self.connecting_paths = {level: [] for level in plan.list_level}
+        self.spec = spec
+        self.reachable_edges = {space: [] for space in self.plan.spaces}
+        self.connecting_paths = {'vert': {level: [] for level in self.plan.list_level},
+                                 'edge': {level: [] for level in self.plan.list_level}}
+        self.growing_directions = {level: {} for level in self.plan.list_level}
         self.circulation_cost = 0
 
-    def draw_path(self, space1: Space, space2: Space) -> Tuple['List[Vertex]', float]:
+    def draw_path(self, set1: List['Edge'], set2: List['Edge'], level: int) -> Tuple[
+        'List[Vertex]', float]:
         """
-        Finds the shortest path between two spaces in the plan
+        Finds the shortest path between two sets of edges
         :return list of vertices on the path and cost of the path
         """
-        graph = self.path_calculator.graph[space1.floor.level]
-        path, cost = graph.get_shortest_path(self.reachable_edges[space1],
-                                             self.reachable_edges[space2])
+        graph = self.path_calculator.graph[level]
+        path, cost = graph.get_shortest_path(set1,
+                                             set2)
 
         return path, cost
 
@@ -137,8 +144,13 @@ class Circulator:
 
         for node in list(self.connectivity_graph.nodes()):
             if not self.connectivity_graph.node_connected(node):
-                connected_room = self.connect_space_to_circulation_graph(node)
-                self.connectivity_graph.add_edge(connected_room, node)
+                connected_rooms = self.connect_space_to_circulation_graph(node)
+                # connected_rooms contains the list of rooms connected by connecting node to a
+                # circulation space
+                for connected_room in connected_rooms:
+                    if not self.connectivity_graph.node_connected(connected_room):
+                        # connected_room is no longer isolated
+                        self.connectivity_graph.add_edge(connected_room, node)
 
     def set_circulation_path(self):
         """
@@ -172,53 +184,200 @@ class Circulator:
 
         for node in self.connectivity_graph.nodes():
             if not self.connectivity_graph.has_path(node, father_nodes[node.floor.level]):
-                path, cost = self.draw_path(father_nodes[node.floor.level], node)
+                path, cost = self.draw_path(self.reachable_edges[father_nodes[node.floor.level]],
+                                            self.reachable_edges[node], node.floor.level)
                 self.circulation_cost += cost
                 self.actualize_path(path, node.floor.level)
                 self.connectivity_graph.add_edge(node, father_nodes[node.floor.level])
 
-    def actualize_path(self, path: List, level: int):
+    @staticmethod
+    def get_edge_path(path: List['Vertex']) -> List['Edge']:
         """
-        update based on computed corridor path
+        from a list of vertices, gets the list of edges connecting those vertices
+        :param path:
         :return:
         """
-        self.connecting_paths[level].append(path)
+        edge_path = []
+        for v, vert in enumerate(path[:-1]):
+            for edge in vert.edges:
+                if edge.end is path[v + 1]:
+                    edge_path.append(edge)
+                    break
+        return edge_path
+
+    def set_growing_directions(self, edge_path, level):
+        """
+        for each edge of a circulation path, gets the direction in which the corridor has to grow
+        so as to bite preferentially on rooms which area is still higher than the minimum spec
+        when amputated by the corridor.
+        process:
+        *decompose the path into its straight portions
+        *for each edge of a considered straight portion, computes the most adapted growth direction
+        *deduce the most adapted growth direction for the considered portion
+        :param edge_path:
+        :param level:
+        :return:
+        """
+
+        def get_lines_of_path(edges: List['Edge']) -> List[List['Edge']]:
+            """
+            gets the straight portions from a circulation path
+            :param edges:
+            :return:
+            """
+            lines = []
+            if not edges:
+                return lines
+            e = edges[0]
+            count = 0
+            while e:
+                current_line = []
+                # going forward
+                current = e
+                while current and current in edges:
+                    current_line.append(current)
+                    current = current.aligned_edge
+                    count += 1
+                lines.append(current_line)
+                if count < len(edges):
+                    e = edges[count]
+                else:
+                    return lines
+
+        def get_score(area_space: 'Dict', path_line: List['Edge'], pair: bool = False) -> float:
+            """
+            computes the area of each space amputated when a corridor of the path grows on it
+            :param area_space:
+            :param path_line:
+            :param pair:
+            :return:
+            """
+            score = 0
+            corridor_width = 90
+
+            path_line_selected = [e.pair for e in path_line] if pair else path_line
+
+            for e in path_line_selected:
+                sp = self.plan.get_space_of_edge(e)
+                area_space[sp] -= e.length * corridor_width
+
+            for sp in area_space:
+                spec_items = self.spec.items[:]
+                corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
+                                                  spec_items))
+                best_item = min(corresponding_items,
+                                key=lambda i: math.fabs(i.required_area - sp.cached_area()),
+                                default=None)
+                current = (best_item.min_size.area - area_space[sp]) / best_item.min_size.area
+                score += current * (current > 0)
+            return score
+
+        def get_growing_direction(path_line: List['Edge']):
+            """
+            for a given line of edges, gets the direction the corridor has to grow so as to bite
+            preferentially on rooms which area is still higher than the minimum spec
+            when amputated by the corridor.
+            :param path_line:
+            :return:
+            """
+            dir_ccw = path_line[0].normal
+            dir_cw = opposite_vector(dir_ccw)
+            area_space_cw = {}
+            area_space_ccw = {}
+            for e in path_line:
+                space_ccw = self.plan.get_space_of_edge(e)
+                if not space_ccw or not space_ccw.mutable:
+                    return dir_cw
+                else:
+                    area_space_ccw[space_ccw] = space_ccw.cached_area()
+                space_cw = self.plan.get_space_of_edge(e.pair)
+                if not space_cw or not space_cw.mutable:
+                    return dir_ccw
+                else:
+                    area_space_cw[space_cw] = space_cw.cached_area()
+
+            score_cw = get_score(area_space_cw, path_line, pair=True)
+            score_ccw = get_score(area_space_ccw, path_line)
+            return dir_ccw if score_ccw < score_cw else dir_cw
+
+        path_lines = get_lines_of_path(edge_path)
+        for line in path_lines:
+            growing_direction = get_growing_direction(line)
+            for edge in line:
+                self.growing_directions[level][edge] = growing_direction
+
+    def actualize_path(self, path: List['Vertex'], level: int) -> List[
+        'Space']:
+        """
+        update based on computed circulation path
+        :return: the list of spaces connected by path
+        """
+        self.connecting_paths['vert'][level].append(path)
+        edge_path = self.get_edge_path(path)
+        self.connecting_paths['edge'][level].append(edge_path)
+
+        self.set_growing_directions(edge_path, level)
+
         # when a circulation has been set, it can be used to connect every other spaces
         # without cost increase
-        self.path_calculator.set_corridor_to_zero_cost(path, level)
+        # self.path_calculator.set_corridor_to_zero_cost(path, level)
 
-    def connect_space_to_circulation_graph(self, space):
+        connected_rooms = []  # will contain the list of rooms connected by the path
+        for e in edge_path:
+            connected = self.plan.get_space_of_edge(e)
+            if connected and connected not in connected_rooms and connected.mutable:
+                connected_rooms.append(connected)
+            connected = self.plan.get_space_of_edge(e.pair)
+            if connected and connected not in connected_rooms and connected.mutable:
+                connected_rooms.append(connected)
+
+        return connected_rooms
+
+    def connect_space_to_circulation_graph(self, space) -> List['Space']:
         """
         connects the given space with a circulation space of the plan
-        :return:
+        :return: the list of spaces connected by the circulation drawn to connect space
         """
         path_min = None
         connected_room = None
         cost_min = None
+        # compute path between space and every circulation spaces
         for other in self.plan.circulation_spaces():
             if other is not space and space.floor.level is other.floor.level:
-                path, cost = self.draw_path(space, other)
+                path, cost = self.draw_path(self.reachable_edges[space],
+                                            self.reachable_edges[other], space.floor.level)
                 if cost_min is None or cost < cost_min:
                     cost_min = cost
                     path_min = path
                     connected_room = other
+        # compute path between space and every existing circulation path
+        for edge_path in self.connecting_paths['edge'][space.floor.level]:
+            if edge_path:
+                path, cost = self.draw_path(self.reachable_edges[space], edge_path,
+                                            space.floor.level)
+                if cost_min is None or cost < cost_min:
+                    cost_min = cost
+                    path_min = path
+
+        connected_rooms = []
         if path_min is not None:
-            self.actualize_path(path_min, space.floor.level)
+            connected_rooms = self.actualize_path(path_min, space.floor.level)
             self.circulation_cost += cost_min
 
-        return connected_room
+        if connected_room not in connected_rooms:
+            connected_rooms.append(connected_room)
+        return connected_rooms
 
     def connect(self):
         """
         detects isolated rooms and generate a path to connect them
         :return:
         """
-
         self.init_reachable_edges()
         self.init_connectivity_graph()
         self.expand_connectivity_graph()
 
-    def plot(self, show: bool = False, save: bool = True):
+    def plot(self, show: bool = False, save: bool = True, plot_edge=False):
         """
         plots plan with circulation paths
         :return:
@@ -228,22 +387,35 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        for f in self.plan.list_level:
-            _ax = ax[f] if number_of_floors > 1 else ax
-            paths = self.connecting_paths[f]
-            for path in paths:
-                if len(path) == 1:
-                    _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
-                else:
-                    for i in range(len(path) - 1):
-                        v1 = path[i]
-                        v2 = path[i + 1]
-                        x_coords = [v1.x, v2.x]
-                        y_coords = [v1.y, v2.y]
-                        _ax.plot(x_coords, y_coords, 'k',
-                                 linewidth=2,
-                                 color="blue",
-                                 solid_capstyle='butt')
+        if plot_edge:
+            for f in self.plan.list_level:
+                _ax = ax[f] if number_of_floors > 1 else ax
+                paths = self.connecting_paths['edge'][f]
+                for path in paths:
+                    for edge in path:
+                        edge.plot(ax=_ax, color='blue')
+                        # representing the growing direction
+                        pt_ini = move_point([edge.start.x, edge.start.y], edge.vector, 0.5)
+                        pt_end = move_point(pt_ini, self.growing_directions[f][edge], 90)
+                        _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
+                                  pt_end[1] - pt_ini[1])
+        else:
+            for f in self.plan.list_level:
+                _ax = ax[f] if number_of_floors > 1 else ax
+                paths = self.connecting_paths['vert'][f]
+                for path in paths:
+                    if len(path) == 1:
+                        _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
+                    else:
+                        for i in range(len(path) - 1):
+                            v1 = path[i]
+                            v2 = path[i + 1]
+                            x_coords = [v1.x, v2.x]
+                            y_coords = [v1.y, v2.y]
+                            _ax.plot(x_coords, y_coords, 'k',
+                                     linewidth=2,
+                                     color="blue",
+                                     solid_capstyle='butt')
 
         plot_save(save, show)
 
@@ -461,10 +633,11 @@ if __name__ == '__main__':
 
         if space_planner.solutions_collector.solutions:
             for solution in space_planner.solutions_collector.best():
-                circulator = Circulator(plan=solution.plan, cost_rules=COST_RULES)
+                circulator = Circulator(plan=solution.plan, spec=space_planner.spec,
+                                        cost_rules=COST_RULES)
                 circulator.connect()
                 circulator.plot()
-                logging.debug('connecting paths: {0}'.format(circulator.connecting_paths))
+                logging.debug('connecting paths: {0}'.format(circulator.connecting_paths['vert']))
 
 
     connect_plan()

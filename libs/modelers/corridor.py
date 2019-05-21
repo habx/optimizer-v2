@@ -8,6 +8,7 @@ from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Edge, Vertex
 from libs.space_planner.circulation import Circulator, COST_RULES
+from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
 from libs.io.plot import Plot
 from libs.utils.geometry import (
@@ -49,36 +50,40 @@ class Corridor:
         self.corridor_rules = corridor_rules
         self.circulation_cost_rules = circulation_cost_rules
         self.plot = plot
+        self.spec: Specification = None
         self.plan: Plan = None
         self.circulator: Circulator = None
         self.corner_data: Dict = None
 
     def _clear(self):
         self.plan = None
+        self.spec = None
         self.circulator = None
         self.paths = []
         self.corner_data = {}
 
-    def apply_to(self, plan: 'Plan', show: bool = False):
+    def apply_to(self, plan: 'Plan', spec: 'Specification', show: bool = False):
         """
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan
         -refines the mesh around those paths
         -grows corridor spaces around those paths
         :param plan:
+        :param spec:
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
         self._clear()
+        self.spec = spec
         self.plan = plan
 
         # computes circulation paths and stores them
-        self.circulator = Circulator(plan=plan, cost_rules=self.circulation_cost_rules)
+        self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        self.circulator.plot(plot_edge=True)
 
-        for level in self.circulator.connecting_paths:
-            vertex_paths = self.circulator.connecting_paths[level]
+        for level in self.circulator.connecting_paths['vert']:
+            vertex_paths = self.circulator.connecting_paths['vert'][level]
             for vertex_path in vertex_paths:
                 if len(vertex_path) > 1:  # TODO : deal with one vertice path
                     vertex_path = self._add_penetration_vertices(vertex_path)
@@ -227,7 +232,7 @@ class Corridor:
             edge_path = self._get_edge_path(path)
 
         # mesh cut, orthogonal to edge path
-        self._ortho_slice(edge_path[0],start=True, show=show)
+        self._ortho_slice(edge_path[0], start=True, show=show)
         self._ortho_slice(edge_path[-1], show=show)
 
         return self
@@ -756,7 +761,7 @@ if __name__ == '__main__':
         plan_name = '0' + str(plan_index) + ".json"
 
 
-    def get_plan(input_file: str = "001.json") -> 'Plan':
+    def get_plan(input_file: str = "001.json") -> Tuple['Plan', 'Specification']:
 
         import libs.io.reader as reader
         import libs.io.writer as writer
@@ -775,14 +780,14 @@ if __name__ == '__main__':
                                                   folder)
             spec = reader.create_specification_from_data(spec_dict, "new")
             spec.plan = plan
-            return plan
+            return plan, spec
 
         except FileNotFoundError:
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            # GRIDS['optimal_grid'].apply_to(plan)
-            GRIDS['optimal_finer_grid'].apply_to(plan)
+            GRIDS['optimal_grid'].apply_to(plan)
+            # GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
             spec.plan = plan
 
@@ -797,7 +802,7 @@ if __name__ == '__main__':
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
                 writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
-                return plan
+                return plan, new_spec
             else:
                 logging.info("No solution for this plan")
 
@@ -807,12 +812,14 @@ if __name__ == '__main__':
         # TODO : à reprendre
         # * 61 : wrong corridor shape
 
-        plan = get_plan(input_file)
+        out = get_plan(input_file)
+        plan = out[0]
+        spec = out[1]
         plan.name = input_file[:-5]
 
         # corridor = Corridor(layer_width=25, nb_layer=5)
         corridor = Corridor(corridor_rules=CORRIDOR_RULES)
-        corridor.apply_to(plan, show=False)
+        corridor.apply_to(plan, spec=spec, show=False)
 
         plan.check()
 
@@ -820,5 +827,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "007.json"
+    # plan_name = "001.json"
     main(input_file=plan_name)

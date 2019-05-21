@@ -3,83 +3,46 @@ Refiner Test Module
 """
 
 import logging
+import pytest
+import time
 
 from libs.refiner.refiner import REFINERS
-from libs.refiner import evaluation
 from libs.io import reader_test
+
+import tools.cache
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
-PARAMS = {
-            "weights": (-2.0, -1.0, -1.0, -10.0),
-            "ngen": 100,
-            "mu": 28,
-            "cxpb": 0.5
-          }
+PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
 
 
-def run():
-    """ test function """
-    import time
-    import tools.cache
-
+@pytest.mark.parametrize("input_file", INPUT_FILES)
+def refiner_simple(input_file):
+    """
+    Test refiner on all plan files
+    051 / 009 / 062 / 055
+    :return:
+    """
     logging.getLogger().setLevel(logging.INFO)
+    plan_number = input_file[:len(input_file) - 5]
 
-    spec, plan = tools.cache.get_plan("052", "1")  # 052
+    spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
     if plan:
-        plan.name = "original"
-        plan.plot()
-
-        # run genetic algorithm
-
-        start = time.time()
-        sols = REFINERS["simple"].run(plan, spec, PARAMS, processes=4, hof=1)
-        end = time.time()
-
-        # analyse found solutions
-        for n, ind in enumerate(sols):
-            ind.name = str(n)
-            ind.plot()
-            print("n°{} | Fitness: {} - {}".format(n, ind.fitness.value, ind.fitness.values))
-        print("Time elapsed: {}".format(end - start))
-        best = sols[0]
-        item_dict = evaluation.create_item_dict(spec)
-        for space in best.mutable_spaces():
-            if item_dict[space.id]:
-                print("• Area {} : {} -> [{}, {}]".format(space.category.name,
-                                                          round(space.cached_area()),
-                                                          item_dict[space.id].min_size.area,
-                                                          item_dict[space.id].max_size.area))
-
-
-def apply():
-    """ test function """
-    import time
-    import tools.cache
-
-    logging.getLogger().setLevel(logging.INFO)
-
-    spec, plan = tools.cache.get_plan("007")  # 052
-
-    if plan:
-        plan.name = "original"
+        plan.name = "original" + "_" + plan_number
         plan.remove_null_spaces()
         plan.plot()
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["simple"].apply_to(plan, spec, PARAMS, processes=4)
+        improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
         end = time.time()
-        improved_plan.name = "Refined"
+        improved_plan.name = "Refined_" + plan_number
         improved_plan.plot()
+
         # analyse found solutions
         logging.info("Time elapsed: {}".format(end - start))
-        logging.info("Solution found : {} - {}".format(improved_plan.fitness.value,
+        logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                        improved_plan.fitness.values))
 
-        evaluation.check_area(improved_plan, spec)
-
-
-if __name__ == '__main__':
-    apply()
+        assert improved_plan.check()

@@ -24,6 +24,7 @@ import libs.io.plot
 
 class LocalContext:
     """Local execution context"""
+
     def __init__(self):
         self.files: Dict[str, Dict] = {}
         self.output_dir: str = None
@@ -84,10 +85,9 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "weights": (-2.0, -1.0, -1.0),
-            "ngen": 120,
-            "mu": 28,
-            "cxpb": 0.9
+            "ngen": 50,
+            "mu": 64,
+            "cxpb": 0.2
         }
 
         corridor_params = {
@@ -99,8 +99,8 @@ class ExecParams:
             "layer_cut": False
         }
 
-        self.grid_type = params.get('grid_type', 'optimal_grid')
-        self.seeder_type = params.get('seeder_type', 'simple_seeder')
+        self.grid_type = params.get('grid_type', '001')
+        self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
@@ -108,7 +108,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', corridor_params)
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'simple')
+        self.refiner_type = params.get('refiner_type', 'nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
@@ -253,7 +253,7 @@ class Optimizer:
                 spec = space_planner.spec
                 for sol in best_solutions:
                     spec.plan = sol.plan
-                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan)
+                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan, spec)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["corridor"] = time.process_time() - t0_corridor
@@ -301,10 +301,10 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "002.json",
-            "002_setup0.json",
+            "016.json",
+            "016_setup0.json",
             {
-                "grid_type": "optimal_finer_grid",
+                "grid_type": "001",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
             }

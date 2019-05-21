@@ -263,10 +263,10 @@ class Solution:
             if item.category.name in ["toilet", "bathroom"]:
                 logging.debug("room %s: P2/A : %i", item.id,
                               int((space.perimeter_without_duct *
-                                   space.perimeter_without_duct)/space.area))
+                                   space.perimeter_without_duct) / space.area))
             else:
                 logging.debug("room %s: P2/A : %i", item.id,
-                              int((space.perimeter*space.perimeter)/space.area))
+                              int((space.perimeter * space.perimeter) / space.area))
             area = space.area
             box = space.bounding_box()
             difference = (box[0] * box[1] - area)
@@ -328,11 +328,11 @@ class Solution:
         Entrance bonus
         :return: score : float
         """
-        if(self.collector.spec.typology > 2
+        if (self.collector.spec.typology > 2
                 and [item for item in self.items_spaces if item.category.name == "entrance"]):
             return 10
-        elif(self.collector.spec.typology <= 2
-                and [item for item in self.items_spaces if item.category.name == "entrance"]):
+        elif (self.collector.spec.typology <= 2
+              and [item for item in self.items_spaces if item.category.name == "entrance"]):
             return -10
         return 0
 
@@ -366,7 +366,7 @@ class Solution:
         Circulation penalty
         :return: score : float
         """
-        circulator = Circulator(plan=self.plan, cost_rules=COST_RULES)
+        circulator = Circulator(plan=self.plan, spec=self.collector.spec, cost_rules=COST_RULES)
         circulator.connect()
         cost = circulator.circulation_cost
         circulation_penalty = 0
@@ -380,7 +380,7 @@ class Solution:
         elif cost - (self.collector.spec.typology - 1) * 300 > 0:
             circulation_penalty += 5
         logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
-        logging.info("Circulation penalty: %i", circulation_penalty)
+
         return circulation_penalty
 
     def _night_and_day_score(self) -> float:
@@ -455,7 +455,7 @@ class Solution:
             if [item for item in self.items_spaces if item.category.name == "entrance"]:
                 night_polygon_with_entrance = night_polygon.union(
                     self.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
-            else :
+            else:
                 night_polygon_with_entrance = night_polygon
             if night_polygon_with_entrance.geom_type != "Polygon":
                 if ((len(night_polygon) > 2 and len(night_polygon_with_entrance) > 2)
@@ -530,7 +530,7 @@ class Solution:
                     item_position_score = 100
                 else:
                     # distance from the entrance
-                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE*2:
+                    if space.distance_to_linear(front_door, "min") < CORRIDOR_SIZE * 2:
                         item_position_score = 100
 
             logging.debug("Solution %i: Position score : %i, room : %s, %f", self._id,
@@ -560,7 +560,8 @@ class Solution:
                               self._id, 0, item.category.name)
                 return 0
             #  isolated room
-            list_of_non_concerned_room = ["entrance", "circulation", "wardrobe", "study", "laundry", "misc"]
+            list_of_non_concerned_room = ["entrance", "circulation", "wardrobe", "study", "laundry",
+                                          "misc"]
             convex_hull = space.as_sp.convex_hull
             for i_item in self.items_spaces:
                 if (i_item != item and
@@ -575,7 +576,7 @@ class Solution:
                         return 0
                     elif (self.items_spaces[i_item].as_sp.is_valid and convex_hull.is_valid and
                           (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
-                            space.area / 8)):
+                                  space.area / 8)):
                         # Check i_item adjacency
                         other_room_adj = False
                         for j_item in self.items_spaces:
@@ -624,6 +625,11 @@ class Solution:
         for floor in self.plan.floors.values():
             for face in floor.mesh.faces:
                 space = self.plan.get_space_of_face(face)
+                # Note: sometimes a few faces of the mesh will no be assigned to a space
+                if not space:
+                    logging.warning("Solution: A face of the mesh "
+                                    "has no assigned space: %s - floor: %s", face, floor)
+                    continue
                 if space.category.mutable:
                     mesh_area += face.area
                     other_space = other_solution.plan.get_space_of_face(face)

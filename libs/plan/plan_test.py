@@ -1187,13 +1187,13 @@ def test_corner_stone():
     GRIDS["simple_grid"].apply_to(plan)
     plan.plot()
 
-    faces_id = [365, 389]
+    faces_id = [372, 393]
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
     space = plan.spaces[1]
 
     assert space.corner_stone(*faces)
 
-    faces_id += [383, 16]
+    faces_id = [393, 397]
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
 
     assert not space.corner_stone(*faces)
@@ -1210,3 +1210,30 @@ def test_boundary_polygon(l_plan):
     assert l_plan.empty_space.boundary_polygon() == boundaries
 
 
+def test_cut_over_hole():
+    plan = rectangular_plan(400, 800)
+    duct = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+
+    plan.empty_space.barycenter_cut(plan.empty_space.edge, vector=(0, 1))
+    assert plan.check()
+
+
+def test_cut_over_internal_edge():
+    plan = rectangular_plan(400, 800)
+    duct = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+
+    plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[3], coeff=0.1, vector=(0, -1))
+    plan.plot()
+    assert plan.check()
+
+
+def test_cut_over_internal_edge_other_direction():
+    plan = rectangular_plan(400, 800)
+    duct = [(100, 200), (300, 200), (300, 600), (100, 600)]
+    plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
+
+    plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0], coeff=0.9, vector=(0, 1))
+    plan.plot()
+    assert plan.check()
