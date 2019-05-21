@@ -484,7 +484,7 @@ class HallOfFame:
 
         for ind in population:
             if ((not value and ind.fitness > self[-1].fitness)
-                    or (value and ind.fitness.value > self[-1].fitness.value)
+                    or (value and ind.fitness.wvalue > self[-1].fitness.wvalue)
                     or len(self) < self.maxsize):
                 for hofer in self:
                     # Loop through the hall of fame to check for any

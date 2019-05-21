@@ -334,11 +334,11 @@ ELEMENT_CONSTRAINT_SEED = {
                                   "category_name": "seed"},
                                  "max_size_frontDoor"),
     'window': SpaceConstraint(max_size,
-                              {"max_size": Size(12000, 300, 400),
+                              {"max_size": Size(90000, 300, 300),
                                "category_name": "seed"},
                               "max_size_window"),
     'doorWindow': SpaceConstraint(max_size,
-                                  {"max_size": Size(16000, 400, 400),
+                                  {"max_size": Size(120000, 300, 400),
                                    "category_name": "seed"},
                                   "max_size_doorWindow")
 }

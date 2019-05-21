@@ -15,10 +15,6 @@ It implements a simple version of the NSGA-II algorithm:
     non-dominated sorting genetic algorithm for multi-objective
     optimization: NSGA-II", 2002.
 
-TODO LIST:
-    • refine grid prior to genetic search
-    • create efficient all aligned edges mutation
-    • check edge selector to make sure we are not eliminating needed scenarios
 
 """
 import random
@@ -57,7 +53,7 @@ class Refiner:
     def apply_to(self,
                  plan: 'Plan',
                  spec: 'Specification',
-                 params: dict, processes: int = 1) -> 'Plan':
+                 params: dict, processes: int = 1) -> 'Individual':
         """
         Applies the refiner to the plan and returns the result.
         :param plan:
@@ -85,12 +81,9 @@ class Refiner:
         :param hof: number of individual to store in a hof. If hof > 0 then the output is the hof
         :return:
         """
-        _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
+        _hof = support.HallOfFame(hof) if hof > 0 else None
 
-        # 1. refine mesh of the plan
-        # TODO : implement this
-
-        # 2. create plan cache for performance reason
+        # 1. create plan cache for performance reason
         for floor in plan.floors.values():
             floor.mesh.compute_cache()
 
@@ -103,7 +96,7 @@ class Refiner:
         map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
         toolbox.register("map", map_func)
 
-        # 3. run the algorithm
+        # 2. run the algorithm
         initial_ind = toolbox.individual(plan)
         results = self._algorithm(toolbox, initial_ind, params, _hof)
 
@@ -133,8 +126,6 @@ def mate_and_mutate(mate_func,
         mate_func(_ind1, _ind2)
     mutate_func(_ind1)
     mutate_func(_ind2)
-    _ind1.fitness.clear()
-    _ind2.fitness.clear()
 
     return _ind1, _ind2
 
@@ -146,20 +137,34 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = params["weights"]  # a tuple containing the weights of the fitness
+    weights = (-1.0, -5.0, -30.0)
+    # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
     toolbox = core.Toolbox()
     toolbox.configure("fitness", "CustomFitness", weights)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
-                 evaluation.score_bounding_box,
                  evaluation.score_area,
-                 evaluation.score_connectivity]
+                 evaluation.score_perimeter_area_ratio]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
-    mutations = [(mutation.mutate_simple, 0.1), (mutation.mutate_aligned, 1.0)]
-    toolbox.register("mutate", mutation.compose, mutations)
+
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
+                                      mutation.Case.SMALL: 0.4,
+                                      mutation.Case.BIG: 0.1}),
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.2,
+                                         mutation.Case.SMALL: 0.1,
+                                         mutation.Case.BIG: 0.4}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.3,
+                                               mutation.Case.SMALL: 0.4,
+                                               mutation.Case.BIG: 0.1}),
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.3,
+                                                  mutation.Case.SMALL: 0.1,
+                                                  mutation.Case.BIG: 0.4}))
+
+    toolbox.register("mutate", mutation.composite, mutations)
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
@@ -169,10 +174,10 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     return toolbox
 
 
-def simple_ga(toolbox: 'core.Toolbox',
-              initial_ind: 'core.Individual',
-              params: dict,
-              hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+def nsga_ga(toolbox: 'core.Toolbox',
+            initial_ind: 'core.Individual',
+            params: dict,
+            hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
     A simple implementation of a genetic algorithm.
     :param toolbox: a refiner toolbox
@@ -184,7 +189,8 @@ def simple_ga(toolbox: 'core.Toolbox',
     # algorithm parameters
     ngen = params["ngen"]
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
-
+    initial_ind.all_spaces_modified()
+    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
@@ -193,8 +199,8 @@ def simple_ga(toolbox: 'core.Toolbox',
     pop = toolbox.select(pop, len(pop))
 
     # Begin the generational process
-    for gen in range(1, ngen):
-        logging.info("Refiner: generation %i : %f prct", gen, gen / ngen * 100.0)
+    for gen in range(1, ngen + 1):
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
@@ -207,8 +213,8 @@ def simple_ga(toolbox: 'core.Toolbox',
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
 
         # best score
-        best_ind = max(offspring, key=lambda i: i.fitness.value)
-        logging.info("Best : {} - {}".format(best_ind.fitness.value, best_ind.fitness.values))
+        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = toolbox.select(pop + offspring, mu)
@@ -220,6 +226,98 @@ def simple_ga(toolbox: 'core.Toolbox',
     return pop
 
 
+def naive_ga(toolbox: 'core.Toolbox',
+             initial_ind: 'core.Individual',
+             params: dict,
+             hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+    """
+    A simple implementation of a genetic algorithm.
+    :param toolbox: a refiner toolbox
+    :param initial_ind: an initial individual
+    :param params: the parameters of the algorithm
+    :param hof: an optional hall of fame to store best individuals
+    :return: the best plan
+    """
+    # algorithm parameters
+    ngen = params["ngen"]
+    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
+    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
+    pop = toolbox.populate(initial_ind, mu)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+
+    # Begin the generational process
+    for gen in range(1, ngen + 1):
+        logging.debug("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        # Vary the population
+        offspring = [toolbox.clone(ind) for ind in pop]
+        random.shuffle(offspring)
+
+        # note : list is needed because map lazy evaluates
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        offspring = [i for t in modified for i in t]
+
+        # Evaluate the individuals with an invalid fitness
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+
+        # best score
+        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
+        logging.debug("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+
+        # Select the next generation population
+        pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
+        pop = pop[:mu]
+
+        # store best individuals in hof
+        if hof is not None:
+            hof.update(pop, value=True)
+
+    return pop
+
+
 REFINERS = {
-    "simple": Refiner(fc_nsga_toolbox, simple_ga)
+    "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
+    "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }
+
+
+if __name__ == '__main__':
+    PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
+    # problematic floor plans : 062 / 055
+
+    def apply():
+        """
+        Test Function
+        :return:
+        """
+        import tools.cache
+        import time
+        # import matplotlib
+        # matplotlib.use("TkAgg")
+        import matplotlib.pyplot as plt
+
+        logging.getLogger().setLevel(logging.INFO)
+        plan_number = "017"
+
+        spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
+
+        if plan:
+            plan.name = "original_" + plan_number
+            plan.remove_null_spaces()
+            plan.plot()
+
+            # run genetic algorithm
+            start = time.time()
+            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+            end = time.time()
+            improved_plan.name = "Refined_" + plan_number
+            improved_plan.plot()
+            # analyse found solutions
+            logging.info("Time elapsed: {}".format(end - start))
+            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                           improved_plan.fitness.values))
+
+            evaluation.check(improved_plan, spec)
+            improved_plan.plot(save=False)
+            plt.show()
+    apply()

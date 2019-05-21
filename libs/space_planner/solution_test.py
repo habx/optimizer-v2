@@ -139,7 +139,7 @@ def test_duplex():
     plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-    GRIDS["optimal_grid"].apply_to(plan)
+    GRIDS["001"].apply_to(plan)
 
     plan.plot()
 

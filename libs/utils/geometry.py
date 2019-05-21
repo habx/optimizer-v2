@@ -324,13 +324,18 @@ def lines_intersection(line_1: Tuple[Coords2d, Vector2d],
 
 def project_point_on_segment(point: Coords2d,
                              vector: Coords2d,
-                             segment: Tuple[Coords2d, Coords2d]) -> Optional[Coords2d]:
+                             segment: Tuple[Coords2d, Coords2d],
+                             no_direction: bool = False,
+                             epsilon: float = 1.0) -> Optional[Coords2d]:
     """
     Computes the projection of a point along a specified vector unto a specified segment.
     Returns None if there is no intersection.
     :param point:
     :param vector:
     :param segment:
+    :param no_direction: if True, the projection does not need to be in the direction of the
+    vector
+    :param epsilon: the distance allowed to the extremities of the segment
     :return: an optional point
     """
     a = point
@@ -343,10 +348,12 @@ def project_point_on_segment(point: Coords2d,
     abx = a[0] - b[0]
     aby = a[1] - b[1]
     t = 1/d * (u[1]*abx - u[0]*aby)
-    if t > 1 or t < 0:
+    len_segment = distance(*segment)
+    relative_epsilon = epsilon / len_segment
+    if t > 1 + relative_epsilon or t < -relative_epsilon:
         return None
     p = 1/d * (v[1]*abx - v[0]*aby)
-    if p < 0:
+    if p < -relative_epsilon and not no_direction:
         return None
     return b[0] + t*v[0], b[1] + t*v[1]
 

@@ -14,7 +14,6 @@ from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
-from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 import libs.io.writer as writer
 
 SQM = 10000
@@ -100,6 +99,9 @@ class SpacePlanner:
     def _plan_cleaner(self, min_area: float = 100) -> None:
         """
         Plan cleaner for little spaces
+        TODO: This means that we are breaking the assumption that every face of the mesh has an
+              assigned space. This means that we must then always check for None results when we
+              fetch the space of a face. Not sure this is optimal.
         :return: None
         """
         self.spec.plan.remove_null_spaces()
@@ -209,6 +211,7 @@ class SpacePlanner:
 
         return best_solutions
 
+
 standard_space_planner = SpacePlanner("standard")
 
 SPACE_PLANNERS = {
@@ -236,7 +239,6 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "009.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -305,7 +307,6 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "019.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -319,7 +320,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = '007'
+        # plan_name = '007'
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
@@ -376,4 +377,4 @@ if __name__ == '__main__':
 
 
     space_planning()
-    #space_planning_nico()
+    # space_planning_nico()
