@@ -380,7 +380,7 @@ class Solution:
         elif cost - (self.collector.spec.typology - 1) * 300 > 0:
             circulation_penalty += 5
         logging.debug("Solution %i: circulation penalty : %i", self._id, circulation_penalty)
-        logging.info("Circulation penalty: %i", circulation_penalty)
+
         return circulation_penalty
 
     def _night_and_day_score(self) -> float:
