@@ -641,7 +641,7 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
         space.category = SPACE_CATEGORIES["seed"]
         output.append(space)
         if show:
-            seeder.plot.update(space)
+            seeder.plot.update([space])
 
     return output
 
@@ -866,8 +866,10 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     """
 
     selector = SELECTORS["not_aligned_edges"]
+    space_cat = ["seed", "loadBearingWall"]
 
-    for seed_space in seeder.plan.get_spaces("seed"):
+    list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
+    for seed_space in list_sp:
         for edge_selected in selector.yield_from(seed_space):
 
             # lists of edges along which empty spaces division will be performed
@@ -972,7 +974,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "001"
+        plan_name = "017"
 
         # to not run each time the grid generation
         try:
@@ -980,11 +982,11 @@ if __name__ == '__main__':
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS["optimal_finer_grid"].apply_to(plan)
+            GRIDS["optimal_grid"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 

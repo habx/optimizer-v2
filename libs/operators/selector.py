@@ -1140,6 +1140,15 @@ def not_aligned_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
             yield edge
 
 
+# def not_aligned_edges_pair(space: 'Space', *_) -> Generator['Edge', bool, None]:
+#     """
+#     Returns edges not aligned with their previous or next space sibling
+#     """
+#     for edge in space.edges:
+#         if is_not_aligned(edge.pair, space) or is_not_aligned(edge.pair, space, previous=True):
+#             yield edge
+
+
 def is_not_aligned(edge: 'Edge', space: 'Space', previous: bool = False):
     """
     Returns True if edge is not aligned with the next one (or previous one if previous==True)
@@ -1688,7 +1697,7 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
-def has_space_pair() -> Predicate:
+def has_space_pair(space_pair_cat: str = None) -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if a space has a pair through a given edge
@@ -1701,6 +1710,9 @@ def has_space_pair() -> Predicate:
             return False
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
+                return False
+            if (space_pair_cat and
+                    not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
                 return False
         return True
 
@@ -2195,6 +2207,14 @@ SELECTORS = {
         not_aligned_edges,
         [
             has_space_pair(),
+        ]
+    ),
+
+    "load_bearing_wall_corner_pairs": Selector(
+
+        not_aligned_edges,
+        [
+            has_space_pair("load_bearing_wall"),
         ]
     ),
 
