@@ -617,6 +617,8 @@ GROWTH_METHODS = {
         (
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_right',)), MUTATIONS['swap_face']),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_left',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -630,6 +632,10 @@ GROWTH_METHODS = {
         (
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_right',)),
+            #        MUTATIONS['swap_face']),
+            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_left',)),
+            #        MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -659,7 +665,7 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
     :return:
     """
     output = []
-    modified_spaces=[]
+    modified_spaces = []
     for space in seeder.plan.get_spaces("empty"):
         modified_spaces.append(space)
         space.category = SPACE_CATEGORIES["seed"]
@@ -894,8 +900,8 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
                 if (space_of_current and space_of_current.category
                         and space_of_current.category.name == "empty"):
                     list_contiguous_edges.append(current_edge)
-                elif not space_of_current:
-                    # case line is a long the plan border
+                elif not current_edge.pair.face:
+                    # case line is along the plan border
                     continue
                 else:
                     break
@@ -934,14 +940,13 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
             divided_spaces = []
             for edge in contiguous_edges:
                 space = seeder.plan.get_space_of_edge(edge)
-                # once a space has been divided, it is not considered any more
                 if space not in divided_spaces:
                     divided_spaces.append(space)
-                    edges_in_space = list(
-                        edge for edge in contiguous_edges if space.has_edge(edge))
-                    modified_spaces = divide_along_line(space, edges_in_space)
-                    if show:
-                        seeder.plot.update(modified_spaces)
+                edges_in_space = list(
+                    edge for edge in contiguous_edges if space.has_edge(edge))
+                modified_spaces = divide_along_line(space, edges_in_space)
+                if show:
+                    seeder.plot.update(modified_spaces)
 
     return []
 
@@ -1033,7 +1038,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "017"
+        plan_name = "013"
 
         # to not run each time the grid generation
         try:
@@ -1045,7 +1050,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
