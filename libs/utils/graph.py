@@ -8,12 +8,16 @@ using networkx library
 import logging
 import networkx as nx
 import dijkstar
-from typing import Any, Generator, Tuple, List, Sequence, Union
+from typing import Any, Generator, Tuple, List, Union
 from libs.plan.plan import Vertex
 from libs.mesh.mesh import Edge
 
 
 class GraphNx:
+    """
+    A graph Class
+    Used to represent the connectivity of spaces in a plan
+    """
 
     def __init__(self):
         self.graph = nx.Graph()
@@ -81,6 +85,12 @@ class GraphNx:
         """
         return self.graph.nodes()
 
+    def connected_components(self) -> Generator[Any, Any, Any]:
+        """
+        Yields the connected components of the graph as sets of nodes
+        """
+        return nx.connected_components(self.graph)
+
 
 class EdgeGraph:
     """
@@ -89,14 +99,15 @@ class EdgeGraph:
     implementation for given graph libaries
     """
 
+    graph_init = {
+        "Dijkstar": dijkstar.Graph,
+        "networkx": nx.Graph
+    }
+
     def __init__(self, graph_lib: str = "networkx"):
-        assert graph_lib in ("Dijkstar", "networkx"), "unsupported graph lib"
+        assert graph_lib in self.graph_init, "unsupported graph lib"
         self.graph_lib = graph_lib
-        graph_init = {
-            "Dijkstar": dijkstar.Graph,
-            "networkx": nx.Graph
-        }
-        self.graph_struct: Union[dijkstar.Graph, nx.Graph] = graph_init[graph_lib]()
+        self.graph_struct: Union[dijkstar.Graph, nx.Graph] = self.graph_init[graph_lib]()
 
     def __repr__(self):
         output = 'Graph:\n'
@@ -133,7 +144,9 @@ class EdgeGraph:
                           edges1: List[Edge],
                           edges2: List[Edge]) -> Tuple[List[Vertex], float]:
         """
-        get the shortest path between two edges sequences
+        get the shortest path between two edges sequences.
+        In order to get the shortest path, we create two virtual vertices connected
+        at zero cost to each vertices of the edges of each list.
         :return: list of vertices on the path and cost of the path
         """
         if self.graph_lib == 'Dijkstar':
@@ -151,6 +164,7 @@ class EdgeGraph:
                         path = search[0]
                         cost = search[3]
             return path, cost
+
         if self.graph_lib == 'networkx':
             # for each edges sequence add a virtual node connected with cost 0 to all edges
             virtual_1 = Vertex(edges1[0].mesh)
@@ -161,10 +175,12 @@ class EdgeGraph:
             for edge in edges2:
                 self.graph_struct.add_edge(edge.start, virtual_2, cost=0)
                 self.graph_struct.add_edge(edge.end, virtual_2, cost=0)
-            # compute shortest path between virtual nodes
             try:
-                path = nx.shortest_path(self.graph_struct, virtual_1, virtual_2, weight='cost')[
-                       1:-1]
+                # compute shortest path between virtual nodes and remove first and last item
+                # (corresponding to the virtual vertices)
+                path = nx.shortest_path(self.graph_struct,
+                                        virtual_1, virtual_2, weight='cost')[1:-1]
+
             except nx.exception.NetworkXNoPath:
                 # TODO: for now, the only case where this exception is thrown should be when
                 #       a floor is cut into several parts by a load bearing wall.
@@ -173,17 +189,18 @@ class EdgeGraph:
                 #       where they can be crossed
                 logging.warning('GraphNx: no path found')
                 return [], 0
+
             finally:
                 # remove virtual nodes
                 self.graph_struct.remove_node(virtual_1)
                 self.graph_struct.remove_node(virtual_2)
                 virtual_1.remove_from_mesh()
                 virtual_2.remove_from_mesh()
+
             # compute cost
-            if len(path) == 1:
-                return path, 0
-            cost = 0
-            for i in range(len(path) - 1):
-                cost += self.graph_struct[path[i]][path[i + 1]]["cost"]
+            cost = sum(self.graph_struct[path[i]][path[i + 1]]["cost"]
+                       for i in range(len(path) - 1))
+
             return path, cost
+
         raise NotImplementedError("Graph library not supported")

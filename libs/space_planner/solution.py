@@ -10,7 +10,7 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Plan, Space
-from libs.space_planner.circulation import Circulator, COST_RULES
+from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
 
@@ -366,16 +366,17 @@ class Solution:
         Circulation penalty
         :return: score : float
         """
-        circulator = Circulator(plan=self.plan, spec=self.collector.spec, cost_rules=COST_RULES)
+        circulator = Circulator(plan=self.plan, spec=self.collector.spec, cost_rules=CostRules)
         circulator.connect()
         cost = circulator.circulation_cost
         circulation_penalty = 0
 
-        if cost > COST_RULES["water_room_less_than_two_ducts"]:
+        # NOTE : what a weird thing to do (can't we just get the cost right from the start ?)
+        if cost > CostRules.water_room_less_than_two_ducts.value:
             circulation_penalty += 100
-        elif cost > COST_RULES["window_room_default"]:
+        elif cost > CostRules.window_room_default.value:
             circulation_penalty += 50
-        elif cost > COST_RULES["water_room_default"]:
+        elif cost > CostRules.water_room_default.value:
             circulation_penalty += 30
         elif cost - (self.collector.spec.typology - 1) * 300 > 0:
             circulation_penalty += 5

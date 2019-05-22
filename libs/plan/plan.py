@@ -2638,13 +2638,13 @@ class Plan:
         return min(floor.level for floor in self.floors.values())
 
     @property
-    def list_level(self) -> Generator[int, None, None]:
+    def levels(self) -> List[int]:
         """
         Property
-        Returns the generator on levels of the plan
+        Returns the list of the levels of the plan
         :return:
         """
-        return (floor.level for floor in self.floors.values())
+        return sorted(floor.level for floor in self.floors.values())
 
     def get_mesh(self, floor_id: int) -> Optional['Mesh']:
         """
