@@ -45,7 +45,7 @@ SQM = 10000
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 25
-MIN_SEEDER_SPACE_AREA = 10000
+MIN_SEEDER_SPACE_AREA = 100
 
 
 class Seeder:
@@ -892,6 +892,9 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
                 if (space_of_current and space_of_current.category
                         and space_of_current.category.name == "empty"):
                     list_contiguous_edges.append(current_edge)
+                elif not space_of_current:
+                    #case line is a long the plan border
+                    continue
                 else:
                     break
 
@@ -913,15 +916,21 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    selector = SELECTORS["not_aligned_edges"]
+    # selector = SELECTORS["not_aligned_edges"]
 
-    space_cat = ["seed", "loadBearingWall"]
+    # space_cat = ["seed", "loadBearingWall", "empty"]
+
+    selectors = {"seed": SELECTORS["not_aligned_edges"],
+                 "loadBearingWall": SELECTORS["not_aligned_edges"]
+                 }
+
+    space_cat = [sp_cat for sp_cat in selectors]
 
     list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
-
     for seed_space in list_sp:
+        #seeder.plan.remove_null_spaces()
+        selector = selectors[seed_space.category.name]
         for edge_selected in selector.yield_from(seed_space):
-
             # lists of edges along which empty spaces division will be performed
             contiguous_edges = line_from_edge(seeder.plan, edge_selected)
 
@@ -1027,7 +1036,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "052"
+        plan_name = "002"
 
         # to not run each time the grid generation
         try:
@@ -1039,7 +1048,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
