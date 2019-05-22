@@ -1045,7 +1045,8 @@ if __name__ == '__main__':
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
         SEEDERS["directional_seeder"].apply_to(plan, show=False)
-        plan.plot()
+        plan.plot(save=False)
+        plt.show()
         plan.check()
 
 
