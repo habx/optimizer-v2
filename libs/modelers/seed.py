@@ -1032,7 +1032,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "002"
+        plan_name = "001"
 
         # to not run each time the grid generation
         try:
@@ -1045,8 +1045,7 @@ if __name__ == '__main__':
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
         SEEDERS["directional_seeder"].apply_to(plan, show=False)
-        plan.plot(save=False)
-        plt.show()
+        plan.plot()
         plan.check()
 
 
