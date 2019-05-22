@@ -420,8 +420,10 @@ class Circulator:
             for e in path_line:
                 # ccw side
                 space_ccw = self.plan.get_space_of_edge(e)
+                # TODO : this could induce a potential pb if a path_line has two different sides
+                #        adjacent to an immutable edge
                 if not space_ccw or not space_ccw.mutable:
-                    return 1.0
+                    return -1.0
                 else:
                     area_space_ccw[space_ccw] = space_ccw.cached_area()
                 

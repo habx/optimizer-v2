@@ -108,6 +108,9 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
             for edge in line:
                 _edge = edge if edge_direction[level][edge] > 0 else edge.pair
                 space = ind.get_space_of_edge(_edge)
+                if not space:
+                    logging.warning("Refiner: Path Edge has no space :%s", _edge)
+                    continue
                 if space in modified_spaces:
                     modified_spaces[space].append(_edge)
                 else:
