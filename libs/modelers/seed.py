@@ -45,7 +45,7 @@ SQM = 10000
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 25
-MIN_SEEDER_SPACE_AREA = 100
+MIN_SEEDER_SPACE_AREA = 10000
 
 
 class Seeder:
@@ -664,7 +664,6 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
         output.append(space)
         if show:
             seeder.plot.update([space])
-
     return output
 
 
@@ -893,7 +892,7 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
                         and space_of_current.category.name == "empty"):
                     list_contiguous_edges.append(current_edge)
                 elif not space_of_current:
-                    #case line is a long the plan border
+                    # case line is a long the plan border
                     continue
                 else:
                     break
@@ -904,19 +903,17 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     return contiguous_edges
 
 
-def divide_along_seed_borders(seeder: 'Seeder', show: bool):
+def divide_along_borders(seeder: 'Seeder', show: bool):
     """
     divide empty spaces along all lines drawn from selected edges
-    Iterates though seed spaces, at each iteration :
-    1 - a corner edge of a seed_space is selected
+    Iterates though seed spaces and load bearing wall spaces, at each iteration :
+    1 - a corner edge of the space is selected
     2 - the list of its contiguous edges is built
     3 - each empty space cut by a set of those contiguous edges is cut into two parts
     :param seeder:
     :param show:
     :return:
     """
-
-    # selector = SELECTORS["not_aligned_edges"]
 
     # space_cat = ["seed", "loadBearingWall", "empty"]
 
@@ -928,7 +925,6 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
 
     list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
     for seed_space in list_sp:
-        #seeder.plan.remove_null_spaces()
         selector = selectors[seed_space.category.name]
         for edge_selected in selector.yield_from(seed_space):
             # lists of edges along which empty spaces division will be performed
@@ -998,8 +994,8 @@ SEEDERS = {
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed], [merge_corners]),
     "directional_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                                 [divide_along_seed_borders, empty_to_seed], [merge_small_cells,
-                                                                              merge_enclosed_faces]),
+                                 [divide_along_borders, empty_to_seed], [merge_small_cells,
+                                                                         merge_enclosed_faces]),
 }
 
 if __name__ == '__main__':
@@ -1036,7 +1032,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "002"
+        # plan_name = "002"
 
         # to not run each time the grid generation
         try:
@@ -1048,7 +1044,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=True)
+        SEEDERS["directional_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
