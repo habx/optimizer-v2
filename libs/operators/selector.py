@@ -1030,6 +1030,7 @@ def small_angle_to_boundary(max_angle: float = 5.0) -> EdgeQuery:
     Returns the edge touching the boundary with a small angle
     :param max_angle: the maximum angle between the edge and the space boundary edge
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from (e.next for e in space.edges
                     if not space.is_boundary(e.next) and e.next_angle < max_angle)
@@ -1055,7 +1056,7 @@ def enclosed_face(ratio: float = 0.4) -> EdgeQuery:
             for edge in face.edges:
                 adjacent_dict[edge.pair.face.id] = (adjacent_dict.get(edge.pair.face.id, 0) +
                                                     edge.length)
-                if adjacent_dict[edge.pair.face.id] > perimeter*ratio:
+                if adjacent_dict[edge.pair.face.id] > perimeter * ratio:
                     yield edge
                     found = True
                     break
@@ -1185,15 +1186,6 @@ def not_aligned_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     for edge in space.edges:
         if is_not_aligned(edge, space) or is_not_aligned(edge, space, previous=True):
             yield edge
-
-
-# def not_aligned_edges_pair(space: 'Space', *_) -> Generator['Edge', bool, None]:
-#     """
-#     Returns edges not aligned with their previous or next space sibling
-#     """
-#     for edge in space.edges:
-#         if is_not_aligned(edge.pair, space) or is_not_aligned(edge.pair, space, previous=True):
-#             yield edge
 
 
 def is_not_aligned(edge: 'Edge', space: 'Space', previous: bool = False):
@@ -1755,7 +1747,7 @@ def cell_with_component(has_component: bool = False) -> Predicate:
     return _predicate
 
 
-def has_space_pair(space_pair_cat: str = None) -> Predicate:
+def has_space_pair() -> Predicate:
     """
     Predicate factory
     Returns a predicate indicating if a space has a pair through a given edge
@@ -1769,9 +1761,9 @@ def has_space_pair(space_pair_cat: str = None) -> Predicate:
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
                 return False
-            if (space_pair_cat and
-                    not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
-                return False
+            # if (space_pair_cat and
+            #         not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
+            #     return False
         return True
 
     return _predicate
@@ -2264,15 +2256,7 @@ SELECTORS = {
 
         not_aligned_edges,
         [
-            has_space_pair(),
-        ]
-    ),
-
-    "load_bearing_wall_corner_pairs": Selector(
-
-        not_aligned_edges,
-        [
-            has_space_pair("load_bearing_wall"),
+            # has_space_pair(),
         ]
     ),
 
