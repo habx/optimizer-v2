@@ -1030,6 +1030,7 @@ def small_angle_to_boundary(max_angle: float = 5.0) -> EdgeQuery:
     Returns the edge touching the boundary with a small angle
     :param max_angle: the maximum angle between the edge and the space boundary edge
     """
+
     def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
         yield from (e.next for e in space.edges
                     if not space.is_boundary(e.next) and e.next_angle < max_angle)
@@ -1055,7 +1056,7 @@ def enclosed_face(ratio: float = 0.4) -> EdgeQuery:
             for edge in face.edges:
                 adjacent_dict[edge.pair.face.id] = (adjacent_dict.get(edge.pair.face.id, 0) +
                                                     edge.length)
-                if adjacent_dict[edge.pair.face.id] > perimeter*ratio:
+                if adjacent_dict[edge.pair.face.id] > perimeter * ratio:
                     yield edge
                     found = True
                     break
@@ -1760,6 +1761,9 @@ def has_space_pair() -> Predicate:
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
                 return False
+            # if (space_pair_cat and
+            #         not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
+            #     return False
         return True
 
     return _predicate
@@ -2252,7 +2256,7 @@ SELECTORS = {
 
         not_aligned_edges,
         [
-            has_space_pair(),
+            # has_space_pair(),
         ]
     ),
 

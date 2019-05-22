@@ -45,7 +45,7 @@ SQM = 10000
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 25
-MIN_SEEDER_SPACE_AREA = 1000
+MIN_SEEDER_SPACE_AREA = 10000
 
 
 class Seeder:
@@ -663,8 +663,7 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
         space.category = SPACE_CATEGORIES["seed"]
         output.append(space)
         if show:
-            seeder.plot.update(space)
-
+            seeder.plot.update([space])
     return output
 
 
@@ -892,6 +891,9 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
                 if (space_of_current and space_of_current.category
                         and space_of_current.category.name == "empty"):
                     list_contiguous_edges.append(current_edge)
+                elif not space_of_current:
+                    # case line is a long the plan border
+                    continue
                 else:
                     break
 
@@ -901,11 +903,11 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     return contiguous_edges
 
 
-def divide_along_seed_borders(seeder: 'Seeder', show: bool):
+def divide_along_borders(seeder: 'Seeder', show: bool):
     """
     divide empty spaces along all lines drawn from selected edges
-    Iterates though seed spaces, at each iteration :
-    1 - a corner edge of a seed_space is selected
+    Iterates though seed spaces and load bearing wall spaces, at each iteration :
+    1 - a corner edge of the space is selected
     2 - the list of its contiguous edges is built
     3 - each empty space cut by a set of those contiguous edges is cut into two parts
     :param seeder:
@@ -913,11 +915,16 @@ def divide_along_seed_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    selector = SELECTORS["not_aligned_edges"]
+    selectors = {"seed": SELECTORS["not_aligned_edges"],
+                 "loadBearingWall": SELECTORS["not_aligned_edges"]
+                 }
 
-    for seed_space in seeder.plan.get_spaces("seed"):
+    space_cat = [sp_cat for sp_cat in selectors]
+
+    list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
+    for seed_space in list_sp:
+        selector = selectors[seed_space.category.name]
         for edge_selected in selector.yield_from(seed_space):
-
             # lists of edges along which empty spaces division will be performed
             contiguous_edges = line_from_edge(seeder.plan, edge_selected)
 
@@ -985,8 +992,8 @@ SEEDERS = {
     "simple_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
                             [adjacent_faces, empty_to_seed], [merge_corners]),
     "directional_seeder": Seeder(SEED_METHODS, GROWTH_METHODS,
-                                 [divide_along_seed_borders, empty_to_seed], [merge_small_cells,
-                                                                              merge_enclosed_faces]),
+                                 [divide_along_borders, empty_to_seed], [merge_small_cells,
+                                                                         merge_enclosed_faces]),
 }
 
 if __name__ == '__main__':
@@ -1009,7 +1016,13 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_index = 6
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-p", "--plan_index", help="choose plan index",
+                            default=1)
+
+        args = parser.parse_args()
+        plan_index = int(args.plan_index)
 
         plan_name = None
         if plan_index < 10:
@@ -1017,7 +1030,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "001"
+        #plan_name = "002"
 
         # to not run each time the grid generation
         try:
@@ -1030,8 +1043,7 @@ if __name__ == '__main__':
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
         SEEDERS["directional_seeder"].apply_to(plan, show=False)
-        plan.plot(save=False)
-        plt.show()
+        plan.plot()
         plan.check()
 
 
