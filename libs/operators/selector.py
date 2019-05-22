@@ -649,7 +649,7 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
     """
     min_edge_length = 40.0  # the minimum length of the edge to be considered
 
-    if direction not in ('horizontal', 'vertical'):
+    if direction not in ('horizontal', 'vertical', 'horizontal_left', 'horizontal_right'):
         raise ValueError('A direction can only be horizontal or vertical: {0}'.format(direction))
 
     go_left = {}
@@ -685,7 +685,46 @@ def oriented_edges(direction: str, epsilon: float = 35.0) -> EdgeQuery:
 
             # we only return the first edge found
             yield edges_list[0]
-        else:
+
+        elif direction == "horizontal_left":
+            angle = ccw_angle(reference_edge.unit_vector)
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
+
+            if not edges_list:
+                return
+            # we alternate for each space : left and right to ensure a symmetric propagation
+            # go_left is memoized
+            if go_left.get(space.id, False):
+                edges_list = edges_list[::-1]
+                go_left[space.id] = False
+            else:
+                go_left[space.id] = True
+
+            # we only return the first edge found
+            yield edges_list[0]
+
+        if direction == "horizontal_right":
+            angle = ccw_angle(reference_edge.opposite_vector)
+            edges_list = [edge for edge in space.siblings(reference_edge)
+                          if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
+                          and edge.length >= min_edge_length]
+
+            if not edges_list:
+                return
+            # we alternate for each space : left and right to ensure a symmetric propagation
+            # go_left is memoized
+            if go_left.get(space.id, False):
+                edges_list = edges_list[::-1]
+                go_left[space.id] = False
+            else:
+                go_left[space.id] = True
+
+            # we only return the first edge found
+            yield edges_list[0]
+
+        elif direction == "vertical":
             angle = ccw_angle(reference_edge.pair.normal)
             edges_list = [edge for edge in space.siblings(reference_edge)
                           if pseudo_equal(ccw_angle(edge.normal), angle, epsilon)
