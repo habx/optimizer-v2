@@ -8,7 +8,7 @@ import pytest
 from libs.io import reader
 from libs.modelers.seed import SEEDERS
 from libs.modelers.grid import GRIDS
-from libs.space_planner.circulation import Circulator, CostRules
+from libs.space_planner.circulation import Circulator
 
 from libs.space_planner.space_planner import SPACE_PLANNERS
 
@@ -34,6 +34,6 @@ def test_circulation(input_file, input_setup):
     best_solutions = space_planner.apply_to(spec)
 
     for solution in best_solutions:
-        circulator = Circulator(plan=solution.plan, spec=spec, cost_rules=CostRules)
+        circulator = Circulator(plan=solution.plan, spec=spec)
         circulator.connect()
-        solution.plan.plot()
+        circulator.plot()

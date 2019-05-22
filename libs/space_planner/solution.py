@@ -368,7 +368,7 @@ class Solution:
         """
         circulator = Circulator(plan=self.plan, spec=self.collector.spec, cost_rules=CostRules)
         circulator.connect()
-        cost = circulator.circulation_cost
+        cost = circulator.cost
         circulation_penalty = 0
 
         # NOTE : what a weird thing to do (can't we just get the cost right from the start ?)

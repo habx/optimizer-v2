@@ -45,8 +45,7 @@ class Corridor:
     def __init__(self,
                  corridor_rules: Dict = None,
                  circulation_cost_rules: Type[Enum] = CostRules,
-                 plot: Optional['Plot'] = None
-                 ):
+                 plot: Optional['Plot'] = None):
 
         self.corridor_rules = corridor_rules
         self.circulation_cost_rules = circulation_cost_rules
@@ -83,8 +82,8 @@ class Corridor:
         self.circulator.connect()
         self.circulator.plot(plot_edge=True)
 
-        for level in self.circulator.connecting_paths['vert']:
-            vertex_paths = self.circulator.connecting_paths['vert'][level]
+        for level in self.circulator.paths['vert']:
+            vertex_paths = self.circulator.paths['vert'][level]
             for vertex_path in vertex_paths:
                 if len(vertex_path) > 1:  # TODO : deal with one vertice path
                     vertex_path = self._add_penetration_vertices(vertex_path)
