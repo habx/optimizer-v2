@@ -659,11 +659,13 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
     :return:
     """
     output = []
+    modified_spaces=[]
     for space in seeder.plan.get_spaces("empty"):
+        modified_spaces.append(space)
         space.category = SPACE_CATEGORIES["seed"]
         output.append(space)
-        if show:
-            seeder.plot.update([space])
+    if show:
+        seeder.plot.update(modified_spaces)
     return output
 
 
@@ -757,13 +759,14 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
 
     epsilon_length = 20
     min_cell_area = MIN_SEEDER_SPACE_AREA
-    target_number_of_spaces = 1
+    target_number_of_spaces = 25
     modified_spaces = []
 
     if len([s for s in seeder.plan.spaces if s.mutable]) < target_number_of_spaces:
         return modified_spaces
 
-    for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):
+    for small_space in sorted((s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area),
+                              key=lambda x: x.area):
         # adjacent mutable spaces of small_space
         adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
         if not adjacent_spaces:
@@ -1030,7 +1033,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "002"
+        plan_name = "017"
 
         # to not run each time the grid generation
         try:
