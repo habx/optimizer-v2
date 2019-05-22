@@ -261,6 +261,8 @@ class Individual(Plan):
         ax = super().plot(False, False, options, floor, name)
         msg = ""
         for space in self.mutable_spaces():
+            if space.category.name == "circulation":
+                continue
             value = ' '.join(format(f, '.2f') for f in self.fitness.sp_values[space.id])
             msg += "\n{}: {} • {:.2f}".format(space.category.name, value,
                                               self.fitness.sp_wvalue[space.id])

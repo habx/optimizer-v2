@@ -394,8 +394,9 @@ def check(ind: 'Individual', spec: 'Specification') -> None:
 
     item_dict = create_item_dict(spec)
     for space in ind.mutable_spaces():
+        if space.id not in item_dict:
+            continue
         item = item_dict[space.id]
-
         area = round(space.cached_area()) / (100 ** 2)
         min_area = item_dict[space.id].min_size.area / (100 ** 2) if item else "x"
         max_area = item_dict[space.id].max_size.area / (100 ** 2) if item else "x"
