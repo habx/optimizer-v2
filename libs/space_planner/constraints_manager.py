@@ -270,7 +270,7 @@ class ConstraintsManager:
         """
         for item in self.sp.spec.items:
             self.item_area[item.id] = self.solver.solver.Sum(
-                self.solver.positions[item.id, j] * round(space.area)
+                self.solver.positions[item.id, j] * round(space.cached_area())
                 for j, space in
                 enumerate(self.sp.spec.plan.mutable_spaces()))
 
@@ -349,8 +349,8 @@ class ConstraintsManager:
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
                     if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
-                        self.area_space_graph.add_edge(i, j, weight=j_space.area + i_space.area)
-                        self.area_space_graph.add_edge(j, i, weight=j_space.area + i_space.area)
+                        self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() + i_space.cached_area())
+                        self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() + i_space.cached_area())
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -569,7 +569,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                               manager.solver.positions[item.id, k] == 0)
                     else:
                         path = nx.dijkstra_path(manager.area_space_graph, j, k)
-                        area_path = sum(int(space.area)
+                        area_path = sum(int(space.cached_area())
                                         for i, space in
                                         enumerate(manager.sp.spec.plan.mutable_spaces())
                                         if i in path)
@@ -585,7 +585,7 @@ def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.
                                   manager.solver.positions[item.id, k] == 0)
                     else:
                         path = nx.dijkstra_path(manager.area_space_graph, j, k)
-                        area_path = sum(int(space.area)
+                        area_path = sum(int(space.cached_area())
                                         for i, space in
                                         enumerate(manager.sp.spec.plan.mutable_spaces())
                                         if i in path)
@@ -996,7 +996,7 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
 
     has_to_be_connected = False
     for space in manager.sp.spec.plan.spaces:
-        if space.category.external and space.area > BIG_EXTERNAL_SPACE:
+        if space.category.external and space.cached_area() > BIG_EXTERNAL_SPACE:
             has_to_be_connected = True
             break
 
@@ -1004,7 +1004,7 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
-            if (max([ext_space.area for ext_space in space.connected_spaces()
+            if (max([ext_space.cached_area() for ext_space in space.connected_spaces()
                     if ext_space is not None and ext_space.category.external],
                    default=0) > BIG_EXTERNAL_SPACE))
         ct = (adjacency_sum >= 1)
@@ -1056,7 +1056,7 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
             front_door_space = space
             break
 
-    if front_door_space and front_door_space.area > 5*SQM:
+    if front_door_space and front_door_space.cached_area() > 5*SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
