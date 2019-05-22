@@ -42,6 +42,7 @@ class SpacePlanner:
         :return: None
         """
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
+        spec.plan.mesh.compute_cache()
 
         # entrance
         size_min = Size(area=2 * SQM)
@@ -106,7 +107,7 @@ class SpacePlanner:
         """
         self.spec.plan.remove_null_spaces()
         for space in self.spec.plan.spaces:
-            if space.area < min_area:
+            if space.cached_area() < min_area:
                 self.spec.plan.remove(space)
 
     def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
@@ -251,7 +252,7 @@ if __name__ == '__main__':
 
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
-        # print(list(space.area for space in plan.mutable_spaces()))
+        # print(list(space.cached_area() for space in plan.mutable_spaces()))
 
         input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -289,7 +290,7 @@ if __name__ == '__main__':
                 sol.plan.plot()
                 logging.debug(sol, sol.score)
                 for space in sol.plan.mutable_spaces():
-                    logging.debug(space.category.name, " : ", space.area)
+                    logging.debug(space.category.name, " : ", space.cached_area())
                 solution_dict = writer.generate_output_dict_from_file(input_file, sol)
                 writer.save_json_solution(solution_dict, sol.id)
 
@@ -369,7 +370,7 @@ if __name__ == '__main__':
             sol.plan.plot()
             logging.debug(sol, sol.score)
             for space in sol.plan.mutable_spaces():
-                logging.debug(space.category.name, " : ", space.area)
+                logging.debug(space.category.name, " : ", space.cached_area())
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.id)
 

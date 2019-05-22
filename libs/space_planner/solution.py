@@ -211,34 +211,34 @@ class Solution:
         for item, space in self.items_spaces.items():
             nbr_rooms += 1
             # Min < SpaceArea < Max
-            if item.min_size.area <= space.area <= item.max_size.area:
+            if item.min_size.area <= space.cached_area() <= item.max_size.area:
                 item_area_score = 100
             # good overflow
-            elif (item.max_size.area < space.area and
+            elif (item.max_size.area < space.cached_area() and
                   space.category.name in good_overflow_categories):
                 item_area_score = 100
             # overflow
             else:
-                item_area_score = (100 - abs(item.required_area - space.area) /
+                item_area_score = (100 - abs(item.required_area - space.cached_area()) /
                                    item.required_area * 100)
                 if space.category.name == "entrance":
-                    if space.area < 15000:
+                    if space.cached_area() < 15000:
                         area_penalty += 2
-                    elif space.area > item.required_area:
+                    elif space.cached_area() > item.required_area:
                         area_penalty += 1
                 elif space.category.name == "toilet":
-                    if space.area < 10000:
+                    if space.cached_area() < 10000:
                         area_penalty += 2
-                    elif space.area > item.max_size.area:
+                    elif space.cached_area() > item.max_size.area:
                         area_penalty += 3
                 elif space.category.name == "bathroom":
-                    if space.area < 20000:
+                    if space.cached_area() < 20000:
                         area_penalty += 2
                 elif space.category.name == "bedroom":
-                    if space.area < 90000:
+                    if space.cached_area() < 90000:
                         area_penalty += 2
                 elif space.category.name == "circulation":
-                    if space.area > item.max_size.area:
+                    if space.cached_area() > item.max_size.area:
                         area_penalty += 1
 
             # Area score
@@ -263,11 +263,11 @@ class Solution:
             if item.category.name in ["toilet", "bathroom"]:
                 logging.debug("room %s: P2/A : %i", item.id,
                               int((space.perimeter_without_duct *
-                                   space.perimeter_without_duct) / space.area))
+                                   space.perimeter_without_duct) / space.cached_area()))
             else:
                 logging.debug("room %s: P2/A : %i", item.id,
-                              int((space.perimeter * space.perimeter) / space.area))
-            area = space.area
+                              int((space.perimeter * space.perimeter) / space.cached_area()))
+            area = space.cached_area()
             box = space.bounding_box()
             difference = (box[0] * box[1] - area)
             item_shape_score = min(100.0, 100.0 - (difference / (2 * area)) * 100)
@@ -291,7 +291,7 @@ class Solution:
                 if (item1 != item2 and item1.category.name not in ["entrance", "circulation"] and
                         item2.category.name not in ["entrance", "circulation"]):
                     if (item1.required_area < item2.required_area and
-                            self.items_spaces[item1].area > self.items_spaces[item2].area):
+                            self.items_spaces[item1].cached_area() > self.items_spaces[item2].cached_area()):
                         logging.debug("Solution %i: Size bonus : %i", self._id, 0)
                         return 0
         logging.debug("Solution %i: Size bonus : %i", self._id, 10)
@@ -304,13 +304,13 @@ class Solution:
         """
         item_windows_area = {}
         for item in self.items_spaces:
-            area = 0
+            windows_area = 0
             for component in self.items_spaces[item].immutable_components():
                 if component.category.name == "window":
-                    area += component.length * 100
+                    windows_area += component.length * 100
                 elif component.category.name == "doorWindow":
-                    area += component.length * 200
-            item_windows_area[item.id] = area
+                    windows_area += component.length * 200
+            item_windows_area[item.id] = windows_area
 
         for item1 in self.collector.spec.items:
             for item2 in self.collector.spec.items:
@@ -345,11 +345,11 @@ class Solution:
             for item2 in self.collector.spec.items:
                 if (item1 != item2 and self.items_spaces[item1].connected_spaces()
                         and self.items_spaces[item2].connected_spaces()):
-                    item1_ext_spaces_area = sum([ext_space.area
+                    item1_ext_spaces_area = sum([ext_space.cached_area()
                                                  for ext_space in
                                                  self.items_spaces[item1].connected_spaces()
                                                  if ext_space.category.external])
-                    item2_ext_spaces_area = sum([ext_space.area
+                    item2_ext_spaces_area = sum([ext_space.cached_area()
                                                  for ext_space in
                                                  self.items_spaces[item1].connected_spaces()
                                                  if ext_space.category.external])
@@ -576,7 +576,7 @@ class Solution:
                         return 0
                     elif (self.items_spaces[i_item].as_sp.is_valid and convex_hull.is_valid and
                           (convex_hull.intersection(self.items_spaces[i_item].as_sp)).area > (
-                                  space.area / 8)):
+                                  space.cached_area() / 8)):
                         # Check i_item adjacency
                         other_room_adj = False
                         for j_item in self.items_spaces:
@@ -631,13 +631,13 @@ class Solution:
                                     "has no assigned space: %s - floor: %s", face, floor)
                     continue
                 if space.category.mutable:
-                    mesh_area += face.area
+                    mesh_area += face.cached_area
                     other_space = other_solution.plan.get_space_of_face(face)
                     if ((space.category.name in day_list and
                          other_space.category.name not in day_list) or
                             (space.category.name in night_list and
                              other_space.category.name not in night_list)):
-                        difference_area += face.area
+                        difference_area += face.cached_area
 
         if difference_area < 18 * SQM:
             distance = 0
