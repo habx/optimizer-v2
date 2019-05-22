@@ -915,8 +915,6 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    # space_cat = ["seed", "loadBearingWall", "empty"]
-
     selectors = {"seed": SELECTORS["not_aligned_edges"],
                  "loadBearingWall": SELECTORS["not_aligned_edges"]
                  }
@@ -1032,7 +1030,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "001"
+        #plan_name = "002"
 
         # to not run each time the grid generation
         try:
