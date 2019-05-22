@@ -118,7 +118,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
 
     # compute the removed area for each modified space
     # Note : the area of two rotated rectangle of same depth and sharing a corner is equal to :
-    #          1/2* tan(90.0 - angle / 2 * pi / 180.0) * depth
+    #         tan(90.0 - angle / 2 * pi / 180.0) * depth**2
 
     depth = 90.0
     removed_areas = {}
@@ -134,7 +134,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
             if pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
                 shared_area = 0
             else:
-                shared_area = 1/2 * math.tan(math.pi/180 * (90.0 - angle / 2)) * depth
+                shared_area = math.tan(math.pi/180 * (90.0 - angle / 2)) * depth**2
             removed_area += e.length * depth - shared_area
         removed_areas[space] = removed_area
 
