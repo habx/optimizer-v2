@@ -11,7 +11,7 @@ TODO : deal with load bearing walls by defining locations where they can be cros
 import logging
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional
+from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable
 
 
 from libs.io.plot import plot_save
@@ -23,10 +23,10 @@ if TYPE_CHECKING:
     from libs.plan.plan import Space, Plan, Vertex
     from libs.mesh.mesh import Edge
     from libs.specification.specification import Specification, Item
-    from libs.utils.custom_types import Vector2d
 
 PathsDict = Dict[str, Dict[int, List[List[Union['Vertex', 'Edge']]]]]
-DirectionsDict = Dict[int, Dict['Edge', 'Vector2d']]
+DirectionsDict = Dict[int, Dict['Edge', float]]
+ScoreArea = Optional[Callable[[float, float, float], float]]
 
 
 class CostRules(Enum):
@@ -39,6 +39,22 @@ class CostRules(Enum):
     window_room_default = 5000
     circulation_along_window = 5000
     default = 0
+
+
+def score_space_area(space_area: float, min_area: float, max_area: float) -> float:
+    """
+    Scores the space area
+    :param space_area:
+    :param min_area:
+    :param max_area:
+    :return:
+    """
+    sp_score = 0
+    if space_area < min_area:
+        sp_score = (((min_area - space_area) / min_area) ** 2) * 100
+    elif space_area > max_area:
+        sp_score = (((space_area - max_area) / max_area) ** 2) * 100
+    return sp_score
 
 
 class Circulator:
@@ -55,7 +71,6 @@ class Circulator:
                                  'edge': {level: [] for level in self.plan.levels}}
 
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
-        self.spaces_area_scores: Dict[int, float] = {}
         self.cost = 0
 
         self._reachable_edges = {space: [] for space in self.plan.spaces}
@@ -63,7 +78,9 @@ class Circulator:
         self._path_calculator.build()
         self._space_graph = GraphNx()
 
-    def connect(self, space_items_dict: Optional[Dict[int, Optional['Item']]] = None):
+    def connect(self,
+                space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
+                score_function: ScoreArea = score_space_area):
         """
         MAIN METHOD OF CIRCULATOR CLASS
         detects isolated rooms and generate a path to connect them
@@ -72,21 +89,20 @@ class Circulator:
         self._init_reachable_edges()
         self._add_circulation_spaces()
         self._add_all_other_spaces()
-        self.set_directions(space_items_dict)
+        self._set_directions(space_items_dict, score_function)
 
-    def set_directions(self,
-                       space_items_dict: Optional[Dict[int, Optional['Item']]] = None
-                       ) -> DirectionsDict:
+    def _set_directions(self,
+                        space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
+                        score_function: ScoreArea = score_space_area):
         """
         Set the growing direction for each path
         :param space_items_dict: a dictionary matching each space with a specification item
-        :return:
+        :param score_function: a score function to evaluate the modification of the space area
+        :return: a dictionary containing the scores of each modified spaces
         """
         for level, edge_paths in self.paths['edge'].items():
             for edge_path in edge_paths:
-                self._set_growing_direction(edge_path, level, space_items_dict)
-
-        return self.directions
+                self._set_growing_direction(edge_path, level, space_items_dict, score_function)
 
     def _draw_path(self,
                    set_1: List['Edge'],
@@ -230,10 +246,6 @@ class Circulator:
         edge_path = self._get_edge_path(path)
         self.paths['edge'][level].append(edge_path)
 
-        # when a circulation has been set, it can be used to connect every other spaces
-        # without cost increase
-        # self.path_calculator.set_corridor_to_zero_cost(path, level)
-
         connected_rooms = []  # will contain the list of rooms connected by the path
         for e in edge_path:
             connected = self.plan.get_space_of_edge(e)
@@ -315,7 +327,8 @@ class Circulator:
 
     def _set_growing_direction(self, edge_path: List['Edge'],
                                level: int,
-                               space_items_dict: Optional[Dict[int, Optional['Item']]] = None):
+                               space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
+                               score_function: ScoreArea = score_space_area):
         """
         for each edge of a circulation path, gets the direction in which the corridor has to grow
         so as to bite preferentially on rooms which area is still higher than the minimum spec
@@ -326,6 +339,7 @@ class Circulator:
         - deduce the most adapted growth direction for the considered portion
         :param edge_path:
         :param level:
+        :param score_function
         :return:
         """
 
@@ -357,8 +371,9 @@ class Circulator:
         def _get_score(area_space: 'Dict',
                        path_line: List['Edge'],
                        pair: bool = False,
-                       space_item_dict: Optional[Dict[int, Optional['Item']]] = None
-                       ) -> Tuple[float, Dict[int, float]]:
+                       space_item_dict: Optional[Dict[int, Optional['Item']]] = None,
+                       _score_function: ScoreArea = score_space_area
+                       ) -> float:
             """
             computes the area of each space amputated when a corridor of the path grows on it
             TODO : we should also check the depth of the space to ensure we will not split
@@ -367,11 +382,11 @@ class Circulator:
             :param path_line:
             :param pair:
             :param space_item_dict:
+            :param _score_function
             :return:
             """
             score = 0
             corridor_width = 90
-            sp_scores = {}
 
             path_line_selected = [e.pair for e in path_line] if pair else path_line
 
@@ -383,67 +398,55 @@ class Circulator:
                 item = (space_item_dict[sp.id] if space_item_dict
                         else self._get_best_item(sp, self.spec))
                 space_area = area_space[sp]
-                sp_score = 0
-                if space_area < item.min_size.area:
-                    sp_score = (((item.min_size.area - space_area) / item.min_size.area) ** 2) * 100
-                elif space_area > item.max_size.area:
-                    sp_score = (((space_area - item.max_size.area) / item.max_size.area) ** 2) * 100
+                score += _score_function(space_area, item.min_size.area, item.max_size.area)
 
-                score += sp_score
-                sp_scores[sp.id] = sp_score
-
-            return score, sp_scores
+            return score
 
         def _get_growing_direction(path_line: List['Edge'],
-                                   space_item_dict: Optional[Dict['Space', 'Item']] = None
-                                   ) -> 'Vector2d':
+                                   space_item_dict: Optional[Dict['Space', 'Item']],
+                                   _score_function: ScoreArea,
+                                   ) -> float:
             """
             for a given line of edges, gets the direction the corridor has to grow so as to bite
             preferentially on rooms which area is still higher than the minimum spec
             when amputated by the corridor.
             :param path_line:
             :param space_item_dict:
+            :param _score_function:
             :return:
             """
-            dir_ccw = path_line[0].normal
-            dir_cw = opposite_vector(dir_ccw)
             area_space_cw = {}
             area_space_ccw = {}
             for e in path_line:
                 # ccw side
                 space_ccw = self.plan.get_space_of_edge(e)
                 if not space_ccw or not space_ccw.mutable:
-                    return dir_cw
+                    return 1.0
                 else:
                     area_space_ccw[space_ccw] = space_ccw.cached_area()
                 
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
                 if not space_cw or not space_cw.mutable:
-                    return dir_ccw
+                    return 1.0
                 else:
                     area_space_cw[space_cw] = space_cw.cached_area()
 
-            score_cw, sp_scores_cw = _get_score(area_space_cw, path_line, pair=True,
-                                                space_item_dict=space_item_dict)
-            score_ccw, sp_scores_ccw = _get_score(area_space_ccw, path_line,
-                                                  space_item_dict=space_item_dict)
-            if score_ccw < score_cw:
-                self.spaces_area_scores.update(sp_scores_ccw)
-                return dir_ccw
+            score_cw = _get_score(area_space_cw, path_line, pair=True,
+                                  space_item_dict=space_item_dict, _score_function=_score_function)
+            score_ccw = _get_score(area_space_ccw, path_line, space_item_dict=space_item_dict,
+                                   _score_function=_score_function)
 
-            self.spaces_area_scores.update(sp_scores_cw)
-            return dir_cw
+            return 1.0 if score_ccw < score_cw else -1.0
 
         #####
-        
         path_lines = _get_lines_of_path(edge_path)
         for line in path_lines:
-            growing_direction = _get_growing_direction(line, space_items_dict)
+            growing_direction = _get_growing_direction(line, space_items_dict, score_function)
             for edge in line:
                 self.directions[level][edge] = growing_direction
 
-    def plot(self, show: bool = False, save: bool = True, plot_edge=False):
+    def plot(self, show: bool = False, save: bool = True, plot_edge: bool = True):
         """
         plots plan with circulation paths
         :return:
@@ -462,7 +465,9 @@ class Circulator:
                         edge.plot(ax=_ax, color='blue')
                         # representing the growing direction
                         pt_ini = move_point((edge.start.x, edge.start.y), edge.vector, 0.5)
-                        pt_end = move_point(pt_ini, self.directions[f][edge], 90)
+                        vector = (edge.normal if self.directions[f][edge] > 0
+                                  else opposite_vector(edge.normal))
+                        pt_end = move_point(pt_ini, vector, 90)
                         _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
                                   pt_end[1] - pt_ini[1])
         else:

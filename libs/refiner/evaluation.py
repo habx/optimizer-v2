@@ -17,11 +17,13 @@ import logging
 from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
+from libs.space_planner.circulation import Circulator
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space
+    from libs.mesh.mesh import Edge
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
@@ -67,6 +69,22 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     return output
 
 
+def _score_space_area(space_area: float, min_area: float, max_area: float) -> float:
+    """
+    Scores the space area
+    :param space_area:
+    :param min_area:
+    :param max_area:
+    :return:
+    """
+    sp_score = 0
+    if space_area < min_area:
+        sp_score = (((min_area - space_area) / min_area) ** 2) * 100
+    elif space_area > max_area:
+        sp_score = (((space_area - max_area) / max_area) ** 2) * 100
+    return sp_score
+
+
 def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Returns a score that evaluates the proximity of the individual to a specification
@@ -78,7 +96,45 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     excluded_spaces = ("circulation",)  # circulation space have no target areas in the spec
     space_to_item = ind.fitness.cache.get("space_to_item", None)
 
-    # create the item_to_space dict
+    # Create a corridor if needed and check which spaces are modified
+    circulator = Circulator(plan=ind, spec=spec)
+    circulator.connect(space_to_item, _score_space_area)
+    edge_paths: Dict[int, List[List['Edge']]] = circulator.paths['edge']
+    edge_direction = circulator.directions
+
+    modified_spaces = {}
+    for level in ind.levels:
+        for line in edge_paths[level]:
+            for edge in line:
+                _edge = edge if edge_direction[level][edge] > 0 else edge.pair
+                space = ind.get_space_of_edge(_edge)
+                if space in modified_spaces:
+                    modified_spaces[space].append(_edge)
+                else:
+                    modified_spaces[space] = [_edge]
+
+    # compute the removed area for each modified space
+    # Note : the area of two rotated rectangle of same depth and sharing a corner is equal to :
+    #          1/2* tan(90.0 - angle / 2 * pi / 180.0) * depth
+
+    depth = 90.0
+    removed_areas = {}
+    for space in modified_spaces:
+        previous_e = modified_spaces[space][0]
+        removed_area = previous_e.length * depth
+        for e in modified_spaces[space][1:]:
+            if e is not space.next_edge(previous_e):
+                removed_area += e.length * depth
+                previous_e = e
+                continue
+            angle = space.next_angle(previous_e)
+            if pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
+                shared_area = 0
+            else:
+                shared_area = 1/2 * math.tan(math.pi/180 * (90.0 - angle / 2)) * depth
+            removed_area += e.length * depth - shared_area
+        removed_areas[space] = removed_area
+
     area_score = {}
     if spec is None:
         logging.warning("Refiner: score area: not spec specified")
@@ -91,14 +147,8 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
             area_score[space.id] = space.cached_area()/100.0
             continue
         item = space_to_item[space.id]
-        space_area = space.cached_area()
-        if space_area < item.min_size.area:
-            space_score = (((item.min_size.area - space_area)/item.min_size.area)**2)*100
-        elif space_area > item.max_size.area:
-            space_score = (((space_area - item.max_size.area)/item.max_size.area)**2)*100
-        else:
-            space_score = 0
-        area_score[space.id] = space_score
+        space_area = space.cached_area() - removed_areas[space] if space in removed_areas else 0
+        area_score[space.id] = _score_space_area(space_area, item.min_size.area, item.max_size.area)
 
     return area_score
 

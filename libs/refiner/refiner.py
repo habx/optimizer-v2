@@ -297,7 +297,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "017"
+        plan_number = "062"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
