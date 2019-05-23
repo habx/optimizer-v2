@@ -39,6 +39,7 @@ def plot_save(save: bool = True, show: bool = False, name: Optional[str] = None)
     Saves or displays the plot
     :param save:
     :param show:
+    :param name:
     :return:
     """
 

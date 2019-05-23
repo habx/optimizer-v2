@@ -76,6 +76,10 @@ class PlanComponent:
         return self.id
 
     def __eq__(self, other):
+        """
+        Note: two spaces with same id but from two separate plans will be considered equal
+        We are not comparing plan id for performance purpose
+        """
         if other is None:
             return False
         return self.id == other.id
@@ -1076,6 +1080,7 @@ class Space(PlanComponent):
                     self.edge = edge.pair
                     break
             else:
+                self.plan.plot()
                 raise Exception("This should never happen!!")
             self.remove_face_id(face.id)
             self._clean_hole_disappearance()
@@ -2164,8 +2169,6 @@ class Floor:
     The meta dict could be use to store properties of the floor such as : level, height etc.
     """
 
-    __slots__ = 'plan', 'id', 'mesh', 'level', 'meta'
-
     def __init__(self,
                  plan: 'Plan',
                  mesh: Optional['Mesh'] = None,
@@ -2282,8 +2285,6 @@ class Plan:
     FloorType = Floor
     SpaceType = Space
     LinearType = Linear
-
-    __slots__ = 'name', 'spaces', 'linears', 'floors', 'id', '_counter'
 
     def __init__(self,
                  name: str = 'unnamed_plan',
@@ -2637,13 +2638,13 @@ class Plan:
         return min(floor.level for floor in self.floors.values())
 
     @property
-    def list_level(self) -> Generator[int, None, None]:
+    def levels(self) -> List[int]:
         """
         Property
-        Returns the generator on levels of the plan
+        Returns the list of the levels of the plan
         :return:
         """
-        return (floor.level for floor in self.floors.values())
+        return sorted(floor.level for floor in self.floors.values())
 
     def get_mesh(self, floor_id: int) -> Optional['Mesh']:
         """

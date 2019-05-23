@@ -30,6 +30,8 @@ from libs.utils.geometry import (
     parallel
 )
 
+from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
+
 if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
     from libs.plan.plan import Space, Plan
@@ -353,7 +355,7 @@ def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
     between the space and the duct
     """
 
-    def get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
+    def _get_space_of_neighbor_pair(e: 'Edge', next_edge: bool = False):
         sp = space.plan.get_space_of_edge(e)
         if not sp or not sp.is_boundary(e):
             return None, None
@@ -365,13 +367,13 @@ def along_duct_side(space: 'Space', *_) -> Generator['Edge', bool, None]:
             return None, None
 
     for edge in space.edges:
-        out = get_space_of_neighbor_pair(edge)
-        out_pair = get_space_of_neighbor_pair(edge.pair, next_edge=True)
+        out = _get_space_of_neighbor_pair(edge)
+        out_pair = _get_space_of_neighbor_pair(edge.pair, next_edge=True)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
             continue
-        out = get_space_of_neighbor_pair(edge, next_edge=True)
-        out_pair = get_space_of_neighbor_pair(edge.pair)
+        out = _get_space_of_neighbor_pair(edge, next_edge=True)
+        out_pair = _get_space_of_neighbor_pair(edge.pair)
         if out[0] == out_pair[0] == 'duct' and parallel(out[1], out_pair[1]):
             yield edge
 
@@ -513,7 +515,7 @@ def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
     :param edge:
     :return:
     """
-    min_lbwall_length = 15.0
+    min_lbwall_length = 25.0
     other = plan.get_space_of_edge(edge.pair)
     return (not other or other.category.external
             or (other.category.name == "loadBearingWall" and edge.length > min_lbwall_length))
@@ -556,12 +558,15 @@ def small_faces(max_area: float = 2500.0) -> EdgeQuery:
     return _query
 
 
-def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQuery:
+def close_to_linear_query(*cat_names: str, min_distance: float = 150.0,
+                          linear_min_length: float = 70.0) -> EdgeQuery:
     """
     Returns the edges that are at less thant the specified distance to a linear
     of the specified categories.
     :param cat_names:
     :param min_distance:
+    :param linear_min_length: the min length of the linear, useful if you do not want to clear small
+                             windows for bathroom or wc
     :return:
     """
 
@@ -573,6 +578,8 @@ def close_to_linear_query(*cat_names: str, min_distance: float = 150.0) -> EdgeQ
         """
         plan = space.plan
         for linear in plan.get_linears(*cat_names):
+            if linear.length < linear_min_length:
+                continue
             for linear_edge in linear.edges:
                 if not space.has_linear(linear):
                     continue
@@ -1018,6 +1025,47 @@ def specific_category(*category_names: str) -> EdgeQuery:
     return _query
 
 
+def small_angle_to_boundary(max_angle: float = 5.0) -> EdgeQuery:
+    """
+    Returns the edge touching the boundary with a small angle
+    :param max_angle: the maximum angle between the edge and the space boundary edge
+    """
+
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        yield from (e.next for e in space.edges
+                    if not space.is_boundary(e.next) and e.next_angle < max_angle)
+        yield from (e.previous for e in space.edges
+                    if not space.is_boundary(e.previous) and e.previous_angle < max_angle)
+
+    return _query
+
+
+def enclosed_face(ratio: float = 0.4) -> EdgeQuery:
+    """
+    Return the edge of each face that has more than *ratio* of its perimeter that is adjacent to
+    the same face : meaning the face is partially enclosed in the other face.
+    :param ratio: the min perimeter ratio adjacent to a single face
+    :return:
+    """
+
+    def _query(space: 'Space', *_) -> Generator['Edge', bool, None]:
+        for face in space.faces:
+            adjacent_dict = {}
+            found = False
+            perimeter = face.perimeter
+            for edge in face.edges:
+                adjacent_dict[edge.pair.face.id] = (adjacent_dict.get(edge.pair.face.id, 0) +
+                                                    edge.length)
+                if adjacent_dict[edge.pair.face.id] > perimeter * ratio:
+                    yield edge
+                    found = True
+                    break
+            if found:
+                break
+
+    return _query
+
+
 # predicates
 
 def close_to_corner_wall(edge: 'Edge', space: 'Space') -> bool:
@@ -1240,19 +1288,30 @@ def has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    face = edge.face
+    other_entrances = (SPACE_CATEGORIES["living"], SPACE_CATEGORIES["livingKitchen"])
 
-    if not space.category.needed_linears or not face:
+    face = edge.face
+    has_entrance = True
+
+    if SPACE_CATEGORIES["entrance"] not in (s.category for s in space.plan.mutable_spaces()):
+        has_entrance = False
+
+    if ((not space.category.needed_linears or not face)
+            and (has_entrance or space.category not in other_entrances)):
         return False
+
+    needed_linears = list(space.category.needed_linears)
+    if not has_entrance and space.category in other_entrances:
+        needed_linears.append(LINEAR_CATEGORIES["frontDoor"])
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
-        if linear and linear.category in space.category.needed_linears:
+        if linear and linear.category in needed_linears:
             return True
     return False
 
 
-def only_adjacent_to_immutable(edge: 'Edge', space: 'Space') -> bool:
+def adjacent_to_needed_space(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     :param edge:
@@ -1702,6 +1761,9 @@ def has_space_pair() -> Predicate:
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
                 return False
+            # if (space_pair_cat and
+            #         not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
+            #     return False
         return True
 
     return _predicate
@@ -2142,7 +2204,7 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
-    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(90, 5)]),
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(80, 15)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
@@ -2194,7 +2256,7 @@ SELECTORS = {
 
         not_aligned_edges,
         [
-            has_space_pair(),
+            # has_space_pair(),
         ]
     ),
 
@@ -2209,11 +2271,17 @@ SELECTORS = {
                                           pair(is_not(only_face)),
                                           pair(is_not(corner_stone))]),
 
-    "is_mutable": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
-                                                     is_not(only_face),
-                                                     is_not(has_needed_linear),
-                                                     is_not(only_adjacent_to_immutable),
-                                                     is_not(corner_stone)]),
+    "can_be_removed": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                         is_not(only_face),
+                                                         is_not(has_needed_linear),
+                                                         is_not(adjacent_to_needed_space),
+                                                         is_not(corner_stone)]),
+
+    "can_be_added": Selector(space_external_boundary, [is_mutable, pair(is_mutable),
+                                                       pair(is_not(only_face)),
+                                                       pair(is_not(has_needed_linear)),
+                                                       pair(is_not(adjacent_to_needed_space)),
+                                                       pair(is_not(corner_stone))]),
 
     "plan_boundary_no_linear": Selector(space_boundary,
                                         [edge_length(min_length=40),
@@ -2226,6 +2294,7 @@ SELECTORS = {
     "previous_close_to_corner_wall": Selector(space_boundary,
                                               [edge_length(min_length=110.0),
                                                space_previous_has(close_to_corner_wall)]),
+
 }
 
 SELECTOR_FACTORIES = {
@@ -2234,5 +2303,7 @@ SELECTOR_FACTORIES = {
     "min_depth": SelectorFactory(min_depth),
     "tight_lines": SelectorFactory(tight_lines),
     "category": SelectorFactory(specific_category),
-    "small_faces": SelectorFactory(small_faces)
+    "small_faces": SelectorFactory(small_faces),
+    "small_angle_boundary": SelectorFactory(small_angle_to_boundary),
+    "enclosed_faces": SelectorFactory(enclosed_face)
 }
