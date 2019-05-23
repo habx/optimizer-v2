@@ -617,8 +617,6 @@ GROWTH_METHODS = {
         (
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_right',)), MUTATIONS['swap_face']),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_left',)), MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -632,10 +630,6 @@ GROWTH_METHODS = {
         (
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_right',)),
-            #        MUTATIONS['swap_face']),
-            # Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal_left',)),
-            #        MUTATIONS['swap_face']),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
                    True),
             Action(SELECTORS['improved_aspect_ratio'], MUTATIONS['swap_face'],
@@ -765,7 +759,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
 
     epsilon_length = 20
     min_cell_area = MIN_SEEDER_SPACE_AREA
-    target_number_of_spaces = 25
+    target_number_of_spaces = SEEDER_ACTIVATION_NBR_CELLS
     modified_spaces = []
 
     if len([s for s in seeder.plan.spaces if s.mutable]) < target_number_of_spaces:
@@ -924,17 +918,13 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    def border_division(space_categroy: 'str', selector: 'Selector' = None,
-                        list_edges: List['Edge'] = None):
+    def border_division(space_categroy: 'str', selector: 'Selector' = None):
         list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_categroy]
         for division_space in list_sp:
             # selector = selectors[division_space.category.name]
             if not division_space.edges:
                 continue
-            if selector:
-                selected_edges = list(e for e in selector.yield_from(division_space))
-            else:
-                selected_edges = list(e for e in list_edges if division_space.has_edge(e))
+            selected_edges = list(e for e in selector.yield_from(division_space))
             for edge_selected in selected_edges:
                 # for edge_selected in selector.yield_from(division_space):
                 # lists of edges along which empty spaces division will be performed
@@ -1045,7 +1035,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "012"
+        # plan_name = "042"
 
         # to not run each time the grid generation
         try:
