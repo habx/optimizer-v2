@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Type
+from enum import Enum
 
 import matplotlib.pyplot as plt
 from functools import reduce
@@ -7,7 +8,7 @@ from functools import reduce
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Edge, Vertex
-from libs.space_planner.circulation import Circulator, COST_RULES
+from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
 from libs.io.plot import Plot
@@ -43,9 +44,8 @@ class Corridor:
 
     def __init__(self,
                  corridor_rules: Dict = None,
-                 circulation_cost_rules: Dict = COST_RULES,
-                 plot: Optional['Plot'] = None
-                 ):
+                 circulation_cost_rules: Type[Enum] = CostRules,
+                 plot: Optional['Plot'] = None):
 
         self.corridor_rules = corridor_rules
         self.circulation_cost_rules = circulation_cost_rules
@@ -80,10 +80,10 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot(plot_edge=True)
+        # self.circulator.plot(plot_edge=True)
 
-        for level in self.circulator.connecting_paths['vert']:
-            vertex_paths = self.circulator.connecting_paths['vert'][level]
+        for level in self.circulator.paths['vert']:
+            vertex_paths = self.circulator.paths['vert'][level]
             for vertex_path in vertex_paths:
                 if len(vertex_path) > 1:  # TODO : deal with one vertice path
                     vertex_path = self._add_penetration_vertices(vertex_path)
@@ -786,9 +786,9 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            GRIDS['optimal_grid'].apply_to(plan)
+            GRIDS["001"].apply_to(plan)
             # GRIDS['optimal_finer_grid'].apply_to(plan)
-            SEEDERS["simple_seeder"].apply_to(plan)
+            SEEDERS["directional_seeder"].apply_to(plan)
             spec.plan = plan
 
             space_planner = SPACE_PLANNERS["standard_space_planner"]
@@ -827,5 +827,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "001.json"
+    plan_name = "062.json"
     main(input_file=plan_name)

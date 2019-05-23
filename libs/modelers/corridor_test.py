@@ -21,7 +21,7 @@ def test_simple_grid():
     def get_following_edge(edge):
         return edge.next.pair.next
 
-    def get_internal_edge():
+    def get_internal_edge(plan):
         internal_face = None
         for face in plan.mesh.faces:
             for edge in face.edges:
@@ -33,8 +33,8 @@ def test_simple_grid():
         e = internal_face.edge.pair
         return e
 
-    def build_a_path():
-        edge1 = get_internal_edge()
+    def build_a_path(plan):
+        edge1 = get_internal_edge(plan)
         path = [edge1.start]
 
         edge_list = []
@@ -64,7 +64,7 @@ def test_simple_grid():
     SEEDERS["simple_seeder"].apply_to(plan)
 
     ################ circulation path ################
-    circulation_path = build_a_path()
+    circulation_path = build_a_path(plan)
 
     ################ corridor build ################
     corridor = Corridor(corridor_rules=CORRIDOR_RULES)
@@ -74,6 +74,7 @@ def test_simple_grid():
     plan.check()
     corridor.grow(circulation_path)
     plan.remove_null_spaces()
+    plan.plot()
     plan.check()
 
 test_simple_grid()

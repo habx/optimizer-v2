@@ -13,7 +13,7 @@ import tools.cache
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
-PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
+PARAMS = {"ngen": 50, "mu": 20, "cxpb": 0.2}
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
