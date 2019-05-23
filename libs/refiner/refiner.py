@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
+from libs.modelers.corridor import Corridor
+
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
@@ -282,8 +284,16 @@ REFINERS = {
 
 
 if __name__ == '__main__':
-    PARAMS = {"ngen": 50, "mu": 64, "cxpb": 0.2}
+    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
+    CORRIDOR_RULES = {
+        "layer_width": 25,
+        "nb_layer": 1,
+        "recursive_cut_length": 400,
+        "width": 100,
+        "penetration_length": 90,
+        "layer_cut": True
+    }
 
     def apply():
         """
@@ -297,7 +307,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "017"
+        plan_number = "052"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -317,7 +327,9 @@ if __name__ == '__main__':
             logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                            improved_plan.fitness.values))
 
+            # ajout du couloir
+            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
+            improved_plan.name = "Corridor_" + plan_number
+            improved_plan.plot()
             evaluation.check(improved_plan, spec)
-            improved_plan.plot(save=False)
-            plt.show()
     apply()
