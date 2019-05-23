@@ -306,9 +306,10 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "043"
+        plan_number = "060"
 
-        spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
+        spec, plan = tools.cache.get_plan(plan_number, solution_number=1,
+                                          grid="001", seeder="directional_seeder")
 
         if plan:
             plan.name = "original_" + plan_number

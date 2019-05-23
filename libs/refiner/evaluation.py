@@ -170,6 +170,8 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
             score[space.id] = 0.0
             continue
         score[space.id] = number_of_corners(space)
+        if space.has_holes:
+            score[space.id] += 4.0
     return score
 
 
