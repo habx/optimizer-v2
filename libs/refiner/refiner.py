@@ -286,8 +286,8 @@ if __name__ == '__main__':
     PARAMS = {"ngen": 3, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
-        "layer_width": 25,
-        "nb_layer": 4,
+        "layer_width": 100,
+        "nb_layer": 2,
         "recursive_cut_length": 400,
         "width": 100,
         "penetration_length": 90,
@@ -295,7 +295,7 @@ if __name__ == '__main__':
     }
 
 
-    def apply():
+    def apply(plan_number: str):
         """
         Test Function
         :return:
@@ -307,7 +307,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "018"
+        # plan_number = "002"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -320,25 +320,35 @@ if __name__ == '__main__':
             plan.name = "Corridor_" + plan_number
             plan.plot()
 
-            import sys
-            sys.exit()
+            bool_refine = False
+            if bool_refine:
+                # run genetic algorithm
+                start = time.time()
+                improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+                end = time.time()
+                improved_plan.name = "Refined_" + plan_number
+                improved_plan.plot()
+                # analyse found solutions
+                logging.info("Time elapsed: {}".format(end - start))
+                logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                               improved_plan.fitness.values))
 
-            # run genetic algorithm
-            start = time.time()
-            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
-            end = time.time()
-            improved_plan.name = "Refined_" + plan_number
-            improved_plan.plot()
-            # analyse found solutions
-            logging.info("Time elapsed: {}".format(end - start))
-            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                           improved_plan.fitness.values))
-
-            # ajout du couloir
-            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
-            improved_plan.name = "Corridor_" + plan_number
-            improved_plan.plot()
-            evaluation.check(improved_plan, spec)
+                # ajout du couloir
+                Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
+                improved_plan.name = "Corridor_" + plan_number
+                improved_plan.plot()
+                evaluation.check(improved_plan, spec)
 
 
-    apply()
+    # apply()
+    for plan_index in range(1, 62):
+        if plan_index < 10:
+            plan_name = '00' + str(plan_index)
+        elif 10 <= plan_index < 100:
+            plan_name = '0' + str(plan_index)
+        print('plan under treatement', plan_name)
+        apply(plan_name)
+
+        import sys
+
+        sys.exit()

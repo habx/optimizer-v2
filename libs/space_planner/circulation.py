@@ -476,8 +476,8 @@ class Circulator:
                         vector = (edge.normal if self.directions[f][edge] > 0
                                   else opposite_vector(edge.normal))
                         pt_end = move_point(pt_ini, vector, 90)
-                        # _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
-                        #          pt_end[1] - pt_ini[1])
+                        _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
+                                  pt_end[1] - pt_ini[1])
         else:
             for f in self.plan.levels:
                 _ax = ax[f] if number_of_floors > 1 else ax
