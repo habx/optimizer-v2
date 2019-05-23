@@ -130,10 +130,9 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
                 removed_area += e.length * depth
                 previous_e = e
                 continue
+            shared_area = 0
             angle = space.next_angle(previous_e)
-            if pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
-                shared_area = 0
-            else:
+            if not pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
                 shared_area = math.tan(math.pi/180 * (90.0 - angle / 2)) * depth**2
             removed_area += e.length * depth - shared_area
         removed_areas[space] = removed_area
@@ -150,7 +149,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
             area_score[space.id] = space.cached_area()/100.0
             continue
         item = space_to_item[space.id]
-        space_area = space.cached_area() - removed_areas[space] if space in removed_areas else 0
+        space_area = space.cached_area() - (removed_areas[space] if space in removed_areas else 0)
         area_score[space.id] = _score_space_area(space_area, item.min_size.area, item.max_size.area)
 
     return area_score

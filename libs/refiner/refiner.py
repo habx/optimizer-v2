@@ -23,10 +23,9 @@ import multiprocessing
 
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
+from libs.space_planner.circulation import Circulator
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
-from libs.modelers.corridor import Corridor
-
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
@@ -307,7 +306,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "052"
+        plan_number = "043"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -328,8 +327,9 @@ if __name__ == '__main__':
                                                            improved_plan.fitness.values))
 
             # ajout du couloir
-            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
-            improved_plan.name = "Corridor_" + plan_number
-            improved_plan.plot()
+            item_dict = evaluation.create_item_dict(spec)
+            circulator = Circulator(plan=improved_plan, spec=spec)
+            circulator.connect(item_dict)
+            circulator.plot()
             evaluation.check(improved_plan, spec)
     apply()
