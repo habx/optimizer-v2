@@ -610,7 +610,7 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
 
-    def test_duplex():
+    def duplex():
         """
         Test
         :return:
@@ -647,16 +647,16 @@ if __name__ == '__main__':
         plan.insert_space_from_boundary(duct_coords, SPACE_CATEGORIES["duct"], floor_2)
         hole_coords = [(400, 700), (650, 700), (650, 800), (400, 800)]
         plan.insert_space_from_boundary(hole_coords, SPACE_CATEGORIES["hole"], floor_2)
-        plan.insert_linear((650, 800), (650, 700), LINEAR_CATEGORIES["startingStep"], floor_2)
+        plan.insert_linear((400, 700), (400, 780), LINEAR_CATEGORIES["startingStep"], floor_2)
         plan.insert_linear((500, 400), (600, 400), LINEAR_CATEGORIES["window"], floor_2)
         plan.insert_linear((1000, 550), (1000, 650), LINEAR_CATEGORIES["window"], floor_2)
         plan.insert_linear((0, 700), (0, 600), LINEAR_CATEGORIES["window"], floor_2)
 
-        GRIDS["sequence_grid"].apply_to(plan)
+        GRIDS["001"].apply_to(plan)
 
         plan.plot()
 
-        SEEDERS["simple_seeder"].apply_to(plan)
+        SEEDERS["directional_seeder"].apply_to(plan)
 
         plan.plot()
 
@@ -664,9 +664,8 @@ if __name__ == '__main__':
         spec.plan = plan
         plan.plot()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        # best_solutions = space_planner.apply_to(spec)
 
-        return space_planner
+        return space_planner.apply_to(spec), space_planner
 
 
     def connect_plan():
@@ -675,15 +674,12 @@ if __name__ == '__main__':
         :return:
         """
 
-        space_planner = test_duplex()
+        best_solutions, space_planner = duplex()
 
-        if space_planner.solutions_collector.solutions:
-            for solution in space_planner.solutions_collector.best():
-                circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
-                circulator.connect()
-                circulator.plot()
-                logging.debug('connecting paths: {0}'.format(circulator.paths['vert']))
-                solution.plan.plot()
-
+        for solution in best_solutions:
+            circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
+            circulator.connect()
+            circulator.plot()
+            logging.debug('connecting paths: {0}'.format(circulator.paths['vert']))
 
     connect_plan()
