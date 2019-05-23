@@ -13,7 +13,6 @@ import math
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable
 
-
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
@@ -201,7 +200,7 @@ class Circulator:
             # Add the connection between stair landings
             stair_landings.sort(key=lambda s: s.floor.level)
             for i, stair_landing in enumerate(stair_landings[1:]):
-                self._space_graph.add_edge(stair_landings[i-1], stair_landings[i])
+                self._space_graph.add_edge(stair_landings[i - 1], stair_landings[i])
 
         # add all the root nodes
         for root_node in root_nodes.values():
@@ -430,7 +429,7 @@ class Circulator:
                     return -1.0
                 else:
                     area_space_ccw[space_ccw] = space_ccw.cached_area()
-                
+
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
                 if not space_cw or not space_cw.mutable:
@@ -462,6 +461,9 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
+        print('number_of_floors', number_of_floors)
+        print('ax', ax)
+
         if plot_edge:
             for f in self.plan.levels:
                 _ax = ax[f] if number_of_floors > 1 else ax
@@ -474,8 +476,8 @@ class Circulator:
                         vector = (edge.normal if self.directions[f][edge] > 0
                                   else opposite_vector(edge.normal))
                         pt_end = move_point(pt_ini, vector, 90)
-                        _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
-                                  pt_end[1] - pt_ini[1])
+                        # _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
+                        #          pt_end[1] - pt_ini[1])
         else:
             for f in self.plan.levels:
                 _ax = ax[f] if number_of_floors > 1 else ax
@@ -681,5 +683,6 @@ if __name__ == '__main__':
             circulator.connect()
             circulator.plot()
             logging.debug('connecting paths: {0}'.format(circulator.paths['vert']))
+
 
     connect_plan()

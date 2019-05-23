@@ -121,6 +121,10 @@ class Corridor:
             :param edge:
             :return:
             """
+
+            if self.plan.get_space_of_edge(edge).category.external or self.plan.get_space_of_edge(
+                    edge.pair).category.external:
+                return False
             if self.plan.get_space_of_edge(edge) is self.plan.get_space_of_edge(edge.pair):
                 # edge not on space border
                 return False
@@ -222,6 +226,11 @@ class Corridor:
         if show:
             self._initialize_plot()
 
+        edge_path = self._get_edge_path(path)
+
+        # mesh cut, orthogonal to edge path
+        self._ortho_slice(edge_path[0], start=True, show=show)
+        self._ortho_slice(edge_path[-1], show=show)
         edge_path = self._get_edge_path(path)
 
         # layer slices parallel to path edges
@@ -734,8 +743,8 @@ class Corridor:
 
 
 CORRIDOR_RULES = {
-    "layer_width": 25,
-    "nb_layer": 5,
+    "layer_width": 30,
+    "nb_layer": 4,
     "recursive_cut_length": 400,
     "width": 110,
     "penetration_length": 90,

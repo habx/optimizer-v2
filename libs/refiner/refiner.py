@@ -27,7 +27,6 @@ from libs.plan.plan import Plan
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 from libs.modelers.corridor import Corridor
 
-
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
@@ -46,6 +45,7 @@ class Refiner:
     containing the main types and operators needed for the algorithm
     • the algorithm function that will be applied to the plan
     """
+
     def __init__(self,
                  fc_toolbox: Callable[['Specification', dict], 'core.Toolbox'],
                  algorithm: algorithmFunc):
@@ -282,18 +282,18 @@ REFINERS = {
     "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }
 
-
 if __name__ == '__main__':
-    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
+    PARAMS = {"ngen": 3, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
         "layer_width": 25,
-        "nb_layer": 1,
+        "nb_layer": 4,
         "recursive_cut_length": 400,
         "width": 100,
         "penetration_length": 90,
         "layer_cut": True
     }
+
 
     def apply():
         """
@@ -307,7 +307,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "052"
+        plan_number = "018"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -315,6 +315,13 @@ if __name__ == '__main__':
             plan.name = "original_" + plan_number
             plan.remove_null_spaces()
             plan.plot()
+
+            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(plan, spec)
+            plan.name = "Corridor_" + plan_number
+            plan.plot()
+
+            import sys
+            sys.exit()
 
             # run genetic algorithm
             start = time.time()
@@ -332,4 +339,6 @@ if __name__ == '__main__':
             improved_plan.name = "Corridor_" + plan_number
             improved_plan.plot()
             evaluation.check(improved_plan, spec)
+
+
     apply()
