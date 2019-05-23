@@ -196,12 +196,16 @@ class Circulator:
                     continue
                 root_nodes[starting_step.floor.level] = stair_landing
 
-        assert len(root_nodes) == self.plan.floor_count, ("Circulation: "
-                                                          "A plan is missing a starting step")
-        # Add the connection between stair landings
-        stair_landings.sort(key=lambda s: s.floor.level)
-        for i, stair_landing in enumerate(stair_landings):
-            self._space_graph.add_edge(stair_landings[i], stair_landings[i + 1])
+            assert len(root_nodes) == self.plan.floor_count, ("Circulation: "
+                                                              "A plan is missing a starting step")
+            # Add the connection between stair landings
+            stair_landings.sort(key=lambda s: s.floor.level)
+            for i, stair_landing in enumerate(stair_landings[1:]):
+                self._space_graph.add_edge(stair_landings[i-1], stair_landings[i])
+
+        # add all the root nodes
+        for root_node in root_nodes.values():
+            self._space_graph.add_node(root_node)
 
         # Add the connection to each circulation space to the level root node
         # TODO : an improvement would be to use connected_components to find the optimal path
