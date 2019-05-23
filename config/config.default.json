@@ -1,0 +1,12 @@
+{
+    "appName": "worker-optimizer",
+    "scalyr": {
+        "enable": true
+    },
+    "sentry": {
+        "enable": true,
+        "options": {
+            "dsn": "https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222"
+        }
+    }
+}
