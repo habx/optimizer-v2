@@ -106,7 +106,8 @@ class Corridor:
             if not _space:
                 return
             growing_direction = self.circulator.directions[_space.floor.level][_edge]
-            connecting_edge = _edge.pair if start else _edge
+            #connecting_edge = _edge.pair if start else _edge
+            connecting_edge=_edge
             # if start:
             #    growing_direction = -growing_direction
             if start and growing_direction > 0:
