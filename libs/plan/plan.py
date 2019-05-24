@@ -3064,7 +3064,8 @@ class Plan:
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
                                    category: SpaceCategory = SPACE_CATEGORIES['empty'],
-                                   floor: Optional['Floor'] = None) -> 'Space':
+                                   floor: Optional['Floor'] = None,
+                                   merge_faces: bool = True) -> 'Space':
         """
         Inserts a new space inside the empty spaces of the plan.
         By design, will not insert a space overlapping several faces of the receiving spaces.
@@ -3072,6 +3073,7 @@ class Plan:
         :param boundary
         :param category
         :param floor
+        :param merge_faces: merge the faces of the empty space post insertion
         """
         floor = floor or self.floor
         face_to_insert = None
@@ -3079,6 +3081,24 @@ class Plan:
             try:
                 new_space = empty_space.insert_space(boundary, category)
                 self.update_from_mesh()
+
+                # merge faces of the empty faces if necessary
+                while merge_faces:
+                    merge_faces = False
+                    for face in empty_space.faces:
+                        for edge in face.edges:
+                            if empty_space.is_boundary(edge):
+                                continue
+                            if edge.is_internal:
+                                continue
+                            if empty_space.is_internal(edge.pair):
+                                edge.remove()
+                                self.update_from_mesh()
+                                merge_faces = True
+                                break
+                        if merge_faces:
+                            break
+
                 return new_space
             except OutsideFaceError:
                 continue
