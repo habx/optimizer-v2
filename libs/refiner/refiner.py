@@ -340,21 +340,27 @@ if __name__ == '__main__':
                 evaluation.check(improved_plan, spec)
 
 
+
+
     l = range(1, 62)
-    l = [34]
+    l = [5]
     for plan_index in l:
         if plan_index < 10:
             plan_name = '00' + str(plan_index)
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
+        #if plan_index<24:
+        #    continue
         print('plan under treatement', plan_name)
         error_plan = []
-        try:
-            apply(plan_name)
-        except Exception:
-            print("ERROR PLAN", plan_name)
-            error_plan.append(plan_name)
-            continue
+        apply(plan_name)
+
+        # try:
+        #     apply(plan_name)
+        # except Exception:
+        #     print("ERROR PLAN", plan_name)
+        #     error_plan.append(plan_name)
+        #     continue
 
         # import sys
         # sys.exit()

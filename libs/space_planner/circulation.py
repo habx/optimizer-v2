@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 PathsDict = Dict[str, Dict[int, List[List[Union['Vertex', 'Edge']]]]]
 DirectionsDict = Dict[int, Dict['Edge', float]]
+PenetrationsDict = Dict[int, Dict['Edge', float]]
+#ConnectionsDict = Dict[int, List[Dict[List['Edge'], List['Vertex'], 'Space', 'Space']]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
 
 
@@ -68,6 +70,8 @@ class Circulator:
 
         self.paths: PathsDict = {'vert': {level: [] for level in self.plan.levels},
                                  'edge': {level: [] for level in self.plan.levels}}
+
+        self.connections= {level: [] for level in self.plan.levels}
 
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
         self.cost = 0
@@ -213,7 +217,7 @@ class Circulator:
                 path, cost = self._draw_path(self._reachable_edges[root_nodes[node.floor.level]],
                                              self._reachable_edges[node], node.floor.level)
                 self.cost += cost
-                self._add_path(path, node.floor.level)
+                self._add_path(path, root_nodes[node.floor.level], node)
                 self._space_graph.add_edge(node, root_nodes[node.floor.level])
 
     def _add_all_other_spaces(self):
@@ -240,11 +244,14 @@ class Circulator:
                         # connected_room is no longer isolated
                         self._space_graph.add_edge(connected_room, node)
 
-    def _add_path(self, path: List['Vertex'], level: int) -> List['Space']:
+    def _add_path(self, path: List['Vertex'], start_space: 'Space',
+                  arrival_space: 'Space') -> List['Space']:
         """
         update based on computed circulation path
         :return: the list of spaces connected by path
         """
+
+        level = start_space.floor.level
         self.paths['vert'][level].append(path)
         edge_path = self._get_edge_path(path)
         self.paths['edge'][level].append(edge_path)
@@ -257,6 +264,10 @@ class Circulator:
             connected = self.plan.get_space_of_edge(e.pair)
             if connected and connected not in connected_rooms and connected.mutable:
                 connected_rooms.append(connected)
+
+        path_dict = {'edge_path': edge_path, 'vert_path': path, 'start_space': start_space,
+                     'arrival_space': arrival_space}
+        self.connections[level].append(path_dict)
 
         return connected_rooms
 
@@ -278,6 +289,7 @@ class Circulator:
                     path_min = path
                     connected_room = other
         # compute path between space and every existing circulation path
+        link_to_existing_path = False
         for edge_path in self.paths['edge'][space.floor.level]:
             if edge_path:
                 path, cost = self._draw_path(self._reachable_edges[space], edge_path,
@@ -285,14 +297,17 @@ class Circulator:
                 if cost_min is None or cost < cost_min:
                     cost_min = cost
                     path_min = path
+                    link_to_existing_path = True
 
         connected_rooms = []
         if path_min is not None:
-            connected_rooms = self._add_path(path_min, space.floor.level)
+            arrival_space = connected_room if not link_to_existing_path else None
+            connected_rooms = self._add_path(path_min, space, arrival_space)
             self.cost += cost_min
 
         if connected_room not in connected_rooms:
             connected_rooms.append(connected_room)
+
         return connected_rooms
 
     @staticmethod

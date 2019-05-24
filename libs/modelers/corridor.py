@@ -81,13 +81,15 @@ class Corridor:
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         self.circulator.plot(plot_edge=True)
-        #
-        for level in self.circulator.paths['vert']:
-            vertex_paths = self.circulator.paths['vert'][level]
-            for vertex_path in vertex_paths:
-                if len(vertex_path) > 1:  # TODO : deal with one vertice path
-                    vertex_path = self._add_penetration_vertices(vertex_path)
-                    self.paths.append(vertex_path)
+
+        self._add_penetrations()
+
+        # for level in self.circulator.paths['vert']:
+        #     vertex_paths = self.circulator.paths['vert'][level]
+        #     for vertex_path in vertex_paths:
+        #         if len(vertex_path) > 1:  # TODO : deal with one vertice path
+        #             vertex_path = self._add_penetration_vertices(vertex_path)
+        #             self.paths.append(vertex_path)
 
         # Real time plot updates
         if show:
@@ -99,7 +101,54 @@ class Corridor:
 
         self.plan.remove_null_spaces()
 
-    def _add_penetration_vertices(self, vertex_list: List['Vertex']):
+    def _add_penetrations(self):
+        def _get_penetration(_edge: 'Edge', _space: 'Space', start: bool = True):
+            if not _space:
+                return
+            growing_direction = self.circulator.directions[_space.floor.level][_edge]
+            connecting_edge = _edge.pair if start else _edge
+            # if start:
+            #    growing_direction = -growing_direction
+            if start and growing_direction > 0:
+                next_edge_pair = connecting_edge.previous_ortho().pair
+            if not start and growing_direction > 0:
+                next_edge_pair = connecting_edge.next_ortho().pair
+            if start and growing_direction < 0:
+                next_edge_pair = connecting_edge.pair.next_ortho().pair
+            if not start and growing_direction < 0:
+                next_edge_pair = connecting_edge.pair.previous_ortho().pair
+            # if growing_direction > 0:
+            #     if start:
+            #         next_edge_pair = connecting_edge.pair.previous_ortho().pair
+            #     else:
+            #         next_edge_pair = connecting_edge.next_ortho().pair
+
+            if _space.has_edge(next_edge_pair):
+                return False
+            return True
+
+        for level, connection_dicts in self.circulator.connections.items():
+            for connection_dict in connection_dicts:
+                current_edge_path = connection_dict['edge_path']
+                current_vert_path = connection_dict['vert_path']
+                if not current_edge_path:
+                    continue
+
+                print('penetr', current_edge_path[0], connection_dict['start_space'],
+                      _get_penetration(current_edge_path[0], connection_dict['start_space']))
+                print('penetr', current_edge_path[-1], connection_dict['arrival_space'],
+                      _get_penetration(current_edge_path[-1], connection_dict['arrival_space'],
+                                       start=False))
+
+                if _get_penetration(current_edge_path[0], connection_dict['start_space']):
+                    current_vert_path = self._add_penetration_vertices(current_vert_path)
+                if _get_penetration(current_edge_path[-1], connection_dict['arrival_space'],
+                                    start=False):
+                    current_vert_path = self._add_penetration_vertices(current_vert_path,
+                                                                       start=False)
+                self.paths.append(current_vert_path)
+
+    def _add_penetration_vertices(self, vertex_list: List['Vertex'], start: bool = True):
         """
         Possibly adds vertices at the beginning and end of the path
         to account for corridor penetration within the room.
@@ -131,6 +180,7 @@ class Corridor:
             if not edge.face or not edge.pair.face:
                 # edge on the plan border
                 return False
+            # cat = ["loadBearingWall", "duct"]
             cat = ["loadBearingWall", "duct"]
             if (self.plan.get_space_of_edge(edge).category.name in cat
                     or self.plan.get_space_of_edge(edge.pair).category.name in cat):
@@ -184,8 +234,10 @@ class Corridor:
 
             return vert_list
 
-        vertex_list = _add_vertices(vertex_list)
-        vertex_list = _add_vertices(vertex_list, start=False)
+        if start:
+            vertex_list = _add_vertices(vertex_list)
+        else:
+            vertex_list = _add_vertices(vertex_list, start=False)
 
         self.plan.update_from_mesh()
         self.plan.simplify()
@@ -887,5 +939,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "062.json"
+    plan_name = "005.json"
     main(input_file=plan_name)
