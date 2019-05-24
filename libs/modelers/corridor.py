@@ -81,7 +81,7 @@ class Corridor:
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         self.circulator.plot(plot_edge=True)
-
+        #
         for level in self.circulator.paths['vert']:
             vertex_paths = self.circulator.paths['vert'][level]
             for vertex_path in vertex_paths:
@@ -136,6 +136,7 @@ class Corridor:
                     or self.plan.get_space_of_edge(edge.pair).category.name in cat):
                 # edge along a non mutable space among cat
                 return False
+
             return True
 
         def _add_vertices(vert_list: List['Vertex'], start=True):
@@ -146,6 +147,7 @@ class Corridor:
             :param start:
             :return:
             """
+
             edge_list = self._get_edge_path(vert_list)
 
             l = 0  # penetration length
@@ -221,12 +223,21 @@ class Corridor:
         # TODO : pour tous les nouveaux edges formés, agrémenter le circulator.directions[] avec ces edges on mettant
         # TODO : la direction de l'edge aligné précédent s'il est dans circulator.directions[], sinon aller chercher jusqu') trouver?
 
-        level = self.plan.get_space_of_edge(edge_path[0]).floor.level
+        def _get_neighbor_direction(_edge):
+            for e in self.circulator.directions[level]:
+                if parallel(e.vector, edge.vector):
+                    # if (e.start == edge.end or e.end == edge.start) and parallel(e.vector, edge.vector):
+                    return self.circulator.directions[level][e]
+
+        if self.plan.get_space_of_edge(edge_path[0]):
+            level = self.plan.get_space_of_edge(edge_path[0]).floor.level
+        else:
+            level = self.plan.get_space_of_edge(edge_path[0].pair).floor.level
         for e, edge in enumerate(edge_path):
             if edge not in self.circulator.directions[level]:
-                self.circulator.directions[level][edge] = self.circulator.directions[level][
-                    edge_path[e - 1]]
-        # self.circulator.directions[]
+                # self.circulator.directions[level][edge] = self.circulator.directions[level][
+                #    edge_path[e - 1]]
+                self.circulator.directions[level][edge] = _get_neighbor_direction(edge)
 
     def cut(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
         """
@@ -487,7 +498,6 @@ class Corridor:
                                        show)
             if e == len(edge_line) - 1:
                 # info stored for corner filling
-
                 width_ccw = self.corridor_rules["width"] if growing_direction > 0 else 0
                 width_cw = self.corridor_rules["width"] if growing_direction < 0 else 0
                 self.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
