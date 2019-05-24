@@ -341,7 +341,7 @@ if __name__ == '__main__':
 
 
     l = range(1, 62)
-    l = [30]
+    l = [34]
     for plan_index in l:
         if plan_index < 10:
             plan_name = '00' + str(plan_index)
