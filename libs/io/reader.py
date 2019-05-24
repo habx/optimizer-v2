@@ -435,7 +435,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "015_setup0.json"
+        input_file = "essai.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -448,12 +448,12 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "paris-venelles_B2E5L01.json" # (2875.051, 556.2034), (2759.2167, 498.7173)
+        input_file = "essai.json" # (2875.051, 556.2034), (2759.2167, 498.7173)
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
         assert my_plan.check()
 
 
-    specification_read()
+    # specification_read()
     plan_read()

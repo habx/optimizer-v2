@@ -333,4 +333,5 @@ if __name__ == '__main__':
             circulator.connect(item_dict)
             circulator.plot()
             evaluation.check(improved_plan, spec)
+
     apply()
