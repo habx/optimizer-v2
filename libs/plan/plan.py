@@ -1467,9 +1467,16 @@ class Space(PlanComponent):
         # TODO : we should not create vertices directly but go trough a face interface
         vertex_1 = Vertex(self.mesh, *point_1, mutable=False)
         vertex_2 = Vertex(self.mesh, *point_2, mutable=False)
-        new_edge = self.face.insert_edge(vertex_1, vertex_2)
-        new_linear = self.plan.__class__.LinearType(self.plan, self.floor, new_edge, category)
-
+        for face in self.faces:
+            try:
+                new_edge = face.insert_edge(vertex_1, vertex_2)
+                new_linear = self.plan.__class__.LinearType(self.plan, self.floor, new_edge,
+                                                            category)
+                break
+            except OutsideVertexError:
+                continue
+        else:
+            raise OutsideVertexError
         return new_linear
 
     def cut(self,
@@ -3111,7 +3118,6 @@ class Plan:
         for empty_space in self.empty_spaces_of_floor(floor):
             try:
                 empty_space.insert_linear(point_1, point_2, category)
-                self.mesh.watch()
                 break
             except OutsideVertexError:
                 continue
