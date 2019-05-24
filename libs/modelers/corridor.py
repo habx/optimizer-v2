@@ -473,7 +473,13 @@ class Corridor:
         """
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
-        level = self.plan.get_space_of_edge(edge_line[0]).floor.level
+
+        if self.plan.get_space_of_edge(edge_line[0]):
+            level = self.plan.get_space_of_edge(edge_line[0]).floor.level
+        else:
+            level = self.plan.get_space_of_edge(edge_line[0].pair).floor.level
+
+        # level=0
         growing_direction = self.circulator.directions[level][edge_line[0]]
         for e, edge in enumerate(edge_line):
             support_edge = edge if growing_direction > 0 else edge.pair
@@ -481,8 +487,9 @@ class Corridor:
                                        show)
             if e == len(edge_line) - 1:
                 # info stored for corner filling
-                width_cw = self.corridor_rules["width"] if growing_direction > 0 else 0
-                width_ccw = self.corridor_rules["width"] if growing_direction < 0 else 0
+
+                width_ccw = self.corridor_rules["width"] if growing_direction > 0 else 0
+                width_cw = self.corridor_rules["width"] if growing_direction < 0 else 0
                 self.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
         return corridor_space
 
