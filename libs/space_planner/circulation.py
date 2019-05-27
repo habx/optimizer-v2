@@ -68,11 +68,11 @@ class Circulator:
         self.plan = plan
         self.spec = spec
 
-        self.paths: PathsDict = {'vert': {level: [] for level in self.plan.levels},
-                                 'edge': {level: [] for level in self.plan.levels}}
+        self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
 
         # TODO : define typing for those dicts
-        self.connections = {level: [] for level in self.plan.levels}
+        # self.paths_info = {level: [] for level in self.plan.levels}
+        self.paths_info = []
 
         self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
                               space.mutable}
@@ -97,6 +97,44 @@ class Circulator:
         self._add_circulation_spaces()
         self._add_all_other_spaces()
         self._set_directions(space_items_dict, score_function)
+        self._set_penetrations()
+
+    def _set_penetrations(self):
+
+        def _get_penetration(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
+            if not _spaces:
+                return
+            growing_direction = self.directions[_spaces[0].floor.level][_edge]
+            # connecting_edge = _edge.pair if start else _edge
+            connecting_edge = _edge
+            if start and growing_direction > 0:
+                next_edge_pair = connecting_edge.previous_ortho().pair
+            if not start and growing_direction > 0:
+                next_edge_pair = connecting_edge.next_ortho().pair
+            if start and growing_direction < 0:
+                next_edge_pair = connecting_edge.pair.next_ortho().pair
+            if not start and growing_direction < 0:
+                next_edge_pair = connecting_edge.pair.previous_ortho().pair
+
+            for _space in _spaces:
+                if not _space.has_edge(next_edge_pair):
+                    return True
+            return False
+
+        for connection_dict in self.paths_info:
+            current_path = connection_dict['edge_path']
+            if not current_path:
+                continue
+
+            if _get_penetration(current_path[0], connection_dict['start_space']):
+                connection_dict["start_penetration"] = True
+            else:
+                connection_dict["start_penetration"] = False
+            if _get_penetration(current_path[-1], connection_dict['arrival_space'],
+                                start=False):
+                connection_dict["end_penetration"] = True
+            else:
+                connection_dict["end_penetration"] = False
 
     def _set_directions(self,
                         space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
@@ -256,7 +294,7 @@ class Circulator:
         """
 
         level = start_space.floor.level
-        self.paths['vert'][level].append(path)
+        # self.paths['vert'][level].append(path)
         edge_path = self._get_edge_path(path)
         self.paths['edge'][level].append(edge_path)
 
@@ -269,9 +307,28 @@ class Circulator:
             if connected and connected not in connected_rooms and connected.mutable:
                 connected_rooms.append(connected)
 
-        path_dict = {'edge_path': edge_path, 'vert_path': path, 'start_space': start_space,
-                     'arrival_space': arrival_space}
-        self.connections[level].append(path_dict)
+        if not path:
+            return connected_rooms
+
+        path_end = path[-1]
+        terminal_room = None
+        for edge in path_end.edges:
+            terminal_room = self.plan.get_space_of_edge(edge)
+            if terminal_room and terminal_room not in connected_rooms and terminal_room.mutable:
+                connected_rooms.append(terminal_room)
+                break
+            terminal_room = self.plan.get_space_of_edge(edge.pair)
+            if terminal_room and terminal_room not in connected_rooms and terminal_room.mutable:
+                connected_rooms.append(terminal_room)
+                break
+
+        arrival_spaces = [arrival_space] if arrival_space else []
+        if terminal_room and not self._space_graph.node_connected(terminal_room):
+            arrival_spaces.append(terminal_room)
+
+        path_dict = {'edge_path': edge_path, 'start_space': [start_space],
+                     'arrival_space': arrival_spaces}
+        self.paths_info.append(path_dict)
 
         return connected_rooms
 
@@ -502,10 +559,11 @@ class Circulator:
         else:
             for f in self.plan.levels:
                 _ax = ax[f] if number_of_floors > 1 else ax
-                paths = self.paths['vert'][f]
+                paths = self.paths['edge'][f]
                 for path in paths:
                     if len(path) == 1:
-                        _ax.scatter(path[0].x, path[0].y, marker='o', s=15, facecolor='blue')
+                        _ax.scatter(path[0].start.x, path[0].start.y, marker='o', s=15,
+                                    facecolor='blue')
                     else:
                         for i in range(len(path) - 1):
                             v1 = path[i]
@@ -703,7 +761,7 @@ if __name__ == '__main__':
             circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
             circulator.connect()
             circulator.plot()
-            logging.debug('connecting paths: {0}'.format(circulator.paths['vert']))
+            logging.debug('connecting paths: {0}'.format(circulator.paths['edge']))
 
 
     connect_plan()

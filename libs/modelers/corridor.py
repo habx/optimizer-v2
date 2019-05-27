@@ -54,6 +54,7 @@ class Corridor:
         self.plan: Plan = None
         self.circulator: Circulator = None
         self.corner_data: Dict = None
+        self.new_edges: List = None
 
     def _clear(self):
         self.plan = None
@@ -61,6 +62,7 @@ class Corridor:
         self.circulator = None
         self.paths = []
         self.corner_data = {}
+        self.new_edges = []
 
     def apply_to(self, plan: 'Plan', spec: 'Specification', show: bool = False):
         """
@@ -80,16 +82,9 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        #self.circulator.plot(plot_edge=True)
+        self.circulator.plot(plot_edge=True)
 
         self._add_penetrations()
-
-        # for level in self.circulator.paths['vert']:
-        #     vertex_paths = self.circulator.paths['vert'][level]
-        #     for vertex_path in vertex_paths:
-        #         if len(vertex_path) > 1:  # TODO : deal with one vertice path
-        #             vertex_path = self._add_penetration_vertices(vertex_path)
-        #             self.paths.append(vertex_path)
 
         # Real time plot updates
         if show:
@@ -102,14 +97,19 @@ class Corridor:
         self.plan.remove_null_spaces()
 
     def _add_penetrations(self):
-        def _get_penetration(_edge: 'Edge', _space: 'Space', start: bool = True):
-            if not _space:
+        """
+        Possibly adds edges at the beginning and end of the path to account for
+        corridor penetration within the room.
+        :param:
+        :return:
+        """
+
+        def _get_penetration(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
+            if not _spaces:
                 return
-            growing_direction = self.circulator.directions[_space.floor.level][_edge]
-            #connecting_edge = _edge.pair if start else _edge
-            connecting_edge=_edge
-            # if start:
-            #    growing_direction = -growing_direction
+            growing_direction = self.circulator.directions[_spaces[0].floor.level][_edge]
+            # connecting_edge = _edge.pair if start else _edge
+            connecting_edge = _edge
             if start and growing_direction > 0:
                 next_edge_pair = connecting_edge.previous_ortho().pair
             if not start and growing_direction > 0:
@@ -118,40 +118,28 @@ class Corridor:
                 next_edge_pair = connecting_edge.pair.next_ortho().pair
             if not start and growing_direction < 0:
                 next_edge_pair = connecting_edge.pair.previous_ortho().pair
-            # if growing_direction > 0:
-            #     if start:
-            #         next_edge_pair = connecting_edge.pair.previous_ortho().pair
-            #     else:
-            #         next_edge_pair = connecting_edge.next_ortho().pair
 
-            if _space.has_edge(next_edge_pair):
-                return False
-            return True
+            for _space in _spaces:
+                if not _space.has_edge(next_edge_pair):
+                    return True
+            return False
 
-        for level, connection_dicts in self.circulator.connections.items():
-            for connection_dict in connection_dicts:
-                current_edge_path = connection_dict['edge_path']
-                current_vert_path = connection_dict['vert_path']
-                if not current_edge_path:
-                    continue
+        for connection_dict in self.circulator.paths_info:
+            current_path = connection_dict['edge_path']
+            if not current_path:
+                continue
 
-                print('penetr', current_edge_path[0], connection_dict['start_space'],
-                      _get_penetration(current_edge_path[0], connection_dict['start_space']))
-                print('penetr', current_edge_path[-1], connection_dict['arrival_space'],
-                      _get_penetration(current_edge_path[-1], connection_dict['arrival_space'],
-                                       start=False))
+            if _get_penetration(current_path[0], connection_dict['start_space']):
+                current_path = self._add_penetration_edges(current_path)
+            if _get_penetration(current_path[-1], connection_dict['arrival_space'],
+                                start=False):
+                current_path = self._add_penetration_edges(current_path,
+                                                           start=False)
+            self.paths.append(current_path)
 
-                if _get_penetration(current_edge_path[0], connection_dict['start_space']):
-                    current_vert_path = self._add_penetration_vertices(current_vert_path)
-                if _get_penetration(current_edge_path[-1], connection_dict['arrival_space'],
-                                    start=False):
-                    current_vert_path = self._add_penetration_vertices(current_vert_path,
-                                                                       start=False)
-                self.paths.append(current_vert_path)
-
-    def _add_penetration_vertices(self, vertex_list: List['Vertex'], start: bool = True):
+    def _add_penetration_edges(self, edge_list: List['Edge'], start: bool = True):
         """
-        Possibly adds vertices at the beginning and end of the path
+        Possibly adds edges at the beginning and end of the path
         to account for corridor penetration within the room.
         A path has to penetrate a room if following conditions are satisfied
             -it extends on the room border, not inside the room space
@@ -159,7 +147,7 @@ class Corridor:
             -it is not along a load bearing wall
         When penetration conditions are satisfied, the penetration shall have a length equal to
         penetration_length
-        :param List['Vertex']: ordered list of vertices forming a circulation path
+        :param List['Edge']: ordered list of vertices forming a circulation path
         :return:
         """
 
@@ -190,16 +178,14 @@ class Corridor:
 
             return True
 
-        def _add_vertices(vert_list: List['Vertex'], start=True):
+        def _add_edges(edge_list: List['Edge'], start=True):
             """
-            Adds vertices to the list, at the beginning (if start) or end if
+            Adds edges to the list, at the beginning (if start) or end if
             penetration condition are satisfied until penetration length is reached
             :param vert_list: ordered list of vertices forming a circulation path
             :param start:
             :return:
             """
-
-            edge_list = self._get_edge_path(vert_list)
 
             l = 0  # penetration length
             continue_penetration = True
@@ -209,69 +195,47 @@ class Corridor:
                 penetration_edges = [edge for edge in limit_vertex.edges if
                                      edge.face and edge.pair.face]
                 for edge in penetration_edges:
-                    if parallel(edge.vector, limit_edge.vector) and _penetration_condition(edge):
+                    if parallel(edge.vector,
+                                limit_edge.vector):  # and _penetration_condition(edge):
                         penetration_edge = edge
                         if l + penetration_edge.length > penetration_length:
                             # splits penetration edge to get proper penetration length
                             coeff = (penetration_length - l) / penetration_edge.length
                             if penetration_edge.length * coeff < 2:
                                 # snapping exception
-                                added_vertex = penetration_edge.start
+                                pass
                             else:
                                 penetration_edge.split_barycenter(coeff=coeff)
-                                added_vertex = penetration_edge.end
+                                edge_list = [penetration_edge.pair] + edge_list if start \
+                                    else edge_list + [penetration_edge]
                             l = penetration_length
                         else:
                             edge_list = [penetration_edge.pair] + edge_list if start \
                                 else edge_list + [penetration_edge]
-                            added_vertex = penetration_edge.end
                             l += penetration_edge.length
-                        if added_vertex not in vert_list:
-                            vert_list = [added_vertex] + vert_list if start else vert_list + [
-                                added_vertex]
                         break
                 else:
                     continue_penetration = False
 
-            return vert_list
+            return edge_list
 
         if start:
-            vertex_list = _add_vertices(vertex_list)
+            edge_list = _add_edges(edge_list)
         else:
-            vertex_list = _add_vertices(vertex_list, start=False)
+            edge_list = _add_edges(edge_list, start=False)
 
         self.plan.update_from_mesh()
         self.plan.simplify()
 
-        return vertex_list
+        return edge_list
 
-    def _get_edge_path(self, vertex_path: List['Vertex']) -> List['Edge']:
-        """
-        From a list of vertices forming a path, generates the list of contiguous edges following
-        the path
-        :param vertex_path: ordered list of vertices forming a circulation path
-        :return: ordered list of contiguous edges forming a circulation path
-        """
-        edge_path = []
-
-        for v, vertex in enumerate(vertex_path[:-1]):
-            ref_dir = direction_vector((vertex.x, vertex.y),
-                                       (vertex_path[v + 1].x, vertex_path[v + 1].y))
-            edge = None
-            vert_end = vertex
-            while not edge or (vert_end is not vertex_path[v + 1]):
-                for edge in vert_end.edges:
-                    dir_e = edge.unit_vector
-                    if parallel(ref_dir, dir_e):
-                        edge_path.append(edge)
-                        vert_end = edge.end
-                        break
-
-        self._update_growing_direction(edge_path)
-
-        return edge_path
-
-    def _update_growing_direction(self, edge_path: List['Edge']):
+    def _update_growing_direction(self, path: List['Edge']):
+        '''
+        Some edges of the circulation path can be split in the slicing process.
+        The path then contains new edges for which growing direction information need to be set
+        :param path:
+        :return:
+        '''
 
         def _get_neighbor_direction(_edge):
             for e in self.circulator.directions[level]:
@@ -279,17 +243,73 @@ class Corridor:
                     # if (e.start == edge.end or e.end == edge.start) and parallel(e.vector, edge.vector):
                     return self.circulator.directions[level][e]
 
-        if self.plan.get_space_of_edge(edge_path[0]):
-            level = self.plan.get_space_of_edge(edge_path[0]).floor.level
+        if self.plan.get_space_of_edge(path[0]):
+            level = self.plan.get_space_of_edge(path[0]).floor.level
         else:
-            level = self.plan.get_space_of_edge(edge_path[0].pair).floor.level
-        for e, edge in enumerate(edge_path):
+            level = self.plan.get_space_of_edge(path[0].pair).floor.level
+        for e, edge in enumerate(path):
             if edge not in self.circulator.directions[level]:
-                # self.circulator.directions[level][edge] = self.circulator.directions[level][
-                #    edge_path[e - 1]]
                 self.circulator.directions[level][edge] = _get_neighbor_direction(edge)
 
-    def cut(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
+    def _update_path(self, path: List['Edge']):
+        '''
+        Some edges of the circulation path can be split in the slicing process.
+        The path then has to be updated with new resulting edges.
+        For those new edges, a growing direction has to be set
+        :param path:
+        :return:
+        '''
+
+        def _line_forward(e: 'Edge') -> List['Edge']:
+            """
+            returns edges aligned with e, contiguous, in forward direction
+            :param e:
+            :return:
+            """
+            output = []
+            current = e
+            while current:
+                output.append(current)
+                current = current.aligned_edge or current.continuous_edge
+            return output[1:]
+
+        def _repair_path(_start_edge: 'Edge', _end_edge: 'Edge'):
+            '''
+            gets the list of edges aligned with _start_edge and ending with an edge linked to
+            _end_edge
+            :param _start_edge:
+            :param _end_edge:
+            :return:
+            '''
+            line = _line_forward(_start_edge)
+            added_edges = []
+            for e in line:
+                added_edges.append(e)
+                if e.end is _end_edge.start:
+                    break
+            else:
+                assert _start_edge, "circulation path could not be repaired"
+
+            return added_edges
+
+        if not path:
+            return path
+
+        repair = True
+        while repair:
+            for e, edge in enumerate(path[:-1]):
+                if edge.end is not path[e + 1].start:
+                    added_edges = _repair_path(edge, path[e + 1])
+                    path[e + 1:e + 1] = added_edges
+                    break
+            else:
+                repair = False
+
+        self._update_growing_direction(path)
+
+        return path
+
+    def cut(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
         Cuts layers in the mesh around the circulation path defined by path.
         For each edge of the path, cut self.nb_layer layers with spacing equal to self.layer_width
@@ -300,23 +320,18 @@ class Corridor:
         if show:
             self._initialize_plot()
 
-        edge_path = self._get_edge_path(path)
+        path = self._update_path(path)
 
         # mesh cut, orthogonal to edge path
-        self._ortho_slice(edge_path[0], start=True, show=show)
-        self._ortho_slice(edge_path[-1], show=show)
-        edge_path = self._get_edge_path(path)
+        self._ortho_slice(path[0], start=True, show=show)
+        self._ortho_slice(path[-1], show=show)
+
+        path = self._update_path(path)
 
         # layer slices parallel to path edges
         if self.corridor_rules["layer_cut"]:
-            for edge in edge_path:
+            for edge in path:
                 self._layer_slice(edge, show)
-
-        # mesh cut, orthogonal to edge path
-        # self._ortho_slice(edge_path[0], start=True, show=show)
-        # self._ortho_slice(edge_path[-1], show=show)
-
-        # self.plan.plot()
 
         return self
 
@@ -366,7 +381,7 @@ class Corridor:
                                            corridor_space,
                                            show)
 
-    def grow(self, path: List['Vertex'], show: bool = False) -> 'Corridor':
+    def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
         -Grows corridor spaces around the circulation path defined by path
         -Each straight corridor portion is treated separately, corners at this stage may not
@@ -380,9 +395,9 @@ class Corridor:
         if show:
             self._initialize_plot()
 
-        edge_path = self._get_edge_path(path)
+        path = self._update_path(path)
 
-        self._path_growth(edge_path, show)
+        self._path_growth(path, show)
 
         self._corner_fill(show)
 
@@ -422,16 +437,16 @@ class Corridor:
         while fusion:
             fusion = merging(corridor_spaces)
 
-    def _path_growth(self, edge_path: List['Edge'], show: bool = False):
+    def _path_growth(self, path: List['Edge'], show: bool = False):
         """
-        Circulation path defined by edge_path is decomposed into its straight portions
+        Circulation path defined by path is decomposed into its straight portions
         A corridor space is grown around each portion
-        :param edge_path: ordered list of contiguous edges forming a circulation path
+        :param path: ordered list of contiguous edges forming a circulation path
         :param show: ordered list of contiguous edges forming a circulation path
         :return:
         """
 
-        edge_lines = self._get_straight_parts(edge_path)
+        edge_lines = self._get_straight_parts(path)
         corridor_spaces = []
         for edge_line in edge_lines:
             # created_space = self._straight_path_growth(edge_line, show)
@@ -445,16 +460,16 @@ class Corridor:
                 corridor_spaces.append(created_space)
 
     @staticmethod
-    def _get_straight_parts(edge_path: List['Edge']) -> List[List['Edge']]:
+    def _get_straight_parts(path: List['Edge']) -> List[List['Edge']]:
         """
         decomposes the path into its straight sub-parts
-        :param edge_path: ordered list of contiguous edges forming a circulation path
+        :param path: ordered list of contiguous edges forming a circulation path
         :return:
         """
         edge_lines = []
-        edge_ini = edge_path[0]
+        edge_ini = path[0]
         l = []
-        for e in edge_path:
+        for e in path:
             if not parallel(edge_ini.vector, e.vector):
                 edge_lines.append(l)
                 edge_ini = e
@@ -735,31 +750,31 @@ class Corridor:
         """
         space_ini = self.plan.get_space_of_edge(edge)
 
-        def _projects_on_linear(v: 'Vertex', direction_edge: 'Edge') -> bool:
-            """
-            returns true if v projection in a direction normal to edge cuts a linear
-            :param v:
-            :param direction_edge:
-            :return:
-            """
-
-            if not direction_edge.face.as_sp.intersects(v.as_sp):
-                # TODO : this check should not be necessary - to be investigated
-                return False
-            out = v.project_point(direction_edge.face, direction_edge.normal)
-
-            if out:
-                intersect_vertex_next = out[0]
-                next_cut_edge = out[1]
-                for e in self.plan.get_space_of_edge(next_cut_edge).edges:
-                    linear = self.plan.get_linear(e)
-                    if linear and (
-                            linear.has_edge(next_cut_edge) or linear.has_edge(
-                        next_cut_edge.next)):
-                        intersect_vertex_next.remove_from_mesh()
-                        return True
-                intersect_vertex_next.remove_from_mesh()
-            return False
+        # def _projects_on_linear(v: 'Vertex', direction_edge: 'Edge') -> bool:
+        #     """
+        #     returns true if v projection in a direction normal to edge cuts a linear
+        #     :param v:
+        #     :param direction_edge:
+        #     :return:
+        #     """
+        #
+        #     if not direction_edge.face.as_sp.intersects(v.as_sp):
+        #         # TODO : this check should not be necessary - to be investigated
+        #         return False
+        #     out = v.project_point(direction_edge.face, direction_edge.normal)
+        #
+        #     if out:
+        #         intersect_vertex_next = out[0]
+        #         next_cut_edge = out[1]
+        #         for e in self.plan.get_space_of_edge(next_cut_edge).edges:
+        #             linear = self.plan.get_linear(e)
+        #             if linear and (
+        #                     linear.has_edge(next_cut_edge) or linear.has_edge(
+        #                 next_cut_edge.next)):
+        #                 intersect_vertex_next.remove_from_mesh()
+        #                 return True
+        #         intersect_vertex_next.remove_from_mesh()
+        #     return False
 
         def _start_cut_conditions(v: 'Vertex', e: 'Edge'):
             """
@@ -797,9 +812,9 @@ class Corridor:
             if self.plan.get_space_of_edge(end_edge.pair) and not self.plan.get_space_of_edge(
                     end_edge.pair).mutable:
                 return True
-            if end_edge.pair and end_edge.pair.face:
-                if _projects_on_linear(end_edge.pair.end, end_edge.pair):
-                    return True
+            # if end_edge.pair and end_edge.pair.face:
+            #    if _projects_on_linear(end_edge.pair.end, end_edge.pair):
+            #        return True
 
             return False
 
@@ -808,8 +823,6 @@ class Corridor:
                 or not vertex.mesh):
             return
 
-        # if edge.face and not _projects_on_linear(vertex, edge) and not self.plan.get_linear(edge) \
-        #        and self.plan.get_space_of_edge(edge).mutable:
         if _start_cut_conditions(vertex, edge):
             edge.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
                                callback=callback)
@@ -817,9 +830,6 @@ class Corridor:
         if not vertex.mesh:
             return
 
-        # if edge.pair.face and not _projects_on_linear(vertex,
-        #                                              edge.pair) and not self.plan.get_linear(
-        #    edge.pair) and self.plan.get_space_of_edge(edge.pair).mutable:
         if _start_cut_conditions(vertex, edge.pair):
             edge.pair.recursive_cut(vertex, max_length=self.corridor_rules["recursive_cut_length"],
                                     callback=callback)
