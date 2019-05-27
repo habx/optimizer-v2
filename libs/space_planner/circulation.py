@@ -96,14 +96,14 @@ class Circulator:
         self._set_directions(space_items_dict, score_function)
         self._set_penetrations()
 
-
     def _set_penetrations(self):
         """
         defines whether a a circulation path shall penetrate, or not, with the spaces it connects
         :return:
         """
 
-        def _get_penetration_edge(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
+        def _get_penetration_edge(_tuple: Tuple['Edge', float], _spaces: List['Space'],
+                                  start: bool = True):
             """
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
@@ -114,10 +114,10 @@ class Circulator:
             """
             if not _spaces:
                 return
-            growing_direction = self.directions[_spaces[0].floor.level][_edge]
+            growing_direction = _tuple[1]
             if start:
                 growing_direction = -growing_direction
-            connecting_edge = _edge.pair if start else _edge
+            connecting_edge = _tuple[0].pair if start else _tuple[0]
 
             if growing_direction > 0:
                 next_edge_pair = connecting_edge.next_ortho().pair
@@ -141,7 +141,7 @@ class Circulator:
 
             connection_dict["end_penetration"] = _get_penetration_edge(current_path[-1],
                                                                        connection_dict[
-                                                                           'arrival_space'],
+                                                                           'arrival_spaces'],
                                                                        start=False)
 
     def _set_directions(self,
@@ -153,9 +153,10 @@ class Circulator:
         :param score_function: a score function to evaluate the modification of the space area
         :return: a dictionary containing the scores of each modified spaces
         """
-        for level, edge_paths in self.paths['edge'].items():
-            for edge_path in edge_paths:
-                self._set_growing_direction(edge_path, level, space_items_dict, score_function)
+
+        for p, path_info in enumerate(self.paths_info):
+            self.paths_info[p] = self._set_growing_direction(path_info, space_items_dict,
+                                                             score_function)
 
     def _draw_path(self,
                    set_1: List['Edge'],
@@ -334,8 +335,8 @@ class Circulator:
         if terminal_room and not self._space_graph.node_connected(terminal_room):
             arrival_spaces.append(terminal_room)
 
-        path_dict = {'edge_path': edge_path, 'start_space': [start_space],
-                     'arrival_space': arrival_spaces}
+        path_dict = {'edge_path': [(e, 0) for e in edge_path], 'start_space': [start_space],
+                     'arrival_spaces': arrival_spaces}
         self.paths_info.append(path_dict)
 
         return connected_rooms
@@ -412,8 +413,7 @@ class Circulator:
 
         return best_item
 
-    def _set_growing_direction(self, edge_path: List['Edge'],
-                               level: int,
+    def _set_growing_direction(self, path_info: Dict,
                                space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
                                score_function: ScoreArea = score_space_area):
         """
@@ -530,15 +530,20 @@ class Circulator:
             return 1.0 if score_ccw < score_cw else -1.0
 
         #####
-        path_lines = _get_lines_of_path(edge_path)
+        path_lines = _get_lines_of_path([t[0] for t in path_info["edge_path"]])
+        level = path_info["start_space"][0].floor.level
+        edge_path = []
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
             for edge in line:
                 self.directions[level][edge] = growing_direction
+                edge_path.append((edge, growing_direction))
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair
                 space_overlapped = self.plan.get_space_of_edge(support_edge)
                 self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
+        path_info["edge_path"] = edge_path
+        return path_info
 
     def plot(self, show: bool = False, save: bool = True, plot_edge: bool = True):
         """
