@@ -70,10 +70,7 @@ class Circulator:
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
 
-        # TODO : define typing for those dicts
-        # self.paths_info = {level: [] for level in self.plan.levels}
         self.paths_info = []
-
         self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
                               space.mutable}
 
@@ -101,19 +98,20 @@ class Circulator:
 
 
     def _set_penetrations(self):
-        '''
+        """
         defines whether a a circulation path shall penetrate, or not, with the spaces it connects
         :return:
-        '''
+        """
+
         def _get_penetration_edge(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
-            '''
+            """
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
             :param _edge:
             :param _spaces:
             :param start:
             :return:
-            '''
+            """
             if not _spaces:
                 return
             growing_direction = self.directions[_spaces[0].floor.level][_edge]
@@ -128,8 +126,6 @@ class Circulator:
 
             for _space in _spaces:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
-                    if start:
-                        connecting_edge = connecting_edge.pair
                     penetration_edge = connecting_edge.aligned_edge or connecting_edge.continuous_edge
                     return penetration_edge
             return None
@@ -773,7 +769,6 @@ if __name__ == '__main__':
             circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
             circulator.connect()
             circulator.plot()
-            logging.debug('connecting paths: {0}'.format(circulator.paths['edge']))
 
 
     connect_plan()
