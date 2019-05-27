@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 
 PathsDict = Dict[str, Dict[int, List[List[Union['Vertex', 'Edge']]]]]
 DirectionsDict = Dict[int, Dict['Edge', float]]
-PenetrationsDict = Dict[int, Dict['Edge', float]]
-#ConnectionsDict = Dict[int, List[Dict[List['Edge'], List['Vertex'], 'Space', 'Space']]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
+
+CORRIDOR_WIDTH = 90
 
 
 class CostRules(Enum):
@@ -71,7 +71,11 @@ class Circulator:
         self.paths: PathsDict = {'vert': {level: [] for level in self.plan.levels},
                                  'edge': {level: [] for level in self.plan.levels}}
 
-        self.connections= {level: [] for level in self.plan.levels}
+        # TODO : define typing for those dicts
+        self.connections = {level: [] for level in self.plan.levels}
+
+        self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
+                              space.mutable}
 
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
         self.cost = 0
@@ -404,13 +408,12 @@ class Circulator:
             :return:
             """
             score = 0
-            corridor_width = 90
 
             path_line_selected = [e.pair for e in path_line] if pair else path_line
 
             for e in path_line_selected:
                 sp = self.plan.get_space_of_edge(e)
-                area_space[sp] -= e.length * corridor_width
+                area_space[sp] -= e.length * CORRIDOR_WIDTH
 
             for sp in area_space:
                 item = (space_item_dict[sp.id] if space_item_dict
@@ -443,14 +446,16 @@ class Circulator:
                 if not space_ccw or not space_ccw.mutable:
                     return -1.0
                 else:
-                    area_space_ccw[space_ccw] = space_ccw.cached_area()
+                    # area_space_ccw[space_ccw] = space_ccw.cached_area()
+                    area_space_ccw[space_ccw] = self.updated_areas[space_ccw]
 
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
                 if not space_cw or not space_cw.mutable:
                     return 1.0
                 else:
-                    area_space_cw[space_cw] = space_cw.cached_area()
+                    # area_space_cw[space_cw] = space_cw.cached_area()
+                    area_space_cw[space_cw] = self.updated_areas[space_cw]
 
             score_cw = _get_score(area_space_cw, path_line, pair=True,
                                   space_item_dict=space_item_dict, _score_function=_score_function)
@@ -465,6 +470,10 @@ class Circulator:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
             for edge in line:
                 self.directions[level][edge] = growing_direction
+                # update space area when overlapped by a corridor
+                support_edge = edge if growing_direction > 0 else edge.pair
+                space_overlapped = self.plan.get_space_of_edge(support_edge)
+                self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
 
     def plot(self, show: bool = False, save: bool = True, plot_edge: bool = True):
         """
@@ -475,9 +484,6 @@ class Circulator:
         ax = self.plan.plot(show=show, save=False)
 
         number_of_floors = self.plan.floor_count
-
-        print('number_of_floors', number_of_floors)
-        print('ax', ax)
 
         if plot_edge:
             for f in self.plan.levels:
