@@ -80,9 +80,9 @@ def test_simple_grid():
     corridor._clear()
     corridor.plan = plan
     corridor.circulator = circulator
-    corridor.cut(circulation_paths[0])
+    corridor.cut(circulation_paths[1])
     plan.check()
-    corridor.grow(circulation_paths[0])
+    corridor.grow(circulation_paths[1])
     plan.remove_null_spaces()
     plan.plot()
     plan.check()

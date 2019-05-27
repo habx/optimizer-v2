@@ -99,42 +99,54 @@ class Circulator:
         self._set_directions(space_items_dict, score_function)
         self._set_penetrations()
 
-    def _set_penetrations(self):
 
-        def _get_penetration(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
+    def _set_penetrations(self):
+        '''
+        defines whether a a circulation path shall penetrate, or not, with the spaces it connects
+        :return:
+        '''
+        def _get_penetration_edge(_edge: 'Edge', _spaces: List['Space'], start: bool = True):
+            '''
+            if a penetration in the space is needed to ensure a proper circulation,
+            returns the edge through which the path should penetrate in the space
+            :param _edge:
+            :param _spaces:
+            :param start:
+            :return:
+            '''
             if not _spaces:
                 return
             growing_direction = self.directions[_spaces[0].floor.level][_edge]
-            # connecting_edge = _edge.pair if start else _edge
-            connecting_edge = _edge
-            if start and growing_direction > 0:
-                next_edge_pair = connecting_edge.previous_ortho().pair
-            if not start and growing_direction > 0:
+            if start:
+                growing_direction = -growing_direction
+            connecting_edge = _edge.pair if start else _edge
+
+            if growing_direction > 0:
                 next_edge_pair = connecting_edge.next_ortho().pair
-            if start and growing_direction < 0:
-                next_edge_pair = connecting_edge.pair.next_ortho().pair
-            if not start and growing_direction < 0:
+            else:
                 next_edge_pair = connecting_edge.pair.previous_ortho().pair
 
             for _space in _spaces:
-                if not _space.has_edge(next_edge_pair):
-                    return True
-            return False
+                if next_edge_pair and not _space.has_edge(next_edge_pair):
+                    if start:
+                        connecting_edge = connecting_edge.pair
+                    penetration_edge = connecting_edge.aligned_edge or connecting_edge.continuous_edge
+                    return penetration_edge
+            return None
 
         for connection_dict in self.paths_info:
             current_path = connection_dict['edge_path']
             if not current_path:
                 continue
 
-            if _get_penetration(current_path[0], connection_dict['start_space']):
-                connection_dict["start_penetration"] = True
-            else:
-                connection_dict["start_penetration"] = False
-            if _get_penetration(current_path[-1], connection_dict['arrival_space'],
-                                start=False):
-                connection_dict["end_penetration"] = True
-            else:
-                connection_dict["end_penetration"] = False
+            connection_dict["start_penetration"] = _get_penetration_edge(current_path[0],
+                                                                         connection_dict[
+                                                                             'start_space'])
+
+            connection_dict["end_penetration"] = _get_penetration_edge(current_path[-1],
+                                                                       connection_dict[
+                                                                           'arrival_space'],
+                                                                       start=False)
 
     def _set_directions(self,
                         space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
