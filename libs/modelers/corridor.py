@@ -518,7 +518,12 @@ class Corridor:
     def _straight_path_growth_directionnal(self, edge_line: List['Edge'],
                                            show: bool = False) -> 'Space':
         """
-        #todo : add info
+        Builds a corridor by growing a space around the line
+        -get the growing direction of the line
+        -grows the corridor on the growing side
+        :param edge_line:
+        :param show:
+        :return:
         """
 
         corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
