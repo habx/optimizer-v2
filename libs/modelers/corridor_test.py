@@ -6,6 +6,8 @@ Test module for corridor module
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor
+from libs.space_planner.circulation import Circulator, CostRules
+from libs.specification.specification import Specification
 
 CORRIDOR_RULES = {
     "layer_width": 25,
@@ -35,24 +37,27 @@ def test_simple_grid():
 
     def build_a_path(plan):
         edge1 = get_internal_edge(plan)
-        path = [edge1.start]
+        path_vert = [edge1.start]
+        path_edge = [edge1]
 
         edge_list = []
         e = edge1
         for i in range(3):
             edge_list.append(e)
             e = get_following_edge(e)
-            path.append(e.start)
-        path.append(e.end)
+            path_vert.append(e.start)
+        path_vert.append(e.end)
+        path_edge.append(e)
         edge_corner = e.pair.previous.pair
         edge_list.append(edge_corner)
         e = edge_corner
         for i in range(3):
             edge_list.append(e)
             e = get_following_edge(e)
-            path.append(e.start)
-        path.append(e.end)
-        return path
+            path_vert.append(e.start)
+            path_edge.append(e)
+        path_vert.append(e.end)
+        return [path_vert, path_edge]
 
     ################ GRID ################
     from libs.modelers.grid_test import rectangular_plan
@@ -64,17 +69,23 @@ def test_simple_grid():
     SEEDERS["simple_seeder"].apply_to(plan)
 
     ################ circulation path ################
-    circulation_path = build_a_path(plan)
+    circulation_paths = build_a_path(plan)
+    circulator = Circulator(plan, spec=Specification(), cost_rules=CostRules)
+    for edge in circulation_paths[1]:
+        circulator.directions[0][edge] = 1
 
     ################ corridor build ################
     corridor = Corridor(corridor_rules=CORRIDOR_RULES)
+
     corridor._clear()
     corridor.plan = plan
-    corridor.cut(circulation_path)
+    corridor.circulator = circulator
+    corridor.cut(circulation_paths[0])
     plan.check()
-    corridor.grow(circulation_path)
+    corridor.grow(circulation_paths[0])
     plan.remove_null_spaces()
     plan.plot()
     plan.check()
+
 
 test_simple_grid()
