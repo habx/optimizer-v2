@@ -283,7 +283,7 @@ REFINERS = {
 }
 
 if __name__ == '__main__':
-    PARAMS = {"ngen": 3, "mu": 20, "cxpb": 0.2}
+    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
         "layer_width": 100,
@@ -316,11 +316,11 @@ if __name__ == '__main__':
             plan.remove_null_spaces()
             plan.plot()
 
-            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(plan, spec)
-            plan.name = "Corridor_" + plan_number
-            plan.plot()
+            # Corridor(corridor_rules=CORRIDOR_RULES).apply_to(plan, spec)
+            # plan.name = "Corridor_" + plan_number
+            # plan.plot()
 
-            bool_refine = False
+            bool_refine = True
             if bool_refine:
                 # run genetic algorithm
                 start = time.time()
@@ -341,18 +341,16 @@ if __name__ == '__main__':
 
 
     l = range(1, 62)
-    #l = [26]
+    l = [26]
     for plan_index in l:
         if plan_index < 10:
             plan_name = '00' + str(plan_index)
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
-        if plan_index>22:
+        if plan_index in [22, 23]:
             continue
         print('plan under treatement', plan_name)
         error_plan = []
-        #apply(plan_name)
-
         try:
             apply(plan_name)
         except Exception:
