@@ -80,7 +80,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot(plot_edge=True)
+        #self.circulator.plot(plot_edge=True)
 
         self._add_penetrations()
 
@@ -272,9 +272,6 @@ class Corridor:
         return edge_path
 
     def _update_growing_direction(self, edge_path: List['Edge']):
-        # TODO :
-        # TODO : pour tous les nouveaux edges formés, agrémenter le circulator.directions[] avec ces edges on mettant
-        # TODO : la direction de l'edge aligné précédent s'il est dans circulator.directions[], sinon aller chercher jusqu') trouver?
 
         def _get_neighbor_direction(_edge):
             for e in self.circulator.directions[level]:
