@@ -102,7 +102,7 @@ class Corridor:
         """
 
         for connection_dict in self.circulator.paths_info:
-            current_path = connection_dict['edge_path']
+            current_path = [t[0] for t in connection_dict['edge_path']]
             if not current_path:
                 continue
 
@@ -292,6 +292,8 @@ class Corridor:
             self._initialize_plot()
 
         path = self._update_path(path)
+        if not path:
+            return self
 
         # mesh cut, orthogonal to edge path
         self._ortho_slice(path[0], start=True, show=show)
