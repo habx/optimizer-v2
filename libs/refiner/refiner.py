@@ -27,6 +27,7 @@ from libs.space_planner.circulation import Circulator
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 
+
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
@@ -46,6 +47,7 @@ class Refiner:
     containing the main types and operators needed for the algorithm
     • the algorithm function that will be applied to the plan
     """
+
     def __init__(self,
                  fc_toolbox: Callable[['Specification', dict], 'core.Toolbox'],
                  algorithm: algorithmFunc):
@@ -286,13 +288,12 @@ REFINERS = {
     "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }
 
-
 if __name__ == '__main__':
     PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
-        "layer_width": 25,
-        "nb_layer": 1,
+        "layer_width": 100,
+        "nb_layer": 2,
         "recursive_cut_length": 400,
         "width": 100,
         "penetration_length": 90,
@@ -443,43 +444,3 @@ if __name__ == '__main__':
 
     with_corridor()
 
-
-    def apply():
-        """
-        Test Function
-        :return:
-        """
-        import tools.cache
-        import time
-        # import matplotlib
-        # matplotlib.use("TkAgg")
-        import matplotlib.pyplot as plt
-
-        logging.getLogger().setLevel(logging.INFO)
-        plan_number = "050"
-
-        spec, plan = tools.cache.get_plan(plan_number, solution_number=1,
-                                          grid="001", seeder="directional_seeder")
-
-        if plan:
-            plan.name = "original_" + plan_number
-            plan.remove_null_spaces()
-            plan.plot()
-
-            # run genetic algorithm
-            start = time.time()
-            improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
-            end = time.time()
-            improved_plan.name = "Refined_" + plan_number
-            improved_plan.plot()
-            # analyse found solutions
-            logging.info("Time elapsed: {}".format(end - start))
-            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                           improved_plan.fitness.values))
-
-            # ajout du couloir
-            item_dict = evaluation.create_item_dict(spec)
-            circulator = Circulator(plan=improved_plan, spec=spec)
-            circulator.connect(item_dict)
-            circulator.plot()
-            evaluation.check(improved_plan, spec)
