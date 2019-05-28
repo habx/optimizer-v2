@@ -339,11 +339,13 @@ class Corridor:
             return output[1:]
 
         for edge in self.corner_data:
-            sp = self.plan.get_space_of_edge(edge)
-            if not sp:
-                self.plan.get_space_of_edge(edge.pair)
-            corridor_space = Space(self.plan, sp.floor,
-                                   category=SPACE_CATEGORIES['circulation'])
+
+            if self.plan.get_space_of_edge(edge):
+                floor = self.plan.get_space_of_edge(edge).floor
+            else:
+                floor = self.plan.get_space_of_edge(edge.pair).floor
+            corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
+
             line = []
             for line_edge in _line_forward(edge):
                 if _condition(line_edge) or _condition(line_edge.pair):
@@ -529,18 +531,15 @@ class Corridor:
         :return:
         """
 
-        sp = self.plan.get_space_of_edge(edge_line[0])
-        if not sp:
-            self.plan.get_space_of_edge(edge_line[0].pair)
-
-        corridor_space = Space(self.plan, sp.floor, category=SPACE_CATEGORIES['circulation'])
-
         if self.plan.get_space_of_edge(edge_line[0]):
-            level = self.plan.get_space_of_edge(edge_line[0]).floor.level
+            floor = self.plan.get_space_of_edge(edge_line[0]).floor
         else:
-            level = self.plan.get_space_of_edge(edge_line[0].pair).floor.level
+            floor = self.plan.get_space_of_edge(edge_line[0].pair).floor
 
-        # level=0
+        level=floor.level
+
+        corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
+
         growing_direction = self.circulator.directions[level][edge_line[0]]
         for e, edge in enumerate(edge_line):
             support_edge = edge if growing_direction > 0 else edge.pair
@@ -742,12 +741,12 @@ class Corridor:
         #     :param direction_edge:
         #     :return:
         #     """
-        # 
+        #
         #     if not direction_edge.face.as_sp.intersects(v.as_sp):
         #         # TODO : this check should not be necessary - to be investigated
         #         return False
         #     out = v.project_point(direction_edge.face, direction_edge.normal)
-        # 
+        #
         #     if out:
         #         intersect_vertex_next = out[0]
         #         next_cut_edge = out[1]
