@@ -79,7 +79,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        #self.circulator.plot()
 
         self._set_paths()
 
@@ -536,7 +536,7 @@ class Corridor:
         else:
             floor = self.plan.get_space_of_edge(edge_line[0].pair).floor
 
-        level=floor.level
+        level = floor.level
 
         corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
 
