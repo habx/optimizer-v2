@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Blueprint preprocessor
+"""
 from __future__ import print_function
 import os
 from libs.plan.plan import Plan, Edge, Space
@@ -6,6 +9,7 @@ import libs.io.reader as reader
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.optimizer import ExecParams
+import logging
 
 MAXIMUM_DUCT_SPACES = 3 # maximum duct spaces for one duct
 
@@ -92,12 +96,25 @@ def run(input_file: str, do_plot: bool = False):
 
 if __name__ == '__main__':
 
-    directory_path = "/Users/graziella/Desktop/test"
-    do_plot = True
-    count_dict = {}
-    for file_name in os.listdir(directory_path):
-        if ".json" in file_name:
-            file_plan = run(file_name, do_plot)
-            count_dict[file_name] = {"nb_window_space": count_window_space(file_plan),
-                                     "nb_duct_space": count_duct_space(file_plan)}
-            print(file_name, count_dict[file_name])
+    def main():
+        """
+        Useful simple main
+        """
+        directory_path = "/Users/graziella/Desktop/test" # your path
+        do_plot = True
+        count_dict = {}
+        for file_name in os.listdir(directory_path):
+            if ".json" in file_name:
+                file_plan = run(file_name, do_plot)
+                nb_window_space = count_window_space(file_plan)
+                nb_duct_space = count_duct_space(file_plan)
+                count_dict[file_name] = {"nb_window_space": nb_window_space,
+                                         "nb_duct_space": nb_duct_space}
+                if nb_window_space < 1:
+                    logging.warning("blueprint preprocessor : nb_window_space %i", nb_window_space)
+                if nb_duct_space < 1:
+                    logging.warning("blueprint preprocessor : nb_duct_space %i", nb_duct_space)
+
+                print(file_name, count_dict[file_name])
+
+    main()
