@@ -105,7 +105,7 @@ class Circulator:
             """
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
-            :param _edge:
+            :param _tuple:
             :param _spaces:
             :param start:
             :return:
@@ -423,8 +423,8 @@ class Circulator:
         - decompose the path into its straight portions
         - for each edge of a considered straight portion, computes the most adapted growth direction
         - deduce the most adapted growth direction for the considered portion
-        :param edge_path:
-        :param level:
+        :param path_info:
+        :param space_items_dict:
         :param score_function
         :return:
         """
