@@ -84,9 +84,9 @@ def count_window_space(plan: 'Plan') -> int:
     return window_space
 
 
-def run(input_file: str, do_plot: bool = False):
+def run(input_file: str, directory_path: str, do_plot: bool = False):
     params = ExecParams(None)
-    current_plan = reader.create_plan_from_file(input_file)
+    current_plan = reader.create_plan_from_file(input_file, directory_path)
     GRIDS[params.grid_type].apply_to(current_plan)
     SEEDERS[params.seeder_type].apply_to(current_plan)
     if do_plot:
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         count_dict = {}
         for file_name in os.listdir(directory_path):
             if ".json" in file_name:
-                file_plan = run(file_name, do_plot)
+                file_plan = run(file_name, directory_path, do_plot)
                 nb_window_space = count_window_space(file_plan)
                 nb_duct_space = count_duct_space(file_plan)
                 count_dict[file_name] = {"nb_window_space": nb_window_space,
