@@ -69,14 +69,12 @@ class Circulator:
         self.spec = spec
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
-
+        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
         self.paths_info = []
         self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
                               space.mutable}
 
-        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
         self.cost = 0
-
         self._reachable_edges = {space: [] for space in self.plan.spaces}
         self._path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self._path_calculator.build()
@@ -127,6 +125,8 @@ class Circulator:
             for _space in _spaces:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
                     penetration_edge = connecting_edge.aligned_edge or connecting_edge.continuous_edge
+                    if start:
+                        penetration_edge = penetration_edge.pair
                     return penetration_edge
             return None
 
@@ -303,7 +303,6 @@ class Circulator:
         """
 
         level = start_space.floor.level
-        # self.paths['vert'][level].append(path)
         edge_path = self._get_edge_path(path)
         self.paths['edge'][level].append(edge_path)
 
@@ -545,7 +544,7 @@ class Circulator:
         path_info["edge_path"] = edge_path
         return path_info
 
-    def plot(self, show: bool = False, save: bool = True, plot_edge: bool = True):
+    def plot(self, show: bool = False, save: bool = True):
         """
         plots plan with circulation paths
         :return:
@@ -555,38 +554,18 @@ class Circulator:
 
         number_of_floors = self.plan.floor_count
 
-        if plot_edge:
-            for f in self.plan.levels:
-                _ax = ax[f] if number_of_floors > 1 else ax
-                paths = self.paths['edge'][f]
-                for path in paths:
-                    for edge in path:
-                        edge.plot(ax=_ax, color='blue')
-                        # representing the growing direction
-                        pt_ini = move_point((edge.start.x, edge.start.y), edge.vector, 0.5)
-                        vector = (edge.normal if self.directions[f][edge] > 0
-                                  else opposite_vector(edge.normal))
-                        pt_end = move_point(pt_ini, vector, 90)
-                        _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
-                                  pt_end[1] - pt_ini[1])
-        else:
-            for f in self.plan.levels:
-                _ax = ax[f] if number_of_floors > 1 else ax
-                paths = self.paths['edge'][f]
-                for path in paths:
-                    if len(path) == 1:
-                        _ax.scatter(path[0].start.x, path[0].start.y, marker='o', s=15,
-                                    facecolor='blue')
-                    else:
-                        for i in range(len(path) - 1):
-                            v1 = path[i]
-                            v2 = path[i + 1]
-                            x_coords = [v1.x, v2.x]
-                            y_coords = [v1.y, v2.y]
-                            _ax.plot(x_coords, y_coords, 'k',
-                                     linewidth=2,
-                                     color="blue",
-                                     solid_capstyle='butt')
+        for path_info in self.paths_info:
+            level = path_info["start_space"][0].floor.level
+            _ax = ax[level] if number_of_floors > 1 else ax
+            for tup in path_info["edge_path"]:
+                edge = tup[0]
+                edge.plot(ax=_ax, color='blue')
+                # representing the growing direction
+                pt_ini = move_point((edge.start.x, edge.start.y), edge.vector, 0.5)
+                vector = (edge.normal if tup[1] > 0 else opposite_vector(edge.normal))
+                pt_end = move_point(pt_ini, vector, 90)
+                _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
+                          pt_end[1] - pt_ini[1])
 
         plot_save(save, show)
 
