@@ -79,7 +79,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        #self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -101,14 +101,14 @@ class Corridor:
         :return:
         """
 
-        for connection_dict in self.circulator.paths_info:
-            current_path = [t[0] for t in connection_dict['edge_path']]
+        for path_info in self.circulator.paths_info:
+            current_path = [t[0] for t in path_info.edge_path]
             if not current_path:
                 continue
 
-            if connection_dict['start_penetration']:
+            if path_info.departure_penetration:
                 current_path = self._add_penetration_edges(current_path)
-            if connection_dict['end_penetration']:
+            if path_info.arrival_penetration:
                 current_path = self._add_penetration_edges(current_path,
                                                            start=False)
             self.paths.append(current_path)
