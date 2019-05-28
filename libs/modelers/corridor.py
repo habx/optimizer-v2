@@ -79,7 +79,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot(plot_edge=True)
+        self.circulator.plot()
 
         self._add_penetrations()
 
