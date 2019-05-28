@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
 from libs.space_planner.circulation import Circulator
+from libs.plan.category import SPACE_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
@@ -93,49 +94,56 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     :param ind
     :return:
     """
-    excluded_spaces = ("circulation",)  # circulation space have no target areas in the spec
+    with_circulation = False
+    min_bedroom_area = 90000
+    min_size_penalty = 500
+
+    # circulation space have no target areas in the spec
+    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
     space_to_item = ind.fitness.cache.get("space_to_item", None)
 
     # Create a corridor if needed and check which spaces are modified
-    circulator = Circulator(plan=ind, spec=spec)
-    circulator.connect(space_to_item, _score_space_area)
-    edge_paths: Dict[int, List[List['Edge']]] = circulator.paths['edge']
-    edge_direction = circulator.directions
-
-    modified_spaces = {}
-    for level in ind.levels:
-        for line in edge_paths[level]:
-            for edge in line:
-                _edge = edge if edge_direction[level][edge] > 0 else edge.pair
-                space = ind.get_space_of_edge(_edge)
-                if not space:
-                    logging.warning("Refiner: Path Edge has no space :%s", _edge)
-                    continue
-                if space in modified_spaces:
-                    modified_spaces[space].append(_edge)
-                else:
-                    modified_spaces[space] = [_edge]
-
-    # compute the removed area for each modified space
-    # Note : the area of two rotated rectangle of same depth and sharing a corner is equal to :
-    #         tan(90.0 - angle / 2 * pi / 180.0) * depth**2
-
-    depth = 90.0
     removed_areas = {}
-    for space in modified_spaces:
-        previous_e = modified_spaces[space][0]
-        removed_area = previous_e.length * depth
-        for e in modified_spaces[space][1:]:
-            if e is not space.next_edge(previous_e):
-                removed_area += e.length * depth
-                previous_e = e
-                continue
-            shared_area = 0
-            angle = space.next_angle(previous_e)
-            if not pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
-                shared_area = math.tan(math.pi/180 * (90.0 - angle / 2)) * depth**2
-            removed_area += e.length * depth - shared_area
-        removed_areas[space] = removed_area
+
+    if with_circulation:
+        circulator = Circulator(plan=ind, spec=spec)
+        circulator.connect(space_to_item, _score_space_area)
+        edge_paths: Dict[int, List[List['Edge']]] = circulator.paths['edge']
+        edge_direction = circulator.directions
+
+        modified_spaces = {}
+        for level in ind.levels:
+            for line in edge_paths[level]:
+                for edge in line:
+                    _edge = edge if edge_direction[level][edge] > 0 else edge.pair
+                    space = ind.get_space_of_edge(_edge)
+                    if not space:
+                        logging.warning("Refiner: Path Edge has no space :%s", _edge)
+                        continue
+                    if space in modified_spaces:
+                        modified_spaces[space].append(_edge)
+                    else:
+                        modified_spaces[space] = [_edge]
+
+        # compute the removed area for each modified space
+        # Note : the area of two rotated rectangle of same depth and sharing a corner is equal to :
+        #         tan(90.0 - angle / 2 * pi / 180.0) * depth**2
+
+        depth = 90.0
+        for space in modified_spaces:
+            previous_e = modified_spaces[space][0]
+            removed_area = previous_e.length * depth
+            for e in modified_spaces[space][1:]:
+                if e is not space.next_edge(previous_e):
+                    removed_area += e.length * depth
+                    previous_e = e
+                    continue
+                shared_area = 0
+                angle = space.next_angle(previous_e)
+                if not pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
+                    shared_area = math.tan(math.pi/180 * (90.0 - angle / 2)) * depth**2
+                removed_area += e.length * depth - shared_area
+            removed_areas[space] = removed_area
 
     area_score = {}
     if spec is None:
@@ -145,11 +153,19 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
-            area_score[space.id] = space.cached_area()/100.0
+        if space.category in excluded_spaces:
+            area_score[space.id] = _score_space_area(space.cached_area(), 10000, 10000) / 10.0
             continue
         item = space_to_item[space.id]
-        space_area = space.cached_area() - (removed_areas[space] if space in removed_areas else 0)
+        space_area = space.cached_area()
+
+        if with_circulation:
+            space_area -= (removed_areas[space] if space in removed_areas else 0)
+
+        if space.category is SPACE_CATEGORIES["bedroom"] and space_area < min_bedroom_area:
+            area_score[space.id] = min_size_penalty
+            continue
+
         area_score[space.id] = _score_space_area(space_area, item.min_size.area, item.max_size.area)
 
     return area_score
@@ -166,7 +182,7 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0.0
             continue
         score[space.id] = number_of_corners(space)
@@ -214,12 +230,12 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation", "living", "livingKitchen")
+    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0.0
             continue
         if space.cached_area() == 0:
@@ -240,13 +256,13 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation",)
+    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0
             continue
         if space.cached_area() == 0:
@@ -265,7 +281,7 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation",)
+    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
     ratios = {
         "bedroom": 1.2,
         "toilet": 1.7,
@@ -277,7 +293,7 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0
             continue
         box = space.bounding_box()
@@ -298,7 +314,7 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    min_length = 90.0
+    min_length = 80.0
     cost_per_unconnected_space = 1.0
     score = {}
 
@@ -315,7 +331,7 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
     for _ in range(3):
         for circulation_space in circulation_spaces[:]:
             for connected_space in connected_circulation_spaces:
-                if circulation_space.adjacent_to(connected_space, 90.0):
+                if circulation_space.adjacent_to(connected_space, min_length):
                     # we place the newly found spaces at the beginning of the array
                     connected_circulation_spaces.insert(0, circulation_space)
                     circulation_spaces.remove(circulation_space)
@@ -370,14 +386,17 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     min_width = 90.0
     score = {}
     for space in ind.mutable_spaces():
-        if space.category.name != "circulation":
+        if space.category is not SPACE_CATEGORIES["circulation"]:
             score[space.id] = 0.0
             continue
         if space.id not in ind.modified_spaces:
             continue
         polygon = space.boundary_polygon()
         width = min_section(polygon)
-        score[space.id] = math.fabs((width - min_width)/min_width)*100.0
+        if width > min_width:
+            score[space.id] = 0
+        else:
+            score[space.id] = (min_width - width)/min_width*100.0
 
     return score
 

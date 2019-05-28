@@ -1669,17 +1669,6 @@ class Space(PlanComponent):
         """
         return [component.category.name for component in self.immutable_components()]
 
-    def neighboring_mutable_spaces(self) -> ['Space']:
-        """
-        Return the neighboring mutable spaces
-        :return: ['Space']
-        """
-        neighboring_spaces = []
-        for edge in self.edges:
-            if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
-                if not (edge.pair.face.space in neighboring_spaces):
-                    neighboring_spaces.append(edge.pair.face.space)
-        return neighboring_spaces
 
     def adjacent_to(self, other: 'Space', length: float = None) -> bool:
         """
@@ -1732,6 +1721,7 @@ class Space(PlanComponent):
     def contact_length(self, space: 'Space') -> float:
         """
         Returns the border's length between two spaces
+        Todo : this is wrong
         :return: float
         """
         border_length = 0

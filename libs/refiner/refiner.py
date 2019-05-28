@@ -30,6 +30,7 @@ from libs.refiner import core, crossover, evaluation, mutation, nsga, population
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
+    from libs.mesh.mesh import Edge
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
@@ -138,7 +139,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-1.0, -5.0, -30.0)
+    weights = (-10.0, -1.0, -50.0, -50000.0, -10.0)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -149,7 +150,9 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
                  evaluation.score_area,
-                 evaluation.score_perimeter_area_ratio]
+                 evaluation.score_perimeter_area_ratio,
+                 evaluation.score_connectivity,
+                 evaluation.score_circulation_width]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
@@ -244,12 +247,14 @@ def naive_ga(toolbox: 'core.Toolbox',
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
     initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
     initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
+    logging.info("Initial : {:.2f} - {}".format(initial_ind.fitness.wvalue,
+                                                initial_ind.fitness.values))
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
-        logging.debug("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = [toolbox.clone(ind) for ind in pop]
         random.shuffle(offspring)
@@ -263,7 +268,7 @@ def naive_ga(toolbox: 'core.Toolbox',
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.debug("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
@@ -294,6 +299,151 @@ if __name__ == '__main__':
         "layer_cut": True
     }
 
+    def create_circulation(plan: Plan, edge_path: List[Tuple['Edge', float]]):
+        """
+        Creates a circulation path // TODO replace with Corridor module
+        :param plan:
+        :param edge_path:
+        :return:
+        """
+
+        from libs.plan.category import SPACE_CATEGORIES
+        from libs.plan.plan import Space
+
+        space_edges = {}
+        start_space = None
+        end_space = None
+
+        first_edge, first_direction = edge_path[0]
+        first_edge = first_edge if first_direction > 0 else first_edge.pair
+        last_edge, last_direction = edge_path[len(edge_path) - 1]
+        last_edge = last_edge if last_direction > 0 else last_edge.pair
+
+        for edge, coefficient in edge_path:
+            _edge = edge if coefficient > 0 else edge.pair
+            space = plan.get_space_of_edge(_edge)
+            if space not in space_edges:
+                space_edges[space] = [_edge]
+            else:
+                space_edges[space].append(_edge)
+
+        for space in space_edges:
+            edges = space_edges[space]
+            faces = set(e.face for e in edges)
+            if space.corner_stone(*faces):
+                raise Exception("The corridor will break the space !")
+            circulation = Space(space.plan, space.floor, category=SPACE_CATEGORIES["circulation"])
+            faces_id = [f.id for f in faces]
+            space.remove_face_id(*faces_id)
+            circulation.add_face_id(*faces_id)
+            space.set_edges()
+            circulation.set_edges()
+        """
+        first_circulation = plan.get_space_of_edge(first_edge)
+        assert first_circulation and first_circulation.category is SPACE_CATEGORIES["circulation"]
+        for edge in first_edge.start.edges:
+            other = plan.get_space_of_edge(edge)
+            if not other or not other.category.circulation:
+                continue
+            other_space = plan.get_space_of_edge(edge.pair)
+            if other_space and other_space.mutable and other_space.category is not SPACE_CATEGORIES["circulation"]:
+                other_space.remove_face(edge.pair.face)
+                first_circulation.add_face(edge.pair.face)
+
+        try_again = True
+        while try_again:
+            try_again = False
+            for circulation in plan.get_spaces("circulation"):
+                for edge in circulation.exterior_edges:
+                    face = edge.pair.face
+                    if face and not circulation.has_face(face):
+                        space = plan.get_space_of_edge(face.edge)
+                        if (not space or not space.mutable
+                                or space.category is SPACE_CATEGORIES["circulation"]):
+                            continue
+                        for e in face.edges:
+                            if e.pair is edge or e.pair.face is edge.face:
+                                continue
+                            other_space = plan.get_space_of_edge(e.pair)
+                            if other_space and (
+                                    other_space.category is SPACE_CATEGORIES["circulation"]):
+                                space.remove_face(face)
+                                other_space.add_face(face)
+                                try_again = True
+                                break
+                        if try_again:
+                            break"""
+        try_again = True
+        while try_again:
+            try_again = False
+            for circulation in plan.get_spaces("circulation"):
+                for edge in circulation.exterior_edges:
+                    other = plan.get_space_of_edge(edge.pair)
+                    if other and other.category is SPACE_CATEGORIES["circulation"]:
+                        circulation.merge(other)
+                        try_again = True
+                        break
+                if try_again:
+                    break
+
+
+    def with_corridor():
+        """
+        :return:
+        """
+        import tools.cache
+        import time
+
+        import matplotlib.pyplot as plt
+        import matplotlib
+
+        # matplotlib.use("TkAgg")
+
+        PARAMS = {"ngen": 50, "mu": 60, "cxpb": 0.5}
+
+        logging.getLogger().setLevel(logging.INFO)
+        plan_number = "017"  # 004
+        spec, plan = tools.cache.get_plan(plan_number, solution_number=0,
+                                          grid="001", seeder="directional_seeder")
+
+        if plan:
+            plan.name = "original_" + plan_number
+            plan.remove_null_spaces()
+            plan.plot()
+
+            item_dict = evaluation.create_item_dict(spec)
+
+            circulator = Circulator(plan=plan, spec=spec)
+            circulator.connect(item_dict)
+            circulator.plot()
+            paths = circulator.paths
+            directions = circulator.directions
+
+            for level in plan.levels:
+                for path in paths['edge'][level]:
+                    if not path:
+                        continue
+                    new_path = [(e, directions[level][e]) for e in path]
+                    create_circulation(plan, new_path)
+
+            plan.name = "corridor_" + plan_number
+            plan.plot(save=False)
+            plt.show()
+            # run genetic algorithm
+            start = time.time()
+            improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
+            end = time.time()
+            improved_plan.name = "Refined_" + plan_number
+            improved_plan.plot()
+            # analyse found solutions
+            logging.info("Time elapsed: {}".format(end - start))
+            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                           improved_plan.fitness.values))
+            evaluation.check(improved_plan, spec)
+
+    with_corridor()
+
+
     def apply():
         """
         Test Function
@@ -306,7 +456,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "060"
+        plan_number = "050"
 
         spec, plan = tools.cache.get_plan(plan_number, solution_number=1,
                                           grid="001", seeder="directional_seeder")
@@ -318,7 +468,7 @@ if __name__ == '__main__':
 
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+            improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
             end = time.time()
             improved_plan.name = "Refined_" + plan_number
             improved_plan.plot()
@@ -333,5 +483,3 @@ if __name__ == '__main__':
             circulator.connect(item_dict)
             circulator.plot()
             evaluation.check(improved_plan, spec)
-
-    apply()
