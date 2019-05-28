@@ -37,27 +37,17 @@ def test_simple_grid():
 
     def build_a_path(plan):
         edge1 = get_internal_edge(plan)
-        path_vert = [edge1.start]
-        path_edge = [edge1]
-
         edge_list = []
         e = edge1
         for i in range(3):
             edge_list.append(e)
             e = get_following_edge(e)
-            path_vert.append(e.start)
-        path_vert.append(e.end)
-        path_edge.append(e)
+
         edge_corner = e.pair.previous.pair
         edge_list.append(edge_corner)
-        e = edge_corner
-        for i in range(3):
-            edge_list.append(e)
-            e = get_following_edge(e)
-            path_vert.append(e.start)
-            path_edge.append(e)
-        path_vert.append(e.end)
-        return [path_vert, path_edge]
+        edge_corner = get_following_edge(edge_corner)
+        edge_list.append(edge_corner)
+        return edge_list
 
     ################ GRID ################
     from libs.modelers.grid_test import rectangular_plan
@@ -69,9 +59,9 @@ def test_simple_grid():
     SEEDERS["simple_seeder"].apply_to(plan)
 
     ################ circulation path ################
-    circulation_paths = build_a_path(plan)
+    circulation_path = build_a_path(plan)
     circulator = Circulator(plan, spec=Specification(), cost_rules=CostRules)
-    for edge in circulation_paths[1]:
+    for edge in circulation_path:
         circulator.directions[0][edge] = 1
 
     ################ corridor build ################
@@ -80,9 +70,9 @@ def test_simple_grid():
     corridor._clear()
     corridor.plan = plan
     corridor.circulator = circulator
-    corridor.cut(circulation_paths[1])
+    corridor.cut(circulation_path)
     plan.check()
-    corridor.grow(circulation_paths[1])
+    corridor.grow(circulation_path)
     plan.remove_null_spaces()
     plan.plot()
     plan.check()
