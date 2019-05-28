@@ -27,6 +27,7 @@ from libs.plan.plan import Plan
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 from libs.modelers.corridor import Corridor
 
+
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
@@ -45,7 +46,6 @@ class Refiner:
     containing the main types and operators needed for the algorithm
     • the algorithm function that will be applied to the plan
     """
-
     def __init__(self,
                  fc_toolbox: Callable[['Specification', dict], 'core.Toolbox'],
                  algorithm: algorithmFunc):
@@ -282,20 +282,20 @@ REFINERS = {
     "naive": Refiner(fc_nsga_toolbox, naive_ga)
 }
 
+
 if __name__ == '__main__':
-    PARAMS = {"ngen": 1, "mu": 20, "cxpb": 0.2}
+    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
-        "layer_width": 100,
-        "nb_layer": 2,
+        "layer_width": 25,
+        "nb_layer": 1,
         "recursive_cut_length": 400,
         "width": 100,
         "penetration_length": 90,
         "layer_cut": True
     }
 
-
-    def apply(plan_number: str):
+    def apply():
         """
         Test Function
         :return:
@@ -307,7 +307,7 @@ if __name__ == '__main__':
         import matplotlib.pyplot as plt
 
         logging.getLogger().setLevel(logging.INFO)
-        # plan_number = "002"
+        plan_number = "052"
 
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
@@ -316,48 +316,20 @@ if __name__ == '__main__':
             plan.remove_null_spaces()
             plan.plot()
 
-            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(plan, spec)
-            plan.name = "Corridor_" + plan_number
-            plan.plot()
+            # run genetic algorithm
+            start = time.time()
+            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+            end = time.time()
+            improved_plan.name = "Refined_" + plan_number
+            improved_plan.plot()
+            # analyse found solutions
+            logging.info("Time elapsed: {}".format(end - start))
+            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                           improved_plan.fitness.values))
 
-            bool_refine = False
-            if bool_refine:
-                # run genetic algorithm
-                start = time.time()
-                improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
-                end = time.time()
-                improved_plan.name = "Refined_" + plan_number
-                improved_plan.plot()
-                # analyse found solutions
-                logging.info("Time elapsed: {}".format(end - start))
-                logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                               improved_plan.fitness.values))
-
-                # ajout du couloir
-                Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
-                improved_plan.name = "Corridor_" + plan_number
-                improved_plan.plot()
-                evaluation.check(improved_plan, spec)
-
-
-    l = range(1, 62)
-    # l = [1]
-    for plan_index in l:
-        if plan_index < 10:
-            plan_name = '00' + str(plan_index)
-        elif 10 <= plan_index < 100:
-            plan_name = '0' + str(plan_index)
-        if plan_index in [22, 23]:
-            continue
-        print('plan under treatement', plan_name)
-        error_plan = []
-        apply(plan_name)
-        try:
-            apply(plan_name)
-        except Exception:
-            print("ERROR PLAN", plan_name)
-            error_plan.append(plan_name)
-            continue
-
-        # import sys
-        # sys.exit()
+            # ajout du couloir
+            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
+            improved_plan.name = "Corridor_" + plan_number
+            improved_plan.plot()
+            evaluation.check(improved_plan, spec)
+    apply()
