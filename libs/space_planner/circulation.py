@@ -322,11 +322,14 @@ class Circulator:
         terminal_room = None
         for edge in path_end.edges:
             terminal_room = self.plan.get_space_of_edge(edge)
-            if terminal_room and terminal_room not in connected_rooms and terminal_room.mutable:
+
+            if (terminal_room and terminal_room in self._space_graph.nodes()
+                    and terminal_room not in connected_rooms and terminal_room.mutable):
                 connected_rooms.append(terminal_room)
                 break
             terminal_room = self.plan.get_space_of_edge(edge.pair)
-            if terminal_room and terminal_room not in connected_rooms and terminal_room.mutable:
+            if (terminal_room and terminal_room in self._space_graph.nodes()
+                    and terminal_room not in connected_rooms and terminal_room.mutable):
                 connected_rooms.append(terminal_room)
                 break
 
