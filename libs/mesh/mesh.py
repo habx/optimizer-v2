@@ -1985,8 +1985,7 @@ class Face(MeshComponent):
         """
         seen = [self]
         yield self
-        generator = self.edges
-        for edge in generator:
+        for edge in self.edges:
             if edge.pair.face is not None and edge.pair.face not in seen:
                 yield edge.pair.face
 
@@ -3568,3 +3567,28 @@ class Mesh:
         self.boundary_edge = new_face.edge.pair
 
         return self
+
+    @staticmethod
+    def connected(faces: List['Face']) -> bool:
+        """
+        Return True if all the faces are connected
+        """
+        if not faces:
+            return True
+
+        current = faces[0]
+        parent = {current: None}
+        while current:
+            for f in current.siblings:
+                if f is current:
+                    continue
+                if f not in faces:
+                    continue
+                if f not in parent:
+                    parent[f] = current
+                    current = f
+                    break
+            else:
+                current = parent[current]
+
+        return len(parent) < len(faces)

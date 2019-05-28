@@ -71,10 +71,10 @@ class Circulator:
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
         self.paths_info = []
-        self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
-                              space.mutable}
-
         self.cost = 0
+
+        self._updated_areas = {space: space.cached_area() for space in self.plan.spaces if
+                               space.mutable}
         self._reachable_edges = {space: [] for space in self.plan.spaces}
         self._path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self._path_calculator.build()
@@ -106,7 +106,7 @@ class Circulator:
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
             :param _tuple:
-            :param _spaces:
+            :param _spaces: the start spaces or the end spaces
             :param start:
             :return:
             """
@@ -514,7 +514,7 @@ class Circulator:
                     return -1.0
                 else:
                     # area_space_ccw[space_ccw] = space_ccw.cached_area()
-                    area_space_ccw[space_ccw] = self.updated_areas[space_ccw]
+                    area_space_ccw[space_ccw] = self._updated_areas[space_ccw]
 
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
@@ -522,7 +522,7 @@ class Circulator:
                     return 1.0
                 else:
                     # area_space_cw[space_cw] = space_cw.cached_area()
-                    area_space_cw[space_cw] = self.updated_areas[space_cw]
+                    area_space_cw[space_cw] = self._updated_areas[space_cw]
 
             score_cw = _get_score(area_space_cw, path_line, pair=True,
                                   space_item_dict=space_item_dict, _score_function=_score_function)
@@ -543,7 +543,7 @@ class Circulator:
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair
                 space_overlapped = self.plan.get_space_of_edge(support_edge)
-                self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
+                self._updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
         path_info["edge_path"] = edge_path
         return path_info
 

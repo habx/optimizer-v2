@@ -21,7 +21,7 @@ import random
 import logging
 import multiprocessing
 
-from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
+from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple, Sequence
 from libs.plan.plan import Plan
 from libs.space_planner.circulation import Circulator
 
@@ -31,7 +31,8 @@ from libs.refiner import core, crossover, evaluation, mutation, nsga, population
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
-    from libs.mesh.mesh import Edge
+    from libs.mesh.mesh import Edge, Face
+    from libs.plan.plan import Plan, Space
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
@@ -141,7 +142,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-10.0, -1.0, -50.0, -50000.0, -10.0)
+    weights = (-10.0, -1.0, -50.0, -50000.0, -100.0)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -300,6 +301,45 @@ if __name__ == '__main__':
         "layer_cut": True
     }
 
+    def connected_faces(space: 'Space', faces: Sequence['Face']) -> bool:
+        """
+        Checks if the faces are connected
+        :param space:
+        :param faces:
+        :return:
+        """
+        if not faces:
+            return True
+
+        current = faces[0]
+        parent = {current: None}
+        while current:
+            for f in space.adjacent_faces(current):
+                if f not in faces:
+                    continue
+                if f not in parent:
+                    parent[f] = current
+                    current = f
+                    break
+            else:
+                current = parent[current]
+
+        return len(parent) != len(faces)
+
+    def corner_stone(space: 'Space', faces: List['Face']) -> bool:
+        """
+
+        :param space:
+        :param faces:
+        :return:
+        """
+        for f in faces:
+            assert space.has_face(f)
+
+        remaining_faces = set(space.faces) - set(faces)
+        return connected_faces(space, list(remaining_faces))
+
+
     def create_circulation(plan: Plan, edge_path: List[Tuple['Edge', float]]):
         """
         Creates a circulation path // TODO replace with Corridor module
@@ -312,13 +352,6 @@ if __name__ == '__main__':
         from libs.plan.plan import Space
 
         space_edges = {}
-        start_space = None
-        end_space = None
-
-        first_edge, first_direction = edge_path[0]
-        first_edge = first_edge if first_direction > 0 else first_edge.pair
-        last_edge, last_direction = edge_path[len(edge_path) - 1]
-        last_edge = last_edge if last_direction > 0 else last_edge.pair
 
         for edge, coefficient in edge_path:
             _edge = edge if coefficient > 0 else edge.pair
@@ -331,7 +364,9 @@ if __name__ == '__main__':
         for space in space_edges:
             edges = space_edges[space]
             faces = set(e.face for e in edges)
-            if space.corner_stone(*faces):
+            for face in faces:
+                connected_faces = faces & set(space.adjacent_faces(face))
+            if corner_stone(space, list(faces)):
                 raise Exception("The corridor will break the space !")
             circulation = Space(space.plan, space.floor, category=SPACE_CATEGORIES["circulation"])
             faces_id = [f.id for f in faces]
@@ -403,7 +438,7 @@ if __name__ == '__main__':
         PARAMS = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "017"  # 004
+        plan_number = "018"  # 004
         spec, plan = tools.cache.get_plan(plan_number, solution_number=0,
                                           grid="001", seeder="directional_seeder")
 

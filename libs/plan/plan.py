@@ -1327,50 +1327,8 @@ class Space(PlanComponent):
             assert self.has_face(f), ("Space: Corner Stone, the faces "
                                       "provided must belong to the space: {}".format(f))
 
-        # case 1 : if we are trying to remove all the faces of the space
-        if self.number_of_faces == len(faces):
-            logging.debug("Space: Corner Stone : Trying to remove all the faces of the space: "
-                          "{}".format(self))
-            return True
-
-        faces = list(set(faces))
-        faces_edges = reduce(lambda a, b: a + b, [list(face.edges) for face in faces])
-
-        # remove internal edges of the face cluster
-        internal_edges = [e for e in faces_edges if e.pair in faces_edges]
-        for e in internal_edges:
-            faces_edges.remove(e)
-
-        # case 2 : fully enclosing face cluster
-        for edge in self.exterior_edges:
-            if edge not in faces_edges:
-                break
-        else:
-            return False
-
-        # case 3 : standard case
-        # find all the faces adjacent to the removed faces
-        adjacent_faces = [e.pair.face for e in faces_edges if self.has_face(e.pair.face)]
-        if len(adjacent_faces) == 1:
-            return False
-
-        # temporarily remove the faces from the self
-        list(map(lambda _f: self.remove_face_id(_f.id), faces))
-
-        # we must check to see if we split the other_self by removing the face
-        # for each adjacent face inside the other_self check if they are still connected
-        adjacent_face = adjacent_faces[0]
-
-        for connected_face in self.connected_faces(adjacent_face):
-            # try to reach the other adjacent faces
-            if connected_face in adjacent_faces:
-                adjacent_faces.remove(connected_face)
-
-        adjacent_faces.remove(adjacent_face)
-
-        list(map(lambda _f: self.add_face_id(_f.id), faces))
-
-        return len(adjacent_faces) != 0
+        remaining_faces = set(self.faces) - set(faces)
+        return Mesh.connected(list(remaining_faces))
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
