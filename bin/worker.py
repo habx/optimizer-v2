@@ -17,11 +17,10 @@ from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.dev import local_dev_hack
 from libs.worker.mq import Exchanger
 
-# Initializing sentry at the earliest stage to detect any issue that might happen later
-sentry_sdk.init("https://55bd31f3c51841e5b2233de2a02a9004@sentry.io/1438222", {
-    'environment': os.getenv('HABX_ENV', 'local'),
-    'release': Executor.VERSION,
-})
+import config
+import habx_logger
+
+logger = habx_logger.HabxLogger(config.from_file())
 
 # OPT-120: Only to make sure libpath won't be removed
 libpath.add_local_libs()
@@ -30,8 +29,7 @@ libpath.add_local_libs()
 def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
     """Make it run. Once called it never stops."""
 
-    logging.info("Optimizer V2 Worker (%s)", Executor.VERSION)
-
+    logger.info(f'Optimizer V2 Worker ({Executor.VERSION})')
     # We need to both consume and produce
     exchanger.prepare(consumer=True, producer=True)
 
@@ -104,11 +102,6 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
 
 def _cli():
     """CLI orchestrating function"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)-15s | %(lineno)-5d | %(levelname).4s | %(message)s",
-    )
-
     local_dev_hack()
 
     # We're using AWS_REGION at habx and boto3 expects AWS_DEFAULT_REGION

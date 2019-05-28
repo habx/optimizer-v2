@@ -659,11 +659,13 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
     :return:
     """
     output = []
+    modified_spaces = []
     for space in seeder.plan.get_spaces("empty"):
+        modified_spaces.append(space)
         space.category = SPACE_CATEGORIES["seed"]
         output.append(space)
-        if show:
-            seeder.plot.update([space])
+    if show:
+        seeder.plot.update(modified_spaces)
     return output
 
 
@@ -757,13 +759,14 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
 
     epsilon_length = 20
     min_cell_area = MIN_SEEDER_SPACE_AREA
-    target_number_of_spaces = 1
+    target_number_of_spaces = SEEDER_ACTIVATION_NBR_CELLS
     modified_spaces = []
 
     if len([s for s in seeder.plan.spaces if s.mutable]) < target_number_of_spaces:
         return modified_spaces
 
-    for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):
+    for small_space in sorted((s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area),
+                              key=lambda x: x.area):
         # adjacent mutable spaces of small_space
         adjacent_spaces = [s for s in small_space.adjacent_spaces() if s.mutable]
         if not adjacent_spaces:
@@ -891,8 +894,8 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
                 if (space_of_current and space_of_current.category
                         and space_of_current.category.name == "empty"):
                     list_contiguous_edges.append(current_edge)
-                elif not space_of_current:
-                    # case line is a long the plan border
+                elif not current_edge.pair.face:
+                    # case line is along the plan border
                     continue
                 else:
                     break
@@ -915,30 +918,32 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    selectors = {"seed": SELECTORS["not_aligned_edges"],
-                 "loadBearingWall": SELECTORS["not_aligned_edges"]
-                 }
+    def border_division(space_categroy: 'str', selector: 'Selector' = None):
+        list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_categroy]
+        for division_space in list_sp:
+            # selector = selectors[division_space.category.name]
+            if not division_space.edges:
+                continue
+            selected_edges = list(e for e in selector.yield_from(division_space))
+            for edge_selected in selected_edges:
+                # for edge_selected in selector.yield_from(division_space):
+                # lists of edges along which empty spaces division will be performed
+                contiguous_edges = line_from_edge(seeder.plan, edge_selected)
 
-    space_cat = [sp_cat for sp_cat in selectors]
-
-    list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_cat]
-    for seed_space in list_sp:
-        selector = selectors[seed_space.category.name]
-        for edge_selected in selector.yield_from(seed_space):
-            # lists of edges along which empty spaces division will be performed
-            contiguous_edges = line_from_edge(seeder.plan, edge_selected)
-
-            divided_spaces = []
-            for edge in contiguous_edges:
-                space = seeder.plan.get_space_of_edge(edge)
-                # once a space has been divided, it is not considered any more
-                if space not in divided_spaces:
-                    divided_spaces.append(space)
+                divided_spaces = []
+                for edge in contiguous_edges:
+                    space = seeder.plan.get_space_of_edge(edge)
+                    if space not in divided_spaces:
+                        divided_spaces.append(space)
                     edges_in_space = list(
                         edge for edge in contiguous_edges if space.has_edge(edge))
                     modified_spaces = divide_along_line(space, edges_in_space)
                     if show:
                         seeder.plot.update(modified_spaces)
+
+    border_division("seed", SELECTORS["not_aligned_edges"])
+    border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
+    border_division("empty", SELECTORS["not_aligned_edges"])
 
     return []
 
@@ -1030,7 +1035,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "002"
+        # plan_name = "042"
 
         # to not run each time the grid generation
         try:
