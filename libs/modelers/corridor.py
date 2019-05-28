@@ -81,7 +81,7 @@ class Corridor:
         self.circulator.connect()
         self.circulator.plot()
 
-        self._add_penetrations()
+        self._set_paths()
 
         # Real time plot updates
         if show:
@@ -93,7 +93,7 @@ class Corridor:
 
         self.plan.remove_null_spaces()
 
-    def _add_penetrations(self):
+    def _set_paths(self):
         """
         Possibly adds edges at the beginning and end of the path to account for
         corridor penetration within the room.
@@ -339,7 +339,10 @@ class Corridor:
             return output[1:]
 
         for edge in self.corner_data:
-            corridor_space = Space(self.plan, self.plan.floor,
+            sp = self.plan.get_space_of_edge(edge)
+            if not sp:
+                self.plan.get_space_of_edge(edge.pair)
+            corridor_space = Space(self.plan, sp.floor,
                                    category=SPACE_CATEGORIES['circulation'])
             line = []
             for line_edge in _line_forward(edge):
@@ -526,7 +529,11 @@ class Corridor:
         :return:
         """
 
-        corridor_space = Space(self.plan, self.plan.floor, category=SPACE_CATEGORIES['circulation'])
+        sp = self.plan.get_space_of_edge(edge_line[0])
+        if not sp:
+            self.plan.get_space_of_edge(edge_line[0].pair)
+
+        corridor_space = Space(self.plan, sp.floor, category=SPACE_CATEGORIES['circulation'])
 
         if self.plan.get_space_of_edge(edge_line[0]):
             level = self.plan.get_space_of_edge(edge_line[0]).floor.level
@@ -735,12 +742,12 @@ class Corridor:
         #     :param direction_edge:
         #     :return:
         #     """
-        #
+        # 
         #     if not direction_edge.face.as_sp.intersects(v.as_sp):
         #         # TODO : this check should not be necessary - to be investigated
         #         return False
         #     out = v.project_point(direction_edge.face, direction_edge.normal)
-        #
+        # 
         #     if out:
         #         intersect_vertex_next = out[0]
         #         next_cut_edge = out[1]
