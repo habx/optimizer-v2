@@ -24,10 +24,28 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
 
 PathsDict = Dict[str, Dict[int, List[List[Union['Vertex', 'Edge']]]]]
+
 DirectionsDict = Dict[int, Dict['Edge', float]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
 
 CORRIDOR_WIDTH = 90
+
+
+class PathInfo():
+    """
+    class storing information on the circulation path
+    """
+
+    def __init__(self, edge_path: List[Tuple['Edge', float]] = None,
+                 departure_space: List['Space'] = None,
+                 arrival_spaces: List['Space'] = None,
+                 departure_penetration: Optional['Edge'] = None,
+                 arrival_penetration: Optional['Edge'] = None):
+        self.edge_path = edge_path or []
+        self.departure_space = departure_space or []
+        self.end_spaces = arrival_spaces or []
+        self.departure_penetration = departure_penetration
+        self.arrival_penetration = arrival_penetration
 
 
 class CostRules(Enum):
@@ -70,7 +88,7 @@ class Circulator:
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
-        self.paths_info = []
+        self.paths_info: List[PathInfo] = []
         self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
                               space.mutable}
 
@@ -130,19 +148,17 @@ class Circulator:
                     return penetration_edge
             return None
 
-        for connection_dict in self.paths_info:
-            current_path = connection_dict['edge_path']
+        for path_info in self.paths_info:
+            current_path = path_info.edge_path
             if not current_path:
                 continue
 
-            connection_dict["start_penetration"] = _get_penetration_edge(current_path[0],
-                                                                         connection_dict[
-                                                                             'start_space'])
+            path_info.departure_penetration = _get_penetration_edge(current_path[0],
+                                                                    path_info.departure_space)
 
-            connection_dict["end_penetration"] = _get_penetration_edge(current_path[-1],
-                                                                       connection_dict[
-                                                                           'arrival_spaces'],
-                                                                       start=False)
+            path_info.arrival_penetration = _get_penetration_edge(current_path[-1],
+                                                                  path_info.end_spaces,
+                                                                  start=False)
 
     def _set_directions(self,
                         space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
@@ -295,14 +311,14 @@ class Circulator:
                         # connected_room is no longer isolated
                         self._space_graph.add_edge(connected_room, node)
 
-    def _add_path(self, path: List['Vertex'], start_space: 'Space',
+    def _add_path(self, path: List['Vertex'], departure_space: 'Space',
                   arrival_space: 'Space') -> List['Space']:
         """
         update based on computed circulation path
         :return: the list of spaces connected by path
         """
 
-        level = start_space.floor.level
+        level = departure_space.floor.level
         edge_path = self._get_edge_path(path)
         self.paths['edge'][level].append(edge_path)
 
@@ -337,9 +353,11 @@ class Circulator:
         if terminal_room and not self._space_graph.node_connected(terminal_room):
             arrival_spaces.append(terminal_room)
 
-        path_dict = {'edge_path': [(e, 0) for e in edge_path], 'start_space': [start_space],
-                     'arrival_spaces': arrival_spaces}
-        self.paths_info.append(path_dict)
+        path_info = PathInfo(edge_path=[(e, 0) for e in edge_path],
+                             departure_space=[departure_space],
+                             arrival_spaces=arrival_spaces)
+
+        self.paths_info.append(path_info)
 
         return connected_rooms
 
@@ -415,7 +433,7 @@ class Circulator:
 
         return best_item
 
-    def _set_growing_direction(self, path_info: Dict,
+    def _set_growing_direction(self, path_info: PathInfo,
                                space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
                                score_function: ScoreArea = score_space_area):
         """
@@ -532,8 +550,9 @@ class Circulator:
             return 1.0 if score_ccw < score_cw else -1.0
 
         #####
-        path_lines = _get_lines_of_path([t[0] for t in path_info["edge_path"]])
-        level = path_info["start_space"][0].floor.level
+
+        path_lines = _get_lines_of_path([t[0] for t in path_info.edge_path])
+        level = path_info.departure_space[0].floor.level
         edge_path = []
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
@@ -544,7 +563,7 @@ class Circulator:
                 support_edge = edge if growing_direction > 0 else edge.pair
                 space_overlapped = self.plan.get_space_of_edge(support_edge)
                 self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
-        path_info["edge_path"] = edge_path
+        path_info.edge_path = edge_path
         return path_info
 
     def plot(self, show: bool = False, save: bool = True):
@@ -558,9 +577,9 @@ class Circulator:
         number_of_floors = self.plan.floor_count
 
         for path_info in self.paths_info:
-            level = path_info["start_space"][0].floor.level
+            level = path_info.departure_space[0].floor.level
             _ax = ax[level] if number_of_floors > 1 else ax
-            for tup in path_info["edge_path"]:
+            for tup in path_info.edge_path:
                 edge = tup[0]
                 edge.plot(ax=_ax, color='blue')
                 # representing the growing direction
