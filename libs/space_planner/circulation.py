@@ -43,7 +43,7 @@ class PathInfo():
                  arrival_penetration: Optional['Edge'] = None):
         self.edge_path = edge_path or []
         self.departure_space = departure_space or []
-        self.end_spaces = arrival_spaces or []
+        self.arrival_spaces = arrival_spaces or []
         self.departure_penetration = departure_penetration
         self.arrival_penetration = arrival_penetration
 
@@ -157,7 +157,7 @@ class Circulator:
                                                                     path_info.departure_space)
 
             path_info.arrival_penetration = _get_penetration_edge(current_path[-1],
-                                                                  path_info.end_spaces,
+                                                                  path_info.arrival_spaces,
                                                                   start=False)
 
     def _set_directions(self,
@@ -312,7 +312,7 @@ class Circulator:
                         self._space_graph.add_edge(connected_room, node)
 
     def _add_path(self, path: List['Vertex'], departure_space: 'Space',
-                  arrival_space: 'Space') -> List['Space']:
+                  arrival_space: 'Space', link_to_existing_path: bool) -> List['Space']:
         """
         update based on computed circulation path
         :return: the list of spaces connected by path
@@ -353,6 +353,16 @@ class Circulator:
         if terminal_room and not self._space_graph.node_connected(terminal_room):
             arrival_spaces.append(terminal_room)
 
+        if link_to_existing_path:
+            connection_vert = path[-1]
+            for path_info in self.paths_info:
+                if path_info.edge_path[0][0].start is connection_vert:
+                    # complementary_edge_path = [(e, 0) for e in edge_path]
+                    for e in edge_path:
+                        path_info.edge_path.append((e, 0))
+                    path_info.arrival_spaces = arrival_spaces
+                    return connected_rooms
+
         path_info = PathInfo(edge_path=[(e, 0) for e in edge_path],
                              departure_space=[departure_space],
                              arrival_spaces=arrival_spaces)
@@ -392,7 +402,7 @@ class Circulator:
         connected_rooms = []
         if path_min is not None:
             arrival_space = connected_room if not link_to_existing_path else None
-            connected_rooms = self._add_path(path_min, space, arrival_space)
+            connected_rooms = self._add_path(path_min, space, arrival_space, link_to_existing_path)
             self.cost += cost_min
 
         if connected_room not in connected_rooms:
