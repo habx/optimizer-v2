@@ -19,21 +19,16 @@ from libs.utils.geometry import (
     parallel
 )
 
-GrowCorridor = Callable[['Corridor', List['Edge'], bool], List['Space']]
+GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
 
 EPSILON = 1
 
 
 # TODO LIST:
 # -deal with one vertex path
-# -cut slices orthogonally to start and final edges if needed by the refiner
-# -for now corridor is grown on each side of a path as long as growth is possible,
-#  other growing strategies could be implemented :
-#   *grow on bigger rooms,
-#   *grow so as to minimize the number of corners...
 
 
-class CorridorRules():
+class CorridorRules:
     def __init__(self, layer_width: float = 110,
                  nb_layer: int = 2,
                  layer_cut: bool = False,
@@ -66,7 +61,7 @@ class Corridor:
 
     def __init__(self,
                  corridor_rules: CorridorRules,
-                 growth_method: GrowCorridor,
+                 growth_method: 'GrowCorridor',
                  circulation_cost_rules: Type[Enum] = CostRules,
                  plot: Optional['Plot'] = None):
 
@@ -362,11 +357,11 @@ class Corridor:
                     break
             for line_edge in line:
                 corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
-                self._add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
-                                           show)
-                self._add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
-                                           corridor_space,
-                                           show)
+                self.add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
+                                          show)
+                self.add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
+                                          corridor_space,
+                                          show)
 
                 corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
                 if corridor_space and self.plan.get_space_of_edge(corner_edge):
@@ -474,7 +469,7 @@ class Corridor:
         edge_lines.append(l)
         return edge_lines
 
-    def _get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple['List', 'List']:
+    def get_parallel_layers_edges(self, edge: 'Edge', width: 'float') -> Tuple['List', 'List']:
         """
         Returns
         *successive layer edges defined as
@@ -524,8 +519,8 @@ class Corridor:
                 next_layer = False
         return dist, layer_edges
 
-    def _add_corridor_portion(self, edge: 'Edge', width: float, corridor_space: 'Space',
-                              show: bool = False):
+    def add_corridor_portion(self, edge: 'Edge', width: float, corridor_space: 'Space',
+                             show: bool = False):
         """
         Builds a corridor space : starts with edge face and iteratively adds faces
         in normal direction to edge until the corridor space width reaches the objective
@@ -535,7 +530,7 @@ class Corridor:
         :param show:
         :return:
         """
-        layer_edges = self._get_parallel_layers_edges(edge, width)[1]
+        layer_edges = self.get_parallel_layers_edges(edge, width)[1]
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
@@ -765,6 +760,7 @@ def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edg
     Builds a corridor by growing a space around the line
     -get the growing direction of the line
     -grows the corridor on the growing side
+    :param corridor:
     :param edge_line:
     :param show:
     :return:
@@ -782,9 +778,9 @@ def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edg
     growing_direction = corridor.circulator.directions[level][edge_line[0]]
     for e, edge in enumerate(edge_line):
         support_edge = edge if growing_direction > 0 else edge.pair
-        corridor._add_corridor_portion(support_edge, corridor.corridor_rules.width,
-                                       corridor_space,
-                                       show)
+        corridor.add_corridor_portion(support_edge, corridor.corridor_rules.width,
+                                      corridor_space,
+                                      show)
         if e == len(edge_line) - 1:
             # info stored for corner filling
             width_ccw = corridor.corridor_rules.width if growing_direction > 0 else 0
@@ -799,6 +795,7 @@ def straight_path_growth_directionnal_no_cut(corridor: 'Corridor', edge_line: Li
     Builds a corridor by growing a space around the line
     -get the growing direction of the line
     -grows the corridor on the growing side
+    :param corridor:
     :param edge_line:
     :param show:
     :return:
@@ -816,9 +813,9 @@ def straight_path_growth_directionnal_no_cut(corridor: 'Corridor', edge_line: Li
     growing_direction = corridor.circulator.directions[level][edge_line[0]]
     for e, edge in enumerate(edge_line):
         support_edge = edge if growing_direction > 0 else edge.pair
-        corridor._add_corridor_portion(support_edge, corridor.corridor_rules.width,
-                                       corridor_space,
-                                       show)
+        corridor.add_corridor_portion(support_edge, corridor.corridor_rules.width,
+                                      corridor_space,
+                                      show)
         if e == len(edge_line) - 1:
             # info stored for corner filling
             width_ccw = corridor.corridor_rules.width if growing_direction > 0 else 0
@@ -839,6 +836,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
     -grows the corridor alternatively on each side while
         *a layer is available
         *maximum corridor width has not been reached
+    :param corridor:
     :param edge_line: straight circulation path
     :param show:
     :return: built corridor space
@@ -859,7 +857,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
         for line_edge in edge_line:
             start_edge = line_edge if ccw else line_edge.pair
             portion_width = \
-                corridor._get_parallel_layers_edges(start_edge, corridor.corridor_rules.width)[0]
+                corridor.get_parallel_layers_edges(start_edge, corridor.corridor_rules.width)[0]
             portions_width.append(portion_width)
         return _lists_intersection(portions_width)
 
@@ -885,8 +883,8 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
     corridor_space = Space(corridor.plan, corridor.plan.floor,
                            category=SPACE_CATEGORIES['circulation'])
     for e, edge in enumerate(edge_line):
-        corridor._add_corridor_portion(edge, width_ccw, corridor_space, show)
-        corridor._add_corridor_portion(edge.pair, width_cw, corridor_space, show)
+        corridor.add_corridor_portion(edge, width_ccw, corridor_space, show)
+        corridor.add_corridor_portion(edge.pair, width_cw, corridor_space, show)
         if e == len(edge_line) - 1:
             # info stored for corner filling
             corridor.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
@@ -993,8 +991,8 @@ if __name__ == '__main__':
 
         # corridor = Corridor(layer_width=25, nb_layer=5)
 
-        corridor = Corridor(corridor_rules=no_cut_rules,
-                            growth_method=straight_path_growth_directionnal)
+        corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                            growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
         plan.check()
