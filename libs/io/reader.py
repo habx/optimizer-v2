@@ -252,13 +252,15 @@ def get_mesh_from_json(file_name: str,
     return get_json_from_file(file_path, input_folder)
 
 
-def create_plan_from_file(input_file_name: str) -> plan.Plan:
+def create_plan_from_file(input_file_name: str,
+                          input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
     :param input_file_name: the path to a json file
+    :param input_folder
     :return: a plan object
     """
-    floor_plan_dict = get_json_from_file(input_file_name)
+    floor_plan_dict = get_json_from_file(input_file_name, input_folder)
     return create_plan_from_data(floor_plan_dict)
 
 

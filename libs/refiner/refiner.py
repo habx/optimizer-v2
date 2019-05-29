@@ -368,7 +368,7 @@ if __name__ == '__main__':
         import tools.cache
         import time
 
-        import matplotlib.pyplot as plt
+        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
         PARAMS = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
@@ -382,8 +382,8 @@ if __name__ == '__main__':
             plan.remove_null_spaces()
             plan.plot()
 
-            item_dict = evaluation.create_item_dict(spec)
 
+            """
             circulator = Circulator(plan=plan, spec=spec)
             circulator.connect(item_dict)
             circulator.plot()
@@ -395,9 +395,11 @@ if __name__ == '__main__':
                     if not path:
                         continue
                     new_path = [(e, directions[level][e]) for e in path]
-                    create_circulation(plan, new_path)
+                    create_circulation(plan, new_path)"""
 
-            plan.name = "corridor_" + plan_number
+            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]).apply_to(plan, spec)
+            plan.name = "Corridor_" + plan_number
             plan.plot()
             # run genetic algorithm
             start = time.time()
@@ -409,6 +411,7 @@ if __name__ == '__main__':
             logging.info("Time elapsed: {}".format(end - start))
             logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                            improved_plan.fitness.values))
+
             evaluation.check(improved_plan, spec)
 
     with_corridor()
