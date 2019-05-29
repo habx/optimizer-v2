@@ -366,7 +366,6 @@ class Corridor:
                 corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
                 if corridor_space and self.plan.get_space_of_edge(corner_edge):
                     self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
-                # print("SPACE OF EDGE", self.plan.get_space_of_edge(edge))
 
     def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
