@@ -359,8 +359,6 @@ class Circulator:
                 if path_info.edge_path[0][0].start is connection_vert:
                     complementary_edge_path = [(e, 0) for e in edge_path]
                     path_info.edge_path = complementary_edge_path + path_info.edge_path
-                    # for e in edge_path:
-                    #    path_info.edge_path.append((e, 0))
                     path_info.departure_space = [departure_space]
                     return connected_rooms
 
