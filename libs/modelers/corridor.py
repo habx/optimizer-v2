@@ -187,10 +187,14 @@ class Corridor:
                                 # snapping exception
                                 pass
                             else:
-                                penetration_edge.split_barycenter(coeff=coeff)
+                                #in penetration case, when an ortho_cut is performed, we prooceed
+                                ## to edge split so as to get precise penetration length
+                                if self.corridor_rules.ortho_cut:
+                                    penetration_edge.split_barycenter(coeff=coeff)
                                 _edge_list = [penetration_edge.pair] + _edge_list if start \
                                     else _edge_list + [penetration_edge]
                             l = penetration_length
+                            continue_penetration = False
                         else:
                             _edge_list = [penetration_edge.pair] + _edge_list if start \
                                 else _edge_list + [penetration_edge]
@@ -366,7 +370,7 @@ class Corridor:
                                            corridor_space,
                                            show)
 
-                corner_edge=edge if self.corner_data[edge]["ccw"]>0 else edge.pair
+                corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
                 if corridor_space and self.plan.get_space_of_edge(corner_edge):
                     self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
                 # print("SPACE OF EDGE", self.plan.get_space_of_edge(edge))
@@ -905,7 +909,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 
 # corridor rules
-no_cut_rules = CorridorRules(penetration=False, layer_cut=False, ortho_cut=False,
+no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False,
                              absolute_tolerance=10, merging=False)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, nb_layer=5, layer_width=25,
