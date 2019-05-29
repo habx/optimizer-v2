@@ -132,9 +132,9 @@ class Corridor:
                 continue
 
             if self.corridor_rules.penetration:
-                if connection_dict['start_penetration']:
+                if path_info.arrival_penetration:
                     current_path = self._add_penetration_edges(current_path)
-                if connection_dict['end_penetration']:
+                if path_info.arrival_penetration:
                     current_path = self._add_penetration_edges(current_path,
                                                                start=False)
             self.paths.append(current_path)
