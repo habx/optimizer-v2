@@ -312,7 +312,7 @@ class Circulator:
                         self._space_graph.add_edge(connected_room, node)
 
     def _add_path(self, path: List['Vertex'], departure_space: 'Space',
-                  arrival_space: 'Space', link_to_existing_path: bool=False) -> List['Space']:
+                  arrival_space: 'Space', link_to_existing_path: bool = False) -> List['Space']:
         """
         update based on computed circulation path
         :return: the list of spaces connected by path
@@ -354,6 +354,7 @@ class Circulator:
             arrival_spaces.append(terminal_room)
 
         if link_to_existing_path:
+            # case when the path links an isolated path to an already existing circulation path
             connection_vert = path[-1]
             for path_info in self.paths_info:
                 if path_info.edge_path[0][0].start is connection_vert:
