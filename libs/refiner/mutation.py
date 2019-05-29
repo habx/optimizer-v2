@@ -150,7 +150,7 @@ def _random_removable_edge(space: 'Space') -> Optional['Edge']:
     if not mutable_edges:
         logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
-    weights = [1.0/len(list(e.aligned_siblings)) for e in mutable_edges]
+    weights = [1.0/len(list(space.aligned_siblings(e, 25.0))) for e in mutable_edges]
     return random.choices(mutable_edges, weights=weights, k=1)[0]
 
 
@@ -165,7 +165,7 @@ def _random_addable_edge(space: 'Space') -> Optional['Edge']:
         logging.debug("Mutation: Random edge, no edge was found !! %s", space)
         return None
 
-    weights = [1.0/len(list(e.aligned_siblings)) for e in mutable_edges]
+    weights = [1.0/len(list(space.aligned_siblings(e, 25.0))) for e in mutable_edges]
     return random.choices(mutable_edges, weights=weights, k=1)[0]
 
 

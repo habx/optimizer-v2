@@ -20,7 +20,6 @@ from typing import (
     Any,
     Iterable
 )
-from functools import reduce
 import logging
 import uuid
 

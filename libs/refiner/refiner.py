@@ -21,7 +21,7 @@ import random
 import logging
 import multiprocessing
 
-from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple, Sequence
+from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 from libs.space_planner.circulation import Circulator
 
@@ -31,7 +31,7 @@ from libs.refiner import core, crossover, evaluation, mutation, nsga, population
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
-    from libs.mesh.mesh import Edge, Face
+    from libs.mesh.mesh import Edge
     from libs.plan.plan import Plan, Space
 
 # The type of an algorithm function
@@ -142,7 +142,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-10.0, -1.0, -50.0, -50000.0, -100.0)
+    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0, -100.0)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -154,6 +154,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     scores_fc = [evaluation.score_corner,
                  evaluation.score_area,
                  evaluation.score_perimeter_area_ratio,
+                 evaluation.score_bounding_box,
                  evaluation.score_connectivity,
                  evaluation.score_circulation_width]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
@@ -290,7 +291,6 @@ REFINERS = {
 }
 
 if __name__ == '__main__':
-    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
     # problematic floor plans : 062 / 055
     CORRIDOR_RULES = {
         "layer_width": 100,
@@ -300,45 +300,6 @@ if __name__ == '__main__':
         "penetration_length": 90,
         "layer_cut": True
     }
-
-    def connected_faces(space: 'Space', faces: Sequence['Face']) -> bool:
-        """
-        Checks if the faces are connected
-        :param space:
-        :param faces:
-        :return:
-        """
-        if not faces:
-            return True
-
-        current = faces[0]
-        parent = {current: None}
-        while current:
-            for f in space.adjacent_faces(current):
-                if f not in faces:
-                    continue
-                if f not in parent:
-                    parent[f] = current
-                    current = f
-                    break
-            else:
-                current = parent[current]
-
-        return len(parent) != len(faces)
-
-    def corner_stone(space: 'Space', faces: List['Face']) -> bool:
-        """
-
-        :param space:
-        :param faces:
-        :return:
-        """
-        for f in faces:
-            assert space.has_face(f)
-
-        remaining_faces = set(space.faces) - set(faces)
-        return connected_faces(space, list(remaining_faces))
-
 
     def create_circulation(plan: Plan, edge_path: List[Tuple['Edge', float]]):
         """
@@ -353,6 +314,19 @@ if __name__ == '__main__':
 
         space_edges = {}
 
+        if not edge_path:
+            return
+
+        first_edge = edge_path[0][0] if edge_path[0][1] > 0 else edge_path[0][0].pair
+        first_space = plan.get_space_of_edge(first_edge)
+        previous_edge = first_space.previous_edge(first_edge) if edge_path[0][1] > 0 else first_space.next_edge(first_edge)
+
+        last_edge = edge_path[len(edge_path)-1][0] if edge_path[len(edge_path)-1][1] > 0 else edge_path[len(edge_path)-1][0].pair
+        last_space = plan.get_space_of_edge(last_edge)
+        final_edge = last_space.next_edge(last_edge) if edge_path[len(edge_path)-1][1] > 0 else last_space.previous_edge(last_edge)
+
+        edge_path = [(previous_edge, 1.0)] + edge_path + [(final_edge, 1.0)]
+
         for edge, coefficient in edge_path:
             _edge = edge if coefficient > 0 else edge.pair
             space = plan.get_space_of_edge(_edge)
@@ -364,9 +338,7 @@ if __name__ == '__main__':
         for space in space_edges:
             edges = space_edges[space]
             faces = set(e.face for e in edges)
-            for face in faces:
-                connected_faces = faces & set(space.adjacent_faces(face))
-            if corner_stone(space, list(faces)):
+            if space.corner_stone(*faces):
                 raise Exception("The corridor will break the space !")
             circulation = Space(space.plan, space.floor, category=SPACE_CATEGORIES["circulation"])
             faces_id = [f.id for f in faces]
@@ -374,41 +346,7 @@ if __name__ == '__main__':
             circulation.add_face_id(*faces_id)
             space.set_edges()
             circulation.set_edges()
-        """
-        first_circulation = plan.get_space_of_edge(first_edge)
-        assert first_circulation and first_circulation.category is SPACE_CATEGORIES["circulation"]
-        for edge in first_edge.start.edges:
-            other = plan.get_space_of_edge(edge)
-            if not other or not other.category.circulation:
-                continue
-            other_space = plan.get_space_of_edge(edge.pair)
-            if other_space and other_space.mutable and other_space.category is not SPACE_CATEGORIES["circulation"]:
-                other_space.remove_face(edge.pair.face)
-                first_circulation.add_face(edge.pair.face)
 
-        try_again = True
-        while try_again:
-            try_again = False
-            for circulation in plan.get_spaces("circulation"):
-                for edge in circulation.exterior_edges:
-                    face = edge.pair.face
-                    if face and not circulation.has_face(face):
-                        space = plan.get_space_of_edge(face.edge)
-                        if (not space or not space.mutable
-                                or space.category is SPACE_CATEGORIES["circulation"]):
-                            continue
-                        for e in face.edges:
-                            if e.pair is edge or e.pair.face is edge.face:
-                                continue
-                            other_space = plan.get_space_of_edge(e.pair)
-                            if other_space and (
-                                    other_space.category is SPACE_CATEGORIES["circulation"]):
-                                space.remove_face(face)
-                                other_space.add_face(face)
-                                try_again = True
-                                break
-                        if try_again:
-                            break"""
         try_again = True
         while try_again:
             try_again = False
@@ -431,14 +369,11 @@ if __name__ == '__main__':
         import time
 
         import matplotlib.pyplot as plt
-        import matplotlib
-
-        # matplotlib.use("TkAgg")
 
         PARAMS = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "018"  # 004
+        plan_number = "052"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, solution_number=0,
                                           grid="001", seeder="directional_seeder")
 
@@ -463,8 +398,7 @@ if __name__ == '__main__':
                     create_circulation(plan, new_path)
 
             plan.name = "corridor_" + plan_number
-            plan.plot(save=False)
-            plt.show()
+            plan.plot()
             # run genetic algorithm
             start = time.time()
             improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
@@ -478,4 +412,3 @@ if __name__ == '__main__':
             evaluation.check(improved_plan, spec)
 
     with_corridor()
-

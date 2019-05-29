@@ -4,13 +4,6 @@ Evaluation Module
 Contains the function used to evaluate the fitness of an individual
 An evaluation function should take an individual
 
-We use a composition factory:
-ex.
-my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_box)
-
-TODO : • when no entrance -> front_door must go to living or livingKitchen
-       • penalize rooms with holes
-
 """
 import math
 import logging
@@ -23,7 +16,7 @@ from libs.plan.category import SPACE_CATEGORIES
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space
+    from libs.plan.plan import Space, Floor
     from libs.mesh.mesh import Edge
 
 # a score function returns a specific score for each space of the plan. It takes
@@ -315,63 +308,77 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :return:
     """
     min_length = 80.0
-    cost_per_unconnected_space = 1.0
+    penalty = 1.0  # per unconnected space
     score = {}
 
     front_door = list(ind.get_linears("frontDoor"))[0]
-    front_door_space = ind.get_space_of_edge(front_door.edge)
-    connected_circulation_spaces = [front_door_space]
-    score[front_door_space.id] = 0.0
+    starting_steps = list(ind.get_linears("startingStep")) if ind.has_multiple_floors else []
+    for floor in ind.floors.values():
+        if floor is not front_door.floor:
+            starting_step = [ss for ss in starting_steps if ss.floor is floor][0]
+            root_space = ind.get_space_of_edge(starting_step.edge)
+        else:
+            root_space = ind.get_space_of_edge(front_door.edge)
 
-    circulation_spaces = list(ind.circulation_spaces())
-    if front_door_space in circulation_spaces:
-        circulation_spaces.remove(front_door_space)
-    # for simplicity we estimate that at maximum a circulation space is connected
+        floor_score = _score_floor_connectivity(ind, floor, root_space, min_length, penalty)
+        score.update(floor_score)
+
+    return score
+
+
+def _score_floor_connectivity(ind: 'Individual',
+                              floor: 'Floor',
+                              root_space: 'Space',
+                              min_length: float = 80.0,
+                              penalty: float = 1.0) -> Dict[int, float]:
+    """
+    Scores the connectivity of a given floor
+    :return:
+    """
+    score = {}
+    connected_spaces = [root_space]
+    score[root_space.id] = 0.0
+
+    circulation_spaces = [s for s in ind.circulation_spaces() if s.floor is floor]
+    if root_space in circulation_spaces:
+        circulation_spaces.remove(root_space)
+    unconnected_spaces = circulation_spaces[:]
+    # for simplicity we estimate that at maximum a circulation space can be connected
     # to the front door through 3 others spaces.
-    for _ in range(3):
-        for circulation_space in circulation_spaces[:]:
-            for connected_space in connected_circulation_spaces:
-                if circulation_space.adjacent_to(connected_space, min_length):
+    max_connectivity_number = 3
+    for _ in range(max_connectivity_number):
+        for unconnected_space in unconnected_spaces:
+            connected = False
+            for connected_space in connected_spaces:
+                if unconnected_space.adjacent_to(connected_space, min_length):
                     # we place the newly found spaces at the beginning of the array
-                    connected_circulation_spaces.insert(0, circulation_space)
-                    circulation_spaces.remove(circulation_space)
-                    score[circulation_space.id] = 0.0
+                    connected_spaces.insert(0, unconnected_space)
+                    unconnected_spaces.remove(unconnected_space)
+                    score[unconnected_space.id] = 0.0
+                    connected = True
                     break
-
-    for unconnected_space in circulation_spaces:
-        score[unconnected_space.id] = cost_per_unconnected_space
-
-    for space in ind.mutable_spaces():
-        if space.category.circulation or space is front_door_space:
-            continue
-
-        found_adjacency = False
-        for edge in space.exterior_edges:
-            if edge.pair.face is None:
-                continue
-            other = ind.get_space_of_edge(edge.pair)
-            if not other or other not in connected_circulation_spaces:
-                continue
-            # forward check
-            shared_length = edge.length
-            for e in space.siblings(edge):
-                if e is edge:
-                    continue
-                if other.has_edge(e.pair):
-                    shared_length += e.length
-
-            # backward check
-            for e in other.siblings(edge.pair):
-                if e is edge.pair:
-                    continue
-                if space.has_edge(e.pair):
-                    shared_length += e.length
-
-            if shared_length >= min_length:
-                found_adjacency = True
+            if connected:
                 break
 
-        score[space.id] = cost_per_unconnected_space if not found_adjacency else 0.0
+    for unconnected_space in unconnected_spaces:
+        score[unconnected_space.id] = penalty
+
+    circulation_spaces.append(root_space)
+
+    for space in ind.mutable_spaces():
+        # only check the connectivity of the space of the floor
+        if space.floor is not floor:
+            continue
+        # no need to check the root space or the circulation space
+        if space.category.circulation or space is root_space:
+            continue
+        # check if a circulation is adjacent to the space
+        for circulation_space in circulation_spaces:
+            if circulation_space.adjacent_to(space, min_length):
+                score[space.id] = 0.0
+                break
+        else:
+            score[space.id] = penalty
 
     return score
 
