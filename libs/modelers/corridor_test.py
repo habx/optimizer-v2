@@ -5,7 +5,7 @@ Test module for corridor module
 
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.modelers.corridor import Corridor
+from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 
@@ -65,7 +65,8 @@ def test_simple_grid():
         circulator.directions[0][edge] = 1
 
     ################ corridor build ################
-    corridor = Corridor(corridor_rules=CORRIDOR_RULES)
+    corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                        growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
 
     corridor._clear()
     corridor.plan = plan
