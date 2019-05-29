@@ -106,7 +106,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
+        self.circulator.plot()
 
         self._set_paths()
 
@@ -117,6 +117,10 @@ class Corridor:
         # Refines the mesh around the circulation paths and grow corridor spaces around
         for path in self.paths:
             self.cut(path, show).grow(path, show)
+
+        # linear repair
+        if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
+            self.plan.mesh.watch()
 
         self.plan.remove_null_spaces()
 
@@ -347,7 +351,6 @@ class Corridor:
                 floor = self.plan.get_space_of_edge(edge).floor
             else:
                 floor = self.plan.get_space_of_edge(edge.pair).floor
-            corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
 
             line = []
             for line_edge in _line_forward(edge):
@@ -356,11 +359,17 @@ class Corridor:
                 else:
                     break
             for line_edge in line:
+                corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
                 self._add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
                                            show)
                 self._add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
                                            corridor_space,
                                            show)
+
+                corner_edge=edge if self.corner_data[edge]["ccw"]>0 else edge.pair
+                if corridor_space and self.plan.get_space_of_edge(corner_edge):
+                    self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
+                # print("SPACE OF EDGE", self.plan.get_space_of_edge(edge))
 
     def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
@@ -437,7 +446,8 @@ class Corridor:
             adjacent_corridor_space = [sp for sp in corridor_spaces if
                                        sp.adjacent_to(created_space)]
 
-            if adjacent_corridor_space:
+            if adjacent_corridor_space and self.corridor_rules.merging:
+                # if adjacent_corridor_space:
                 adjacent_corridor_space[0].merge(created_space)
             else:
                 corridor_spaces.append(created_space)
