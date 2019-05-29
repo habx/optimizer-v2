@@ -40,20 +40,18 @@ class CorridorRules():
                  ortho_cut: bool = False,
                  width: float = 110,
                  penetration_length: float = 90,
-                 absolute_tolerance: float = 2,
                  penetration: bool = False,
                  recursive_cut_length: float = 400,
                  merging: bool = True):
-        self.layer_width = layer_width
+        self.layer_width = layer_width  # width of a layer, when layer_cut is activated
         self.nb_layer = nb_layer
-        self.layer_cut = layer_cut
+        self.layer_cut = layer_cut  # whether to cut layers along the circulation path or not
         self.ortho_cut = ortho_cut
-        self.width = width
-        self.penetration_length = penetration_length
-        self.absolute_tolerance = absolute_tolerance
-        self.penetration = penetration
-        self.recursive_cut_length = recursive_cut_length
-        self.merging = merging
+        self.width = width  # ojective width of the corridor
+        self.penetration_length = penetration_length  # penetration length when needed
+        self.penetration = penetration  # whether penetration is accounted for or not
+        self.recursive_cut_length = recursive_cut_length  # param controling length of recursive cut
+        self.merging = merging  # whether adjacent corridor spaces shall be merged or not
 
 
 class Corridor:
@@ -187,12 +185,12 @@ class Corridor:
                                 # snapping exception
                                 pass
                             else:
-                                #in penetration case, when an ortho_cut is performed, we prooceed
-                                ## to edge split so as to get precise penetration length
+                                # in penetration case, when an ortho_cut is performed, we proceed
+                                # to edge split so as to get precise penetration length
                                 if self.corridor_rules.ortho_cut:
                                     penetration_edge.split_barycenter(coeff=coeff)
-                                _edge_list = [penetration_edge.pair] + _edge_list if start \
-                                    else _edge_list + [penetration_edge]
+                                    _edge_list = [penetration_edge.pair] + _edge_list if start \
+                                        else _edge_list + [penetration_edge]
                             l = penetration_length
                             continue_penetration = False
                         else:
@@ -514,7 +512,7 @@ class Corridor:
 
                 dist_tmp = e.start.distance_to(edge.end)
                 if (pseudo_equal(angle, 180, 10)
-                        and dist_tmp < width + 2 * EPSILON + self.corridor_rules.absolute_tolerance
+                        and dist_tmp < width + 2 * EPSILON
                         and _layer_condition(e)):
                     dist.append(int(round(dist_tmp / 5)) * 5 + 5)  # rounding
                     start_edge = e.pair
@@ -760,19 +758,6 @@ class Corridor:
             self.plot = plot
 
 
-CORRIDOR_RULES = {
-    "layer_width": 110,
-    "nb_layer": 2,
-    "recursive_cut_length": 400,
-    "width": 110,
-    "penetration_length": 90,
-    "layer_cut": False,
-    "absolute_tolerance": 10,
-    "penetration": False,
-    "growth_method": None
-}
-
-
 # growth methods
 def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edge'],
                                       show: bool = False) -> 'Space':
@@ -909,16 +894,25 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 
 # corridor rules
-no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False,
-                             absolute_tolerance=10, merging=False)
-coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, merging=True)
-fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, nb_layer=5, layer_width=25,
+no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
+                             width=120, penetration_length=110)
+coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
+fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
+                               layer_width=25,
                                merging=True)
 
-RULES = {
-    "coarse": {
+CORRIDOR_BUILDING_RULES = {
+    "no_cut": {
         "corridor_rules": no_cut_rules,
         "growth_method": straight_path_growth_directionnal
+    },
+    "coarse": {
+        "corridor_rules": coarse_cut_rules,
+        "growth_method": straight_path_growth_directionnal
+    },
+    "fine": {
+        "corridor_rules": fine_cut_rules,
+        "growth_method": straight_path_growth
     }
 }
 
