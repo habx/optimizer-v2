@@ -41,7 +41,8 @@ class CorridorRules:
         self.layer_width = layer_width  # width of a layer, when layer_cut is activated
         self.nb_layer = nb_layer
         self.layer_cut = layer_cut  # whether to cut layers along the circulation path or not
-        self.ortho_cut = ortho_cut
+        self.ortho_cut = ortho_cut  # whether to the mesh orthogonally to end and start path,
+        # used to get penetration with precise length
         self.width = width  # maximum width of the corridor
         self.penetration_length = penetration_length  # maximum penetration length, when needed
         self.penetration = penetration  # whether penetration is accounted for or not
