@@ -305,6 +305,7 @@ if __name__ == '__main__':
         # import matplotlib
         # matplotlib.use("TkAgg")
         import matplotlib.pyplot as plt
+        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "052"
@@ -328,6 +329,9 @@ if __name__ == '__main__':
                                                            improved_plan.fitness.values))
 
             # ajout du couloir
+            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]).apply_to(
+                improved_plan, spec)
             Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
             improved_plan.name = "Corridor_" + plan_number
             improved_plan.plot()
