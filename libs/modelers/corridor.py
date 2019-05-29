@@ -42,8 +42,8 @@ class CorridorRules:
         self.nb_layer = nb_layer
         self.layer_cut = layer_cut  # whether to cut layers along the circulation path or not
         self.ortho_cut = ortho_cut
-        self.width = width  # ojective width of the corridor
-        self.penetration_length = penetration_length  # penetration length when needed
+        self.width = width  # maximum width of the corridor
+        self.penetration_length = penetration_length  # maximum penetration length, when needed
         self.penetration = penetration  # whether penetration is accounted for or not
         self.recursive_cut_length = recursive_cut_length  # param controling length of recursive cut
         self.merging = merging  # whether adjacent corridor spaces shall be merged or not
