@@ -23,7 +23,6 @@ import multiprocessing
 
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
-from libs.space_planner.circulation import Circulator
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
 
@@ -31,8 +30,7 @@ from libs.refiner import core, crossover, evaluation, mutation, nsga, population
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
-    from libs.mesh.mesh import Edge
-    from libs.plan.plan import Plan, Space
+    from libs.plan.plan import Plan
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
@@ -291,75 +289,6 @@ REFINERS = {
 }
 
 if __name__ == '__main__':
-    # problematic floor plans : 062 / 055
-    CORRIDOR_RULES = {
-        "layer_width": 100,
-        "nb_layer": 2,
-        "recursive_cut_length": 400,
-        "width": 100,
-        "penetration_length": 90,
-        "layer_cut": True
-    }
-
-    def create_circulation(plan: Plan, edge_path: List[Tuple['Edge', float]]):
-        """
-        Creates a circulation path // TODO replace with Corridor module
-        :param plan:
-        :param edge_path:
-        :return:
-        """
-
-        from libs.plan.category import SPACE_CATEGORIES
-        from libs.plan.plan import Space
-
-        space_edges = {}
-
-        if not edge_path:
-            return
-
-        first_edge = edge_path[0][0] if edge_path[0][1] > 0 else edge_path[0][0].pair
-        first_space = plan.get_space_of_edge(first_edge)
-        previous_edge = first_space.previous_edge(first_edge) if edge_path[0][1] > 0 else first_space.next_edge(first_edge)
-
-        last_edge = edge_path[len(edge_path)-1][0] if edge_path[len(edge_path)-1][1] > 0 else edge_path[len(edge_path)-1][0].pair
-        last_space = plan.get_space_of_edge(last_edge)
-        final_edge = last_space.next_edge(last_edge) if edge_path[len(edge_path)-1][1] > 0 else last_space.previous_edge(last_edge)
-
-        edge_path = [(previous_edge, 1.0)] + edge_path + [(final_edge, 1.0)]
-
-        for edge, coefficient in edge_path:
-            _edge = edge if coefficient > 0 else edge.pair
-            space = plan.get_space_of_edge(_edge)
-            if space not in space_edges:
-                space_edges[space] = [_edge]
-            else:
-                space_edges[space].append(_edge)
-
-        for space in space_edges:
-            edges = space_edges[space]
-            faces = set(e.face for e in edges)
-            if space.corner_stone(*faces):
-                raise Exception("The corridor will break the space !")
-            circulation = Space(space.plan, space.floor, category=SPACE_CATEGORIES["circulation"])
-            faces_id = [f.id for f in faces]
-            space.remove_face_id(*faces_id)
-            circulation.add_face_id(*faces_id)
-            space.set_edges()
-            circulation.set_edges()
-
-        try_again = True
-        while try_again:
-            try_again = False
-            for circulation in plan.get_spaces("circulation"):
-                for edge in circulation.exterior_edges:
-                    other = plan.get_space_of_edge(edge.pair)
-                    if other and other.category is SPACE_CATEGORIES["circulation"]:
-                        circulation.merge(other)
-                        try_again = True
-                        break
-                if try_again:
-                    break
-
 
     def with_corridor():
         """
@@ -370,40 +299,26 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        PARAMS = {"ngen": 50, "mu": 60, "cxpb": 0.5}
+        params = {"ngen": 50, "mu": 60, "cxpb": 0.0}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "052"  # 004 # 032
-        spec, plan = tools.cache.get_plan(plan_number, solution_number=0,
-                                          grid="001", seeder="directional_seeder")
+        plan_number = "007"  # 004 # 032
+        spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
         if plan:
             plan.name = "original_" + plan_number
             plan.remove_null_spaces()
             plan.plot()
 
-
-            """
-            circulator = Circulator(plan=plan, spec=spec)
-            circulator.connect(item_dict)
-            circulator.plot()
-            paths = circulator.paths
-            directions = circulator.directions
-
-            for level in plan.levels:
-                for path in paths['edge'][level]:
-                    if not path:
-                        continue
-                    new_path = [(e, directions[level][e]) for e in path]
-                    create_circulation(plan, new_path)"""
-
             Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
-                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]).apply_to(plan, spec)
+                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
+                     ).apply_to(plan, spec)
+
             plan.name = "Corridor_" + plan_number
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["naive"].apply_to(plan, spec, PARAMS, processes=4)
+            improved_plan = REFINERS["naive"].apply_to(plan, spec, params, processes=4)
             end = time.time()
             improved_plan.name = "Refined_" + plan_number
             improved_plan.plot()

@@ -191,6 +191,10 @@ def number_of_corners(space: 'Space') -> int:
     :param space:
     :return:
     """
+    if not space.edge:
+        logging.warning("Refiner: Space with no edge found : %s", space)
+        return 0
+
     corner_min_angle = 20.0
     num_corners = 0
     previous_corner = False
@@ -343,22 +347,15 @@ def _score_floor_connectivity(ind: 'Individual',
     if root_space in circulation_spaces:
         circulation_spaces.remove(root_space)
     unconnected_spaces = circulation_spaces[:]
-    # for simplicity we estimate that at maximum a circulation space can be connected
-    # to the front door through 3 others spaces.
-    max_connectivity_number = 3
-    for _ in range(max_connectivity_number):
-        for unconnected_space in unconnected_spaces:
-            connected = False
-            for connected_space in connected_spaces:
-                if unconnected_space.adjacent_to(connected_space, min_length):
-                    # we place the newly found spaces at the beginning of the array
-                    connected_spaces.insert(0, unconnected_space)
-                    unconnected_spaces.remove(unconnected_space)
-                    score[unconnected_space.id] = 0.0
-                    connected = True
-                    break
-            if connected:
-                break
+    for connected_space in connected_spaces:
+        for unconnected_space in unconnected_spaces[:]:
+            if unconnected_space.adjacent_to(connected_space, min_length):
+                # we place the newly found spaces at the beginning of the array
+                connected_spaces.append(unconnected_space)
+                unconnected_spaces.remove(unconnected_space)
+                score[unconnected_space.id] = 0.0
+        if not unconnected_spaces:
+            break
 
     for unconnected_space in unconnected_spaces:
         score[unconnected_space.id] = penalty
@@ -392,8 +389,14 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     """
     min_width = 90.0
     score = {}
+    circulation_categories = (SPACE_CATEGORIES["entrance"], SPACE_CATEGORIES["circulation"],
+                              SPACE_CATEGORIES["livingKitchen"], SPACE_CATEGORIES["living"])
+
     for space in ind.mutable_spaces():
-        if space.category is not SPACE_CATEGORIES["circulation"]:
+        if not space.edge:
+            score[space.id] = 0.0
+            continue
+        if space.category not in circulation_categories:
             score[space.id] = 0.0
             continue
         if space.id not in ind.modified_spaces:
