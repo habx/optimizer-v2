@@ -39,7 +39,7 @@ class CorridorRules:
                  recursive_cut_length: float = 400,
                  merging: bool = True):
         self.layer_width = layer_width  # width of a layer, when layer_cut is activated
-        self.nb_layer = nb_layer
+        self.nb_layer = nb_layer  # number of layers cut around the circulation path
         self.layer_cut = layer_cut  # whether to cut layers along the circulation path or not
         self.ortho_cut = ortho_cut  # whether to the mesh orthogonally to end and start path,
         # used to get penetration with precise length
