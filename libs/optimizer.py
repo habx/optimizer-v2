@@ -15,7 +15,7 @@ from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.shuffle import SHUFFLES
-from libs.modelers.corridor import Corridor
+from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.version import VERSION as OPTIMIZER_VERSION
@@ -24,6 +24,7 @@ import libs.io.plot
 
 class LocalContext:
     """Local execution context"""
+
     def __init__(self):
         self.files: Dict[str, Dict] = {}
         self.output_dir: str = None
@@ -84,31 +85,21 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "weights": (-2.0, -1.0, -1.0),
-            "ngen": 120,
-            "mu": 28,
-            "cxpb": 0.9
+            "ngen": 50,
+            "mu": 64,
+            "cxpb": 0.2
         }
 
-        corridor_params = {
-            "layer_width": 25,
-            "nb_layer": 5,
-            "recursive_cut_length": 400,
-            "width": 100,
-            "penetration_length": 90,
-            "layer_cut": False
-        }
-
-        self.grid_type = params.get('grid_type', 'optimal_grid')
-        self.seeder_type = params.get('seeder_type', 'simple_seeder')
+        self.grid_type = params.get('grid_type', '001')
+        self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
         self.do_corridor = params.get('do_corridor', False)
-        self.corridor_type = params.get('corridor_params', corridor_params)
+        self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'simple')
+        self.refiner_type = params.get('refiner_type', 'nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
@@ -253,7 +244,10 @@ class Optimizer:
                 spec = space_planner.spec
                 for sol in best_solutions:
                     spec.plan = sol.plan
-                    Corridor(corridor_rules=params.corridor_type).apply_to(sol.plan)
+                    corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
+                    Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(
+                        sol.plan, spec)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["corridor"] = time.process_time() - t0_corridor
@@ -301,10 +295,10 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "002.json",
-            "002_setup0.json",
+            "016.json",
+            "016_setup0.json",
             {
-                "grid_type": "optimal_finer_grid",
+                "grid_type": "001",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
             }

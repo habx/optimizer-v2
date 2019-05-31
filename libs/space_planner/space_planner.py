@@ -14,7 +14,6 @@ from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
-from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 import libs.io.writer as writer
 
 SQM = 10000
@@ -43,12 +42,14 @@ class SpacePlanner:
         :return: None
         """
         space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
+        spec.plan.mesh.compute_cache()
 
         # entrance
         size_min = Size(area=2 * SQM)
         size_max = Size(area=5 * SQM)
         new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
         space_planner_spec.add_item(new_item)
+        living_kitchen = False
 
         for item in spec.items:
             if item.category.name == "circulation":
@@ -67,10 +68,11 @@ class SpacePlanner:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        opens_on = item.opens_on.remove("kitchen")
+                        #opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, opens_on, item.linked_to)
+                                        size_max, item.opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
+                        living_kitchen = True
 
         category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                               "living", "livingKitchen", "dining", "bedroom", "study", "misc",
@@ -106,6 +108,10 @@ class SpacePlanner:
             item.category.name not in invariant_categories)))
 
         for item in space_planner_spec.items:
+            if living_kitchen:
+                if "living" in item.opens_on:
+                    item.opens_on.remove("living")
+                    item.opens_on.append("livingKitchen")
             if item.category.name not in invariant_categories:
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
@@ -119,11 +125,14 @@ class SpacePlanner:
     def _plan_cleaner(self, min_area: float = 100) -> None:
         """
         Plan cleaner for little spaces
+        TODO: This means that we are breaking the assumption that every face of the mesh has an
+              assigned space. This means that we must then always check for None results when we
+              fetch the space of a face. Not sure this is optimal.
         :return: None
         """
         self.spec.plan.remove_null_spaces()
         for space in self.spec.plan.spaces:
-            if space.area < min_area:
+            if space.cached_area() < min_area:
                 self.spec.plan.remove(space)
 
     def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
@@ -222,6 +231,7 @@ class SpacePlanner:
 
         return best_solutions
 
+
 standard_space_planner = SpacePlanner("standard")
 
 SPACE_PLANNERS = {
@@ -249,8 +259,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "009.json"
+        input_file = "017.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -299,7 +308,7 @@ if __name__ == '__main__':
                 sol.plan.plot()
                 logging.debug(sol, sol.score)
                 for space in sol.plan.mutable_spaces():
-                    logging.debug(space.category.name, " : ", space.area)
+                    logging.debug(space.category.name, " : ", space.cached_area())
                 solution_dict = writer.generate_output_dict_from_file(input_file, sol)
                 writer.save_json_solution(solution_dict, sol.id)
 
@@ -318,7 +327,6 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "019.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -332,7 +340,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = '007'
+        # plan_name = '007'
 
         try:
             new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
@@ -381,7 +389,7 @@ if __name__ == '__main__':
             sol.plan.plot()
             logging.debug(sol, sol.score)
             for space in sol.plan.mutable_spaces():
-                logging.debug(space.category.name, " : ", space.area)
+                logging.debug(space.category.name, " : ", space.cached_area())
             solution_dict = writer.generate_output_dict_from_file(input_file, sol)
             writer.save_json_solution(solution_dict, sol.id)
 
@@ -389,4 +397,4 @@ if __name__ == '__main__':
 
 
     space_planning()
-    #space_planning_nico()
+    # space_planning_nico()

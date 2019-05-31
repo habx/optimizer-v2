@@ -252,13 +252,15 @@ def get_mesh_from_json(file_name: str,
     return get_json_from_file(file_path, input_folder)
 
 
-def create_plan_from_file(input_file_name: str) -> plan.Plan:
+def create_plan_from_file(input_file_name: str,
+                          input_folder: str = DEFAULT_BLUEPRINT_INPUT_FOLDER) -> plan.Plan:
     """
     Creates a plan object from the data retrieved from the given file
     :param input_file_name: the path to a json file
+    :param input_folder
     :return: a plan object
     """
-    floor_plan_dict = get_json_from_file(input_file_name)
+    floor_plan_dict = get_json_from_file(input_file_name, input_folder)
     return create_plan_from_data(floor_plan_dict)
 
 
@@ -427,13 +429,15 @@ def create_specification_from_data(input_data: dict,
 
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use("TkAgg")
 
     def specification_read():
         """
         Test
         :return:
         """
-        input_file = "011_setup0.json"
+        input_file = "015_setup0.json"
         spec = create_specification_from_file(input_file)
         print(spec)
 
@@ -446,11 +450,12 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "011.json"
+        input_file = "A2E2H05.json" # (2875.051, 556.2034), (2759.2167, 498.7173)
         my_plan = create_plan_from_file(input_file)
         my_plan.plot()
         print(my_plan)
+        assert my_plan.check()
 
 
-    specification_read()
+    # specification_read()
     plan_read()

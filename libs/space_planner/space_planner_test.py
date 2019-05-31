@@ -35,10 +35,10 @@ def test_space_planner(input_file, input_setup):
     best_solutions = space_planner.apply_to(spec)
 
     if input_file == "009.json":
-        assert len(space_planner.solutions_collector.solutions) == 20
+        assert len(space_planner.solutions_collector.solutions) == 11
         assert len(best_solutions) == 1
     elif input_file == "012.json":
-        assert len(space_planner.solutions_collector.solutions) == 37
+        assert len(space_planner.solutions_collector.solutions) == 90
         assert len(best_solutions) == 2
 
 
@@ -75,7 +75,7 @@ def test_duplex():
     plan.insert_linear((300, 0), (400, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((525, 150), (600, 150), LINEAR_CATEGORIES["startingStep"], floor_2)
 
-    GRIDS["simple_grid"].apply_to(plan)
+    GRIDS["optimal_grid"].apply_to(plan)
 
     plan.plot()
 
