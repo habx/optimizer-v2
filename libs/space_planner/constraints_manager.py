@@ -246,6 +246,9 @@ class ConstraintsManager:
         self._init_spaces_graph()
         self.area_space_graph = nx.Graph()
         self._init_area_spaces_graph()
+        self.centroid_space_graph = nx.Graph()
+        self._init_centroid_spaces_graph()
+
 
         self.item_constraints = {}
         self.add_spaces_constraints()
@@ -339,6 +342,21 @@ class ConstraintsManager:
                     if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
                         self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() + i_space.cached_area())
                         self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() + i_space.cached_area())
+
+    def _init_centroid_spaces_graph(self) -> None:
+        """
+        Initialize the graph of adjacent seed spaces with weight = centroid distance
+        :return:
+        """
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if i < j:
+                    if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
+                        centroid_distance = int(((j_space.centroid()[0] - i_space.centroid()[
+                            0]) ** 2 + (j_space.centroid()[1] - i_space.centroid()[1]) ** 2) ** 0.5)
+                        self.centroid_space_graph.add_edge(i, j, weight=centroid_distance)
+                        self.centroid_space_graph.add_edge(j, i, weight=centroid_distance)
 
     def _init_spaces_adjacency(self) -> None:
         """
@@ -556,6 +574,56 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
+def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Item,
+                                        max_distance: int) -> ortools.Constraint:
+    """
+    Maximum distance constraint between window and duct constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param max_distance: int
+    :return: ct: ortools.Constraint
+    """
+    additional_distance = 150 # 100 for window --> centroid and 50 for centroid --> duct
+    ct = None
+    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        for j_space_component in j_space.immutable_components():
+            if (j_space_component.category.name == "window"
+                    or j_space_component.category.name == "doorWindow"):
+                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                    for k_space_component in k_space.immutable_components():
+                        if k_space_component.category.name == "duct":
+                            if ct is None:
+                                if (j not in nx.nodes(manager.centroid_space_graph)
+                                        or k not in nx.nodes(manager.centroid_space_graph)
+                                        or not nx.has_path(manager.centroid_space_graph, j, k)):
+                                    ct = (manager.solver.positions[item.id, j] *
+                                          manager.solver.positions[item.id, k] == 0)
+                                else:
+                                    path_length, path = nx.single_source_dijkstra(manager.centroid_space_graph, j, k)
+                                    path_length += additional_distance
+                                    path_inside_room = 1
+                                    for i_path in path:
+                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
+                                    ct = path_inside_room*(manager.solver.positions[item.id, j] *
+                                          manager.solver.positions[item.id, k] * path_length
+                                          <= max_distance)
+                            else:
+                                if (j not in nx.nodes(manager.centroid_space_graph)
+                                        or k not in nx.nodes(manager.centroid_space_graph)
+                                        or not nx.has_path(manager.centroid_space_graph, j, k)):
+                                    new_ct = (manager.solver.positions[item.id, j] *
+                                          manager.solver.positions[item.id, k] == 0)
+                                else:
+                                    path_length, path = nx.single_source_dijkstra(manager.centroid_space_graph, j, k)
+                                    path_length += additional_distance
+                                    path_inside_room = 1
+                                    for i_path in path:
+                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
+                                    new_ct = path_inside_room*(manager.solver.positions[item.id, j] *
+                                          manager.solver.positions[item.id, k] * path_length
+                                          <= max_distance)
+                                ct = manager.or_(ct, new_ct)
+    return ct == 1
 
 def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -1225,9 +1293,10 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [large_windows_constraint, {}],
+        [max_distance_window_duct_constraint, {"max_distance": 650}],
         [item_adjacency_constraint,
-                 {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+         {"item_categories": CIRCULATION_ROOMS, "adj": True, "addition_rule": "Or"}]
+
     ],
     "dining": [
         [item_attribution_constraint, {}],
