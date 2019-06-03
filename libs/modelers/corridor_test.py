@@ -5,7 +5,9 @@ Test module for corridor module
 
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.modelers.corridor import Corridor
+from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
+from libs.space_planner.circulation import Circulator, CostRules
+from libs.specification.specification import Specification
 
 CORRIDOR_RULES = {
     "layer_width": 25,
@@ -35,24 +37,17 @@ def test_simple_grid():
 
     def build_a_path(plan):
         edge1 = get_internal_edge(plan)
-        path = [edge1.start]
-
         edge_list = []
         e = edge1
         for i in range(3):
             edge_list.append(e)
             e = get_following_edge(e)
-            path.append(e.start)
-        path.append(e.end)
+
         edge_corner = e.pair.previous.pair
         edge_list.append(edge_corner)
-        e = edge_corner
-        for i in range(3):
-            edge_list.append(e)
-            e = get_following_edge(e)
-            path.append(e.start)
-        path.append(e.end)
-        return path
+        edge_corner = get_following_edge(edge_corner)
+        edge_list.append(edge_corner)
+        return edge_list
 
     ################ GRID ################
     from libs.modelers.grid_test import rectangular_plan
@@ -65,16 +60,23 @@ def test_simple_grid():
 
     ################ circulation path ################
     circulation_path = build_a_path(plan)
+    circulator = Circulator(plan, spec=Specification(), cost_rules=CostRules)
+    for edge in circulation_path:
+        circulator.directions[0][edge] = 1
 
     ################ corridor build ################
-    corridor = Corridor(corridor_rules=CORRIDOR_RULES)
+    corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                        growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
+
     corridor._clear()
     corridor.plan = plan
+    corridor.circulator = circulator
     corridor.cut(circulation_path)
     plan.check()
     corridor.grow(circulation_path)
     plan.remove_null_spaces()
     plan.plot()
     plan.check()
+
 
 test_simple_grid()

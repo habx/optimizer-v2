@@ -240,15 +240,15 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "009.json"
+        input_file = "004.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
         # print("input_file", input_file, " - area : ", plan.indoor_area)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
-        GRIDS['optimal_grid'].apply_to(plan)
-        SEEDERS["simple_seeder"].apply_to(plan)
+        GRIDS['001'].apply_to(plan)
+        SEEDERS["directional_seeder"].apply_to(plan)
 
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))

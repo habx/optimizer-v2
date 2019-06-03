@@ -41,12 +41,12 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 100000,
-        "min": 80000
+        "max": 150000,
+        "min": 120000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "xs"
+      "variant": "m"
     },
     {
       "linkedTo": [],
@@ -63,12 +63,13 @@
       "linkedTo": [],
       "opensOn": [],
       "requiredArea": {
-        "max": 40000,
-        "min": 20000
+        "max": 60000,
+        "min": 40000
       },
-      "tags": [],
+      "tags": [
+      ],
       "type": "bathroom",
-      "variant": "xs"
+      "variant": "s"
     }
   ]
 }
