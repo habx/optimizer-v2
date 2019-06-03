@@ -100,7 +100,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -530,15 +530,6 @@ class Corridor:
         :param show:
         :return:
         """
-
-        # def _conditions(_space, _edge):
-        #     # corridor must not cut a space in pieces
-        #     if sp.corner_stone(layer_edge.face):
-        #         return False
-        #     if not _edge in SELECTORS["can_be_removed"].yield_from(_space):
-        #         return False
-        #     return True
-
         layer_edges = self.get_parallel_layers_edges(edge, width)[1]
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
@@ -1005,7 +996,7 @@ if __name__ == '__main__':
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec, show=True)
+        corridor.apply_to(plan, spec=spec, show=False)
 
         plan.check()
 
