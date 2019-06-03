@@ -132,7 +132,7 @@ class Corridor:
                 continue
 
             if self.corridor_rules.penetration:
-                if path_info.arrival_penetration:
+                if path_info.departure_penetration:
                     current_path = self._add_penetration_edges(current_path)
                 if path_info.arrival_penetration:
                     current_path = self._add_penetration_edges(current_path,
@@ -536,7 +536,7 @@ class Corridor:
             if not sp.category.name == "circulation":
                 # corridor must not cut a space in pieces
                 if sp.corner_stone(layer_edge.face):
-                    return
+                    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -896,7 +896,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 # corridor rules
 no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
-                             width=120, penetration_length=110)
+                             width=130, penetration_length=110)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
                                layer_width=25,
