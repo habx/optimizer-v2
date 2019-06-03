@@ -941,9 +941,10 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
                     if show:
                         seeder.plot.update(modified_spaces)
 
+    border_division("empty", SELECTORS["not_aligned_edges"])
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
-    border_division("empty", SELECTORS["not_aligned_edges"])
+
 
     return []
 

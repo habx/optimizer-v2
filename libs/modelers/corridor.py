@@ -100,7 +100,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
+        self.circulator.plot()
 
         self._set_paths()
 
@@ -534,6 +534,9 @@ class Corridor:
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
+                # corridor must not cut a space in pieces
+                if sp.corner_stone(layer_edge.face):
+                    return
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -993,7 +996,7 @@ if __name__ == '__main__':
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec, show=False)
+        corridor.apply_to(plan, spec=spec, show=True)
 
         plan.check()
 
@@ -1001,5 +1004,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "009.json"
+    plan_name = "030.json"
     main(input_file=plan_name)
