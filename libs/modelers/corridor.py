@@ -11,7 +11,6 @@ from libs.plan.plan import Plan, Space, Edge, Vertex
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
-from libs.operators.selector import SELECTORS
 from libs.io.plot import Plot
 from libs.utils.geometry import (
     ccw_angle,
@@ -532,31 +531,25 @@ class Corridor:
         :return:
         """
 
-        def _conditions(_space, _edge):
-            # corridor must not cut a space in pieces
-            if sp.corner_stone(layer_edge.face):
-                return False
-            if sp.category.name == "circulation":
-                return False
-            #if not _edge in SELECTORS["can_be_removed"].yield_from(_space):
-            #    return False
-            return True
+        # def _conditions(_space, _edge):
+        #     # corridor must not cut a space in pieces
+        #     if sp.corner_stone(layer_edge.face):
+        #         return False
+        #     if not _edge in SELECTORS["can_be_removed"].yield_from(_space):
+        #         return False
+        #     return True
 
         layer_edges = self.get_parallel_layers_edges(edge, width)[1]
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
-            if not _conditions(sp, layer_edge):
-                break
-            # if not sp.category.name == "circulation":
-            # corridor must not cut a space in pieces
-            # if sp.corner_stone(layer_edge.face):
-            #    break
-            # if not layer_edge in SELECTORS["can_be_removed"].yield_from(sp):
-            #    return False
-            corridor_space.add_face(layer_edge.face)
-            sp.remove_face(layer_edge.face)
-            if show:
-                self.plot.update([sp, corridor_space])
+            if not sp.category.name == "circulation":
+                # corridor must not cut a space in pieces
+                if sp.corner_stone(layer_edge.face):
+                    break
+                corridor_space.add_face(layer_edge.face)
+                sp.remove_face(layer_edge.face)
+                if show:
+                    self.plot.update([sp, corridor_space])
 
     def _ortho_slice(self, edge: 'Edge', start: bool = False, show: bool = False):
         """
