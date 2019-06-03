@@ -319,10 +319,15 @@ class Circulator:
         """
 
         level = departure_space.floor.level
-        edge_path = self._get_edge_path(path)
-        self.paths['edge'][level].append(edge_path)
 
         connected_rooms = []  # will contain the list of rooms connected by the path
+
+        edge_path = self._get_edge_path(path)
+        if not path or not edge_path:
+            return connected_rooms
+
+        self.paths['edge'][level].append(edge_path)
+
         for e in edge_path:
             connected = self.plan.get_space_of_edge(e)
             if connected and connected not in connected_rooms and connected.mutable:
@@ -330,9 +335,6 @@ class Circulator:
             connected = self.plan.get_space_of_edge(e.pair)
             if connected and connected not in connected_rooms and connected.mutable:
                 connected_rooms.append(connected)
-
-        if not path:
-            return connected_rooms
 
         path_end = path[-1]
         terminal_room = None
