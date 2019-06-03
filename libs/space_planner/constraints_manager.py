@@ -15,6 +15,7 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification.specification import Item
+from libs.plan.category import LinearCategory
 import networkx as nx
 import time
 import logging
@@ -352,8 +353,10 @@ class ConstraintsManager:
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
                     if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
-                        self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() + i_space.cached_area())
-                        self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() + i_space.cached_area())
+                        self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() +
+                                                                    i_space.cached_area())
+                        self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() +
+                                                                    i_space.cached_area())
 
     def _init_centroid_spaces_graph(self) -> None:
         """
@@ -386,7 +389,9 @@ class ConstraintsManager:
         :return: None
         """
         self.spaces_item_adjacency_matrix = [
-            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
+            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(
+                j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and
+                             i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
             enumerate(self.sp.spec.plan.mutable_spaces())]
 
@@ -570,8 +575,8 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
     ct = None
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for j_space_component in j_space.immutable_components():
-            if (j_space_component.category.name == "window"
-                    or j_space_component.category.name == "doorWindow"):
+            if (type(j_space_component.category) == LinearCategory and
+                    j_space_component.category.window_type):
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                     for k_space_component in k_space.immutable_components():
                         if k_space_component.category.name == "duct":
@@ -582,11 +587,13 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     ct = (manager.solver.positions[item.id, j] *
                                           manager.solver.positions[item.id, k] == 0)
                                 else:
-                                    path_length, path = nx.single_source_dijkstra(manager.centroid_space_graph, j, k)
+                                    path_length, path = nx.single_source_dijkstra(
+                                        manager.centroid_space_graph, j, k)
                                     path_length += additional_distance
                                     path_inside_room = 1
                                     for i_path in path:
-                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
+                                        path_inside_room = (path_inside_room *
+                                                        manager.solver.positions[item.id, i_path])
                                     ct = path_inside_room*(manager.solver.positions[item.id, j] *
                                           manager.solver.positions[item.id, k] * path_length
                                           <= max_distance)
@@ -597,13 +604,15 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     new_ct = (manager.solver.positions[item.id, j] *
                                           manager.solver.positions[item.id, k] == 0)
                                 else:
-                                    path_length, path = nx.single_source_dijkstra(manager.centroid_space_graph, j, k)
+                                    path_length, path = nx.single_source_dijkstra(
+                                        manager.centroid_space_graph, j, k)
                                     path_length += additional_distance
                                     path_inside_room = 1
                                     for i_path in path:
-                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
-                                    new_ct = path_inside_room*(manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] * path_length
+                                        path_inside_room = (path_inside_room *
+                                                        manager.solver.positions[item.id, i_path])
+                                    new_ct = (path_inside_room*(manager.solver.positions[item.id, j]
+                                              * manager.solver.positions[item.id, k] * path_length)
                                           <= max_distance)
                                 ct = manager.or_(ct, new_ct)
     return ct == 1
@@ -903,7 +912,8 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
         memo = 0
         current = 0
         for j in range(manager.solver.spaces_nbr):
-            memo = manager.solver.solver.Max(j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
+            memo = manager.solver.solver.Max(j *
+                    manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
             current = manager.solver.solver.Max(j * manager.solver.positions[item.id, j], current)
         ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
