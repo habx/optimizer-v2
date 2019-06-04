@@ -126,15 +126,15 @@ class Corridor:
         :return:
         """
 
-        for connection_dict in self.circulator.paths_info:
-            current_path = [t[0] for t in connection_dict['edge_path']]
+        for path_info in self.circulator.paths_info:
+            current_path = [t[0] for t in path_info.edge_path]
             if not current_path:
                 continue
 
             if self.corridor_rules.penetration:
-                if connection_dict['start_penetration']:
+                if path_info.departure_penetration:
                     current_path = self._add_penetration_edges(current_path)
-                if connection_dict['end_penetration']:
+                if path_info.arrival_penetration:
                     current_path = self._add_penetration_edges(current_path,
                                                                start=False)
             self.paths.append(current_path)
@@ -534,6 +534,9 @@ class Corridor:
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
+                # corridor must not cut a space in pieces
+                if sp.corner_stone(layer_edge.face):
+                    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -893,7 +896,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 # corridor rules
 no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
-                             width=120, penetration_length=110)
+                             width=130, penetration_length=110)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
                                layer_width=25,
@@ -1001,5 +1004,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "009.json"
+    plan_name = "030.json"
     main(input_file=plan_name)
