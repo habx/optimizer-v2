@@ -137,7 +137,7 @@ class Circulator:
                 if sp and sp.mutable:
                     connected_rooms.append(sp)
                 if sp_pair and sp_pair.mutable:
-                    connected_rooms.append(sp)
+                    connected_rooms.append(sp_pair)
             for room in _path_info.departure_space:
                 connected_rooms = connected_rooms + [room] if room else connected_rooms
             for room in _path_info.arrival_spaces:
@@ -147,14 +147,16 @@ class Circulator:
         list_tuple_connected_rooms = []
         for p, path_info in enumerate(self.paths_info):
             edge_path = [t[0] for t in path_info.edge_path]
+            # index of the path_info is stored for latter removal
             list_tuple_connected_rooms.append((p, _get_connected_rooms(edge_path, path_info)))
 
+        # tuples stored by sets length
         list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
         redundancy = True
         while redundancy:
             for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
                 for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
-                    if tuple_i[1] <= tuple_j[1]:
+                    if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
                         del (self.paths_info[tuple_i[0]])
                         break
             else:
