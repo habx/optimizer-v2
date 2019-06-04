@@ -37,6 +37,28 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
                          List['core.Individual']]
 
 
+def merge_adjacent_circulation(ind: 'Individual') -> None:
+    """
+    Merges two adjacent corridors
+    :param ind:
+    :return:
+    """
+    try_again = True
+    adjacency_length = 80.0
+
+    while try_again:
+        try_again = False
+        circulations = list(ind.get_spaces("circulation"))
+        for circulation in circulations:
+            for other_circulation in circulations:
+                if circulation.adjacent_to(other_circulation, adjacency_length):
+                    circulation.merge(other_circulation)
+                    try_again = True
+                    break
+            if try_again:
+                break
+
+
 class Refiner:
     """
     Refiner Class.
@@ -66,7 +88,9 @@ class Refiner:
         :return:
         """
         results = self.run(plan, spec, params, processes, hof=1)
-        return max(results, key=lambda i: i.fitness)
+        output = max(results, key=lambda i: i.fitness)
+        merge_adjacent_circulation(output)
+        return output
 
     def run(self,
             plan: 'Plan',
@@ -299,7 +323,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 60, "cxpb": 0.0}
+        params = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "007"  # 004 # 032

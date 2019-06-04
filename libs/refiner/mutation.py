@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     from libs.mesh.mesh import Edge
     from libs.refiner.core import Individual
 
+MIN_ADJACENCY_EDGE_LENGTH = 80.0
+
 
 class Case(enum.Enum):
     """
@@ -222,7 +224,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
         # check if we are breaking the space if we remove the faces
         # Note : we must check after removing the edges linked to a needed linear or space
         faces = set(e.face for e in edges_by_spaces[other])
-        if other.corner_stone(*faces):
+        if other.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
             continue
 
         faces_id = [f.id for f in faces]
@@ -308,7 +310,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         else:
             faces_by_spaces[other].add(edge.face)
 
-    if not faces or space.corner_stone(*faces):
+    if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
     for other in faces_by_spaces:

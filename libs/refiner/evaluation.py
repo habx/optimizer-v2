@@ -50,12 +50,11 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     output = {}
     spec_items = _spec.items[:]
     for sp in _spec.plan.mutable_spaces():
-        corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
-                                          spec_items))
+        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
         # Note : corridors have no corresponding spec item
         best_item = min(corresponding_items,
                         key=lambda i: math.fabs(i.required_area - sp.cached_area()), default=None)
-        if sp.category.name != "circulation":
+        if sp.category is not SPACE_CATEGORIES["circulation"]:
             assert best_item, "Score: Each space should have a corresponding item in the spec"
         output[sp.id] = best_item
         if best_item is not None:
@@ -389,8 +388,12 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     """
     min_width = 90.0
     score = {}
-    circulation_categories = (SPACE_CATEGORIES["entrance"], SPACE_CATEGORIES["circulation"],
-                              SPACE_CATEGORIES["livingKitchen"], SPACE_CATEGORIES["living"])
+    circulation_categories = (
+        SPACE_CATEGORIES["entrance"],
+        SPACE_CATEGORIES["circulation"],
+        # SPACE_CATEGORIES["livingKitchen"],
+        # SPACE_CATEGORIES["living"]
+    )
 
     for space in ind.mutable_spaces():
         if not space.edge:

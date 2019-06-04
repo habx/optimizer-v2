@@ -1314,12 +1314,13 @@ class Space(PlanComponent):
             return True
         return False
 
-    def corner_stone(self, *faces: 'Face') -> bool:
+    def corner_stone(self, *faces: 'Face', min_adjacency_length: Optional[float] = None) -> bool:
         """
         Checks if the removal of a list of connected faces will split the space.
         Per convention : we also return True if we try to remove all the faces from the space.
         NOTE : it is expected that the faces are all connected
         :param faces:
+        :param min_adjacency_length
         :return:
         """
         assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
@@ -1328,9 +1329,9 @@ class Space(PlanComponent):
                                       "provided must belong to the space: {}".format(f))
 
         remaining_faces = set(self.faces) - set(faces)
-        if not remaining_faces:
+        if not bool(remaining_faces):
             return True
-        return Mesh.connected(list(remaining_faces))
+        return Mesh.connected(list(remaining_faces), min_adjacency_length)
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
