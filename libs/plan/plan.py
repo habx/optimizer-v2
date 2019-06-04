@@ -1351,6 +1351,8 @@ class Space(PlanComponent):
         # case 3 : standard case
         # find all the faces adjacent to the removed faces
         adjacent_faces = [e.pair.face for e in faces_edges if self.has_face(e.pair.face)]
+        adjacent_faces = list(set(adjacent_faces))
+
         if len(adjacent_faces) == 1:
             return False
 
