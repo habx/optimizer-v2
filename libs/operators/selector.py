@@ -2260,6 +2260,14 @@ SELECTORS = {
         ]
     ),
 
+    "not_aligned_edges_border": Selector(
+
+        not_aligned_edges,
+        [
+            is_not(has_space_pair()),
+        ]
+    ),
+
     "face_min_area": Selector(boundary_faces_biggest, [face_area(1000)]),
 
     "bedroom_small_faces": Selector(specific_category("bedroom"), [face_area(max_area=15000),
