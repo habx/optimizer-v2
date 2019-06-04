@@ -11,7 +11,8 @@ TODO : deal with load bearing walls by defining locations where they can be cros
 import logging
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable
+from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable, Set
+from functools import reduce
 
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
@@ -44,6 +45,7 @@ class PathInfo():
         self.edge_path = edge_path or []
         self.departure_space = departure_space or []
         self.arrival_spaces = arrival_spaces or []
+        self.connected_spaces = arrival_spaces or []
         self.departure_penetration = departure_penetration
         self.arrival_penetration = arrival_penetration
 
@@ -111,6 +113,52 @@ class Circulator:
         self._add_all_other_spaces()
         self._set_directions(space_items_dict, score_function)
         self._set_penetrations()
+        self._remove_redundant_paths()
+
+    def _remove_redundant_paths(self):
+        """
+        removes redundant paths from self.paths_info
+        path_i is considered to be redundant with path_j if the list of rooms connected by
+        path_i is included in the list of rooms connected by path_j
+        :return:
+        """
+
+        def _get_connected_rooms(_edge_path: List['Edge'], _path_info: PathInfo) -> Set:
+            """
+            gets the set of rooms connected by _edge_path
+            :param _edge_path:
+            :param _path_info:
+            :return:
+            """
+            connected_rooms = []
+            for edge in edge_path:
+                sp = self.plan.get_space_of_edge(edge)
+                sp_pair = self.plan.get_space_of_edge(edge.pair)
+                if sp and sp.mutable:
+                    connected_rooms.append(sp)
+                if sp_pair and sp_pair.mutable:
+                    connected_rooms.append(sp)
+            for room in _path_info.departure_space:
+                connected_rooms = connected_rooms + [room] if room else connected_rooms
+            for room in _path_info.arrival_spaces:
+                connected_rooms = connected_rooms + [room] if room else connected_rooms
+            return set(connected_rooms)
+
+        list_tuple_connected_rooms = []
+        for p, path_info in enumerate(self.paths_info):
+            edge_path = [t[0] for t in path_info.edge_path]
+            list_tuple_connected_rooms.append((p, _get_connected_rooms(edge_path, path_info)))
+
+        list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
+        redundancy = True
+        while redundancy:
+            for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
+                for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
+                    if tuple_i[1] <= tuple_j[1]:
+                        del (self.paths_info[tuple_i[0]])
+                        break
+            else:
+                redundancy = False
 
     def _set_penetrations(self):
         """
@@ -326,8 +374,10 @@ class Circulator:
         if not path or not edge_path:
             return connected_rooms
 
+        # TODO : this attribute should no longer be usefull, to be suppressed
         self.paths['edge'][level].append(edge_path)
 
+        # update list of rooms
         for e in edge_path:
             connected = self.plan.get_space_of_edge(e)
             if connected and connected not in connected_rooms and connected.mutable:
