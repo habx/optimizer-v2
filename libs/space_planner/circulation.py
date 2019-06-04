@@ -151,7 +151,7 @@ class Circulator:
 
         # tuples sorted by sets length
         list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
-        #redundant paths removal
+        # redundant paths removal
         for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
             for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
                 if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
