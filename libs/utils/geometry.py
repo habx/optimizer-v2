@@ -368,7 +368,7 @@ def min_section(perimeter: List[Coords2d]) -> float:
     :return:
     """
     depth = math.inf
-    assert sp.geometry.Polygon(perimeter).is_valid, "The specified polygon must be valid"
+    # assert sp.geometry.Polygon(perimeter).is_valid, "The specified polygon must be valid"
     n = len(perimeter)
     assert n > 2, "The perimeter must have at least 3 points"
 
