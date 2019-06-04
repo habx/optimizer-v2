@@ -878,7 +878,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
 def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     """
     Returns list of edges forming contiguous lines from edge_origin
-    and belonging to empty spaces
+    and cutting empty spaces
     :param plan:
     :param edge_origin:
     :return:
@@ -892,7 +892,8 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
             if current_edge:
                 space_of_current = plan.get_space_of_edge(current_edge)
                 if (space_of_current and space_of_current.category
-                        and space_of_current.category.name == "empty"):
+                        and space_of_current.category.name == "empty"
+                        and not space_of_current.is_boundary(current_edge)):
                     list_contiguous_edges.append(current_edge)
                 elif not current_edge.pair.face:
                     # case line is along the plan border
@@ -918,28 +919,36 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     :return:
     """
 
-    def border_division(space_categroy: 'str', selector: 'Selector' = None):
-        list_sp = [sp for sp in seeder.plan.spaces if sp.category.name in space_categroy]
-        for division_space in list_sp:
-            # selector = selectors[division_space.category.name]
-            if not division_space.edges:
-                continue
-            selected_edges = list(e for e in selector.yield_from(division_space))
-            for edge_selected in selected_edges:
-                # for edge_selected in selector.yield_from(division_space):
-                # lists of edges along which empty spaces division will be performed
-                contiguous_edges = line_from_edge(seeder.plan, edge_selected)
+    def border_division(space_category: 'str', selector: 'Selector' = None):
+        continue_division = True
+        while continue_division:
+            spaces_before_division = [sp for sp in seeder.plan.spaces if
+                                      sp.category.name in space_category]
+            for division_space in spaces_before_division:
+                # selector = selectors[division_space.category.name]
+                if not division_space.edges:
+                    continue
+                selected_edges = list(e for e in selector.yield_from(division_space))
+                for edge_selected in selected_edges:
+                    # for edge_selected in selector.yield_from(division_space):
+                    # lists of edges along which empty spaces division will be performed
+                    contiguous_edges = line_from_edge(seeder.plan, edge_selected)
 
-                divided_spaces = []
-                for edge in contiguous_edges:
-                    space = seeder.plan.get_space_of_edge(edge)
-                    if space not in divided_spaces:
-                        divided_spaces.append(space)
-                    edges_in_space = list(
-                        edge for edge in contiguous_edges if space.has_edge(edge))
-                    modified_spaces = divide_along_line(space, edges_in_space)
-                    if show:
-                        seeder.plot.update(modified_spaces)
+                    divided_spaces = []
+                    for edge in contiguous_edges:
+                        space = seeder.plan.get_space_of_edge(edge)
+                        if space not in divided_spaces:
+                            divided_spaces.append(space)
+                        edges_in_space = list(
+                            edge for edge in contiguous_edges if space.has_edge(edge))
+                        modified_spaces = divide_along_line(space, edges_in_space)
+                        if show:
+                            seeder.plot.update(modified_spaces)
+            seeder.plan.remove_null_spaces()
+            spaces_after_division = [sp for sp in seeder.plan.spaces if
+                                     sp.category.name is space_category]
+            if len(spaces_after_division) == len(spaces_before_division):
+                continue_division = False
 
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
