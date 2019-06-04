@@ -1761,9 +1761,6 @@ def has_space_pair() -> Predicate:
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
                 return False
-            # if (space_pair_cat and
-            #         not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
-            #     return False
         return True
 
     return _predicate
