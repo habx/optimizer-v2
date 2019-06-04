@@ -12,7 +12,6 @@ import logging
 import math
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable, Set
-from functools import reduce
 
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
@@ -32,7 +31,7 @@ ScoreArea = Optional[Callable[[float, float, float], float]]
 CORRIDOR_WIDTH = 90
 
 
-class PathInfo():
+class PathInfo:
     """
     class storing information on the circulation path
     """
@@ -89,11 +88,13 @@ class Circulator:
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
+
         self.paths_info: List[PathInfo] = []
-        self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
-                              space.mutable}
 
         self.cost = 0
+
+        self._updated_areas = {space: space.cached_area() for space in self.plan.spaces if
+                               space.mutable}
         self._reachable_edges = {space: [] for space in self.plan.spaces}
         self._path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self._path_calculator.build()
@@ -151,7 +152,7 @@ class Circulator:
 
         # tuples sorted by sets length
         list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
-        #redundant paths removal
+        # redundant paths removal
         for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
             for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
                 if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
@@ -170,7 +171,7 @@ class Circulator:
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
             :param _tuple:
-            :param _spaces:
+            :param _spaces: the start spaces or the end spaces
             :param start:
             :return:
             """
@@ -188,7 +189,8 @@ class Circulator:
 
             for _space in _spaces:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
-                    penetration_edge = connecting_edge.aligned_edge or connecting_edge.continuous_edge
+                    penetration_edge = (connecting_edge.aligned_edge
+                                        or connecting_edge.continuous_edge)
                     if start:
                         penetration_edge = penetration_edge.pair
                     return penetration_edge
@@ -592,7 +594,7 @@ class Circulator:
                     return -1.0
                 else:
                     # area_space_ccw[space_ccw] = space_ccw.cached_area()
-                    area_space_ccw[space_ccw] = self.updated_areas[space_ccw]
+                    area_space_ccw[space_ccw] = self._updated_areas[space_ccw]
 
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
@@ -600,7 +602,7 @@ class Circulator:
                     return 1.0
                 else:
                     # area_space_cw[space_cw] = space_cw.cached_area()
-                    area_space_cw[space_cw] = self.updated_areas[space_cw]
+                    area_space_cw[space_cw] = self._updated_areas[space_cw]
 
             score_cw = _get_score(area_space_cw, path_line, pair=True,
                                   space_item_dict=space_item_dict, _score_function=_score_function)
@@ -622,7 +624,7 @@ class Circulator:
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair
                 space_overlapped = self.plan.get_space_of_edge(support_edge)
-                self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
+                self._updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
         path_info.edge_path = edge_path
         return path_info
 

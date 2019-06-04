@@ -8,6 +8,8 @@ import random
 from typing import TYPE_CHECKING
 import logging
 
+from libs.refiner.mutation import MIN_ADJACENCY_EDGE_LENGTH
+
 if TYPE_CHECKING:
     from libs.refiner.core import Individual
 
@@ -54,7 +56,7 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
 
         for space in set(impacted_spaces_ind_1) | set(impacted_spaces_ind_2):
             faces = list(filter(lambda f: space.has_face(f), connected_faces))
-            if space.corner_stone(*faces):
+            if space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
                 logging.debug("Crossover: No crossover possible")
                 return ind_1, ind_2
 
