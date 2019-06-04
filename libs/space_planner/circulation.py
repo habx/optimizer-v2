@@ -45,7 +45,6 @@ class PathInfo():
         self.edge_path = edge_path or []
         self.departure_space = departure_space or []
         self.arrival_spaces = arrival_spaces or []
-        self.connected_spaces = arrival_spaces or []
         self.departure_penetration = departure_penetration
         self.arrival_penetration = arrival_penetration
 
