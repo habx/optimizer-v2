@@ -152,15 +152,11 @@ class Circulator:
 
         # tuples stored by sets length
         list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
-        redundancy = True
-        while redundancy:
-            for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
-                for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
-                    if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
-                        del (self.paths_info[tuple_i[0]])
-                        break
-            else:
-                redundancy = False
+        for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
+            for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
+                if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
+                    del (self.paths_info[tuple_i[0]])
+                    break
 
     def _set_penetrations(self):
         """
