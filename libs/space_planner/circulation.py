@@ -147,7 +147,7 @@ class Circulator:
         list_tuple_connected_rooms = []
         for p, path_info in enumerate(self.paths_info):
             edge_path = [t[0] for t in path_info.edge_path]
-            # index of the path_info is stored for latter removal
+            # index of the path_info is stored for later removal
             list_tuple_connected_rooms.append((p, _get_connected_rooms(edge_path, path_info)))
 
         # tuples stored by sets length
