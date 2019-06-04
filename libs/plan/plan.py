@@ -1630,7 +1630,6 @@ class Space(PlanComponent):
         """
         return [component.category.name for component in self.immutable_components()]
 
-
     def adjacent_to(self, other: 'Space', length: float = None) -> bool:
         """
         Check the adjacency with an other space or face
