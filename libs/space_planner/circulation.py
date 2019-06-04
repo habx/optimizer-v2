@@ -150,8 +150,9 @@ class Circulator:
             # index of the path_info is stored for later removal
             list_tuple_connected_rooms.append((p, _get_connected_rooms(edge_path, path_info)))
 
-        # tuples stored by sets length
+        # tuples sorted by sets length
         list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
+        #redundant paths removal
         for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
             for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
                 if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
