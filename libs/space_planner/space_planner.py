@@ -183,13 +183,6 @@ class SpacePlanner:
                     if show:
                         plan_solution.plot()
 
-                best_sol = self.solutions_collector.best()
-                for sol in best_sol:
-                    logging.debug(sol)
-                    if show:
-                        sol.plan.plot(save=True)
-                return best_sol
-
         return []
 
     def apply_to(self, spec: 'Specification') -> List['Solution']:
@@ -240,7 +233,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "004.json"
+        input_file = "002.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -308,7 +301,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "019.json"
+        input_file = "002.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)

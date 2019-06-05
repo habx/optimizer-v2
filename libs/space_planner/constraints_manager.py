@@ -49,7 +49,7 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
-SEARCH_SOLUTIONS_LIMIT = 50000
+SEARCH_SOLUTIONS_LIMIT = 1000
 
 
 class ConstraintSolver:
@@ -293,7 +293,6 @@ class ConstraintsManager:
             if (frontDoor[0] and
                     duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
                 self.duct_next_to_entrance.append(duct)
-                print("here")
 
     def _init_item_windows_area(self) -> None:
         """
@@ -750,13 +749,13 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = min(max(25, plan_ratio + 10), 35)
-    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "wardrobe",
+    elif (item.category.name in ["study", "misc", "kitchen", "entrance", "wardrobe",
                                  "laundry"]
-          or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
+          or (item.category.name in ["bedroom", "bathroom"] and item.variant in ["l", "xl"])):
         param = min(max(25, plan_ratio), 32)
-    elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
+    elif item.category.name in ["bedroom", "bathroom"] and item.variant in ["s", "m"]:
         param = 26
-    elif item.category.name is "bedroom" and item.variant in ["xs"]:
+    elif item.category.name in ["bedroom", "bathroom"] and item.variant in ["xs"]:
         param = 22
     else:
         param = 22 # toilet / entrance
@@ -868,6 +867,7 @@ def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: It
     :param item: Item
     :return: ct: ortools.Constraint
     """
+    ct = None
     toilet_entrance_proximity = 0
     if manager.toilet_entrance_proximity_constraint_first_pass:
         for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):

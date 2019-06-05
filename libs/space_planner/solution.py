@@ -109,8 +109,14 @@ class SolutionsCollector:
 
         second_score = None
         index_second_sol = None
+        index_third_sol = None
+        third_score = None
+        index_fourth_sol = None
+        fourth_score = None
+        index_fifth_sol = None
+        fifth_score = None
         for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] > 25 and ((second_score is None) or
+            if dist_from_best_sol[i] >= 1 and ((second_score is None) or
                                                list_scores[i] > second_score):
                 index_second_sol = i
                 second_score = list_scores[i]
@@ -120,12 +126,10 @@ class SolutionsCollector:
             logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
                           index_second_sol, second_score)
 
-            index_third_sol = None
-            third_score = None
             second_sol = self.solutions[index_second_sol]
             dist_from_second_sol = self.distance_from_all_solutions(second_sol)
             for i in range(len(self.solutions)):
-                if (dist_from_best_sol[i] > 25 and dist_from_second_sol[i] > 25 and
+                if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
                         (third_score is None or list_scores[i] > third_score)):
                     index_third_sol = i
                     third_score = list_scores[i]
@@ -134,7 +138,35 @@ class SolutionsCollector:
                 logging.debug(" SolutionsCollector : Third solution : index %i, score : %f",
                               index_third_sol, third_score)
 
-            best_distribution_list = [index_best_sol, index_second_sol, index_third_sol]
+                third_sol = self.solutions[index_third_sol]
+                dist_from_third_sol = self.distance_from_all_solutions(third_sol)
+                for i in range(len(self.solutions)):
+                    if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
+                            dist_from_third_sol[i] >= 1 and
+                            (fourth_score is None or list_scores[i] > fourth_score)):
+                        index_fourth_sol = i
+                        fourth_score = list_scores[i]
+                if fourth_score:
+                    best_sol_list.append(self.solutions[index_fourth_sol])
+                    logging.debug(" SolutionsCollector : Fourth solution : index %i, score : %f",
+                                  index_fourth_sol, fourth_score)
+
+                    fourth_sol = self.solutions[index_fourth_sol]
+                    dist_from_fourth_sol = self.distance_from_all_solutions(fourth_sol)
+                    for i in range(len(self.solutions)):
+                        if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
+                                dist_from_third_sol[i] >= 1 and dist_from_fourth_sol[i] >= 1 and
+                                (fifth_score is None or list_scores[i] > fifth_score)):
+                            index_fifth_sol = i
+                            fifth_score = list_scores[i]
+                    if fifth_score:
+                        best_sol_list.append(self.solutions[index_fifth_sol])
+                        logging.debug(
+                            " SolutionsCollector : Fourth solution : index %i, score : %f",
+                            index_fifth_sol, fifth_score)
+
+            best_distribution_list = [index_best_sol, index_second_sol, index_third_sol,
+                                      index_fourth_sol, index_fifth_sol]
             for i in best_distribution_list:
                 for j in best_distribution_list:
                     if i and j:
@@ -609,6 +641,46 @@ class Solution:
 
         self.score = solution_score
 
+    # def distance(self, other_solution: 'Solution') -> float:
+    #     """
+    #     Distance with an other solution
+    #     the distance is calculated from the groups of rooms day and night
+    #     the inversion of two rooms within the same group gives a zero distance
+    #     :return: distance : float
+    #     """
+    #     # Day group
+    #     day_list = ["livingKitchen", "living", "kitchen", "dining"]
+    #     # Night group
+    #     bedroom_list = ["bedroom", "study", "misc"]
+    #     washing = ["bathroom", "toilet", "laundry", "wardrobe"]
+    #
+    #     difference_area = 0
+    #     mesh_area = 0
+    #     for floor in self.plan.floors.values():
+    #         for face in floor.mesh.faces:
+    #             space = self.plan.get_space_of_face(face)
+    #             # Note: sometimes a few faces of the mesh will no be assigned to a space
+    #             if not space:
+    #                 logging.warning("Solution: A face of the mesh "
+    #                                 "has no assigned space: %s - floor: %s", face, floor)
+    #                 continue
+    #             if space.category.mutable:
+    #                 mesh_area += face.cached_area
+    #                 other_space = other_solution.plan.get_space_of_face(face)
+    #                 if ((space.category.name in day_list and
+    #                      other_space.category.name not in day_list) or
+    #                         (space.category.name in bedroom_list and
+    #                          other_space.category.name not in bedroom_list) or
+    #                         (space.category.name in washing and
+    #                          other_space.category.name not in washing)):
+    #                     difference_area += face.cached_area
+    #
+    #     if difference_area < 10 * SQM:
+    #         distance = 0
+    #     else:
+    #         distance = difference_area * 100 / mesh_area
+    #     return distance
+    #
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
@@ -619,29 +691,28 @@ class Solution:
         # Day group
         day_list = ["livingKitchen", "living", "kitchen", "dining"]
         # Night group
-        night_list = ["bedroom", "bathroom", "toilet", "laundry", "wardrobe", "study", "misc"]
+        bedroom_list = ["bedroom", "study", "misc"]
+        washing = ["bathroom", "toilet", "laundry", "wardrobe"]
 
-        difference_area = 0
-        mesh_area = 0
-        for floor in self.plan.floors.values():
-            for face in floor.mesh.faces:
-                space = self.plan.get_space_of_face(face)
-                # Note: sometimes a few faces of the mesh will no be assigned to a space
-                if not space:
-                    logging.warning("Solution: A face of the mesh "
-                                    "has no assigned space: %s - floor: %s", face, floor)
-                    continue
-                if space.category.mutable:
-                    mesh_area += face.cached_area
-                    other_space = other_solution.plan.get_space_of_face(face)
-                    if ((space.category.name in day_list and
-                         other_space.category.name not in day_list) or
-                            (space.category.name in night_list and
-                             other_space.category.name not in night_list)):
-                        difference_area += face.cached_area
+        difference = 0
+        for item in self.items_spaces:
+            space = self.items_spaces[item]
+            other_solution_space = other_solution.items_spaces[item]
+            # Note: sometimes a few faces of the mesh will no be assigned to a space
+            if not space or not other_solution_space:
+                logging.warning("Solution: item not in plan", item)
+                continue
+            if space.category.name in day_list:
+                for comp in space.immutable_components():
+                    if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
+                        difference += 1
+            elif space.category.name in bedroom_list:
+                for comp in space.immutable_components():
+                    if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
+                        difference += 1
+            elif space.category.name in washing:
+                for comp in space.immutable_components():
+                    if comp.category.name == "duct" and comp not in other_solution_space.immutable_components():
+                        difference += 1
 
-        if difference_area < 18 * SQM:
-            distance = 0
-        else:
-            distance = difference_area * 100 / mesh_area
-        return distance
+        return difference
