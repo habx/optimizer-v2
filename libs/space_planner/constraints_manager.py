@@ -49,7 +49,7 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
-SEARCH_SOLUTIONS_LIMIT = 1000
+SEARCH_SOLUTIONS_LIMIT = 50000
 
 
 class ConstraintSolver:
@@ -261,6 +261,9 @@ class ConstraintsManager:
         self._init_area_spaces_graph()
         self.centroid_space_graph = nx.Graph()
         self._init_centroid_spaces_graph()
+        self.duct_next_to_entrance = []
+        self._init_duct_next_to_entrance()
+        self.toilet_entrance_proximity_constraint_first_pass = True
 
 
         self.item_constraints = {}
@@ -277,6 +280,20 @@ class ConstraintsManager:
                 self.solver.positions[item.id, j] * round(space.cached_area())
                 for j, space in
                 enumerate(self.sp.spec.plan.mutable_spaces()))
+
+    def _init_duct_next_to_entrance(self) -> None:
+        """
+        Initialize duct_next_to_entrance list
+        :return:
+        """
+        min_distance_from_entrance = 400
+        frontDoor = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
+        ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
+        for duct in ducts:
+            if (frontDoor[0] and
+                    duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
+                self.duct_next_to_entrance.append(duct)
+                print("here")
 
     def _init_item_windows_area(self) -> None:
         """
@@ -844,6 +861,25 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
     return ct
 
+def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    warning : symmetry breaker
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    toilet_entrance_proximity = 0
+    if manager.toilet_entrance_proximity_constraint_first_pass:
+        for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            for component in space.immutable_components():
+                if component in manager.duct_next_to_entrance:
+                    toilet_entrance_proximity += manager.solver.positions[item.id, j]
+        if toilet_entrance_proximity:
+            ct = toilet_entrance_proximity >= 1
+
+    manager.toilet_entrance_proximity_constraint_first_pass = False
+    return ct
+
 def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
     """
@@ -907,7 +943,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     :return: ct: ortools.Constraint
     """
     ct = None
-    item_sym_id = str(item.category.name + item.variant)
+    item_sym_id = str(item.category.name)# + item.variant)
     if item_sym_id in manager.symmetry_breaker_memo:
         memo = 0
         current = 0
@@ -1163,6 +1199,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
+        [toilet_entrance_proximity_constraint, {}],
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
