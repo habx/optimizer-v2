@@ -615,6 +615,7 @@ GROWTH_METHODS = {
         'window',
         (CONSTRAINTS["max_size_window_constraint_seed"],),
         (
+            Action(SELECTORS['corner_fill'], MUTATIONS['swap_face'], True),
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
@@ -628,6 +629,8 @@ GROWTH_METHODS = {
         'doorWindow',
         (CONSTRAINTS["max_size_doorWindow_constraint_seed"],),
         (
+            Action(SELECTORS['corner_fill'], MUTATIONS['swap_face'],
+                   True),
             Action(SELECTOR_FACTORIES['oriented_edges'](('horizontal',)), MUTATIONS['swap_face'],
                    number_of_pass=2),
             Action(SELECTOR_FACTORIES['oriented_edges'](('vertical',)), MUTATIONS['swap_face'],
@@ -1044,7 +1047,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "042"
+        #plan_name = "004"
 
         # to not run each time the grid generation
         try:
