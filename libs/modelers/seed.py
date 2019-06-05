@@ -44,7 +44,7 @@ SQM = 10000
 
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
-SEEDER_ACTIVATION_NBR_CELLS = 15
+SEEDER_ACTIVATION_NBR_CELLS = 18
 MIN_SEEDER_SPACE_AREA = 10000
 
 

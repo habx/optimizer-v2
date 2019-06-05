@@ -711,17 +711,8 @@ class Solution:
                     if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
                         difference += 1
             elif item.category.name in washing:
-                same = False
                 for comp in space.immutable_components():
-                    if comp.category.name == "duct" and comp in other_solution_space.immutable_components():
-                        same = True
-                        continue
-                for comp in other_solution_space.immutable_components():
-                    if comp.category.name == "duct" and comp in space.immutable_components():
-                        same = True
-                        continue
-                if not same:
-                    difference += 1
-
+                    if comp.category.name == "duct" and comp not in other_solution_space.immutable_components():
+                        difference += 1
 
         return difference
