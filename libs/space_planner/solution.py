@@ -696,23 +696,32 @@ class Solution:
 
         difference = 0
         for item in self.items_spaces:
+            if item not in other_solution.items_spaces:
+                continue
             space = self.items_spaces[item]
             other_solution_space = other_solution.items_spaces[item]
-            # Note: sometimes a few faces of the mesh will no be assigned to a space
             if not space or not other_solution_space:
-                logging.warning("Solution: item not in plan", item)
                 continue
-            if space.category.name in day_list:
+            if item.category.name in day_list:
                 for comp in space.immutable_components():
                     if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
                         difference += 1
-            elif space.category.name in bedroom_list:
+            elif item.category.name in bedroom_list:
                 for comp in space.immutable_components():
                     if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
                         difference += 1
-            elif space.category.name in washing:
+            elif item.category.name in washing:
+                same = False
                 for comp in space.immutable_components():
-                    if comp.category.name == "duct" and comp not in other_solution_space.immutable_components():
-                        difference += 1
+                    if comp.category.name == "duct" and comp in other_solution_space.immutable_components():
+                        same = True
+                        continue
+                for comp in other_solution_space.immutable_components():
+                    if comp.category.name == "duct" and comp in space.immutable_components():
+                        same = True
+                        continue
+                if not same:
+                    difference += 1
+
 
         return difference
