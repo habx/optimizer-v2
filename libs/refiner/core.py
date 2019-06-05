@@ -274,6 +274,8 @@ class Individual(Plan):
             ax.set_xlabel(msg, fontsize=8)
         plot_save(save, show)
 
+        return ax
+
     def clone(self, name: str = "") -> 'Individual':
         """
         Creates a clone copy of *self*

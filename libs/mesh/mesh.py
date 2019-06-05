@@ -8,7 +8,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union
+from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
 import enum
 
 from shapely.geometry.polygon import Polygon
@@ -1977,18 +1977,24 @@ class Face(MeshComponent):
         except StopIteration:
             return False
 
-    @property
-    def siblings(self) -> Generator['Face', 'Edge', None]:
+    def siblings(self, min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
+        :param min_adjacency_length:
         :return:
         """
         seen = [self]
         yield self
-        generator = self.edges
-        for edge in generator:
-            if edge.pair.face is not None and edge.pair.face not in seen:
-                yield edge.pair.face
+
+        if min_adjacency_length is not None:
+            for edge in self.edges:
+                if (edge.pair.face is not None and edge.pair.face not in seen
+                        and edge.length >= min_adjacency_length):
+                    yield edge.pair.face
+        else:
+            for edge in self.edges:
+                if edge.pair.face is not None and edge.pair.face not in seen:
+                    yield edge.pair.face
 
     def is_adjacent(self, other: 'Face') -> bool:
         """
@@ -3568,3 +3574,30 @@ class Mesh:
         self.boundary_edge = new_face.edge.pair
 
         return self
+
+    @staticmethod
+    def connected(faces: List['Face'], min_adjacency_length: Optional[float] = None) -> bool:
+        """
+        Return True if all the faces are connected
+        :param faces:
+        :param min_adjacency_length:
+        """
+        if not faces:
+            return True
+
+        current = faces[0]
+        parent = {current: None}
+        while current:
+            for f in current.siblings(min_adjacency_length):
+                if f is current:
+                    continue
+                if f not in faces:
+                    continue
+                if f not in parent:
+                    parent[f] = current
+                    current = f
+                    break
+            else:
+                current = parent[current]
+
+        return len(parent) < len(faces)

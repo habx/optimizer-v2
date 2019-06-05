@@ -25,15 +25,38 @@ from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 
 from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
-from libs.modelers.corridor import Corridor
+
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
+    from libs.plan.plan import Plan
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
                          List['core.Individual']]
+
+
+def merge_adjacent_circulation(ind: 'Individual') -> None:
+    """
+    Merges two adjacent corridors
+    :param ind:
+    :return:
+    """
+    try_again = True
+    adjacency_length = 80.0
+
+    while try_again:
+        try_again = False
+        circulations = list(ind.get_spaces("circulation"))
+        for circulation in circulations:
+            for other_circulation in circulations:
+                if circulation.adjacent_to(other_circulation, adjacency_length):
+                    circulation.merge(other_circulation)
+                    try_again = True
+                    break
+            if try_again:
+                break
 
 
 class Refiner:
@@ -65,7 +88,9 @@ class Refiner:
         :return:
         """
         results = self.run(plan, spec, params, processes, hof=1)
-        return max(results, key=lambda i: i.fitness)
+        output = max(results, key=lambda i: i.fitness)
+        merge_adjacent_circulation(output)
+        return output
 
     def run(self,
             plan: 'Plan',
@@ -139,7 +164,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-1.0, -5.0, -30.0)
+    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0, -100.0)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -150,7 +175,10 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [evaluation.score_corner,
                  evaluation.score_area,
-                 evaluation.score_perimeter_area_ratio]
+                 evaluation.score_perimeter_area_ratio,
+                 evaluation.score_bounding_box,
+                 evaluation.score_connectivity,
+                 evaluation.score_circulation_width]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
@@ -245,12 +273,14 @@ def naive_ga(toolbox: 'core.Toolbox',
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
     initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
     initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
+    logging.info("Initial : {:.2f} - {}".format(initial_ind.fitness.wvalue,
+                                                initial_ind.fitness.values))
     pop = toolbox.populate(initial_ind, mu)
     toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
-        logging.debug("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = [toolbox.clone(ind) for ind in pop]
         random.shuffle(offspring)
@@ -264,7 +294,7 @@ def naive_ga(toolbox: 'core.Toolbox',
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.debug("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
         # Select the next generation population
         pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
@@ -283,33 +313,20 @@ REFINERS = {
 }
 
 if __name__ == '__main__':
-    PARAMS = {"ngen": 20, "mu": 20, "cxpb": 0.2}
-    # problematic floor plans : 062 / 055
-    CORRIDOR_RULES = {
-        "layer_width": 100,
-        "nb_layer": 2,
-        "recursive_cut_length": 400,
-        "width": 100,
-        "penetration_length": 90,
-        "layer_cut": True
-    }
 
-
-    def apply():
+    def with_corridor():
         """
-        Test Function
         :return:
         """
         import tools.cache
         import time
-        # import matplotlib
-        # matplotlib.use("TkAgg")
-        import matplotlib.pyplot as plt
-        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES
+
+        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
+
+        params = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "052"
-
+        plan_number = "007"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
 
         if plan:
@@ -317,9 +334,15 @@ if __name__ == '__main__':
             plan.remove_null_spaces()
             plan.plot()
 
+            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
+                     ).apply_to(plan, spec)
+
+            plan.name = "Corridor_" + plan_number
+            plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+            improved_plan = REFINERS["naive"].apply_to(plan, spec, params, processes=4)
             end = time.time()
             improved_plan.name = "Refined_" + plan_number
             improved_plan.plot()
@@ -328,14 +351,6 @@ if __name__ == '__main__':
             logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                            improved_plan.fitness.values))
 
-            # ajout du couloir
-            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
-                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]).apply_to(
-                improved_plan, spec)
-            Corridor(corridor_rules=CORRIDOR_RULES).apply_to(improved_plan, spec)
-            improved_plan.name = "Corridor_" + plan_number
-            improved_plan.plot()
             evaluation.check(improved_plan, spec)
 
-
-    apply()
+    with_corridor()

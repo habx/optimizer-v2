@@ -85,9 +85,9 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "ngen": 50,
+            "ngen": 60,
             "mu": 64,
-            "cxpb": 0.2
+            "cxpb": 0.5
         }
 
         self.grid_type = params.get('grid_type', '001')
@@ -99,7 +99,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'nsga')
+        self.refiner_type = params.get('refiner_type', 'naive')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 

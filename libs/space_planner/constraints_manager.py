@@ -15,6 +15,7 @@ OR-Tools : google constraint programing solver
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
 from ortools.constraint_solver import pywrapcp as ortools
 from libs.specification.specification import Item
+from libs.plan.category import LinearCategory
 import networkx as nx
 import time
 import logging
@@ -340,8 +341,25 @@ class ConstraintsManager:
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
                     if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
-                        self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() + i_space.cached_area())
-                        self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() + i_space.cached_area())
+                        self.area_space_graph.add_edge(i, j, weight=j_space.cached_area() +
+                                                                    i_space.cached_area())
+                        self.area_space_graph.add_edge(j, i, weight=j_space.cached_area() +
+                                                                    i_space.cached_area())
+
+    def _init_centroid_spaces_graph(self) -> None:
+        """
+        Initialize the graph of adjacent seed spaces with weight = centroid distance
+        :return:
+        """
+
+        for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                if i < j:
+                    if i_space.adjacent_to(j_space, INSIDE_ADJACENCY_LENGTH):
+                        centroid_distance = int(((j_space.centroid()[0] - i_space.centroid()[
+                            0]) ** 2 + (j_space.centroid()[1] - i_space.centroid()[1]) ** 2) ** 0.5)
+                        self.centroid_space_graph.add_edge(i, j, weight=centroid_distance)
+                        self.centroid_space_graph.add_edge(j, i, weight=centroid_distance)
 
     def _init_centroid_spaces_graph(self) -> None:
         """
@@ -374,7 +392,9 @@ class ConstraintsManager:
         :return: None
         """
         self.spaces_item_adjacency_matrix = [
-            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
+            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(
+                j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and
+                             i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
             enumerate(self.sp.spec.plan.mutable_spaces())]
 
@@ -929,7 +949,8 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
         memo = 0
         current = 0
         for j in range(manager.solver.spaces_nbr):
-            memo = manager.solver.solver.Max(j * manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
+            memo = manager.solver.solver.Max(j *
+                    manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
             current = manager.solver.solver.Max(j * manager.solver.positions[item.id, j], current)
         ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
