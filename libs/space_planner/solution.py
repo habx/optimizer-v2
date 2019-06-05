@@ -702,13 +702,9 @@ class Solution:
             other_solution_space = other_solution.items_spaces[item]
             if not space or not other_solution_space:
                 continue
-            if item.category.name in day_list:
+            if item.category.name in day_list or item.category.name in bedroom_list:
                 for comp in space.immutable_components():
-                    if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
-                        difference += 1
-            elif item.category.name in bedroom_list:
-                for comp in space.immutable_components():
-                    if comp.category.name in WINDOW_ROOMS and comp not in other_solution_space.immutable_components():
+                    if comp.category.name in ["window", "doorWindow"] and (comp not in other_solution_space.immutable_components()):
                         difference += 1
             elif item.category.name in washing:
                 for comp in space.immutable_components():

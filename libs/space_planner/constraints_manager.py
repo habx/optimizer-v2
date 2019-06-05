@@ -1226,7 +1226,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [max_distance_window_duct_constraint, {"max_distance": 650}]
+        [max_distance_window_duct_constraint, {"max_distance": 600}]
     ],
     "dining": [
         [item_attribution_constraint, {}],

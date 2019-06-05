@@ -233,7 +233,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        input_file = "003.json"
+        input_file = "045.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
