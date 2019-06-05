@@ -70,7 +70,7 @@ class SolutionsCollector:
 
         return distance
 
-    def best(self) -> List['Solution']:
+    def best(self, show=False) -> List['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
@@ -110,7 +110,7 @@ class SolutionsCollector:
         second_score = None
         index_second_sol = None
         for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] > 25 and ((second_score is None) or
+            if dist_from_best_sol[i] > 20 and ((second_score is None) or
                                                list_scores[i] > second_score):
                 index_second_sol = i
                 second_score = list_scores[i]
@@ -125,7 +125,7 @@ class SolutionsCollector:
             second_sol = self.solutions[index_second_sol]
             dist_from_second_sol = self.distance_from_all_solutions(second_sol)
             for i in range(len(self.solutions)):
-                if (dist_from_best_sol[i] > 25 and dist_from_second_sol[i] > 25 and
+                if (dist_from_best_sol[i] > 15 and dist_from_second_sol[i] > 15 and
                         (third_score is None or list_scores[i] > third_score)):
                     index_third_sol = i
                     third_score = list_scores[i]
@@ -141,6 +141,12 @@ class SolutionsCollector:
                         logging.debug(
                             "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
                             (self.solutions[i]).distance(self.solutions[j]))
+
+
+        for sol in best_sol_list:
+            logging.debug(sol)
+            if show:
+                sol.plan.plot(save=True)
 
         return best_sol_list
 
@@ -603,8 +609,7 @@ class Solution:
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
                           + self._position_score() + self._something_inside_score()) / 5
         solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus()
-                          - self._circulation_penalty())
+                          self._windows_good_distribution_bonus() + self._entrance_bonus())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
@@ -634,13 +639,11 @@ class Solution:
                 if space.category.mutable:
                     mesh_area += face.cached_area
                     other_space = other_solution.plan.get_space_of_face(face)
-                    if ((space.category.name in day_list and
-                         other_space.category.name not in day_list) or
-                            (space.category.name in night_list and
-                             other_space.category.name not in night_list)):
+                    if (space.category.name in ["bedroom", "office"] and
+                         other_space.category.name not in ["bedroom", "office"]):
                         difference_area += face.cached_area
 
-        if difference_area < 18 * SQM:
+        if difference_area < 8 * SQM:
             distance = 0
         else:
             distance = difference_area * 100 / mesh_area

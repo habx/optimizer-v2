@@ -201,14 +201,6 @@ class SpacePlanner:
                     #plan_solution.plot()
                     if show:
                         plan_solution.plot()
-
-                best_sol = self.solutions_collector.best()
-                for sol in best_sol:
-                    logging.debug(sol)
-                    if show:
-                        sol.plan.plot(save=True)
-                return best_sol
-
         return []
 
     def apply_to(self, spec: 'Specification') -> List['Solution']:
