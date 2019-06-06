@@ -943,7 +943,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     :return: ct: ortools.Constraint
     """
     ct = None
-    item_sym_id = str(item.category.name)# + item.variant)
+    item_sym_id = str(item.category.name)
     if item_sym_id in manager.symmetry_breaker_memo:
         memo = 0
         current = 0
