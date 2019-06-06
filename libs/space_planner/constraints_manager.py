@@ -142,7 +142,7 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
+                print("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
                     self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
@@ -162,10 +162,10 @@ class ConstraintSolver:
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        print("ConstraintSolver: num_solutions: %d", len(self.solutions))
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
-        logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
+        print("ConstraintSolver: Process time : %f", time.process_time() - t0)
         if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
             logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
 

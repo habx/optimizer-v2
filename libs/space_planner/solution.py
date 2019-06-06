@@ -13,6 +13,7 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
+import time
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -632,11 +633,40 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
-                          + self._position_score() + self._something_inside_score()) / 5
-        solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus()
-                          - self._circulation_penalty())
+        # t00 = time.process_time()
+        # area_score = self._area_score()
+        # print("area_score", time.process_time()-t00)
+        # t1 = time.process_time()
+        # shape_score = self._shape_score()
+        # print("shape_score", time.process_time()-t1)
+        # t2 = time.process_time()
+        # night_and_day_score = self._night_and_day_score()
+        # print("night_and_day_score", time.process_time()-t2)
+        # t3 = time.process_time()
+        # position_score = self._position_score()
+        # print("position_score", time.process_time()-t3)
+        # t4 = time.process_time()
+        # something_inside_score = self._something_inside_score()
+        # print("something_inside_score", time.process_time()-t4)
+        # t5 = time.process_time()
+        # good_size_bonus = self._good_size_bonus()
+        # print("good_size_bonus", time.process_time()-t5)
+        # t6 = time.process_time()
+        # windows_good_distribution_bonus = self._windows_good_distribution_bonus()
+        # print("windows_good_distribution_bonus", time.process_time()-t6)
+        # t7 = time.process_time()
+        # entrance_bonus = self._entrance_bonus()
+        # print("entrance_bonus", time.process_time()-t7)
+        # t8 = time.process_time()
+        # circulation_penalty = self._circulation_penalty()
+        # print("circulation_penalty", time.process_time()-t8)
+        # solution_score = (area_score + shape_score + night_and_day_score
+        #                   + position_score + something_inside_score) / 5
+        # solution_score = (solution_score + good_size_bonus +
+        #                   windows_good_distribution_bonus + entrance_bonus - circulation_penalty)
+
+        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
+        solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
