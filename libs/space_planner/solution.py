@@ -111,6 +111,7 @@ class SolutionsCollector:
 
         best_sol = self.solutions[index_best_sol]
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
+        print(dist_from_best_sol)
         print("best_sol, dist_from_best_sol", time.process_time() - t00)
         t00 = time.process_time()
         second_score = None
@@ -122,10 +123,9 @@ class SolutionsCollector:
         index_fifth_sol = None
         fifth_score = None
         for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] >= 1 and ((second_score is None) or
-                                               list_scores[i] > second_score):
+            if (second_score is None and dist_from_best_sol[i] > 0) or (second_score is not None and list_scores[i]*dist_from_best_sol[i] > second_score):
                 index_second_sol = i
-                second_score = list_scores[i]
+                second_score = list_scores[i]*dist_from_best_sol[i]
 
         if second_score:
             best_sol_list.append(self.solutions[index_second_sol])
@@ -137,10 +137,9 @@ class SolutionsCollector:
             print("second_sol, dist_from_second_sol", time.process_time() - t00)
             t00 = time.process_time()
             for i in range(len(self.solutions)):
-                if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
-                        (third_score is None or list_scores[i] > third_score)):
+                if (third_score is None and dist_from_best_sol[i]*dist_from_second_sol[i] > 0) or (third_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i] > third_score):
                     index_third_sol = i
-                    third_score = list_scores[i]
+                    third_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]
             if third_score:
                 best_sol_list.append(self.solutions[index_third_sol])
                 logging.debug(" SolutionsCollector : Third solution : index %i, score : %f",
@@ -151,11 +150,10 @@ class SolutionsCollector:
                 print("third_sol, dist_from_third_sol", time.process_time() - t00)
                 t00 = time.process_time()
                 for i in range(len(self.solutions)):
-                    if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
-                            dist_from_third_sol[i] >= 1 and
-                            (fourth_score is None or list_scores[i] > fourth_score)):
+                    if ((fourth_score is None and dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > 0)
+                            or (fourth_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > fourth_score)):
                         index_fourth_sol = i
-                        fourth_score = list_scores[i]
+                        fourth_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]
                 if fourth_score:
                     best_sol_list.append(self.solutions[index_fourth_sol])
                     logging.debug(" SolutionsCollector : Fourth solution : index %i, score : %f",
@@ -166,11 +164,10 @@ class SolutionsCollector:
                     print("fourth_sol, dist_from_fourth_sol", time.process_time() - t00)
                     t00 = time.process_time()
                     for i in range(len(self.solutions)):
-                        if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
-                                dist_from_third_sol[i] >= 1 and dist_from_fourth_sol[i] >= 1 and
-                                (fifth_score is None or list_scores[i] > fifth_score)):
+                        if ((fifth_score is None and dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > 0)
+                            or (fifth_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]*dist_from_fourth_sol[i] > fifth_score)):
                             index_fifth_sol = i
-                            fifth_score = list_scores[i]
+                            fifth_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]*dist_from_fourth_sol[i]
                     if fifth_score:
                         best_sol_list.append(self.solutions[index_fifth_sol])
                         logging.debug(
@@ -741,6 +738,7 @@ class Solution:
         difference = 0
         for item in self.items_spaces:
             if item not in other_solution.items_spaces:
+                difference += 1
                 continue
             space = self.items_spaces[item]
             other_solution_space = other_solution.items_spaces[item]
