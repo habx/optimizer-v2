@@ -142,7 +142,7 @@ class ConstraintSolver:
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
-                print("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
+                logging.debug("ConstraintSolver: Solution : {0}: {1}".format(i_item, [
                     self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces

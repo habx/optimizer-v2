@@ -63,10 +63,13 @@ class SolutionsCollector:
         """
         Distance between all solutions of the given solution
         """
+
         # Distance array
         distance = []
         for i, sol1 in enumerate(self.solutions):
+            t00 = time.process_time()
             dist = sol.distance(sol1)
+            print("distance", time.process_time() - t00)
             distance.append(dist)
 
         return distance
@@ -87,13 +90,14 @@ class SolutionsCollector:
         if not self.solutions:
             logging.warning("Solution : 0 solutions")
             return []
-
+        t00 = time.process_time()
         best_sol_list = []
 
         list_scores = []
         for solution in self.solutions:
             list_scores.append(solution.score)
-
+        print("End of scoring", time.process_time() - t00)
+        t00 = time.process_time()
         # Choose the tree best distributions :
         best_score = max(list_scores)
         index_best_sol = list_scores.index(best_score)
@@ -107,7 +111,8 @@ class SolutionsCollector:
 
         best_sol = self.solutions[index_best_sol]
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
-
+        print("best_sol, dist_from_best_sol", time.process_time() - t00)
+        t00 = time.process_time()
         second_score = None
         index_second_sol = None
         index_third_sol = None
@@ -129,6 +134,8 @@ class SolutionsCollector:
 
             second_sol = self.solutions[index_second_sol]
             dist_from_second_sol = self.distance_from_all_solutions(second_sol)
+            print("second_sol, dist_from_second_sol", time.process_time() - t00)
+            t00 = time.process_time()
             for i in range(len(self.solutions)):
                 if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
                         (third_score is None or list_scores[i] > third_score)):
@@ -141,6 +148,8 @@ class SolutionsCollector:
 
                 third_sol = self.solutions[index_third_sol]
                 dist_from_third_sol = self.distance_from_all_solutions(third_sol)
+                print("third_sol, dist_from_third_sol", time.process_time() - t00)
+                t00 = time.process_time()
                 for i in range(len(self.solutions)):
                     if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
                             dist_from_third_sol[i] >= 1 and
@@ -154,6 +163,8 @@ class SolutionsCollector:
 
                     fourth_sol = self.solutions[index_fourth_sol]
                     dist_from_fourth_sol = self.distance_from_all_solutions(fourth_sol)
+                    print("fourth_sol, dist_from_fourth_sol", time.process_time() - t00)
+                    t00 = time.process_time()
                     for i in range(len(self.solutions)):
                         if (dist_from_best_sol[i] >= 1 and dist_from_second_sol[i] >= 1 and
                                 dist_from_third_sol[i] >= 1 and dist_from_fourth_sol[i] >= 1 and
@@ -196,10 +207,20 @@ class Solution:
         self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
         self.score = None
         self._score()
+        self.compute_cache()
+
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
         return output
+
+    def compute_cache(self):
+        """
+        Computes the cached values for area / length of the mesh elements
+        :return:
+        """
+        for space in self.plan.mutable_spaces():
+            space._cached_immutable_components = space.immutable_components()
 
     @property
     def id(self):
@@ -671,46 +692,6 @@ class Solution:
 
         self.score = solution_score
 
-    # def distance(self, other_solution: 'Solution') -> float:
-    #     """
-    #     Distance with an other solution
-    #     the distance is calculated from the groups of rooms day and night
-    #     the inversion of two rooms within the same group gives a zero distance
-    #     :return: distance : float
-    #     """
-    #     # Day group
-    #     day_list = ["livingKitchen", "living", "kitchen", "dining"]
-    #     # Night group
-    #     bedroom_list = ["bedroom", "study", "misc"]
-    #     washing = ["bathroom", "toilet", "laundry", "wardrobe"]
-    #
-    #     difference_area = 0
-    #     mesh_area = 0
-    #     for floor in self.plan.floors.values():
-    #         for face in floor.mesh.faces:
-    #             space = self.plan.get_space_of_face(face)
-    #             # Note: sometimes a few faces of the mesh will no be assigned to a space
-    #             if not space:
-    #                 logging.warning("Solution: A face of the mesh "
-    #                                 "has no assigned space: %s - floor: %s", face, floor)
-    #                 continue
-    #             if space.category.mutable:
-    #                 mesh_area += face.cached_area
-    #                 other_space = other_solution.plan.get_space_of_face(face)
-    #                 if ((space.category.name in day_list and
-    #                      other_space.category.name not in day_list) or
-    #                         (space.category.name in bedroom_list and
-    #                          other_space.category.name not in bedroom_list) or
-    #                         (space.category.name in washing and
-    #                          other_space.category.name not in washing)):
-    #                     difference_area += face.cached_area
-    #
-    #     if difference_area < 10 * SQM:
-    #         distance = 0
-    #     else:
-    #         distance = difference_area * 100 / mesh_area
-    #     return distance
-    #
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
@@ -724,24 +705,57 @@ class Solution:
         bedroom_list = ["bedroom", "study", "misc"]
         washing = ["bathroom", "toilet", "laundry", "wardrobe"]
 
-        difference = 0
-        for item in self.items_spaces:
-            if item not in other_solution.items_spaces:
-                continue
-            space = self.items_spaces[item]
-            other_solution_space = other_solution.items_spaces[item]
-            if not space or not other_solution_space:
-                continue
-            if item.category.name in day_list or item.category.name in bedroom_list:
-                for comp in space.immutable_components():
-                    if (comp.category.name in ["window", "doorWindow"] and (comp not in other_solution_space.immutable_components()) \
-                            and [other_space for other_space in other_solution.plan.get_spaces() if
-                                 (comp in other_space.immutable_components() and other_space.category.name == space.category.name )] == []):
-                        difference += 1
-            elif item.category.name in washing:
-                for comp in space.immutable_components():
-                    if (comp.category.name == "duct" and comp not in other_solution_space.immutable_components()\
-                            and [other_space for other_space in other_solution.plan.get_spaces() if (comp in other_space.immutable_components() and other_space.category.name == space.category.name)] == []):
-                        difference += 1
-
-        return difference
+        difference_area = 0
+        mesh_area = 0
+        for floor in self.plan.floors.values():
+            for face in floor.mesh.faces:
+                space = self.plan.get_space_of_face(face)
+                # Note: sometimes a few faces of the mesh will no be assigned to a space
+                if not space:
+                    logging.warning("Solution: A face of the mesh "
+                                    "has no assigned space: %s - floor: %s", face, floor)
+                    continue
+                if space.category.mutable and space.cached_immutable_components != []:
+                    mesh_area += face.cached_area
+                    other_space = other_solution.plan.get_space_of_face(face)
+                    if space.category.name != other_space.category.name:
+                        difference_area += face.cached_area
+        print("difference",difference_area)
+        if difference_area < 4 * SQM:
+            distance = 0
+        else:
+            distance = difference_area * 100 / mesh_area
+        print("distance", distance)
+        return distance
+    #
+    # def distance(self, other_solution: 'Solution') -> float:
+    #     """
+    #     Distance with an other solution
+    #     the distance is calculated from the groups of rooms day and night
+    #     the inversion of two rooms within the same group gives a zero distance
+    #     :return: distance : float
+    #     """
+    #     window_list = ["livingKitchen", "living", "kitchen", "dining", "bedroom", "study", "misc"]
+    #     duct_list = ["bathroom", "toilet", "laundry", "wardrobe"]
+    #
+    #     difference = 0
+    #     for item in self.items_spaces:
+    #         if item not in other_solution.items_spaces:
+    #             continue
+    #         space = self.items_spaces[item]
+    #         other_solution_space = other_solution.items_spaces[item]
+    #         if not space or not other_solution_space:
+    #             continue
+    #         if item.category.name in window_list:
+    #             for comp in space.immutable_components():
+    #                 if (comp.category.name in ["window", "doorWindow"] and (comp not in other_solution_space.immutable_components()) \
+    #                         and [other_space for other_space in other_solution.plan.get_spaces() if
+    #                              (comp in other_space.immutable_components() and other_space.category.name == space.category.name )] == []):
+    #                     difference += 1
+    #         elif item.category.name in duct_list:
+    #             for comp in space.immutable_components():
+    #                 if (comp.category.name == "duct" and comp not in other_solution_space.immutable_components()\
+    #                         and [other_space for other_space in other_solution.plan.get_spaces() if (comp in other_space.immutable_components() and other_space.category.name == space.category.name)] == []):
+    #                     difference += 1
+    #
+    #     return difference
