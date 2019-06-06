@@ -469,10 +469,18 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edge that can be seeded for a duct
+    Returns the edges that can be seeded for a duct
     """
     if not space.category or space.category.name != 'duct':
         raise ValueError('You should provide a duct to the query seed_duct!')
+
+    def check_duct_length(_edge: 'Edge', min_size: float = 60):
+        l = _edge.length
+        current = _edge.next
+        while parallel(_edge.vector, current.vector):
+            l += current.length
+            current = current.next
+        return l > min_size
 
     edge_along_plan = None
     for edge in space.edges:
@@ -483,7 +491,9 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
-        yield edge_along_plan.next_ortho().next_ortho().pair
+        # for ducts along walls, no seed planted along the side parallel to the wall if too small
+        if check_duct_length(edge_along_plan.next_ortho().next_ortho()):
+            yield edge_along_plan.next_ortho().next_ortho().pair
     else:
         for edge in space.edges:
             if edge.next_ortho() is edge.next:
