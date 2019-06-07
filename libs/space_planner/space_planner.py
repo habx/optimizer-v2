@@ -185,10 +185,11 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification') -> List['Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
         """
         Runs the space planner
         :param spec:
+        :param max_nb_solutions
         :return: SolutionsCollector
         """
         self._init_spec(spec)
@@ -197,11 +198,11 @@ class SpacePlanner:
 
         self.manager = ConstraintsManager(self)
 
-        self.solutions_collector = SolutionsCollector(self.spec)
+        self.solutions_collector = SolutionsCollector(self.spec, max_nb_solutions)
 
         self.solution_research()
 
-        best_solutions = self.solutions_collector.best()
+        best_solutions = self.solutions_collector.results()
 
         return best_solutions
 
@@ -234,7 +235,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "052.json"
+        input_file = "001.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -264,7 +265,7 @@ if __name__ == '__main__':
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
         #print(spec)
-        best_solutions = space_planner.apply_to(spec)
+        best_solutions = space_planner.apply_to(spec, 5)
         #print(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -346,7 +347,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec)
+        best_solutions = space_planner.apply_to(spec, 3)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control

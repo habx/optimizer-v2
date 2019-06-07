@@ -162,10 +162,10 @@ class ConstraintSolver:
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        print("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
-        print("ConstraintSolver: Process time : %f", time.process_time() - t0)
+        logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
         if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
             logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
 
@@ -943,7 +943,7 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
     :return: ct: ortools.Constraint
     """
     ct = None
-    item_sym_id = str(item.category.name)
+    item_sym_id = str(item.category.name + item.variant)
     if item_sym_id in manager.symmetry_breaker_memo:
         memo = 0
         current = 0

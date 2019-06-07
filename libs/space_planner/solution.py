@@ -13,7 +13,6 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
-import time
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -24,9 +23,10 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification'):
+    def __init__(self, spec: 'Specification', max_solutions: int):
         self.solutions: List['Solution'] = []
         self.spec = spec
+        self.max_results = max_solutions
 
     def add_solution(self, plan: 'Plan', dict_items_spaces: Dict['Item', 'Space']) -> None:
         """
@@ -67,22 +67,54 @@ class SolutionsCollector:
         # Distance array
         distance = []
         for i, sol1 in enumerate(self.solutions):
-            t00 = time.process_time()
             dist = sol.distance(sol1)
-            print("distance", time.process_time() - t00)
             distance.append(dist)
 
         return distance
 
-    def best(self) -> List['Solution']:
+    def compute_results(self, list_scores, index_best_sol) -> List['Solution']:
+
+        def product(dist_list):
+            result = 1
+            for x in dist_list:
+                result *= x
+            return result
+
+        best_sol_list = list()
+        best_sol_list.append(self.solutions[index_best_sol])
+        best_sol = self.solutions[index_best_sol]
+        dist_from_best_sol = self.distance_from_all_solutions(best_sol)
+        distance_from_results = [dist_from_best_sol]
+
+        for i in range(self.max_results-1):
+            current_score = None
+            index_current_sol = None
+            for i_sol in range(len(self.solutions)):
+                current_distance_from_results = product([list_dist[i_sol]
+                                                         for list_dist in distance_from_results])
+                if ((current_score is None and current_distance_from_results > 0)
+                        or (current_score is not None
+                            and list_scores[i_sol]*current_distance_from_results > current_score)):
+                    index_current_sol = i_sol
+                    current_score = list_scores[i_sol]*current_distance_from_results
+            if current_score:
+                best_sol_list.append(self.solutions[index_current_sol])
+                logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
+                              index_current_sol, current_score)
+                current_sol = self.solutions[index_current_sol]
+                dist_from_current_sol = self.distance_from_all_solutions(current_sol)
+                distance_from_results.append(dist_from_current_sol)
+            else:
+                break
+
+        return best_sol_list
+
+    def results(self) -> List['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
         the second solution has the best score of the solutions distant from a minimum distance
-        of the first solution
-        the third solution has the best score of the solutions distant from a minimum distance
-        of the first and second solution
-        Just the best solution is given for small apartment
+        of the first solution...
         :param: plan
         :return: best solutions
         """
@@ -90,98 +122,18 @@ class SolutionsCollector:
         if not self.solutions:
             logging.warning("Solution : 0 solutions")
             return []
-        t00 = time.process_time()
-        best_sol_list = []
 
         list_scores = []
         for solution in self.solutions:
             list_scores.append(solution.score)
-        print("End of scoring", time.process_time() - t00)
-        t00 = time.process_time()
-        # Choose the tree best distributions :
+
+        # Choose the best solution :
         best_score = max(list_scores)
         index_best_sol = list_scores.index(best_score)
         logging.debug("SolutionsCollector : Best solution : index : %i, score : %f", index_best_sol,
                       best_score)
 
-        best_sol_list.append(self.solutions[index_best_sol])
-
-        if self.spec.number_of_items <= 4:
-            return best_sol_list
-
-        best_sol = self.solutions[index_best_sol]
-        dist_from_best_sol = self.distance_from_all_solutions(best_sol)
-        print(dist_from_best_sol)
-        print("best_sol, dist_from_best_sol", time.process_time() - t00)
-        t00 = time.process_time()
-        second_score = None
-        index_second_sol = None
-        index_third_sol = None
-        third_score = None
-        index_fourth_sol = None
-        fourth_score = None
-        index_fifth_sol = None
-        fifth_score = None
-        for i in range(len(self.solutions)):
-            if (second_score is None and dist_from_best_sol[i] > 0) or (second_score is not None and list_scores[i]*dist_from_best_sol[i] > second_score):
-                index_second_sol = i
-                second_score = list_scores[i]*dist_from_best_sol[i]
-
-        if second_score:
-            best_sol_list.append(self.solutions[index_second_sol])
-            logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
-                          index_second_sol, second_score)
-
-            second_sol = self.solutions[index_second_sol]
-            dist_from_second_sol = self.distance_from_all_solutions(second_sol)
-            print("second_sol, dist_from_second_sol", time.process_time() - t00)
-            t00 = time.process_time()
-            for i in range(len(self.solutions)):
-                if (third_score is None and dist_from_best_sol[i]*dist_from_second_sol[i] > 0) or (third_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i] > third_score):
-                    index_third_sol = i
-                    third_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]
-            if third_score:
-                best_sol_list.append(self.solutions[index_third_sol])
-                logging.debug(" SolutionsCollector : Third solution : index %i, score : %f",
-                              index_third_sol, third_score)
-
-                third_sol = self.solutions[index_third_sol]
-                dist_from_third_sol = self.distance_from_all_solutions(third_sol)
-                print("third_sol, dist_from_third_sol", time.process_time() - t00)
-                t00 = time.process_time()
-                for i in range(len(self.solutions)):
-                    if ((fourth_score is None and dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > 0)
-                            or (fourth_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > fourth_score)):
-                        index_fourth_sol = i
-                        fourth_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]
-                if fourth_score:
-                    best_sol_list.append(self.solutions[index_fourth_sol])
-                    logging.debug(" SolutionsCollector : Fourth solution : index %i, score : %f",
-                                  index_fourth_sol, fourth_score)
-
-                    fourth_sol = self.solutions[index_fourth_sol]
-                    dist_from_fourth_sol = self.distance_from_all_solutions(fourth_sol)
-                    print("fourth_sol, dist_from_fourth_sol", time.process_time() - t00)
-                    t00 = time.process_time()
-                    for i in range(len(self.solutions)):
-                        if ((fifth_score is None and dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i] > 0)
-                            or (fifth_score is not None and list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]*dist_from_fourth_sol[i] > fifth_score)):
-                            index_fifth_sol = i
-                            fifth_score = list_scores[i]*dist_from_best_sol[i]*dist_from_second_sol[i]*dist_from_third_sol[i]*dist_from_fourth_sol[i]
-                    if fifth_score:
-                        best_sol_list.append(self.solutions[index_fifth_sol])
-                        logging.debug(
-                            " SolutionsCollector : Fourth solution : index %i, score : %f",
-                            index_fifth_sol, fifth_score)
-
-            best_distribution_list = [index_best_sol, index_second_sol, index_third_sol,
-                                      index_fourth_sol, index_fifth_sol]
-            for i in best_distribution_list:
-                for j in best_distribution_list:
-                    if i and j:
-                        logging.debug(
-                            "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
-                            (self.solutions[i]).distance(self.solutions[j]))
+        best_sol_list = self.compute_results(list_scores, index_best_sol)
 
         return best_sol_list
 
@@ -651,80 +603,12 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        # t00 = time.process_time()
-        # area_score = self._area_score()
-        # print("area_score", time.process_time()-t00)
-        # t1 = time.process_time()
-        # shape_score = self._shape_score()
-        # print("shape_score", time.process_time()-t1)
-        # t2 = time.process_time()
-        # night_and_day_score = self._night_and_day_score()
-        # print("night_and_day_score", time.process_time()-t2)
-        # t3 = time.process_time()
-        # position_score = self._position_score()
-        # print("position_score", time.process_time()-t3)
-        # t4 = time.process_time()
-        # something_inside_score = self._something_inside_score()
-        # print("something_inside_score", time.process_time()-t4)
-        # t5 = time.process_time()
-        # good_size_bonus = self._good_size_bonus()
-        # print("good_size_bonus", time.process_time()-t5)
-        # t6 = time.process_time()
-        # windows_good_distribution_bonus = self._windows_good_distribution_bonus()
-        # print("windows_good_distribution_bonus", time.process_time()-t6)
-        # t7 = time.process_time()
-        # entrance_bonus = self._entrance_bonus()
-        # print("entrance_bonus", time.process_time()-t7)
-        # t8 = time.process_time()
-        # circulation_penalty = self._circulation_penalty()
-        # print("circulation_penalty", time.process_time()-t8)
-        # solution_score = (area_score + shape_score + night_and_day_score
-        #                   + position_score + something_inside_score) / 5
-        # solution_score = (solution_score + good_size_bonus +
-        #                   windows_good_distribution_bonus + entrance_bonus - circulation_penalty)
-
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
         solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
 
-    # def distance(self, other_solution: 'Solution') -> float:
-    #     """
-    #     Distance with an other solution
-    #     the distance is calculated from the groups of rooms day and night
-    #     the inversion of two rooms within the same group gives a zero distance
-    #     :return: distance : float
-    #     """
-    #     # Day group
-    #     day_list = ["livingKitchen", "living", "kitchen", "dining"]
-    #     # Night group
-    #     bedroom_list = ["bedroom", "study", "misc"]
-    #     washing = ["bathroom", "toilet", "laundry", "wardrobe"]
-    #
-    #     difference_area = 0
-    #     mesh_area = 0
-    #     for floor in self.plan.floors.values():
-    #         for face in floor.mesh.faces:
-    #             space = self.plan.get_space_of_face(face)
-    #             # Note: sometimes a few faces of the mesh will no be assigned to a space
-    #             if not space:
-    #                 logging.warning("Solution: A face of the mesh "
-    #                                 "has no assigned space: %s - floor: %s", face, floor)
-    #                 continue
-    #             if space.category.mutable and space.cached_immutable_components != []:
-    #                 mesh_area += face.cached_area
-    #                 other_space = other_solution.plan.get_space_of_face(face)
-    #                 if space.category.name != other_space.category.name:
-    #                     difference_area += face.cached_area
-    #     print("difference",difference_area)
-    #     if difference_area < 4 * SQM:
-    #         distance = 0
-    #     else:
-    #         distance = difference_area * 100 / mesh_area
-    #     print("distance", distance)
-    #     return distance
-    #
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
@@ -735,10 +619,11 @@ class Solution:
         window_list = ["livingKitchen", "living", "kitchen", "dining", "bedroom", "study", "misc"]
         duct_list = ["bathroom", "toilet", "laundry", "wardrobe"]
 
-        difference = 0
+        distance = 0
         for item in self.items_spaces:
+            if len(self.items_spaces) != len(other_solution.items_spaces):
+                distance += 1
             if item not in other_solution.items_spaces:
-                difference += 1
                 continue
             space = self.items_spaces[item]
             other_solution_space = other_solution.items_spaces[item]
@@ -746,14 +631,18 @@ class Solution:
                 continue
             if item.category.name in window_list:
                 for comp in space.cached_immutable_components:
-                    if (comp.category.name in ["window", "doorWindow"] and (comp not in other_solution_space.cached_immutable_components) \
-                            and [other_space for other_space in other_solution.plan.get_spaces() if
-                                 (comp in other_space.cached_immutable_components and other_space.category.name == space.category.name )] == []):
-                        difference += 1
+                    if (comp.category.name in ["window", "doorWindow"]
+                            and (comp not in other_solution_space.cached_immutable_components)
+                            and [other_space for other_space in other_solution.plan.get_spaces()
+                                 if (comp in other_space.cached_immutable_components
+                                     and other_space.category.name == space.category.name )] == []):
+                        distance += 1
             elif item.category.name in duct_list:
                 for comp in space.cached_immutable_components:
-                    if (comp.category.name == "duct" and comp not in other_solution_space.cached_immutable_components\
-                            and [other_space for other_space in other_solution.plan.get_spaces() if (comp in other_space.cached_immutable_components and other_space.category.name == space.category.name)] == []):
-                        difference += 1
-        print("difference", difference)
-        return difference
+                    if (comp.category.name == "duct"
+                            and comp not in other_solution_space.cached_immutable_components
+                            and [other_space for other_space in other_solution.plan.get_spaces()
+                                 if (comp in other_space.cached_immutable_components
+                                     and other_space.category.name == space.category.name)] == []):
+                        distance += 1
+        return distance

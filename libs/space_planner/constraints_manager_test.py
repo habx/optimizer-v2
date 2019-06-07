@@ -40,7 +40,7 @@ def test_t1():
     spec = Specification("simple_test", plan_t1, [bathroom, circulation, living])
 
     space_planner_t1 = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner_t1.apply_to(spec)
+    best_solutions = space_planner_t1.apply_to(spec, 3)
     assert len(space_planner_t1.solutions_collector.solutions) == 2
 
 
@@ -79,7 +79,7 @@ def test_t1_bis():
     print(spec)
 
     space_planner_t1_bis = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner_t1_bis.apply_to(spec)
+    best_solutions = space_planner_t1_bis.apply_to(spec, 3)
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1
 
 
@@ -123,7 +123,8 @@ def test_t3_balcony():
                                                           bedroom2])
 
     space_planner_t3_balcony = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner_t3_balcony.apply_to(spec)
+    plan_t3_balcony.plot()
+    best_solutions = space_planner_t3_balcony.apply_to(spec, 3)
 
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1
 
@@ -166,7 +167,7 @@ def test_t3_bis():
                                                       bedroom2])
 
     space_planner_t3_bis = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner_t3_bis.apply_to(spec)
+    best_solutions = space_planner_t3_bis.apply_to(spec, 3)
 
     assert len(space_planner_t3_bis.solutions_collector.solutions) == 1
 
