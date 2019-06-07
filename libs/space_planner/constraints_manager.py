@@ -625,10 +625,9 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     path_length += additional_distance
                                     path_inside_room = 1
                                     for i_path in path:
-                                        path_inside_room = (path_inside_room *
-                                                        manager.solver.positions[item.id, i_path])
-                                    new_ct = (path_inside_room*(manager.solver.positions[item.id, j]
-                                              * manager.solver.positions[item.id, k] * path_length)
+                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
+                                    new_ct = path_inside_room*(manager.solver.positions[item.id, j] *
+                                          manager.solver.positions[item.id, k] * path_length
                                           <= max_distance)
                                 ct = manager.or_(ct, new_ct)
     return ct == 1
@@ -1226,7 +1225,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [max_distance_window_duct_constraint, {"max_distance": 650}]
+        [max_distance_window_duct_constraint, {"max_distance": 700}]
     ],
     "dining": [
         [item_attribution_constraint, {}],
