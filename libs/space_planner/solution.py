@@ -13,6 +13,8 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
+import functools
+import operator
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -23,7 +25,7 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification', max_solutions: int):
+    def __init__(self, spec: 'Specification', max_solutions: int = 3):
         self.solutions: List['Solution'] = []
         self.spec = spec
         self.max_results = max_solutions
@@ -74,14 +76,7 @@ class SolutionsCollector:
 
     def compute_results(self, list_scores, index_best_sol) -> List['Solution']:
 
-        def product(dist_list):
-            result = 1
-            for x in dist_list:
-                result *= x
-            return result
-
-        best_sol_list = list()
-        best_sol_list.append(self.solutions[index_best_sol])
+        best_sol_list = [self.solutions[index_best_sol]]
         best_sol = self.solutions[index_best_sol]
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
         distance_from_results = [dist_from_best_sol]
@@ -90,7 +85,7 @@ class SolutionsCollector:
             current_score = None
             index_current_sol = None
             for i_sol in range(len(self.solutions)):
-                current_distance_from_results = product([list_dist[i_sol]
+                current_distance_from_results = functools.reduce(operator.mul, [list_dist[i_sol]
                                                          for list_dist in distance_from_results])
                 if ((current_score is None and current_distance_from_results > 0)
                         or (current_score is not None
