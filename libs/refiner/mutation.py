@@ -77,11 +77,13 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
         pb = mutation_pbx[1][space_size]
         accumulated_pb += pb
         if dice <= accumulated_pb:
+            logging.debug("Space mutated %s - %s", space, mutation_pbx[0])
+
             modified_spaces = mutation_pbx[0](space)
             ind.modified_spaces |= {s.id for s in modified_spaces}
             break
     else:
-        logging.debug("Refiner: No mutation occurred")
+        logging.info("Refiner: No mutation occurred")
 
     return ind
 
@@ -154,6 +156,7 @@ def _random_removable_edge(space: 'Space') -> Optional['Edge']:
         return None
     weights = [1.0/len(list(space.aligned_siblings(e, 25.0))) for e in mutable_edges]
     return random.choices(mutable_edges, weights=weights, k=1)[0]
+    # return random.choice(mutable_edges)
 
 
 def _random_addable_edge(space: 'Space') -> Optional['Edge']:
@@ -169,7 +172,7 @@ def _random_addable_edge(space: 'Space') -> Optional['Edge']:
 
     weights = [1.0/len(list(space.aligned_siblings(e, 25.0))) for e in mutable_edges]
     return random.choices(mutable_edges, weights=weights, k=1)[0]
-
+    # return random.choice(mutable_edges)
 
 """
 MUTATIONS operators

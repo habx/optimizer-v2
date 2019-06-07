@@ -2303,7 +2303,7 @@ class Plan:
         :param other:
         :return:
         """
-        min_difference = 1000
+        min_difference = 500
         # check that both plan have the same meshes
         for _id, floor in self.floors.items():
             other_floor = other.get_floor_from_id(_id)

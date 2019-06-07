@@ -110,7 +110,7 @@ class Refiner:
         :param hof: number of individual to store in a hof. If hof > 0 then the output is the hof
         :return:
         """
-        _hof = support.HallOfFame(hof) if hof > 0 else None
+        _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
 
         # 1. create plan cache for performance reason
         for floor in plan.floors.values():
@@ -166,7 +166,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0, -100.0)
+    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -175,26 +175,28 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
-    scores_fc = [evaluation.score_corner,
-                 evaluation.score_area,
-                 evaluation.score_perimeter_area_ratio,
-                 evaluation.score_bounding_box,
-                 evaluation.score_connectivity,
-                 evaluation.score_circulation_width]
+    scores_fc = [
+        evaluation.score_corner,
+        evaluation.score_area,
+        evaluation.score_perimeter_area_ratio,
+        evaluation.score_bounding_box,
+        evaluation.score_connectivity,
+        # evaluation.score_circulation_width
+    ]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
-    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.2,
-                                      mutation.Case.SMALL: 0.4,
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
+                                      mutation.Case.SMALL: 0.3,
                                       mutation.Case.BIG: 0.1}),
-                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.2,
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
                                          mutation.Case.SMALL: 0.1,
-                                         mutation.Case.BIG: 0.4}),
-                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.3,
-                                               mutation.Case.SMALL: 0.4,
+                                         mutation.Case.BIG: 0.3}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.4,
+                                               mutation.Case.SMALL: 0.5,
                                                mutation.Case.BIG: 0.1}),
-                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.3,
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.4,
                                                   mutation.Case.SMALL: 0.1,
-                                                  mutation.Case.BIG: 0.4}))
+                                                  mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
     toolbox.register("mate", crossover.connected_differences)
@@ -327,7 +329,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 60, "cxpb": 0.5}
+        params = {"ngen": 30, "mu": 80, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "057"  # 004 # 032
@@ -346,14 +348,15 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["naive"].apply_to(plan, spec, params, processes=4)
+            improved_plans = REFINERS["nsga"].run(plan, spec, params, processes=4, hof=10)
             end = time.time()
-            improved_plan.name = "Refined_" + plan_number
-            improved_plan.plot()
-            # analyse found solutions
-            logging.info("Time elapsed: {}".format(end - start))
-            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                           improved_plan.fitness.values))
+            for improved_plan in improved_plans:
+                improved_plan.name = "Refined_" + plan_number
+                improved_plan.plot()
+                # analyse found solutions
+                logging.info("Time elapsed: {}".format(end - start))
+                logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                               improved_plan.fitness.values))
 
             evaluation.check(improved_plan, spec)
 
