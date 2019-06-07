@@ -238,16 +238,12 @@ if __name__ == '__main__':
         input_file = "001.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
-        # logging.info("input_file %s", input_file)
-        print("input_file", input_file, " - area : ", plan.indoor_area)
+        logging.info("input_file %s", input_file)
+        # print("input_file", input_file, " - area : ", plan.indoor_area)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
-        plan.plot()
-        print(plan)
 
         GRIDS['001'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
-        print("SEEDER")
-        print(plan)
 
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
@@ -259,34 +255,32 @@ if __name__ == '__main__':
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
-        print("number of mutables spaces, %i",
+        logging.debug("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        #print(spec)
         best_solutions = space_planner.apply_to(spec, 5)
-        #print(space_planner.spec)
+        logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
-        # print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
-        # print("Setup AREA : %i", int(sum(item.required_area for item in space_planner.spec.items)))
-        # logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
-        #                                              for item in space_planner.spec.items)))
-        # logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
-        #                                              for item in space_planner.spec.items)))
-        # plan_ratio = round(space_planner.spec.plan.indoor_perimeter
-        #                    ** 2 / space_planner.spec.plan.indoor_area)
-        # print("PLAN Ratio : %i", plan_ratio)
-        print("space_planner time : ", time.process_time() - t0)
-        print("number of constraint prog solutions : ", len(space_planner.solutions_collector.solutions))
+        logging.debug("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        logging.debug("Setup AREA : %i",
+                      int(sum(item.required_area for item in space_planner.spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
+                                                     for item in space_planner.spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
+                                                     for item in space_planner.spec.items)))
+        plan_ratio = round(space_planner.spec.plan.indoor_perimeter
+                           ** 2 / space_planner.spec.plan.indoor_area)
+        logging.debug("PLAN Ratio : %i", plan_ratio)
+        logging.debug("space_planner time : ", time.process_time() - t0)
+        logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
         # Output
         if best_solutions:
-            print("number of solutions : ",
-                  len(best_solutions))
             for sol in best_solutions:
                 sol.plan.plot()
                 logging.debug(sol, sol.score)
