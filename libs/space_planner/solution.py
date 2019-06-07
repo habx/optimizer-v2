@@ -13,6 +13,8 @@ from libs.plan.plan import Plan, Space
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 import logging
+import functools
+import operator
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -23,9 +25,10 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification'):
+    def __init__(self, spec: 'Specification', max_solutions: int = 3):
         self.solutions: List['Solution'] = []
         self.spec = spec
+        self.max_results = max_solutions
 
     def add_solution(self, plan: 'Plan', dict_items_spaces: Dict['Item', 'Space']) -> None:
         """
@@ -62,6 +65,7 @@ class SolutionsCollector:
         """
         Distance between all solutions of the given solution
         """
+
         # Distance array
         distance = []
         for i, sol1 in enumerate(self.solutions):
@@ -70,15 +74,42 @@ class SolutionsCollector:
 
         return distance
 
-    def best(self) -> List['Solution']:
+    def compute_results(self, list_scores, index_best_sol) -> List['Solution']:
+
+        best_sol_list = [self.solutions[index_best_sol]]
+        best_sol = self.solutions[index_best_sol]
+        dist_from_best_sol = self.distance_from_all_solutions(best_sol)
+        distance_from_results = [dist_from_best_sol]
+
+        for i in range(self.max_results-1):
+            current_score = None
+            index_current_sol = None
+            for i_sol in range(len(self.solutions)):
+                current_distance_from_results = functools.reduce(operator.mul, [list_dist[i_sol]
+                                                         for list_dist in distance_from_results])
+                if ((current_score is None and current_distance_from_results > 0)
+                        or (current_score is not None
+                            and list_scores[i_sol]*current_distance_from_results > current_score)):
+                    index_current_sol = i_sol
+                    current_score = list_scores[i_sol]*current_distance_from_results
+            if current_score:
+                best_sol_list.append(self.solutions[index_current_sol])
+                logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
+                              index_current_sol, current_score)
+                current_sol = self.solutions[index_current_sol]
+                dist_from_current_sol = self.distance_from_all_solutions(current_sol)
+                distance_from_results.append(dist_from_current_sol)
+            else:
+                break
+
+        return best_sol_list
+
+    def results(self) -> List['Solution']:
         """
         Find best solutions of the list
         the best solution is the one with the highest score
         the second solution has the best score of the solutions distant from a minimum distance
-        of the first solution
-        the third solution has the best score of the solutions distant from a minimum distance
-        of the first and second solution
-        Just the best solution is given for small apartment
+        of the first solution...
         :param: plan
         :return: best solutions
         """
@@ -87,60 +118,17 @@ class SolutionsCollector:
             logging.warning("Solution : 0 solutions")
             return []
 
-        best_sol_list = []
-
         list_scores = []
         for solution in self.solutions:
             list_scores.append(solution.score)
 
-        # Choose the tree best distributions :
+        # Choose the best solution :
         best_score = max(list_scores)
         index_best_sol = list_scores.index(best_score)
         logging.debug("SolutionsCollector : Best solution : index : %i, score : %f", index_best_sol,
                       best_score)
 
-        best_sol_list.append(self.solutions[index_best_sol])
-
-        if self.spec.number_of_items <= 4:
-            return best_sol_list
-
-        best_sol = self.solutions[index_best_sol]
-        dist_from_best_sol = self.distance_from_all_solutions(best_sol)
-
-        second_score = None
-        index_second_sol = None
-        for i in range(len(self.solutions)):
-            if dist_from_best_sol[i] > 25 and ((second_score is None) or
-                                               list_scores[i] > second_score):
-                index_second_sol = i
-                second_score = list_scores[i]
-
-        if second_score:
-            best_sol_list.append(self.solutions[index_second_sol])
-            logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
-                          index_second_sol, second_score)
-
-            index_third_sol = None
-            third_score = None
-            second_sol = self.solutions[index_second_sol]
-            dist_from_second_sol = self.distance_from_all_solutions(second_sol)
-            for i in range(len(self.solutions)):
-                if (dist_from_best_sol[i] > 25 and dist_from_second_sol[i] > 25 and
-                        (third_score is None or list_scores[i] > third_score)):
-                    index_third_sol = i
-                    third_score = list_scores[i]
-            if third_score:
-                best_sol_list.append(self.solutions[index_third_sol])
-                logging.debug(" SolutionsCollector : Third solution : index %i, score : %f",
-                              index_third_sol, third_score)
-
-            best_distribution_list = [index_best_sol, index_second_sol, index_third_sol]
-            for i in best_distribution_list:
-                for j in best_distribution_list:
-                    if i and j:
-                        logging.debug(
-                            "SolutionsCollector : Distance solutions : %i and %i : %f", i, j,
-                            (self.solutions[i]).distance(self.solutions[j]))
+        best_sol_list = self.compute_results(list_scores, index_best_sol)
 
         return best_sol_list
 
@@ -163,10 +151,20 @@ class Solution:
         self.items_spaces: Dict['Item', 'Space'] = dict_items_spaces
         self.score = None
         self._score()
+        self.compute_cache()
+
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
         return output
+
+    def compute_cache(self):
+        """
+        Computes the cached values for area / length of the mesh elements
+        :return:
+        """
+        for space in self.plan.mutable_spaces():
+            space._cached_immutable_components = space.immutable_components()
 
     @property
     def id(self):
@@ -600,11 +598,8 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()
-                          + self._position_score() + self._something_inside_score()) / 5
-        solution_score = (solution_score + self._good_size_bonus() +
-                          self._windows_good_distribution_bonus() + self._entrance_bonus()
-                          - self._circulation_penalty())
+        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
+        solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
@@ -612,36 +607,37 @@ class Solution:
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
-        the distance is calculated from the groups of rooms day and night
+        the distance is calculated from difference of fixed items distribution
         the inversion of two rooms within the same group gives a zero distance
         :return: distance : float
         """
-        # Day group
-        day_list = ["livingKitchen", "living", "kitchen", "dining"]
-        # Night group
-        night_list = ["bedroom", "bathroom", "toilet", "laundry", "wardrobe", "study", "misc"]
+        window_list = ["livingKitchen", "living", "kitchen", "dining", "bedroom", "study", "misc"]
+        duct_list = ["bathroom", "toilet", "laundry", "wardrobe"]
 
-        difference_area = 0
-        mesh_area = 0
-        for floor in self.plan.floors.values():
-            for face in floor.mesh.faces:
-                space = self.plan.get_space_of_face(face)
-                # Note: sometimes a few faces of the mesh will no be assigned to a space
-                if not space:
-                    logging.warning("Solution: A face of the mesh "
-                                    "has no assigned space: %s - floor: %s", face, floor)
-                    continue
-                if space.category.mutable:
-                    mesh_area += face.cached_area
-                    other_space = other_solution.plan.get_space_of_face(face)
-                    if ((space.category.name in day_list and
-                         other_space.category.name not in day_list) or
-                            (space.category.name in night_list and
-                             other_space.category.name not in night_list)):
-                        difference_area += face.cached_area
-
-        if difference_area < 18 * SQM:
-            distance = 0
-        else:
-            distance = difference_area * 100 / mesh_area
+        distance = 0
+        for item in self.items_spaces:
+            if len(self.items_spaces) != len(other_solution.items_spaces):
+                distance += 1
+            if item not in other_solution.items_spaces:
+                continue
+            space = self.items_spaces[item]
+            other_solution_space = other_solution.items_spaces[item]
+            if not space or not other_solution_space:
+                continue
+            if item.category.name in window_list:
+                for comp in space.cached_immutable_components:
+                    if (comp.category.name in ["window", "doorWindow"]
+                            and (comp not in other_solution_space.cached_immutable_components)
+                            and [other_space for other_space in other_solution.plan.get_spaces()
+                                 if (comp in other_space.cached_immutable_components
+                                     and other_space.category.name == space.category.name )] == []):
+                        distance += 1
+            elif item.category.name in duct_list:
+                for comp in space.cached_immutable_components:
+                    if (comp.category.name == "duct"
+                            and comp not in other_solution_space.cached_immutable_components
+                            and [other_space for other_space in other_solution.plan.get_spaces()
+                                 if (comp in other_space.cached_immutable_components
+                                     and other_space.category.name == space.category.name)] == []):
+                        distance += 1
         return distance

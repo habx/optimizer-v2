@@ -822,7 +822,7 @@ if __name__ == '__main__':
         plan.plot()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
 
-        return space_planner.apply_to(spec), space_planner
+        return space_planner.apply_to(spec, 3), space_planner
 
 
     def connect_plan():

@@ -27,17 +27,19 @@ def test_solution_distance():
         size_max = Size(area=15000)
         new_item = Item(SPACE_CATEGORIES[cat], "m", size_min, size_max, [], [], [])
         spec.add_item(new_item)
-    collector = SolutionsCollector(spec)
+    collector = SolutionsCollector(spec, 3)
 
     plan1 = Plan("1")
     floor_1 = plan1.add_floor_from_boundary(boundaries, floor_level=0)
     plan1.insert_linear((200, 0), (300, 0), LINEAR_CATEGORIES["frontDoor"], floor_1)
+    plan1.insert_linear((600, 0), (800, 0), LINEAR_CATEGORIES["doorWindow"], floor_1)
+    plan1.insert_linear((800, 1000), (600, 1000), LINEAR_CATEGORIES["doorWindow"], floor_1)
     living_coords = [(0, 0), (500, 0), (500, 1000), (0, 1000)]
     bedroom_coords = [(500, 0), (1000, 0), (1000, 500), (500, 500)]
-    bathroom_coords = [(500, 500), (1000, 500), (1000, 1000), (500, 1000)]
+    kitchen_coords = [(500, 500), (1000, 500), (1000, 1000), (500, 1000)]
     plan1.insert_space_from_boundary(living_coords, SPACE_CATEGORIES["living"], floor_1)
     plan1.insert_space_from_boundary(bedroom_coords, SPACE_CATEGORIES["bedroom"], floor_1)
-    plan1.insert_space_from_boundary(bathroom_coords, SPACE_CATEGORIES["bathroom"], floor_1)
+    plan1.insert_space_from_boundary(kitchen_coords, SPACE_CATEGORIES["kitchen"], floor_1)
     plan1.remove_null_spaces()
 
     dict_items_spaces_plan1 = {}
@@ -61,7 +63,7 @@ def test_solution_distance():
     collector.add_solution(plan1, dict_items_spaces_plan1)
     collector.add_solution(plan2, dict_items_spaces_plan2)
 
-    assert collector.solutions[0].distance(collector.solutions[1]) == 25, "Wrong distance"
+    assert collector.solutions[0].distance(collector.solutions[1]) == 2, "Wrong distance"
 
     plan3 = plan1.clone("3")
     plan3.spaces[1].category = SPACE_CATEGORIES["kitchen"]
@@ -75,8 +77,7 @@ def test_solution_distance():
                 break
 
     collector.add_solution(plan3, dict_items_spaces_plan3)
-
-    assert collector.solutions[0].distance(collector.solutions[2]) == 50, "Wrong distance"
+    assert collector.solutions[0].distance(collector.solutions[2]) == 1, "Wrong distance"
 
     plan4 = plan1.clone("4")
     collector.add_solution(plan4, dict_items_spaces_plan1)
@@ -96,7 +97,7 @@ def test_solution_distance():
                 break
     collector.add_solution(plan5, dict_items_spaces_plan5)
 
-    assert collector.solutions[0].distance(collector.solutions[4]) == 100, "Wrong distance"
+    assert collector.solutions[0].distance(collector.solutions[4]) == 1, "Wrong distance"
 
 
 def test_duplex():
@@ -151,7 +152,7 @@ def test_duplex():
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec)
+    best_solutions = space_planner.apply_to(spec, 3)
 
     for solution in best_solutions:
         solution.plan.plot()
