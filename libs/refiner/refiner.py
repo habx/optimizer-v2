@@ -15,6 +15,8 @@ It implements a simple version of the NSGA-II algorithm:
     non-dominated sorting genetic algorithm for multi-objective
     optimization: NSGA-II", 2002.
 
+TODO :
+• merge circulation with livingRoom or entrance when only adjacent to livingRoom and entrance
 
 """
 import random
@@ -316,6 +318,8 @@ if __name__ == '__main__':
 
     def with_corridor():
         """
+        Plan to check :
+        • 049 / 050 / 027
         :return:
         """
         import tools.cache
@@ -326,8 +330,8 @@ if __name__ == '__main__':
         params = {"ngen": 50, "mu": 60, "cxpb": 0.5}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "007"  # 004 # 032
-        spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
+        plan_number = "057"  # 004 # 032
+        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder")
 
         if plan:
             plan.name = "original_" + plan_number

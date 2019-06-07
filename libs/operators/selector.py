@@ -2293,8 +2293,7 @@ SELECTORS = {
                                                       close_to_corner_wall]),
     "previous_close_to_corner_wall": Selector(space_boundary,
                                               [edge_length(min_length=110.0),
-                                               space_previous_has(close_to_corner_wall)]),
-
+                                               space_previous_has(close_to_corner_wall)])
 }
 
 SELECTOR_FACTORIES = {
