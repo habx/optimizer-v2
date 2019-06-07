@@ -612,7 +612,7 @@ class Solution:
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
-        the distance is calculated from the groups of rooms day and night
+        the distance is calculated from difference of fixed items distribution
         the inversion of two rooms within the same group gives a zero distance
         :return: distance : float
         """
