@@ -43,7 +43,6 @@ def test_floor_plan_grid(input_file):
     plan = reader.create_plan_from_file(input_file)
     new_plan = GRIDS["001"].apply_to(plan)
 
-    new_plan.plot()
     assert new_plan.check()
 
 
@@ -57,7 +56,6 @@ def test_simple_ortho_grid():
 
     plan = reader.create_plan_from_file("011.json")
     new_plan = simple_ortho_grid.apply_to(plan)
-    new_plan.plot()
 
     assert new_plan.check()
 
@@ -85,5 +83,4 @@ def test_multiple_floors_grid():
     plan.add_floor_from_boundary(boundaries_2, 1)
 
     GRIDS["finer_ortho_grid"].apply_to(plan)
-    plan.plot()
     assert plan.check()

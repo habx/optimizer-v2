@@ -36,4 +36,3 @@ def test_circulation(input_file, input_setup):
     for solution in best_solutions:
         circulator = Circulator(plan=solution.plan, spec=spec)
         circulator.connect()
-        circulator.plot()

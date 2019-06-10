@@ -2,7 +2,6 @@ import signal
 
 from libs.executor.defs import ExecWrapper, TaskDefinition
 import libs.optimizer as opt
-import libs.io.plot as plt
 
 
 class OptimizerRun(ExecWrapper):
@@ -15,9 +14,9 @@ class OptimizerRun(ExecWrapper):
         # APP-4810: Creating a duplicate instance before processing
         td = td.copy_for_processing()
 
-        output_path = td.local_context.output_dir
-        if output_path:
-            plt.output_path = output_path
+        # output_path = td.local_context.output_dir
+        # if output_path:
+        #     plt.output_path = output_path
         return self.OPTIMIZER.run(td.blueprint, td.setup, td.params, td.local_context)
 
     @staticmethod

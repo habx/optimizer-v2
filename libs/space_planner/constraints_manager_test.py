@@ -123,7 +123,6 @@ def test_t3_balcony():
                                                           bedroom2])
 
     space_planner_t3_balcony = SPACE_PLANNERS["standard_space_planner"]
-    plan_t3_balcony.plot()
     best_solutions = space_planner_t3_balcony.apply_to(spec, 3)
 
     assert len(space_planner_t3_balcony.solutions_collector.solutions) == 1

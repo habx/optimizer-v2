@@ -20,7 +20,6 @@ def test_read_floor_plan(input_file):
     :return:
     """
     plan = reader.create_plan_from_file(input_file)
-    plan.plot()
 
     assert plan.check()
 
@@ -63,7 +62,6 @@ def test_serialization():
         new_serialized_data = reader.get_plan_from_json(serialized_data["name"] + ".json")
         new_plan = Plan("from_saved_data").deserialize(new_serialized_data)
 
-    new_plan.plot()
     assert new_plan.check()
 
 
@@ -78,7 +76,6 @@ def test_multiple_floors():
     plan.add_floor_from_boundary(perimeter)
     plan.add_floor_from_boundary(perimeter_2, 1)
 
-    plan.plot()
     assert plan.check()
 
 
@@ -159,12 +156,9 @@ def test_remove_edge_from_space():
     touching_duct = [(0, 800), (200, 800), (200, 1000), (0, 1000)]
     plan.empty_space.insert_face_from_boundary(touching_duct)
 
-    plan.plot()
-
     edge = list(plan.mesh.faces[0].edges)[1]
     plan.empty_space.remove_internal_edge(edge)
 
-    # plan.plot()
 
     assert plan.check()
 
@@ -187,8 +181,6 @@ def test_add_face():
 
     plan.empty_space.add_face(face_to_remove)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -204,8 +196,6 @@ def test_cut_to_inside_space():
     duct = [(200, 200), (800, 200), (800, 800), (200, 800)]
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES['duct'])
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -230,8 +220,6 @@ def test_add_overlapping_face():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -254,8 +242,6 @@ def test_add_border_overlapping_face():
     plan.empty_space.insert_face_from_boundary(hole_2)
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
-
-    plan.plot()
 
     assert plan.check()
 
@@ -285,8 +271,6 @@ def test_add_face_touching_internal_edge():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -315,8 +299,6 @@ def test_add_two_face_touching_internal_edge_and_border():
     face_to_remove = list(plan.empty_space.faces)[1]
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -331,8 +313,6 @@ def test_insert_separating_wall():
     plan.add_floor_from_boundary(perimeter)
 
     plan.insert_space_from_boundary(wall, category=SPACE_CATEGORIES['loadBearingWall'])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -354,8 +334,6 @@ def test_remove_middle_space():
 
     plan.empty_space.remove_face(middle_face)
     plan.empty_space.add_face(middle_face)
-
-    plan.plot()
 
     assert plan.check()
 
@@ -381,8 +359,6 @@ def test_remove_enclosing_space():
     plan.empty_space.remove_face(hole_face)
     plan.empty_space.add_face(hole_face)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -406,8 +382,6 @@ def test_remove_u_space():
     plan.empty_space.remove_face(hole_face)
     plan.empty_space.add_face(hole_face)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -426,8 +400,6 @@ def test_remove_middle_b_space():
 
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -448,8 +420,6 @@ def test_remove_middle_u_space():
     plan.empty_space.remove_face(plan.mesh.faces[0])
     plan.empty_space.add_face(plan.mesh.faces[0])
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -469,8 +439,6 @@ def test_remove_middle_c_space():
     plan.empty_space.remove_face(plan.mesh.faces[1])
     plan.empty_space.add_face(plan.mesh.faces[1])
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -488,8 +456,6 @@ def test_remove_d_space():
 
     plan.empty_space.remove_face(plan.mesh.faces[1])
     plan.empty_space.add_face(plan.mesh.faces[1])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -642,8 +608,6 @@ def test_remove_face_along_internal_edge():
     my_space.remove_face(plan.mesh.faces[0])
     my_space.add_face(plan.mesh.faces[0])
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -664,8 +628,6 @@ def test_remove_encapsulating_face():
     my_space.remove_face(plan.mesh.faces[1])
     Space(plan, my_space.floor, plan.mesh.faces[1].edge)
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -681,8 +643,6 @@ def test_merge_middle_b_space():
     edge = list(plan.mesh.faces[0].edges)[4]
     plan.empty_space.barycenter_cut(edge, 0)
 
-    plan.plot()
-
     duct = [(200, 200), (300, 200), (300, 300)]
     plan.empty_space.insert_face_from_boundary(duct)
 
@@ -690,8 +650,6 @@ def test_merge_middle_b_space():
     plan.empty_space.add_face(plan.mesh.faces[0])
 
     plan.spaces[1].merge(plan.spaces[0])
-
-    plan.plot()
 
     assert plan.check()
 
@@ -718,8 +676,6 @@ def test_merge_u_space():
 
     plan.spaces[0].merge(plan.spaces[1])
 
-    plan.plot()
-
     assert plan.check()
 
 
@@ -733,8 +689,6 @@ def test_clone_plan():
     plan.add_floor_from_boundary(perimeter)
     plan_2 = plan.clone()
     plan_2.empty_space.category = SPACE_CATEGORIES["duct"]
-    plan.plot()
-    plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
     assert plan.spaces[0].id == plan_2.spaces[0].id
@@ -757,12 +711,10 @@ def test_clone_change_plan():
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan_2)
-    plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
     assert not plan_2.empty_space.has_holes
     assert plan.spaces[0].id == plan_2.spaces[0].id
-    plan.plot()
 
 
 def test_deepcopy_change_plan():
@@ -782,8 +734,6 @@ def test_deepcopy_change_plan():
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
     plan_2.insert_space_from_boundary(duct_2, SPACE_CATEGORIES["duct"])
     GRIDS["finer_ortho_grid"].apply_to(plan_2)
-    plan.plot()
-    plan_2.plot()
     space = plan.get_space_from_id(plan.spaces[0].id)
     assert space is plan.empty_space
     assert not plan_2.empty_space.has_holes
@@ -801,7 +751,6 @@ def test_pickling():
     GRIDS["finer_ortho_grid"].apply_to(plan)
     data = pickle.dumps(plan)
     new_plan = pickle.loads(data)
-    new_plan.plot()
 
     assert new_plan.check()
 
@@ -825,7 +774,6 @@ def test_insert_external_space():
     plan = Plan("apartment with balcony")
     floor = plan.add_floor_from_boundary(perimeter)
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
-    plan.plot()
 
     assert plan.check()
 
@@ -852,7 +800,6 @@ def test_insert_complex_external_space():
     plan = Plan("apartment with balcony")
     floor = plan.add_floor_from_boundary(perimeter)
     plan.insert_space_from_boundary(face_perimeter, SPACE_CATEGORIES["balcony"], floor)
-    plan.plot()
 
     assert plan.check()
 
@@ -1107,7 +1054,6 @@ def test_maximum_distance_to_2():
     GRIDS["finer_ortho_grid"].apply_to(plan)
     space_1 = plan.insert_space_from_boundary([(0, 0), (125, 0), (125, 125), (0, 125)])
     space_2 = plan.insert_space_from_boundary([(375, 375), (500, 375), (500, 500), (375, 500)])
-    plan.plot()
     assert space_1.distance_to(space_2) == 500*math.sqrt(2)
     space_3 = plan.insert_space_from_boundary([(0, 375), (125, 375), (125, 500), (0, 500)])
     assert space_1.distance_to(space_3) == math.sqrt(500.0**2 + 125**2)
@@ -1185,7 +1131,6 @@ def test_corner_stone():
     plan.insert_space_from_boundary(weird_space_boundary)
 
     GRIDS["simple_grid"].apply_to(plan)
-    plan.plot()
 
     faces_id = [372, 393]
     faces = list(map(lambda i: plan.mesh.get_face(i), faces_id))
@@ -1206,7 +1151,6 @@ def test_boundary_polygon(l_plan):
                   (500, 1000), (200, 500), (0, 500)]
     assert l_plan.empty_space.boundary_polygon() == boundaries
     GRIDS["simple_grid"].apply_to(l_plan)
-    l_plan.plot()
     assert l_plan.empty_space.boundary_polygon() == boundaries
 
 
@@ -1225,7 +1169,6 @@ def test_cut_over_internal_edge():
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
 
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[3], coeff=0.1, vector=(0, -1))
-    plan.plot()
     assert plan.check()
 
 
@@ -1235,5 +1178,4 @@ def test_cut_over_internal_edge_other_direction():
     plan.insert_space_from_boundary(duct, SPACE_CATEGORIES["duct"])
 
     plan.empty_space.barycenter_cut(list(plan.empty_space.edges)[0], coeff=0.9, vector=(0, 1))
-    plan.plot()
     assert plan.check()

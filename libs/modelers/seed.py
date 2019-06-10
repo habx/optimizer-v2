@@ -19,10 +19,7 @@ from typing import (TYPE_CHECKING, List, Optional, Dict,
 import logging
 import copy
 
-import matplotlib.pyplot as plt
-
 from libs.plan.plan import Space, PlanComponent, Plan, Linear
-from libs.io.plot import Plot
 from libs.specification.size import Size
 from libs.operators.action import Action
 
@@ -64,17 +61,13 @@ class Seeder:
     The seeder is expected to transform the plan by replacing its empty spaces with seed spaces.
     No empty space should remain in the plan once the seeder has been applied.
 
-    If a plot is given to the seeder, it will use it to display in real time the changes occurring
-    on the plan. It is useful to chain visualization of different stages in the optimizer pipeline
-    on the same plot. For example : the grid, then the seeder, then the shuffle.
     """
 
     def __init__(self,
                  seed_methods: Dict[str, 'Selector'],
                  growth_methods: Dict[str, 'GrowthMethod'],
                  fill_methods: List[FillMethod],
-                 merge_methods: Optional[List[MergeMethod]] = None,
-                 plot: Optional['Plot'] = None):
+                 merge_methods: Optional[List[MergeMethod]] = None):
         self.seed_methods = seed_methods
         self.growth_methods = growth_methods
         self.fill_methods = fill_methods
@@ -82,8 +75,6 @@ class Seeder:
 
         self.seeds: List['Seed'] = []
         self.plan: Plan = None
-
-        self.plot = plot
 
     def __repr__(self):
         output = 'Seeder:\n'
@@ -95,18 +86,14 @@ class Seeder:
         self.plan = None
         self.seeds = []
 
-    def apply_to(self, plan: 'Plan', show: bool = False) -> 'Plan':
+    def apply_to(self, plan: 'Plan') -> 'Plan':
         """
         Runs the seeder
         :param plan:
-        :param show: whether to display a real-time vizualisation of the seeder
         :return:
         """
         self._init()
         self.plan = plan
-        # Real time plot updates
-        if show:
-            self._initialize_plot()
 
         # temporary dirty implementation
         nbr_grid_cells = len(list(f for s in plan.empty_spaces for f in s.faces))
@@ -119,20 +106,16 @@ class Seeder:
                 for face in space.faces:
                     Space(plan, space.floor, face.edge, SPACE_CATEGORIES["seed"])
                 plan.remove(space)
-            return self.merge(show).plan
+            return self.merge().plan
 
-        return self.plant(show).grow(show).fill(show).merge(show).plan
+        return self.plant().grow().fill().merge().plan
 
-    def plant(self, show: bool = False) -> 'Seeder':
+    def plant(self) -> 'Seeder':
         """
         Creates the seeds
         :return:
         """
         logging.debug("Seeder: Starting to plant")
-
-        # Real time plot updates
-        if show:
-            self._initialize_plot()
 
         for component in self.plan.get_components():
             if ((component.category.seedable and self.growth_methods["default"])
@@ -141,31 +124,26 @@ class Seeder:
                 if isinstance(component, Space):
                     for edge in self._space_seed_edges(component):
                         seed_edge = edge
-                        self._add_seed(seed_edge, component, show)
+                        self._add_seed(seed_edge, component)
 
                 if isinstance(component, Linear):
                     seed_edge = component.edge
-                    self._add_seed(seed_edge, component, show)
+                    self._add_seed(seed_edge, component)
 
         return self
 
-    def grow(self, show: bool = False) -> 'Seeder':
+    def grow(self) -> 'Seeder':
         """
         Creates the space for each seed
-        :param show
         :return: the seeder
         """
         logging.debug("Seeder: Starting to grow")
-
-        # Real time plot updates
-        if show:
-            self._initialize_plot()
 
         # grow the seeds
         while True:
             all_done = True
             for seed in self.seeds:
-                done = seed.grow(show=show)
+                done = seed.grow()
                 all_done = all_done and done
             # stop to grow when all growth method are done
             if all_done:
@@ -175,49 +153,41 @@ class Seeder:
 
         return self
 
-    def fill(self, show: bool = False) -> 'Seeder':
+    def fill(self) -> 'Seeder':
         """
         Runs the fill methods
-        :param show:
         :return:
         """
         logging.debug("Seeder: Starting to fill")
-        # Real time plot updates
-        if show:
-            self._initialize_plot()
 
         for method in self.fill_methods:
-            self._execute_fill_or_merge_method(method, show)
+            self._execute_fill_or_merge_method(method)
 
         return self
 
-    def merge(self, show: bool = False) -> 'Seeder':
+    def merge(self) -> 'Seeder':
         """
         Runs the fill methods
-        :param show:
         :return:
         """
         logging.debug("Seeder: Starting to merge")
-        # Real time plot updates
-        if show:
-            self._initialize_plot()
 
         for method in self.merge_methods:
-            self._execute_fill_or_merge_method(method, show)
+            self._execute_fill_or_merge_method(method)
 
         return self
 
-    def _execute_fill_or_merge_method(self, method: Union[FillMethod, MergeMethod], show: bool):
+    def _execute_fill_or_merge_method(self, method: Union[FillMethod, MergeMethod]):
         """
         Executes a fill method
         :param method:
         :return:
         """
-        new_spaces = method(self, show)
+        new_spaces = method(self)
 
         if new_spaces:
             self.plan.remove_null_spaces()  # TODO: is this really useful ?
-            self._execute_fill_or_merge_method(method, show)
+            self._execute_fill_or_merge_method(method)
 
     def _merge_seeds(self, edge: 'Edge', component: 'PlanComponent') -> bool:
         """
@@ -233,12 +203,11 @@ class Seeder:
                 return True
         return False
 
-    def _add_seed(self, seed_edge: 'Edge', component: PlanComponent, show: bool):
+    def _add_seed(self, seed_edge: 'Edge', component: PlanComponent):
         """
         Adds a seed to the seeder
         :param seed_edge:
         :param component
-        :param show
         :return:
         """
         # check for none space
@@ -256,10 +225,7 @@ class Seeder:
             new_seed = Seed(self, seed_edge, component)
             self.seeds.append(new_seed)
             # initialize first face
-            modified_spaces = new_seed.create_seed_space()
-            if show:
-                self.plot.draw_seeds_points(self)
-                self.plot.update(modified_spaces)
+            new_seed.create_seed_space()
 
     def _space_seed_edges(self, space: 'Space') -> Generator['Edge', bool, 'None']:
         """
@@ -279,25 +245,6 @@ class Seeder:
                 seed_space = space.plan.get_space_of_edge(edge.pair)
                 if seed_space and seed_space.category.name == "empty":
                     yield edge.pair
-
-    def _initialize_plot(self, plot: Optional['Plot'] = None):
-        """
-        Creates a plot
-        :return:
-        """
-        # if the seeder has already a plot : do nothing
-        if self.plot:
-            return
-
-        if not plot:
-            self.plot = Plot(self.plan)
-            plt.ion()
-            self.plot.draw(self.plan)
-            self.plot.draw_seeds_points(self)
-            plt.show()
-            plt.pause(0.0001)
-        else:
-            self.plot = plot
 
     def get_seed_from_space(self, space: 'Space') -> Optional['Seed']:
         """
@@ -475,11 +422,10 @@ class Seed:
         self.update_max_size_constraint()
         return [self.space] + modified_spaces
 
-    def grow(self, show: bool = False) -> bool:
+    def grow(self) -> bool:
         """
         Tries to grow the seed space by one face
         Returns a boolean to indicate whether the growth is done
-        :param show: whether to plot the growth
         :param self:
         :return:
         """
@@ -496,9 +442,6 @@ class Seed:
 
         modified_spaces = self.growth_action.apply_to(self.space, [self.seeder],
                                                       [self.max_size_constraint])
-        if modified_spaces and show:
-            self.seeder.plot.update(modified_spaces)
-            # input("s")
 
         if not modified_spaces:
             if self._number_of_pass >= self.growth_action.number_of_pass - 1:
@@ -653,12 +596,11 @@ GROWTH_METHODS = {
 # FILL METHODS
 
 
-def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
+def empty_to_seed(seeder: 'Seeder') -> List['Space']:
     """
     Fill method
     Transforms each empty space into a seed space
     :param seeder:
-    :param show:
     :return:
     """
     output = []
@@ -667,18 +609,16 @@ def empty_to_seed(seeder: 'Seeder', show: bool) -> List['Space']:
         modified_spaces.append(space)
         space.category = SPACE_CATEGORIES["seed"]
         output.append(space)
-    if show:
-        seeder.plot.update(modified_spaces)
+
     return output
 
 
-def adjacent_faces(seeder: 'Seeder', show: bool) -> List['Space']:
+def adjacent_faces(seeder: 'Seeder') -> List['Space']:
     """
     Fill method
     Transforms each face adjacent to a seed space into a new seed space.
     Tries to merge newly created spaces together if adjacent to the same seed space.
     :param seeder:
-    :param show:
     :return:
     """
 
@@ -717,12 +657,10 @@ def adjacent_faces(seeder: 'Seeder', show: bool) -> List['Space']:
                     or other_space in new_spaces):
                 continue
 
-            modified_spaces = other_space.remove_face(edge.pair.face)
+            other_space.remove_face(edge.pair.face)
             # create a new seed space
             new_space = Space(seeder.plan, seed_space.floor, edge.pair, SPACE_CATEGORIES["seed"])
             new_spaces.append(new_space)
-            if show:
-                seeder.plot.update(modified_spaces + [new_space])
 
     # merge new seed spaces
     for seed_space in new_spaces:
@@ -742,21 +680,18 @@ def adjacent_faces(seeder: 'Seeder', show: bool) -> List['Space']:
                         seed_space.merge(other)
                         if other in new_spaces:
                             new_spaces.remove(other)
-                        if show:
-                            seeder.plot.update([seed_space, other])
                         break
 
     return new_spaces
 
 
-def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
+def merge_small_cells(seeder: 'Seeder') -> List['Space']:
     """
     Merges small spaces with neighbor space that has highest contact length
     If several neighbor spaces have same contact length, the smallest one is chosen
     Do not merge two spaces containing non mutable components
     Stop merge when the number of spaces is under the target number of spaces
     :param seeder:
-    :param show:
     :return: the list of modified spaces
     """
 
@@ -793,17 +728,13 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
         modified_spaces = [selected, small_space]
         break
 
-    if show:
-        seeder.plot.update(modified_spaces)
-
     return modified_spaces
 
 
-def merge_enclosed_faces(seeder: 'Seeder', show: bool) -> List['Space']:
+def merge_enclosed_faces(seeder: 'Seeder') -> List['Space']:
     """
     Merge the enclosed face with the enclosing face
     :param seeder:
-    :param show:
     :return:
     """
     ratio = 0.45
@@ -820,9 +751,6 @@ def merge_enclosed_faces(seeder: 'Seeder', show: bool) -> List['Space']:
                 other.merge(space)
                 modified_spaces += [space, other]
                 break
-
-    if show:
-        seeder.plot.update(modified_spaces)
 
     return modified_spaces
 
@@ -910,7 +838,7 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
     return contiguous_edges
 
 
-def divide_along_borders(seeder: 'Seeder', show: bool):
+def divide_along_borders(seeder: 'Seeder'):
     """
     divide empty spaces along all lines drawn from selected edges
     Iterates though seed spaces and load bearing wall spaces, at each iteration :
@@ -918,7 +846,6 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     2 - the list of its contiguous edges is built
     3 - each empty space cut by a set of those contiguous edges is cut into two parts
     :param seeder:
-    :param show:
     :return:
     """
 
@@ -944,9 +871,7 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
                             divided_spaces.append(space)
                         edges_in_space = list(
                             edge for edge in contiguous_edges if space.has_edge(edge))
-                        modified_spaces = divide_along_line(space, edges_in_space)
-                        if show:
-                            seeder.plot.update(modified_spaces)
+                        divide_along_line(space, edges_in_space)
             seeder.plan.remove_null_spaces()
             spaces_after_division = [sp for sp in seeder.plan.spaces if
                                      sp.category.name is space_category]
@@ -960,13 +885,12 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
     return []
 
 
-def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
+def merge_corners(seeder: 'Seeder') -> List['Space']:
     """
     Merges small spaces with neighbor space that will induce a merged space with as few corners
     as possible. If several candidates are available, will select the space with the longest
     contact.
     :param seeder:
-    :param show:
     :return: the list of modified spaces
     """
     min_cell_area = MIN_SEEDER_SPACE_AREA
@@ -994,9 +918,6 @@ def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
         selected.merge(small_space)
         modified_spaces = [selected, small_space]
         break
-
-    if show:
-        seeder.plot.update(modified_spaces)
 
     return modified_spaces
 
@@ -1028,9 +949,6 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         import libs.io.reader as reader
 
-        import matplotlib
-        matplotlib.use("TkAgg")
-
         logging.getLogger().setLevel(logging.INFO)
 
         import argparse
@@ -1047,7 +965,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "004"
+        #plan_name = "005"
 
         # to not run each time the grid generation
         try:
@@ -1058,9 +976,8 @@ if __name__ == '__main__':
             GRIDS["001"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
-        # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
-        plan.plot()
+        # SEEDERS["simple_seeder"].apply_to(plan)
+        SEEDERS["directional_seeder"].apply_to(plan)
         plan.check()
 
 

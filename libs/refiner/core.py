@@ -241,40 +241,6 @@ class Individual(Plan):
         if plan:
             self.copy(plan)
 
-    def plot(self,
-             show: bool = False,
-             save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional['Floor'] = None,
-             name: Optional[str] = None):
-        """
-        Plots the plan with the fitness value
-        :param show:
-        :param save:
-        :param options:
-        :param floor:
-        :param name:
-        :return:
-        """
-        from libs.io.plot import plot_save
-
-        ax = super().plot(False, False, options, floor, name)
-        msg = ""
-        for space in self.mutable_spaces():
-            if space.id not in self.fitness.sp_values:
-                logging.warning("Refiner: Space has no fitness: %s", space)
-                continue
-            value = ' '.join(format(f, '.2f') for f in self.fitness.sp_values[space.id])
-            msg += "\n{}: {} • {:.2f}".format(space.category.name, value,
-                                              self.fitness.sp_wvalue[space.id])
-        msg += "\nSCORE: {}".format(self.fitness.wvalue)
-        if self.floor_count > 1:
-            ax[0].set_xlabel(msg, fontsize=8)
-        else:
-            ax.set_xlabel(msg, fontsize=8)
-        plot_save(save, show)
-
-        return ax
 
     def clone(self, name: str = "") -> 'Individual':
         """

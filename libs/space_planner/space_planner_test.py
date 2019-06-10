@@ -77,11 +77,8 @@ def test_duplex():
 
     GRIDS["optimal_grid"].apply_to(plan)
 
-    plan.plot()
-
     SEEDERS["simple_seeder"].apply_to(plan)
 
-    plan.plot()
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 

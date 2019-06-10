@@ -13,7 +13,6 @@ import math
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable, Set
 
-from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
 from libs.plan.category import LINEAR_CATEGORIES
 from libs.utils.geometry import parallel, opposite_vector, move_point
@@ -628,31 +627,6 @@ class Circulator:
         path_info.edge_path = edge_path
         return path_info
 
-    def plot(self, show: bool = False, save: bool = True):
-        """
-        plots plan with circulation paths
-        :return:
-        """
-
-        ax = self.plan.plot(show=show, save=False)
-
-        number_of_floors = self.plan.floor_count
-
-        for path_info in self.paths_info:
-            level = path_info.departure_space[0].floor.level
-            _ax = ax[level] if number_of_floors > 1 else ax
-            for tup in path_info.edge_path:
-                edge = tup[0]
-                edge.plot(ax=_ax, color='blue')
-                # representing the growing direction
-                pt_ini = move_point((edge.start.x, edge.start.y), edge.vector, 0.5)
-                vector = (edge.normal if tup[1] > 0 else opposite_vector(edge.normal))
-                pt_end = move_point(pt_ini, vector, 90)
-                _ax.arrow(pt_ini[0], pt_ini[1], pt_end[0] - pt_ini[0],
-                          pt_end[1] - pt_ini[1])
-
-        plot_save(save, show)
-
 
 class PathCalculator:
     """
@@ -811,15 +785,10 @@ if __name__ == '__main__':
 
         GRIDS["001"].apply_to(plan)
 
-        plan.plot()
-
         SEEDERS["directional_seeder"].apply_to(plan)
-
-        plan.plot()
 
         spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
         spec.plan = plan
-        plan.plot()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
 
         return space_planner.apply_to(spec, 3), space_planner
@@ -836,7 +805,5 @@ if __name__ == '__main__':
         for solution in best_solutions:
             circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
             circulator.connect()
-            circulator.plot()
-
 
     connect_plan()

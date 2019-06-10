@@ -92,7 +92,6 @@ def test_oriented_selector(weird_plan):
     weird_plan.insert_space_from_boundary(empty_space_boundary)
     selector = SELECTOR_FACTORIES["oriented_edges"](["horizontal"])
     edges = list(selector.yield_from(weird_plan.spaces[1]))
-    weird_plan.plot()
     result = [(edge.start.coords, edge.end.coords) for edge in edges]
 
     assert result == [((600.0, 0.0), (600.0, 300.0))]
@@ -206,7 +205,6 @@ def test_corner_stone():
     plan.insert_space_from_boundary(weird_space_boundary)
 
     GRIDS["ortho_grid"].apply_to(plan)
-    plan.plot()
 
     selector = SELECTORS["corner_stone"]
     edges = list(selector.yield_from(plan.empty_space))

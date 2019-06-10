@@ -45,8 +45,6 @@ def test_seed_square_shape():
     MUTATIONS["swap_face"].apply_to(seed.edge, seed)
     plan.empty_space.category = SPACE_CATEGORIES["seed"]
 
-    plan.plot()
-
     SHUFFLES["simple_shuffle"].apply_to(plan)
 
     assert plan.check()
@@ -57,8 +55,6 @@ def test_seed_square_shape_min_size():
     Test
     :return:
     """
-    import matplotlib
-    matplotlib.use('TkAgg')
 
     simple_grid = GRIDS["simple_grid"]
     plan = rectangular_plan(500, 500)
@@ -72,7 +68,5 @@ def test_seed_square_shape_min_size():
     plan.empty_space.category = SPACE_CATEGORIES["seed"]
 
     SHUFFLES["simple_shuffle_min_size"].apply_to(plan)
-
-    plan.plot()
 
     assert plan.check()

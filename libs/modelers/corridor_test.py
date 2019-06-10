@@ -20,14 +20,14 @@ CORRIDOR_RULES = {
 
 
 def test_simple_grid():
-    def get_following_edge(edge):
-        return edge.next.pair.next
+    def get_following_edge(_edge):
+        return _edge.next.pair.next
 
-    def get_internal_edge(plan):
+    def get_internal_edge(_plan):
         internal_face = None
-        for face in plan.mesh.faces:
-            for edge in face.edges:
-                if not edge.pair.face:
+        for face in _plan.mesh.faces:
+            for e in face.edges:
+                if not e.pair.face:
                     break
             else:
                 internal_face = face
@@ -35,8 +35,8 @@ def test_simple_grid():
         e = internal_face.edge.pair
         return e
 
-    def build_a_path(plan):
-        edge1 = get_internal_edge(plan)
+    def build_a_path(_plan):
+        edge1 = get_internal_edge(_plan)
         edge_list = []
         e = edge1
         for i in range(3):

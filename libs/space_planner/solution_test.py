@@ -142,17 +142,10 @@ def test_duplex():
 
     GRIDS["001"].apply_to(plan)
 
-    plan.plot()
-
     SEEDERS["simple_seeder"].apply_to(plan)
-
-    plan.plot()
 
     spec = reader.create_specification_from_file("test_solution_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
     best_solutions = space_planner.apply_to(spec, 3)
-
-    for solution in best_solutions:
-        solution.plan.plot()

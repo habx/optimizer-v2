@@ -58,7 +58,6 @@ def test_simple_mesh():
     perimeter = [(0, 0), (200, 0), (200, 200), (0, 200)]
     mesh = Mesh().from_boundary(perimeter)
     mesh.boundary_edge.pair.barycenter_cut(0)
-    mesh.plot()
     assert mesh.check()
 
 
@@ -74,8 +73,6 @@ def test_outward_cut():
         if edge.pair.next_is_outward:
             edge.pair.recursive_barycenter_cut(1)
             # edge.previous.pair.recursive_barycenter_cut(0)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -94,7 +91,6 @@ def test_serialization():
     writer.save_mesh_as_json(geometry, "test.json")
     new_geometry = reader.get_mesh_from_json("test.json")
     mesh.deserialize(new_geometry)
-    mesh.plot()
     assert mesh.check()
 
 
@@ -110,7 +106,6 @@ def test_custom_pickling():
         edge.recursive_barycenter_cut(0.5, 45)
     data = pickle.dumps(mesh)
     new_mesh = pickle.loads(data)
-    new_mesh.plot()
     assert new_mesh.check()
 
 
@@ -212,8 +207,6 @@ def test_cut_inserted_face():
     edges = list(mesh.faces[1].edges)
     edges[1].recursive_barycenter_cut(0.5)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -271,13 +264,10 @@ def test_add_face():
     perimeter_7 = [(400, 25), (475, 25), (475, 100), (400, 100)]
     face_6 = mesh.new_face_from_boundary(perimeter_7)
     face.insert_face(face_6)
-    mesh.plot()
 
     for edge in mesh.boundary_edges:
         if edge.length > 50:
             edge.pair.recursive_barycenter_cut(0.5)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -307,8 +297,6 @@ def test_add_and_cut_face():
     edges = list(face.edges)
     edges[2].recursive_barycenter_cut(0.8, 80.0)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -326,8 +314,6 @@ def test_cut_snap():
         edge.pair.recursive_barycenter_cut(0.5)
 
     edges[0].pair.recursive_barycenter_cut(0.5, 64)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -348,8 +334,6 @@ def test_cut_inside_edge():
 
     edges[4].pair.previous.barycenter_cut()
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -363,8 +347,6 @@ def insert_touching_face():
     duct = [(100, 200), (600, 200), (600, 400), (100, 400)]
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(duct)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -384,8 +366,6 @@ def test_cut_to_inside_edge():
     edges = list(mesh.boundary_edges)
 
     edges[0].pair.barycenter_cut(0.1)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -412,11 +392,7 @@ def test_remove_complex_edge():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
 
-    mesh.plot()
-
     mesh.faces[1].edge.remove()
-
-    # mesh.plot()
 
     assert mesh.check()
 
@@ -434,8 +410,6 @@ def test_insert_complex_face_1():
 
     hole_2 = [(50, 150), (200, 150), (200, 300), (50, 300)]
     mesh.faces[0].insert_face_from_boundary(hole_2)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -455,8 +429,6 @@ def test_insert_complex_face_2():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -474,8 +446,6 @@ def test_insert_complex_face_3():
     hole_2 = [(50, 150), (150, 150), (150, 200), (50, 200)]
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -495,8 +465,6 @@ def test_insert_complex_face_4():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -515,8 +483,6 @@ def test_insert_complex_face_5():
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -534,8 +500,6 @@ def test_insert_complex_face_6():
     hole_2 = [(0, 150), (150, 150), (150, 300), (0, 300)]
 
     mesh.faces[0].insert_face_from_boundary(hole_2)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -556,8 +520,6 @@ def test_insert_two_faces_on_internal_edge():
     mesh.faces[0].insert_face_from_boundary(hole_2)
     mesh.faces[2].insert_face_from_boundary(hole_3)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -572,8 +534,6 @@ def test_insert_very_close_border_duct():
     mesh = Mesh().from_boundary(perimeter)
     mesh.faces[0].insert_face_from_boundary(hole)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -582,8 +542,6 @@ def test_insert_multiple_overlapping():
     Test
     :return:
     """
-    import matplotlib
-    matplotlib.use("TkAgg")
 
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
@@ -596,8 +554,6 @@ def test_insert_multiple_overlapping():
     hole_3 = [(20, 50), (60, 50), (60, 450), (20, 450)]
 
     mesh.faces[0].insert_face_from_boundary(hole_3)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -619,8 +575,6 @@ def test_insert_between_holes():
 
     :return:
     """
-    import matplotlib
-    matplotlib.use("TkAgg")
 
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(150, 300), (300, 300), (300, 400), (150, 400)]
@@ -633,8 +587,6 @@ def test_insert_between_holes():
     hole_3 = [(0, 250), (300, 250), (400, 300), (0, 300)]
 
     mesh.faces[0].insert_face_from_boundary(hole_3)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -653,8 +605,6 @@ def test_connected_holes():
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.faces[0].insert_face_from_boundary(hole_2)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -663,8 +613,6 @@ def test_insert_multiple_overlapping_closing():
     Test
     :return:
     """
-    import matplotlib
-    matplotlib.use("TkAgg")
 
     perimeter = [(0, 0), (500, 0), (500, 500), (0, 500)]
     hole = [(90, 300), (300, 300), (300, 400), (90, 400)]
@@ -678,8 +626,6 @@ def test_insert_multiple_overlapping_closing():
               (60, 280), (60, 500), (20, 500)]
 
     mesh.faces[0].insert_face_from_boundary(hole_3)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -759,8 +705,6 @@ def test_insert_external_face():
     face = mesh.new_face_from_boundary(face_perimeter)
     mesh.insert_external_face(face)
 
-    mesh.plot()
-
     assert mesh.check()
 
 
@@ -787,8 +731,6 @@ def test_insert_complex_external_face():
     mesh = Mesh().from_boundary(perimeter)
     face = mesh.new_face_from_boundary(face_perimeter)
     mesh.insert_external_face(face)
-
-    mesh.plot()
 
     assert mesh.check()
 
@@ -825,7 +767,6 @@ def test_insert_crop_face():
     mesh.boundary_edge.pair.next.split_barycenter(0.6)
     face = mesh.faces[0]
     face.insert_crop_face_from_boundary(b)
-    mesh.plot()
     assert mesh.check()
 
 
@@ -841,7 +782,6 @@ def test_insert_touching_face():
     face = mesh.faces[0]
     face.insert_crop_face_from_boundary(b)
     face.insert_crop_face_from_boundary(c)
-    mesh.plot()
     assert mesh.check()
 
 
@@ -860,7 +800,6 @@ def test_double_insert_identical_face():
     face = mesh.faces[0]
     face.insert_face_from_boundary(b)
 
-    mesh.plot()
     assert mesh.check()
 
 
@@ -918,7 +857,6 @@ def test_slice():
     """
     mesh = rectangular_mesh(100, 200)
     mesh.boundary_edge.pair.slice(50, (0.5, 1))
-    mesh.plot()
     assert mesh.check()
 
 
@@ -931,7 +869,6 @@ def test_double_slice():
     hole = [(0, 50), (50, 50), (50, 100), (0, 100)]
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.boundary_edge.pair.previous.slice(25, (0, 1))
-    mesh.plot()
     assert mesh.check()
 
 
@@ -940,7 +877,6 @@ def test_slice_on_internal_edge():
     hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.boundary_edge.pair.slice(15, (0, 1))
-    mesh.plot()
     assert mesh.check()
 
 
@@ -949,7 +885,6 @@ def test_slice_on_edge():
     hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.boundary_edge.pair.previous.slice(25, (0, 1))
-    mesh.plot()
     assert mesh.check()
 
 
@@ -958,7 +893,6 @@ def test_slice_on_edge_2():
     hole = [(25, 50), (50, 50), (50, 100), (25, 100)]
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.boundary_edge.pair.previous.slice(50, (0, 1))
-    mesh.plot()
     assert mesh.check()
 
 
@@ -976,7 +910,6 @@ def test_max_distance():
 def test_max_distance_weird_mesh(weird_mesh):
     edge = weird_mesh.boundary_edge.pair
     other = edge.previous.previous
-    weird_mesh.plot()
     assert edge.max_distance(other) == 464.2383454426296
 
 
@@ -984,7 +917,6 @@ def test_continuous_line(weird_mesh):
     edge = weird_mesh.boundary_edge
     edge.pair.recursive_barycenter_cut(0.5)
     edge.next.next.pair.recursive_barycenter_cut(0.5)
-    weird_mesh.plot()
 
     result = [e.start.coords for e in edge.next.next.pair.previous.line]
     assert result == [(1200.0, 658.2953), (189.3982, 250.0)]
@@ -995,7 +927,6 @@ def test_distance_to_other_face():
     mesh = rectangular_mesh(100, 200)
     edge = mesh.boundary_edge.pair
     edge.barycenter_cut()
-    mesh.plot()
     assert mesh.faces[0].distance_to(mesh.faces[1]) == math.sqrt(100**2 + 200**2)
     assert mesh.faces[0].distance_to(mesh.faces[1], "min") == 0
 
@@ -1032,7 +963,6 @@ def test_slice_over_hole():
     mesh.faces[0].insert_face_from_boundary(hole)
 
     mesh.boundary_edge.pair.slice(205, (1, 0))
-    mesh.plot()
 
     assert mesh.check()
 
@@ -1046,7 +976,6 @@ def test_cut_over_hole():
     hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
     mesh.faces[0].insert_face_from_boundary(hole)
     mesh.boundary_edge.pair.barycenter_cut()
-    mesh.plot()
 
     assert mesh.check()
 
@@ -1060,7 +989,6 @@ def test_cut_over_internal_edge():
     hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
     mesh.faces[0].insert_face_from_boundary(hole)
     list(mesh.faces[0].edges)[0].recursive_barycenter_cut(0.9, traverse="absolute")
-    mesh.plot()
 
     assert mesh.check()
 
@@ -1070,12 +998,9 @@ def test_cut_over_internal_edge_other_direction():
     Test
     :return:
     """
-    import matplotlib
-    matplotlib.use("TkAgg")
     mesh = rectangular_mesh(400, 800)
     hole = [(100, 200), (300, 200), (300, 600), (100, 600)]
     mesh.faces[0].insert_face_from_boundary(hole)
     list(mesh.faces[0].edges)[9].recursive_barycenter_cut(0.1, traverse="absolute")
-    mesh.plot()
 
     assert mesh.check()

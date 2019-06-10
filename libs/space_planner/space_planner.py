@@ -159,7 +159,7 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
-    def solution_research(self, show=False) -> Optional[List['Solution']]:
+    def solution_research(self) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
         :return: None
@@ -180,8 +180,6 @@ class SpacePlanner:
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
 
-                    if show:
-                        plan_solution.plot()
 
         return []
 
@@ -245,7 +243,6 @@ if __name__ == '__main__':
         GRIDS['001'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
 
-        plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
         # print(list(space.cached_area() for space in plan.mutable_spaces()))
 
@@ -282,7 +279,6 @@ if __name__ == '__main__':
         # Output
         if best_solutions:
             for sol in best_solutions:
-                sol.plan.plot()
                 logging.debug(sol, sol.score)
                 for space in sol.plan.mutable_spaces():
                     logging.debug(space.category.name, " : ", space.cached_area())
@@ -292,8 +288,7 @@ if __name__ == '__main__':
         # shuffle
         # if best_solutions:
         #     for sol in best_solutions:
-        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-        #         sol.plan.plot()
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan)
 
         logging.debug("total time :", time.process_time() - t00)
 
@@ -328,7 +323,6 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         plan.remove_null_spaces()
-        plan.plot()
 
         input_file_setup = plan_name + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -362,7 +356,6 @@ if __name__ == '__main__':
 
         # Output
         for sol in best_solutions:
-            sol.plan.plot()
             logging.debug(sol, sol.score)
             for space in sol.plan.mutable_spaces():
                 logging.debug(space.category.name, " : ", space.cached_area())

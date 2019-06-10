@@ -8,7 +8,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
+from typing import Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
 import enum
 
 from shapely.geometry.polygon import Polygon
@@ -31,7 +31,6 @@ from libs.utils.geometry import (
     distance,
     project_point_on_segment
 )
-from libs.io.plot import random_color, make_arrow, plot_polygon, plot_edge, plot_save
 
 # MODULE CONSTANTS
 
@@ -1717,42 +1716,6 @@ class Edge(MeshComponent):
                   .apply_to(self.start))
         return self.split(vertex)
 
-    def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
-        """
-        Plots the edge
-        :param ax:
-        :param color:
-        :param save:
-        :return:
-        """
-        x_coords, y_coords = zip(*(self.start.coords, self.end.coords))
-        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
-
-    def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):
-        """
-        Plots a semi-arrow to indicate half-edge for debugging purposes
-        :param ax:
-        :param color:
-        :param save: whether to save the plot
-        :return:
-        """
-        arrow = make_arrow(self.start.coords, self.vector, self.normal)
-        x_coords, y_coords = zip(*arrow.coords)
-        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
-
-    def plot_normal(self, ax, color: str = 'black'):
-        """
-        Plots the normal vector of the edge for debugging purposes
-        :param ax:
-        :param color:
-        :return:
-        """
-        start_point = barycenter(self.start.coords, self.end.coords, 0.5)
-        arrow = self.normal
-        # noinspection PyCompatibility
-        ax.quiver(*start_point, *arrow, color=color)
-
-        return ax
 
     def check_size(self):
         """Checks the size of the edge"""
@@ -2698,16 +2661,6 @@ class Face(MeshComponent):
 
         return num_corners
 
-    def plot(self, ax=None,
-             options=('fill', 'border'),
-             color: Optional[str] = None,
-             save: Optional[bool] = None):
-        """
-        Plots the face
-        :return:
-        """
-        x, y = self.as_sp.exterior.xy
-        return plot_polygon(ax, x, y, options, color, save)
 
 
 class Mesh:
@@ -3522,44 +3475,6 @@ class Mesh:
         logging.info('Mesh: Checking Mesh: ' + ('✅ OK' if is_valid else '❌ KO'))
         return is_valid
 
-    def plot(self,
-             ax=None,
-             options=('fill', 'border', 'half-edges', 'boundary-edges', 'vertices'),
-             save: bool = True,
-             show: bool = False):
-        """
-        Plots a mesh using matplotlib library.
-        A few options can be used:
-        • 'fill' : add color to each face
-        • 'edges' : outline each edge
-        • 'normals' : display each half-edge normal vector. Useful for debugging.
-        • 'half-edge': display arrows for each oriented half-edge. Useful for debugging.
-        :param ax:
-        :param options:
-        :param save: whether to save as .svg file
-        :param show: whether to show as matlplotlib window
-        :return: ax
-        """
-        for face in self.faces:
-            color = random_color()
-            ax = face.plot(ax, options, color, False)
-
-            for edge in face.edges:
-                # display edges normal vector
-                if 'normals' in options:
-                    edge.plot_normal(ax, color)
-                # display half edges vector
-                if 'half-edges' in options:
-                    edge.plot_half_edge(ax, color, False)
-
-        if 'boundary-edges' in options:
-            color = random_color()
-            for edge in self.boundary_edges:
-                edge.plot_half_edge(ax, color, False)
-
-        plot_save(save, show)
-
-        return ax
 
     def from_boundary(self, boundary: Sequence[Tuple[float, float]]) -> 'Mesh':
         """

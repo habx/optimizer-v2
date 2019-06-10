@@ -3,15 +3,12 @@
 Grid module
 """
 
-from typing import Tuple, Sequence, Optional, TYPE_CHECKING
+from typing import Tuple, Sequence, TYPE_CHECKING
 import logging
-import matplotlib.pyplot as plt
 
 from libs.io import reader
 from libs.operators.mutation import MUTATIONS, MUTATION_FACTORIES
 from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
-from libs.io.plot import Plot
-
 
 if TYPE_CHECKING:
     from libs.operators.mutation import Mutation
@@ -28,7 +25,6 @@ class Grid:
     def __init__(self, name: str, operators: Sequence[Tuple['Selector', 'Mutation', bool]]):
         self.name = name
         self.operators = operators or []
-        self._plot: Optional['Plot'] = None
         self._seen: ['Edge'] = []  # use to modify an edge only once
 
     def clone(self, name: str = "") -> 'Grid':
@@ -41,52 +37,43 @@ class Grid:
         new_grid = Grid(name, self.operators[:])
         return new_grid
 
-    def apply_to(self, plan: 'Plan', show: bool = False) -> 'Plan':
+    def apply_to(self, plan: 'Plan') -> 'Plan':
         """
         Returns the modified plan with the created grid
         :param plan:
-        :param show: display the modifications
         :return: the plan with the created grid
         """
         logging.debug("Grid: Applying Grid %s to plan %s", self.name, plan)
 
-        if show:
-            self._initialize_plot(plan)
-
         for operator in self.operators:
             self._seen = []
-            self._apply_operator(plan, operator, show)
+            self._apply_operator(plan, operator)
             # we simplify the mesh between each application of an operator
             plan.simplify()
             plan.update_from_mesh()
 
-        if show:
-            self._destroy_plot()
-
         return plan
 
     def _apply_operator(self, plan: 'Plan',
-                        operator: Tuple['Selector', 'Mutation', bool],
-                        show: bool = False):
+                        operator: Tuple['Selector', 'Mutation', bool]):
         """
         Apply operation to the empty spaces of the plan
         :param plan:
         :param operator:
-        :param show:
         :return:
         """
         loop = True
         while loop:
             loop = False
             for space in plan.mutable_spaces():
-                mesh_has_changed = self._select_and_slice(space, operator, show)
+                mesh_has_changed = self._select_and_slice(space, operator)
                 if mesh_has_changed:
                     loop = True
                     break
         return
 
     def _select_and_slice(self, space: 'Space',
-                          operator: Tuple['Selector', 'Mutation', bool], show: bool) -> bool:
+                          operator: Tuple['Selector', 'Mutation', bool]) -> bool:
         """
         Selects the correct edges and applies the slice transformation to them
         :param space:
@@ -100,41 +87,12 @@ class Grid:
             logging.debug("Grid: Applying mutation %s to edge %s of space %s",
                           _mutation, edge, space)
             mesh_has_changed = _mutation.apply_to(edge, space)
-            if show:
-                self._plot.update_faces([space])
             if apply_once:
                 self._seen.append(edge)
             if mesh_has_changed:
                 return True
             logging.debug("Mutation: nothing was changed...")
         return False
-
-    def _initialize_plot(self, plan: 'Plan', plot: Optional['Plot'] = None):
-        """
-        Creates a plot
-        :return:
-        """
-        # if the grid has already a plot : do nothing
-        if self._plot:
-            return
-
-        if not plot:
-            self._plot = Plot(plan)
-            plt.ion()
-            self._plot.draw(plan)
-            plt.show()
-            plt.pause(0.0001)
-        else:
-            self._plot = plot
-
-    def _destroy_plot(self):
-        """
-        destroy plot on exit
-        :return:
-        """
-        if self._plot:
-            plt.ioff()
-            plt.close()
 
     def extend(self, name: str = "", *operators: Tuple['Selector', 'Mutation', bool]) -> 'Grid':
         """
@@ -415,7 +373,6 @@ test_grid = Grid("Test", [
     (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
 ])
 
-
 """
 GRID_01 :
      •  a grid less simple than optimal grid but that should enable more plan with appropriate
@@ -423,7 +380,6 @@ GRID_01 :
      •  we aim a 20 cm maximum precision between edges
      •  focus on : duct aligned edges, edges between windows and edges near ducts
 """
-
 
 grid_01 = Grid("GRID_01", [
     # SECTIONS
@@ -502,9 +458,9 @@ GRIDS = {
 }
 
 if __name__ == '__main__':
-
     logging.getLogger().setLevel(logging.DEBUG)
     import time
+
 
     def create_a_grid():
         """
@@ -513,14 +469,12 @@ if __name__ == '__main__':
         """
         plan = reader.create_plan_from_file("005.json")
         plan.check()
-        plt.show()
         start_time = time.time()
-        new_plan = GRIDS["001"].apply_to(plan, show=True)
+        new_plan = GRIDS["001"].apply_to(plan)
         end_time = time.time()
         logging.info("Time elapsed: {}".format(end_time - start_time))
-        new_plan.plot(save=False)
-        plt.show()
         new_plan.check()
         print(len(new_plan.mesh.faces))
+
 
     create_a_grid()

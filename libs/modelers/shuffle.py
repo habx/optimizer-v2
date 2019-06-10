@@ -3,9 +3,7 @@
 Shuffle Module
 """
 from typing import TYPE_CHECKING, Optional, Sequence, Any
-from libs.io.plot import Plot
 
-import matplotlib.pyplot as plt
 import logging
 
 from libs.operators.mutation import MUTATIONS
@@ -35,18 +33,13 @@ class Shuffle:
         self.constraints = constraints
         # pseudo private
         self._action_index = 0
-        self._plot: Optional[Plot] = None
 
     def apply_to(self, plan: 'Plan',
-                 selector_args: Optional[Sequence[Any]] = None,
-                 show: bool = False,
-                 plot: Optional[Plot] = None):
+                 selector_args: Optional[Sequence[Any]] = None):
         """
         Runs the shuffle on the provided plan
         :param plan: the plan to modify
         :param selector_args: arguments for the selector if we need them at runtime
-        :param show: whether to show a live plotting of the plan
-        :param plot: a plot, in order to draw the shuffle on top (for example in a seed sequence)
         :return:
         """
         logging.debug("Shuffle: Running for plan %s", plan)
@@ -54,7 +47,6 @@ class Shuffle:
         for action in self.actions:
             action.flush()
 
-        self._initialize_plot(plan, plot)
         self._action_index = 0
         slct_args = selector_args if selector_args else self.current_selector_args
 
@@ -64,8 +56,6 @@ class Shuffle:
 
             for space in plan.spaces:
                 modified_spaces = self.current_action.apply_to(space, slct_args, self.constraints)
-                if modified_spaces and show:
-                    self._plot.update(modified_spaces)
 
                 all_modified_spaces += modified_spaces
 
@@ -75,24 +65,6 @@ class Shuffle:
                     break
 
         plan.remove_null_spaces()
-
-    def _initialize_plot(self, plan: 'Plan', plot: Optional['Plot'] = None):
-        """
-        Creates a plot
-        :return:
-        """
-        # if the seeder has already a plot : do nothing
-        if self._plot:
-            return
-
-        if not plot:
-            self._plot = Plot(plan)
-            plt.ion()
-            self._plot.draw(plan)
-            plt.show()
-            plt.pause(0.0001)
-        else:
-            self._plot = plot
 
     @property
     def current_action(self) -> Optional['Action']:
@@ -197,7 +169,6 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(plan_name + ".json")
             GRIDS['optimal_grid'].apply_to(plan)
             SEEDERS["simple_seeder"].apply_to(plan)
-            plan.plot()
             spec = reader.create_specification_from_file(plan_name + "_setup"
                                                          + specification_number +".json")
             spec.plan = plan
@@ -206,17 +177,14 @@ if __name__ == '__main__':
             if best_solutions:
                 solution = best_solutions[solution_number]
                 plan = solution.plan
-                plan.plot()
                 writer.save_plan_as_json(plan.serialize(), plan_name + "_solution_"
                                          + str(solution_number))
             else:
                 logging.info("No solution for this plan")
                 return
 
-        plan.plot()
         time.sleep(0.5)
-        SHUFFLES["bedrooms_corner"].apply_to(plan, show=True)
-        plan.plot()
+        SHUFFLES["bedrooms_corner"].apply_to(plan)
 
     try_plan()
 

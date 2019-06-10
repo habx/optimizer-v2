@@ -36,7 +36,6 @@ def import_test_plan(input_file: str = "011.json") -> 'Plan':
     """
     plan = reader.create_plan_from_file(input_file)
     new_plan = GRIDS["optimal_grid"].apply_to(plan)
-    new_plan.plot()
     create_seeds(new_plan)
     return new_plan
 
@@ -150,8 +149,6 @@ def create_solution(solution: ['Cell'],
             if not other_space:
                 continue
             space.merge(other_space)
-
-    new_plan.plot()
 
 
 def exec_solver():

@@ -53,8 +53,6 @@ def test_barycenter_cut(l_plan):
     """
     mutation = MUTATION_FACTORIES["barycenter_cut"](0.5)
     mutation.apply_to(l_plan.empty_space.edge.next, l_plan.empty_space)
-    l_plan.plot()
-    l_plan.mesh.plot()
     assert l_plan.check()
 
 
@@ -69,7 +67,6 @@ def test_remove_edge(l_plan):
     edge = list(l_plan.empty_space.faces)[0].edge.next
     remove_mutation = MUTATIONS["remove_edge"]
     remove_mutation.apply_to(edge, l_plan.empty_space)
-    l_plan.plot()
     assert l_plan.check()
 
 
@@ -91,8 +88,6 @@ def test_swap_faces(l_plan):
     modified_spaces = swap_mutation.apply_to(edge, duct_space)
     swap_mutation.reverse(modified_spaces)
 
-    l_plan.plot()
-
     assert l_plan.check()
 
 
@@ -105,8 +100,6 @@ def test_rectangle_cut(l_plan):
     rectangle_mutation = MUTATION_FACTORIES["rectangle_cut"](100, 100)
     edge = l_plan.mesh.boundary_edge.pair
     rectangle_mutation.apply_to(edge, l_plan.empty_space)
-
-    l_plan.plot()
 
     assert l_plan.check()
 
@@ -121,8 +114,6 @@ def test_rectangle_cut_split(l_plan):
     edge = l_plan.mesh.boundary_edge.pair
     rectangle_mutation.apply_to(edge, l_plan.empty_space)
 
-    l_plan.plot()
-
     assert l_plan.check()
 
 
@@ -130,8 +121,6 @@ def test_slice_cut(l_plan):
     rectangle_mutation = MUTATION_FACTORIES["slice_cut"](100)
     edge = l_plan.mesh.boundary_edge.pair
     rectangle_mutation.apply_to(edge, l_plan.empty_space)
-
-    l_plan.plot()
 
     assert l_plan.check()
 
@@ -143,8 +132,6 @@ def test_slice_cut_too_close():
     rectangle_mutation = MUTATION_FACTORIES["slice_cut"](90)
     edge = plan.mesh.boundary_edge.pair
     rectangle_mutation.apply_to(edge, plan.empty_space)
-
-    plan.plot()
 
     assert plan.check()
 
@@ -159,8 +146,6 @@ def test_remove_line(l_plan):
     plan = GRIDS["finer_ortho_grid"].apply_to(l_plan)
     edge = plan.mesh.boundary_edge.pair.next.next
     MUTATIONS["remove_line"].apply_to(edge, plan.empty_space)
-
-    plan.plot()
 
     assert plan.check()
 
@@ -184,7 +169,5 @@ def test_add_aligned_edges(l_plan):
 
     edge = list(other.exterior_edges)[15]
     MUTATIONS["add_aligned_face"].apply_to(edge, other)
-
-    plan.plot()
 
     assert plan.check()

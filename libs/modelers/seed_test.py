@@ -33,11 +33,7 @@ def test_seed_multiple_floors():
 
     GRIDS['optimal_grid'].apply_to(plan)
 
-    plan.plot()
-
     SEEDERS["simple_seeder"].apply_to(plan)
-
-    plan.plot()
 
     assert plan.check()
 
@@ -51,7 +47,6 @@ def test_grow_a_plan(input_file):
     plan = reader.create_plan_from_file(input_file)
     GRIDS['001'].apply_to(plan)
     SEEDERS["directional_seeder"].apply_to(plan)
-    plan.plot()
     assert plan.check()
 
 
@@ -103,7 +98,6 @@ def test_simple_seed_test():
     my_plan = plan_with_duct(300, 300)
     GRIDS['optimal_grid'].apply_to(my_plan)
     SEEDERS["simple_seeder"].apply_to(my_plan)
-    my_plan.plot()
     assert my_plan.check()
 
 
@@ -115,5 +109,4 @@ def test_directionnal_seed_test():
     my_plan = plan_with_duct(300, 300)
     GRIDS['optimal_finer_grid'].apply_to(my_plan)
     SEEDERS["directional_seeder"].apply_to(my_plan)
-    my_plan.plot()
     assert my_plan.check()

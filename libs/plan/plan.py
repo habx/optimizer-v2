@@ -23,12 +23,10 @@ from typing import (
 import logging
 import uuid
 
-import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
 
 from libs.mesh.mesh import Mesh, Face, Edge, Vertex, MeshOps, MeshComponentType
 from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
@@ -60,7 +58,6 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional[int] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id
@@ -130,7 +127,7 @@ class Space(PlanComponent):
     """
     Space Class
     A very simple data structure : a space is :
-    • a list of the id of the faces composing the space
+    • a list of tshe id of the faces composing the space
     • a list of the id of the reference edges of the space (an edge is a reference if is localised
     on the boundary of the space). We store one an only one reference edge per boundary.
     (ex. a space with no hole has one reference edge, a space with a hole has two reference edges :
@@ -1080,7 +1077,6 @@ class Space(PlanComponent):
                     self.edge = edge.pair
                     break
             else:
-                self.plan.plot()
                 raise Exception("This should never happen!!")
             self.remove_face_id(face.id)
             self._clean_hole_disappearance()
@@ -1548,33 +1544,6 @@ class Space(PlanComponent):
         self.plan.update_from_mesh()
 
         return True
-
-    def plot(self, ax=None,
-             save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'border', 'half-edge')):
-        """
-        plot the space
-        """
-        # do not try to plot an empty space
-        if self.edge is None:
-            return ax
-        color = self.category.color
-
-        if 'border' in options or not ax:
-            x, y = self.as_sp.exterior.xy
-            ax = plot_polygon(ax, x, y, options, color, save)
-
-        if 'face' in options:
-            for face in self.faces:
-                if face is None:
-                    continue
-                ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'))
-
-        if 'half-edge' in options:
-            for edge in self.edges:
-                edge.plot_half_edge(ax, color=color, save=save)
-
-        return ax
 
     def check(self) -> bool:
         """
@@ -2092,18 +2061,6 @@ class Linear(PlanComponent):
             _length += edge.length
 
         return _length
-
-    def plot(self, ax=None, save: bool = None):
-        """
-        Plots the linear object
-        :return:
-        """
-        for edge in self.edges:
-            x_coords, y_coords = zip(*edge.as_sp.coords)
-            ax = plot_edge(x_coords, y_coords, ax,
-                           color=self.category.color,
-                           width=self.category.width, alpha=0.6, save=save)
-        return ax
 
     def check(self) -> bool:
         """
@@ -3018,8 +2975,9 @@ class Plan:
         for space in self.spaces:
             for edge in space.edges:
                 if (edge.pair.face is None or
-                    edge.pair in list(space.edge
-                                      for space in self.spaces if space.category.external is True)):
+                        edge.pair in list(space.edge
+                                          for space in self.spaces if
+                                          space.category.external is True)):
                     _perimeter += edge.length
         return _perimeter
 
@@ -3113,43 +3071,6 @@ class Plan:
         Returns the boundary of the plan as a LineString
         """
         return self.mesh.boundary_as_sp if self.mesh else None
-
-    def plot(self,
-             show: bool = False,
-             save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
-             floor: Optional['Floor'] = None,
-             name: Optional[str] = None):
-        """
-        Plots a plan.
-        :return:
-        """
-        assert floor is None or floor.id in self.floors, (
-            "The floor id specified does not exist in the plan floors")
-
-        n_rows = self.floor_count
-        fig, ax = plt.subplots(n_rows)
-        fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
-
-        for i, floor in enumerate(self.floors.values()):
-            _ax = ax[i] if n_rows > 1 else ax
-            _ax.set_aspect('equal')
-
-            for space in self.spaces:
-                if space.floor is not floor:
-                    continue
-                space.plot(_ax, save=False, options=options)
-
-            for linear in self.linears:
-                if linear.floor is not floor:
-                    continue
-                linear.plot(_ax, save=False)
-
-            _ax.set_title(self.name + " - floor id:{}".format(floor.id))
-
-        plot_save(save, show, name)
-
-        return ax
 
     def check(self) -> bool:
         """
@@ -3245,9 +3166,6 @@ if __name__ == '__main__':
         """
         input_file = "018.json"
         plan = reader.create_plan_from_file(input_file)
-
-        plan.plot(save=False)
-        plt.show()
 
         plan.check()
 
