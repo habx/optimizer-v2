@@ -75,7 +75,6 @@ def test_simple_grid():
     plan.check()
     corridor.grow(circulation_path)
     plan.remove_null_spaces()
-    plan.plot()
     plan.check()
 
 
