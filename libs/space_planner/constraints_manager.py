@@ -262,9 +262,6 @@ class ConstraintsManager:
         self._init_area_spaces_graph()
         self.centroid_space_graph = nx.Graph()
         self._init_centroid_spaces_graph()
-        self.duct_next_to_entrance = []
-        self._init_duct_next_to_entrance()
-        self.toilet_entrance_proximity_constraint_first_pass = True
 
 
         self.item_constraints = {}
@@ -281,19 +278,6 @@ class ConstraintsManager:
                 self.solver.positions[item.id, j] * round(space.cached_area())
                 for j, space in
                 enumerate(self.sp.spec.plan.mutable_spaces()))
-
-    def _init_duct_next_to_entrance(self) -> None:
-        """
-        Initialize duct_next_to_entrance list
-        :return:
-        """
-        min_distance_from_entrance = 400
-        frontDoor = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
-        ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
-        for duct in ducts:
-            if (frontDoor[0] and
-                    duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
-                self.duct_next_to_entrance.append(duct)
 
     def _init_item_windows_area(self) -> None:
         """
@@ -800,13 +784,13 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
         param = min(max(25, plan_ratio + 10), 35)
-    elif (item.category.name in ["study", "misc", "kitchen", "entrance", "wardrobe",
+    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "wardrobe",
                                  "laundry"]
-          or (item.category.name in ["bedroom", "bathroom"] and item.variant in ["l", "xl"])):
+          or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
         param = min(max(25, plan_ratio), 32)
-    elif item.category.name in ["bedroom", "bathroom"] and item.variant in ["s", "m"]:
+    elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
         param = 26
-    elif item.category.name in ["bedroom", "bathroom"] and item.variant in ["xs"]:
+    elif item.category.name is "bedroom" and item.variant in ["xs"]:
         param = 22
     else:
         param = 22 # toilet / entrance
@@ -909,26 +893,6 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
         else:
             ct = manager.or_(ct1, ct2)
 
-    return ct
-
-def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
-    """
-    warning : symmetry breaker
-    :param manager: 'ConstraintsManager'
-    :param item: Item
-    :return: ct: ortools.Constraint
-    """
-    ct = None
-    toilet_entrance_proximity = 0
-    if manager.toilet_entrance_proximity_constraint_first_pass:
-        for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-            for component in space.immutable_components():
-                if component in manager.duct_next_to_entrance:
-                    toilet_entrance_proximity += manager.solver.positions[item.id, j]
-        if toilet_entrance_proximity:
-            ct = toilet_entrance_proximity >= 1
-
-    manager.toilet_entrance_proximity_constraint_first_pass = False
     return ct
 
 def large_windows_constraint(manager: 'ConstraintsManager',
@@ -1250,7 +1214,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
-        [toilet_entrance_proximity_constraint, {}],
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
