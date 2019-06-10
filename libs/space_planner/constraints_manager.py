@@ -292,6 +292,7 @@ class ConstraintsManager:
         ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
         for duct in ducts:
             if (frontDoor[0] and
+                frontDoor[0].floor == duct.floor and
                     duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
                 self.duct_next_to_entrance.append(duct)
 
@@ -454,9 +455,9 @@ class ConstraintsManager:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 4:
-                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
+            # if self.sp.spec.typology >= 4:
+            #     for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+            #         self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -1358,7 +1359,7 @@ T1_T2_ITEMS_CONSTRAINTS = {
 T2_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [max_distance_window_duct_constraint, {"max_distance": 700}]
+        [max_distance_window_duct_constraint, {"max_distance": 650}]
     ]
 }
 
@@ -1384,11 +1385,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ]
 }
 
-T4_MORE_ITEMS_CONSTRAINTS = {
-    "bathroom": [
+DUPLEX_CONSTRAINTS = {
 
-    ],
-    "bedroom": [
-
-    ]
 }
