@@ -253,7 +253,8 @@ class ConstraintsManager:
         self.symmetry_breaker_memo = {}
         self.windows_length = {}
         self._init_windows_length()
-        self.spaces_distance = []
+        self.spaces_max_distance = []
+        self.spaces_min_distance = []
         self._init_spaces_distance()
         self.space_graph = nx.Graph()
         self._init_spaces_graph()
@@ -333,18 +334,24 @@ class ConstraintsManager:
         """
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
-            self.spaces_distance.append([])
-            self.spaces_distance[i] = [0] * len(list(self.sp.spec.plan.mutable_spaces()))
+            self.spaces_max_distance.append([])
+            self.spaces_max_distance[i] = [0] * len(list(self.sp.spec.plan.mutable_spaces()))
+            self.spaces_min_distance.append([])
+            self.spaces_min_distance[i] = [0] * len(list(self.sp.spec.plan.mutable_spaces()))
 
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:
                     if i_space.floor != j_space.floor:
-                        self.spaces_distance[i][j] = 1e20
-                        self.spaces_distance[j][i] = 1e20
+                        self.spaces_max_distance[i][j] = 1e20
+                        self.spaces_max_distance[j][i] = 1e20
+                        self.spaces_min_distance[i][j] = 1e20
+                        self.spaces_min_distance[j][i] = 1e20
                     else:
-                        self.spaces_distance[i][j] = int(i_space.maximum_distance_to(j_space))
-                        self.spaces_distance[j][i] = int(i_space.maximum_distance_to(j_space))
+                        self.spaces_max_distance[i][j] = int(i_space.maximum_distance_to(j_space))
+                        self.spaces_max_distance[j][i] = int(i_space.maximum_distance_to(j_space))
+                        self.spaces_min_distance[i][j] = int(i_space.distance_to(j_space, 'min'))
+                        self.spaces_min_distance[j][i] = int(i_space.distance_to(j_space, 'min'))
 
     def _init_spaces_graph(self) -> None:
         """
@@ -445,6 +452,9 @@ class ConstraintsManager:
             if self.sp.spec.typology >= 3:
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -538,7 +548,6 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
 
     return ct
 
-
 def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
     Maximum distance constraint between spaces constraint
@@ -569,14 +578,57 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                 if ct is None:
                     ct = ((manager.solver.positions[item.id, j] *
                            manager.solver.positions[item.id, k])
-                          <= int(max_distance / manager.spaces_distance[j][k]))
+                          <= int(max_distance / manager.spaces_max_distance[j][k]))
                 else:
                     new_ct = ((manager.solver.positions[item.id, j] *
                                manager.solver.positions[item.id, k])
-                              <= int(max_distance / manager.spaces_distance[j][k]))
+                              <= int(max_distance / manager.spaces_max_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
     ct = or_no_space_constraint(manager, item, ct)
     return ct
+
+def item_max_distance_constraint(manager: 'ConstraintsManager', item: Item,
+                                 item_categories: List[str], max_distance: int) -> ortools.Constraint:
+    """
+    Maximum distance constraint between item and an other type of item
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :param item_categories: List[str]
+    :param max_distance: int
+    :return: ct: ortools.Constraint
+    # TODO : find best param
+    # TODO : unit tests
+    """
+    current_ct = None
+    for num, num_item in enumerate(manager.sp.spec.items):
+        if num_item.category.name in item_categories and num_item != item:
+            for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                    if j!= k:
+                        print(manager.spaces_min_distance[j][k])
+                        if current_ct is None:
+                            if manager.spaces_min_distance[j][k] == 0:
+                                current_ct = (manager.solver.positions[item.id, j] *
+                                              manager.solver.positions[num_item.id, k])
+                            else:
+                                current_ct = ((manager.solver.positions[item.id, j] *
+                                              manager.solver.positions[num_item.id, k]) *
+                                              ((manager.solver.positions[item.id, j] *
+                                              manager.solver.positions[num_item.id, k])
+                                             <= int(max_distance / manager.spaces_min_distance[j][k])))
+                        else:
+                            if manager.spaces_min_distance[j][k] == 0:
+                                new_ct = (manager.solver.positions[item.id, j] *
+                                               manager.solver.positions[num_item.id, k])
+                                current_ct = manager.or_(current_ct, new_ct)
+                            else:
+                                new_ct = ((manager.solver.positions[item.id, j] *
+                                              manager.solver.positions[num_item.id, k]) *
+                                             ((manager.solver.positions[item.id, j] *
+                                              manager.solver.positions[num_item.id, k])
+                                             <= int(max_distance / manager.spaces_min_distance[j][k])))
+                                current_ct = manager.or_(current_ct, new_ct)
+    return current_ct
 
 def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Item,
                                         max_distance: int) -> ortools.Constraint:
@@ -1318,6 +1370,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "bathroom": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}],
+        [item_max_distance_constraint, {"item_categories": ["bedroom"], "max_distance": 200}]
     ],
     "living": [
         [externals_connection_constraint, {}],
@@ -1326,6 +1380,17 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}]
+    ],
+    "bedroom": [
+        [item_max_distance_constraint, {"item_categories": ["bathroom"], "max_distance": 500}]
     ]
 }
 
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "bathroom": [
+
+    ],
+    "bedroom": [
+
+    ]
+}
