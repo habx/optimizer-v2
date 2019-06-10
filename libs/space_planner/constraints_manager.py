@@ -446,7 +446,7 @@ class ConstraintsManager:
             if self.sp.spec.typology <= 2:
                 for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 4:
+            if self.sp.spec.typology >= 2:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
@@ -1357,7 +1357,10 @@ T1_T2_ITEMS_CONSTRAINTS = {
 T2_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-    ]
+    ],
+    "bathroom": [
+        [item_max_distance_constraint, {"item_categories": ["bedroom"], "max_distance": 200}]
+    ],
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
@@ -1371,7 +1374,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}],
-        [item_max_distance_constraint, {"item_categories": ["bedroom"], "max_distance": 200}]
     ],
     "living": [
         [externals_connection_constraint, {}],
