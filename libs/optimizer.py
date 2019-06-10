@@ -19,7 +19,6 @@ from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.version import VERSION as OPTIMIZER_VERSION
-import libs.io.plot
 
 
 class LocalContext:
@@ -170,11 +169,6 @@ class Optimizer:
 
         params = ExecParams(params_dict)
 
-        # output dir
-        if local_context is not None and local_context.output_dir:
-            libs.io.plot.output_path = local_context.output_dir
-            if not os.path.exists(libs.io.plot.output_path):
-                os.makedirs(libs.io.plot.output_path)
 
         # times
         elapsed_times = {}
@@ -282,8 +276,6 @@ class Optimizer:
                      elapsed_times["total"],
                      elapsed_times["totalReal"])
 
-        # OPT-114: This is how we will transmit the generated files
-        local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
         return Response(solutions, elapsed_times)
 
