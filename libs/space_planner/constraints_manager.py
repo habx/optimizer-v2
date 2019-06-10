@@ -23,7 +23,7 @@ import logging
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
 
-WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom"]
+WINDOW_ROOMS = ["living", "kitchen", "livingKitchen", "study", "dining", "bedroom", "bathroom"]
 
 CIRCULATION_ROOMS = ["living", "livingKitchen", "dining", "entrance", "circulation"]
 
@@ -262,6 +262,9 @@ class ConstraintsManager:
         self._init_area_spaces_graph()
         self.centroid_space_graph = nx.Graph()
         self._init_centroid_spaces_graph()
+        self.duct_next_to_entrance = []
+        self._init_duct_next_to_entrance()
+        self.toilet_entrance_proximity_constraint_first_pass = True
 
 
         self.item_constraints = {}
@@ -278,6 +281,19 @@ class ConstraintsManager:
                 self.solver.positions[item.id, j] * round(space.cached_area())
                 for j, space in
                 enumerate(self.sp.spec.plan.mutable_spaces()))
+
+    def _init_duct_next_to_entrance(self) -> None:
+        """
+        Initialize duct_next_to_entrance list
+        :return:
+        """
+        min_distance_from_entrance = 400
+        frontDoor = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
+        ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
+        for duct in ducts:
+            if (frontDoor[0] and
+                    duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
+                self.duct_next_to_entrance.append(duct)
 
     def _init_item_windows_area(self) -> None:
         """
@@ -430,10 +446,12 @@ class ConstraintsManager:
             if self.sp.spec.typology <= 2:
                 for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 2:
+            if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 4:
@@ -589,7 +607,6 @@ def item_max_distance_constraint(manager: 'ConstraintsManager', item: Item,
             for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                     if j!= k:
-                        print(manager.spaces_min_distance[j][k])
                         if current_ct is None:
                             if manager.spaces_min_distance[j][k] == 0:
                                 current_ct = (manager.solver.positions[item.id, j] *
@@ -879,7 +896,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
             ratio = 18
         elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
             ratio = 15
-        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
+        elif item.category.name in ["kitchen", "study", "bathroom"] and len(item.opens_on) == 0:
             ratio = 10
         else:
             ratio = 0
@@ -893,6 +910,26 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
         else:
             ct = manager.or_(ct1, ct2)
 
+    return ct
+
+def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    warning : symmetry breaker
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    toilet_entrance_proximity = 0
+    if manager.toilet_entrance_proximity_constraint_first_pass:
+        for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            for component in space.immutable_components():
+                if component in manager.duct_next_to_entrance:
+                    toilet_entrance_proximity += manager.solver.positions[item.id, j]
+        if toilet_entrance_proximity:
+            ct = toilet_entrance_proximity >= 1
+
+    manager.toilet_entrance_proximity_constraint_first_pass = False
     return ct
 
 def large_windows_constraint(manager: 'ConstraintsManager',
@@ -1214,6 +1251,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
+        [toilet_entrance_proximity_constraint, {}],
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
@@ -1222,6 +1260,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [item_max_distance_constraint, {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
     ],
@@ -1240,7 +1279,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
-        [max_distance_window_duct_constraint, {"max_distance": 700}]
     ],
     "dining": [
         [item_attribution_constraint, {}],
@@ -1320,10 +1358,8 @@ T1_T2_ITEMS_CONSTRAINTS = {
 T2_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-    ],
-    "bathroom": [
-        [item_max_distance_constraint, {"item_categories": ["bedroom"], "max_distance": 200}]
-    ],
+        [max_distance_window_duct_constraint, {"max_distance": 700}]
+    ]
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
@@ -1336,7 +1372,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "bathroom": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
-        [item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}],
+        #[item_adjacency_constraint, {"item_categories": ["bathroom"], "adj": False}],
     ],
     "living": [
         [externals_connection_constraint, {}],
@@ -1345,9 +1381,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}]
-    ],
-    "bedroom": [
-        [item_max_distance_constraint, {"item_categories": ["bathroom"], "max_distance": 500}]
     ]
 }
 
