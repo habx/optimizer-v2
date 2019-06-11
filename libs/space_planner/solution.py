@@ -130,12 +130,6 @@ class SolutionsCollector:
 
         best_sol_list = self.compute_results(list_scores, index_best_sol)
 
-
-        for sol in best_sol_list:
-            logging.debug(sol)
-            if show:
-                sol.plan.plot(save=True)
-
         return best_sol_list
 
 
