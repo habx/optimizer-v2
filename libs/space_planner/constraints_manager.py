@@ -266,7 +266,6 @@ class ConstraintsManager:
         self._init_duct_next_to_entrance()
         self.toilet_entrance_proximity_constraint_first_pass = True
 
-
         self.item_constraints = {}
         self.add_spaces_constraints()
         self.add_duct_constraints()
@@ -437,39 +436,35 @@ class ConstraintsManager:
 
     def add_duct_constraints(self) -> None:
         """
-        Each duct has to be associated with differents type of item if it's possible
+        Each duct has to be associated with different type of item if it's possible
         :return: None
         """
         item_type_list = ["toilet", "bathroom"]
         duct_list = [space for space in self.sp.spec.plan.spaces if
                      space.category.name == "duct"]
+        ct = None
         for item_type in item_type_list:
             list_item = [i_item for i_item in self.sp.spec.items if
                          i_item.category.name == item_type]
-            ct = None
             if 1 < len(list_item) <= len(duct_list):
                 for duct in duct_list:
                     adjacency_sum = 0
                     for item in self.sp.spec.items:
                         if item.category.name == item_type:
-                            item_duct_adjacency = 0
+                            item_duct_adjacency = None
                             for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
                                 if duct in [component for component in
                                             space.immutable_components()]:
-                                    if item_duct_adjacency is 0:
+                                    if item_duct_adjacency is None:
                                         item_duct_adjacency = self.solver.positions[item.id, j_space]
                                     else:
                                         item_duct_adjacency = self.solver.solver.Max(self.solver.positions[item.id, j_space], item_duct_adjacency)
                             adjacency_sum += item_duct_adjacency
-                            print(item, item_duct_adjacency)
 
                     if ct is None:
-                        print(duct, adjacency_sum)
                         ct = adjacency_sum <= 1
                     else:
-                        print(duct, adjacency_sum)
                         ct = self.and_(ct, adjacency_sum <= 1)
-        print(ct)
         self.solver.add_constraint(ct)
 
     def add_item_constraints(self) -> None:
@@ -625,6 +620,38 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                                manager.solver.positions[item.id, k])
                               <= int(max_distance / manager.spaces_max_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
+    ct = or_no_space_constraint(manager, item, ct)
+    return ct
+
+def max_distance_to_window_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    Maximum distance constraint between spaces constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    # TODO : find best param
+    # TODO : unit tests
+    """
+    ct = None
+    max_distance = 700
+    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+        current_ct = None
+        if "window" in j_space.components_category_associated() or "doorWindow" in j_space.components_category_associated():
+            for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                if j < k:
+                    if current_ct is None:
+                        current_ct = ((manager.solver.positions[item.id, j] *
+                               manager.solver.positions[item.id, k])
+                              <= int(max_distance / manager.spaces_max_distance[j][k]))
+                    else:
+                        new_ct = ((manager.solver.positions[item.id, j] *
+                                   manager.solver.positions[item.id, k])
+                                  <= int(max_distance / manager.spaces_max_distance[j][k]))
+                        current_ct = manager.and_(current_ct, new_ct)
+            if ct is None:
+                ct = current_ct
+            else:
+                ct = manager.or_(current_ct, ct)
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
@@ -1311,7 +1338,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [distance_constraint, {}],
         [shape_constraint, {}],
         [windows_constraint, {}],
-        [symmetry_breaker_constraint, {}]
+        [symmetry_breaker_constraint, {}],
+        [max_distance_to_window_constraint, {}],
     ],
     "entrance": [
         [area_constraint, {"min_max": "max"}]
@@ -1434,7 +1462,7 @@ T1_T2_ITEMS_CONSTRAINTS = {
 T2_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [max_distance_window_duct_constraint, {"max_distance": 650}]
+        [max_distance_window_duct_constraint, {"max_distance": 700}]
     ]
 }
 
