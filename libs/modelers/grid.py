@@ -425,7 +425,7 @@ GRID_01 :
 """
 
 
-grid_01 = Grid("GRID_01", [
+grid_01 = Grid("GRID_001", [
     # SECTIONS
     (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
     (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
@@ -487,7 +487,7 @@ grid_01 = Grid("GRID_01", [
 ])
 
 
-grid_02 = Grid("GRID_02", [
+grid_02 = Grid("GRID_002", [
     # SECTIONS
     (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
     (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
@@ -503,6 +503,12 @@ grid_02 = Grid("GRID_02", [
     (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
     (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
      True),
+
+    # WALLS
+    (SELECTORS["close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](100, reference_point="end"), True),
+    (SELECTORS["previous_close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](100, reference_point="start"), True),
 
     # CORNER
     (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
@@ -530,12 +536,6 @@ grid_02 = Grid("GRID_02", [
     (SELECTORS["before_starting_step"],
      MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
     (SELECTORS["after_starting_step"], MUTATION_FACTORIES["translation_cut"](5), True),
-
-    # WALLS
-    (SELECTORS["close_to_corner_wall"],
-     MUTATION_FACTORIES["translation_cut"](100, reference_point="end"), True),
-    (SELECTORS["previous_close_to_corner_wall"],
-     MUTATION_FACTORIES["translation_cut"](100, reference_point="start"), True),
 
     # COMPLETION
     (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
@@ -582,7 +582,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("057.json")
+        plan = reader.create_plan_from_file("029.json")
         plan.check()
         plt.show()
         start_time = time.time()

@@ -26,7 +26,16 @@ import multiprocessing
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
 
-from libs.refiner import core, crossover, evaluation, mutation, nsga, population, support
+from libs.refiner import (
+    core,
+    crossover,
+    evaluation,
+    mutation,
+    nsga,
+    space_nsga,
+    population,
+    support
+)
 
 
 if TYPE_CHECKING:
@@ -208,6 +217,55 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     return toolbox
 
 
+def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
+    """
+    Returns a toolbox for the space nsga algorithm
+    :param spec: The specification to follow
+    :param params: The params of the algorithm
+    :return: a configured toolbox
+    """
+    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0,)
+    # a tuple containing the weights of the fitness
+    cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
+
+    toolbox = core.Toolbox()
+    toolbox.configure("fitness", "CustomFitness", weights)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
+    toolbox.configure("individual", "customIndividual", toolbox.fitness)
+    # Note : order is very important as tuples are evaluated lexicographically in python
+    scores_fc = [
+        evaluation.score_corner,
+        evaluation.score_area,
+        evaluation.score_perimeter_area_ratio,
+        evaluation.score_bounding_box,
+        evaluation.score_connectivity,
+        # evaluation.score_circulation_width
+    ]
+    toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
+
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
+                                      mutation.Case.SMALL: 0.3,
+                                      mutation.Case.BIG: 0.1}),
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
+                                         mutation.Case.SMALL: 0.1,
+                                         mutation.Case.BIG: 0.3}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.4,
+                                               mutation.Case.SMALL: 0.5,
+                                               mutation.Case.BIG: 0.1}),
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.4,
+                                                  mutation.Case.SMALL: 0.1,
+                                                  mutation.Case.BIG: 0.5}))
+
+    toolbox.register("mutate", mutation.composite, mutations)
+    toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
+                     {"cxpb": cxpb})
+    toolbox.register("select", space_nsga.select_nsga)
+    toolbox.register("populate", population.fc_mutate(toolbox.mutate))
+
+    return toolbox
+
+
 def nsga_ga(toolbox: 'core.Toolbox',
             initial_ind: 'core.Individual',
             params: dict,
@@ -237,6 +295,58 @@ def nsga_ga(toolbox: 'core.Toolbox',
         logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
         offspring = nsga.select_tournament_dcd(pop, len(pop))
+        offspring = [toolbox.clone(ind) for ind in offspring]
+
+        # note : list is needed because map lazy evaluates
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        offspring = [i for t in modified for i in t]
+
+        # Evaluate the individuals with an invalid fitness
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+
+        # best score
+        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+
+        # Select the next generation population
+        pop = toolbox.select(pop + offspring, mu)
+
+        # store best individuals in hof
+        if hof is not None:
+            hof.update(pop, value=True)
+
+    return pop
+
+
+def space_nsga_ga(toolbox: 'core.Toolbox',
+               initial_ind: 'core.Individual',
+               params: dict,
+               hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+    """
+    A simple implementation of a genetic algorithm.
+    :param toolbox: a refiner toolbox
+    :param initial_ind: an initial individual
+    :param params: the parameters of the algorithm
+    :param hof: an optional hall of fame to store best individuals
+    :return: the best plan
+    """
+    # algorithm parameters
+    ngen = params["ngen"]
+    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    initial_ind.all_spaces_modified()
+    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
+    pop = toolbox.populate(initial_ind, mu)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+
+    # This is just to assign the crowding distance to the individuals
+    # no actual selection is done
+    pop = toolbox.select(pop, len(pop))
+
+    # Begin the generational process
+    for gen in range(1, ngen + 1):
+        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
+        # Vary the population
+        offspring = space_nsga.select_tournament_dcd(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
         # note : list is needed because map lazy evaluates
@@ -313,7 +423,8 @@ def naive_ga(toolbox: 'core.Toolbox',
 
 REFINERS = {
     "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
-    "naive": Refiner(fc_nsga_toolbox, naive_ga)
+    "naive": Refiner(fc_nsga_toolbox, naive_ga),
+    "space_nsga": Refiner(fc_space_nsga_toolbox, space_nsga_ga)
 }
 
 if __name__ == '__main__':
@@ -329,10 +440,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 30, "mu": 80, "cxpb": 0.8}
+        params = {"ngen": 80, "mu": 8, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "057"  # 004 # 032
+        plan_number = "001"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder")
 
         if plan:
@@ -358,6 +469,6 @@ if __name__ == '__main__':
                 logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                                improved_plan.fitness.values))
 
-            evaluation.check(improved_plan, spec)
+                evaluation.check(improved_plan, spec)
 
     with_corridor()

@@ -2204,7 +2204,7 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
-    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(80, 15)]),
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(70, 15)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
