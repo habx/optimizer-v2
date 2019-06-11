@@ -22,7 +22,8 @@ def get_plan(plan_name: str = "001",
              solution_number: int = 0,
              grid: str = "optimal_grid",
              seeder: str = "simple_seeder",
-             do_circulation: bool = False) -> Tuple['Specification', Optional['Plan']]:
+             do_circulation: bool = False,
+             max_nb_solutions: int = 3) -> Tuple['Specification', Optional['Plan']]:
     """
     Returns a specification and the corresponding solution plan
     :param plan_name: The name of the file of the plan blueprint source
@@ -32,6 +33,7 @@ def get_plan(plan_name: str = "001",
     :param grid: the name of the grid to use
     :param seeder: the name of the seeder to use
     :param do_circulation: whether to create a circulation in the plan
+    :param max_nb_solutions
     """
 
     spec_file_name = plan_name + "_setup" + spec_name + ".json"
@@ -44,7 +46,7 @@ def get_plan(plan_name: str = "001",
     except FileNotFoundError:
 
         return _compute_from_start(plan_name, spec_file_name,
-                                   solution_number, grid, seeder, do_circulation)
+                                   solution_number, grid, seeder, do_circulation, max_nb_solutions)
 
 
 def _retrieve_from_cache(plan_file_name: str,
@@ -69,7 +71,8 @@ def _compute_from_start(plan_name: str,
                         solution_number: int,
                         grid: str,
                         seeder: str,
-                        do_circulation: bool) -> Tuple['Specification', Optional['Plan']]:
+                        do_circulation: bool,
+                        max_nb_solutions: int) -> Tuple['Specification', Optional['Plan']]:
     """
     Computes the plan and the spec file directly from the input json
     :param plan_name:
@@ -101,7 +104,7 @@ def _compute_from_start(plan_name: str,
     SEEDERS[seeder].apply_to(plan)
     spec.plan = plan
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec)
+    best_solutions = space_planner.apply_to(spec, max_nb_solutions)
     new_spec = space_planner.spec
 
     if best_solutions:

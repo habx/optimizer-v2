@@ -967,7 +967,7 @@ if __name__ == '__main__':
             spec.plan = plan
 
             space_planner = SPACE_PLANNERS["standard_space_planner"]
-            best_solutions = space_planner.apply_to(spec)
+            best_solutions = space_planner.apply_to(spec, 3)
 
             new_spec = space_planner.spec
 

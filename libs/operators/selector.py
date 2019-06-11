@@ -236,6 +236,70 @@ def other_seed_space_edge(space: 'Space', seeder: 'Seeder', *_) -> Generator['Ed
         yield edge
 
 
+def corner_fill(space: 'Space', seeder: 'Seeder', *_) -> Generator['Edge', bool, None]:
+    """
+    If the seed linear is close to a wall corner, return the edge such that growth tends
+    to fill the corner
+    :param space:
+    :param seeder:
+    :param _:
+    :return:
+    """
+
+    min_corner_angle = 35
+    min_distance_to_corner = 250  # minimum distance between the linear and the corner
+    min_edge_length = 40
+
+    reference_edge = (seeder.get_seed_from_space(space).components[0].edge
+                      if seeder else space.edge)
+
+    if not space.is_boundary(reference_edge):
+        raise ValueError("Selector: The edge must be a boundary of the space")
+
+    if not reference_edge:
+        return
+
+    def get_corner_edge(_edge: 'Edge'):
+        # gets the dist from the first corner edge when going in direction of _edge
+        current = _edge
+        dist = None
+        while current:
+            current = current.aligned_edge or current.next
+            angle = ccw_angle(_edge.vector, current.vector)
+            angle = angle - 180 if angle > 180 else angle
+            if angle > min_corner_angle:
+                dist = dist or 0  # treat case when _edge is next to a corner
+                return dist
+            dist = _edge.end.distance_to(current.end)
+            if dist > min_distance_to_corner:
+                return dist
+        return dist
+
+    dist_right = get_corner_edge(reference_edge)
+    dist_left = get_corner_edge(reference_edge.pair)
+
+    if dist_right >= min_distance_to_corner and dist_left >= min_distance_to_corner:
+        return
+    elif dist_right < dist_left:
+        direction = "right"
+    else:
+        direction = "left"
+
+    angle = ccw_angle(reference_edge.unit_vector
+                      if direction == "left" else reference_edge.opposite_vector)
+    edges_list = [edge for edge in space.siblings(reference_edge)
+                  if pseudo_equal(ccw_angle(edge.normal), angle, min_corner_angle)
+                  and edge.length >= min_edge_length]
+
+    if not edges_list:
+        return
+
+    if direction == "left":
+        edges_list = edges_list[::-1]
+
+    yield edges_list[0]
+
+
 def seed_component_boundary(space: 'Space', seeder: 'Seeder', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edge of the space adjacent to a face adjacent to the component of the seed
@@ -405,10 +469,18 @@ def improved_aspect_ratio(space: 'Space', *_) -> Generator['Edge', bool, None]:
 
 def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
-    Returns the edge that can be seeded for a duct
+    Returns the edges that can be seeded for a duct
     """
     if not space.category or space.category.name != 'duct':
         raise ValueError('You should provide a duct to the query seed_duct!')
+
+    def check_duct_length(_edge: 'Edge', min_size: float = 60):
+        l = _edge.length
+        current = _edge.next
+        while parallel(_edge.vector, current.vector):
+            l += current.length
+            current = current.next
+        return l > min_size
 
     edge_along_plan = None
     for edge in space.edges:
@@ -419,7 +491,9 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if edge_along_plan:
         yield edge_along_plan.next_ortho().pair
         yield edge_along_plan.previous_ortho().pair
-        yield edge_along_plan.next_ortho().next_ortho().pair
+        # for ducts along walls, no seed planted along the side parallel to the wall if too small
+        if check_duct_length(edge_along_plan.next_ortho().next_ortho()):
+            yield edge_along_plan.next_ortho().next_ortho().pair
     else:
         for edge in space.edges:
             if edge.next_ortho() is edge.next:
@@ -1761,9 +1835,6 @@ def has_space_pair() -> Predicate:
         else:
             if space.plan.get_space_of_edge(edge.pair) is None:
                 return False
-            # if (space_pair_cat and
-            #         not space.plan.get_space_of_edge(edge.pair).category.name == space_pair_cat):
-            #     return False
         return True
 
     return _predicate
@@ -2138,6 +2209,13 @@ SELECTORS = {
         ]
     ),
 
+    "corner_fill": Selector(
+        corner_fill,
+        [
+            adjacent_to_empty_space,
+        ]
+    ),
+
     "corner_stone": Selector(
         space_boundary,
         [
@@ -2257,6 +2335,14 @@ SELECTORS = {
         not_aligned_edges,
         [
             # has_space_pair(),
+        ]
+    ),
+
+    "not_aligned_edges_border": Selector(
+
+        not_aligned_edges,
+        [
+            is_not(has_space_pair()),
         ]
     ),
 

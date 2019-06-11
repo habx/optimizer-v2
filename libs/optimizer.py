@@ -96,6 +96,7 @@ class ExecParams:
         self.do_plot = params.get('do_plot', False)
         self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
         self.do_shuffle = params.get('do_shuffle', False)
+        self.max_nb_solutions = params.get('max_nb_solutions', 3)
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
@@ -219,7 +220,7 @@ class Optimizer:
         logging.info("Space planner")
         t0_space_planner = time.process_time()
         space_planner = SPACE_PLANNERS[params.space_planner_type]
-        best_solutions = space_planner.apply_to(spec)
+        best_solutions = space_planner.apply_to(spec, params.max_nb_solutions)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
