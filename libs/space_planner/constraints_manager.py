@@ -46,8 +46,8 @@ BIG_EXTERNAL_SPACE = 7*SQM
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
-INSIDE_ADJACENCY_LENGTH = 20
-ITEM_ADJACENCY_LENGTH = 100
+INSIDE_ADJACENCY_LENGTH = 10
+ITEM_ADJACENCY_LENGTH = 10
 SEARCH_TIME_LIMIT = 1800000  # millisecond
 SEARCH_SOLUTIONS_LIMIT = 1000
 
@@ -1483,7 +1483,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
-        [distance_constraint, {}],
+        #[distance_constraint, {}],
         [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}],
