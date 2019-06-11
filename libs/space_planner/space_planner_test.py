@@ -32,11 +32,11 @@ def test_space_planner(input_file, input_setup):
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec)
+    best_solutions = space_planner.apply_to(spec, 3)
 
     if input_file == "009.json":
         assert len(space_planner.solutions_collector.solutions) == 11
-        assert len(best_solutions) == 1
+        assert len(best_solutions) == 3
     elif input_file == "012.json":
         assert len(space_planner.solutions_collector.solutions) == 90
         assert len(best_solutions) == 2
@@ -86,6 +86,6 @@ def test_duplex():
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec)
+    best_solutions = space_planner.apply_to(spec, 3)
 
 

@@ -141,7 +141,7 @@ class Space(PlanComponent):
     • a ref to its parent plan
     """
 
-    __slots__ = '_edges_id', '_faces_id'
+    __slots__ = '_edges_id', '_faces_id', '_cached_immutable_components'
 
     def __init__(self,
                  plan: 'Plan',
@@ -153,6 +153,7 @@ class Space(PlanComponent):
         self._edges_id = [edge.id] if edge else []
         self._faces_id = [edge.face.id] if edge and edge.face else []
         self.category = category
+        self._cached_immutable_components = []
 
     def serialize(self) -> Dict:
         """
@@ -1622,6 +1623,17 @@ class Space(PlanComponent):
                 immutable_associated.append(space)
 
         return immutable_associated
+
+    @property
+    def cached_immutable_components(self) -> ['PlanComponent']:
+        """
+        property
+        Returns the cached components associated to the space
+        :return:
+        """
+        if self._cached_immutable_components is None:
+            self._cached_immutable_components = self.immutable_components()
+        return self._cached_immutable_components
 
     def components_category_associated(self) -> [str]:
         """
