@@ -633,21 +633,52 @@ def max_distance_to_window_constraint(manager: 'ConstraintsManager', item: Item)
     # TODO : unit tests
     """
     ct = None
-    max_distance = 700
+    max_distance = 1000
+    additional_distance = 150
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         current_ct = None
         if "window" in j_space.components_category_associated() or "doorWindow" in j_space.components_category_associated():
             for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 if j < k:
                     if current_ct is None:
-                        current_ct = ((manager.solver.positions[item.id, j] *
-                               manager.solver.positions[item.id, k])
-                              <= int(max_distance / manager.spaces_max_distance[j][k]))
+                        if (j not in nx.nodes(manager.centroid_space_graph)
+                                or k not in nx.nodes(manager.centroid_space_graph)
+                                or not nx.has_path(manager.centroid_space_graph, j, k)):
+                            current_ct = (manager.solver.positions[item.id, j] *
+                                  manager.solver.positions[item.id, k] == 0)
+                        else:
+                            path_length, path = nx.single_source_dijkstra(
+                                manager.centroid_space_graph, j, k)
+                            path_length += additional_distance
+                            path_inside_room = 1
+                            for i_path in path:
+                                path_inside_room = (path_inside_room *
+                                                    manager.solver.positions[item.id, i_path])
+                            current_ct = path_inside_room * (manager.solver.positions[item.id, j] *
+                                                     manager.solver.positions[
+                                                         item.id, k] * path_length
+                                                     <= max_distance)
+                            print(path_length)
                     else:
-                        new_ct = ((manager.solver.positions[item.id, j] *
-                                   manager.solver.positions[item.id, k])
-                                  <= int(max_distance / manager.spaces_max_distance[j][k]))
-                        current_ct = manager.and_(current_ct, new_ct)
+                        if (j not in nx.nodes(manager.centroid_space_graph)
+                                or k not in nx.nodes(manager.centroid_space_graph)
+                                or not nx.has_path(manager.centroid_space_graph, j, k)):
+                            new_ct = (manager.solver.positions[item.id, j] *
+                                      manager.solver.positions[item.id, k] == 0)
+                        else:
+                            path_length, path = nx.single_source_dijkstra(
+                                manager.centroid_space_graph, j, k)
+                            path_length += additional_distance
+                            path_inside_room = 1
+                            for i_path in path:
+                                path_inside_room = path_inside_room * manager.solver.positions[
+                                    item.id, i_path]
+                            new_ct = path_inside_room * (manager.solver.positions[item.id, j] *
+                                                         manager.solver.positions[
+                                                             item.id, k] * path_length
+                                                         <= max_distance)
+                            print(path_length)
+                        current_ct = manager.or_(current_ct, new_ct)
             if ct is None:
                 ct = current_ct
             else:
@@ -1339,7 +1370,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}],
-        [max_distance_to_window_constraint, {}],
+        #[max_distance_to_window_constraint, {}],
     ],
     "entrance": [
         [area_constraint, {"min_max": "max"}]
