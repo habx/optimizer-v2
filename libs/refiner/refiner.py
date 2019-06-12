@@ -224,7 +224,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0,)
+    weights = (-20.0, -1.0, -50.0, -10.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -319,9 +319,9 @@ def nsga_ga(toolbox: 'core.Toolbox',
 
 
 def space_nsga_ga(toolbox: 'core.Toolbox',
-               initial_ind: 'core.Individual',
-               params: dict,
-               hof: Optional['support.HallOfFame']) -> List['core.Individual']:
+                  initial_ind: 'core.Individual',
+                  params: dict,
+                  hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
     A simple implementation of a genetic algorithm.
     :param toolbox: a refiner toolbox
@@ -440,10 +440,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 8, "cxpb": 0.8}
+        params = {"ngen": 100, "mu": 120, "cxpb": -1.0}
 
-        logging.getLogger().setLevel(logging.INFO)
-        plan_number = "001"  # 004 # 032
+        logging.getLogger().setLevel(logging.DEBUG)
+        plan_number = "029"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder")
 
         if plan:
@@ -459,7 +459,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plans = REFINERS["nsga"].run(plan, spec, params, processes=4, hof=10)
+            improved_plans = REFINERS["space_nsga"].run(plan, spec, params, processes=1, hof=10)
             end = time.time()
             for improved_plan in improved_plans:
                 improved_plan.name = "Refined_" + plan_number

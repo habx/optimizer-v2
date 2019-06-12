@@ -589,7 +589,7 @@ def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
     :param edge:
     :return:
     """
-    min_lbwall_length = 25.0
+    min_lbwall_length = 40.0
     other = plan.get_space_of_edge(edge.pair)
     return (not other or other.category.external
             or (other.category.name == "loadBearingWall" and edge.length > min_lbwall_length))
@@ -2368,6 +2368,8 @@ SELECTORS = {
                                                        pair(is_not(has_needed_linear)),
                                                        pair(is_not(adjacent_to_needed_space)),
                                                        pair(is_not(corner_stone))]),
+
+    "mutable_edges": Selector(space_external_boundary, [pair(is_mutable)]),
 
     "plan_boundary_no_linear": Selector(space_boundary,
                                         [edge_length(min_length=40),

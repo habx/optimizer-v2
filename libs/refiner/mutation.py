@@ -24,6 +24,7 @@ import math
 import logging
 import enum
 from typing import TYPE_CHECKING, Optional, Callable, Tuple, List, Container, Dict
+from collections import defaultdict
 
 from libs.operators.selector import SELECTORS
 from libs.plan.category import LINEAR_CATEGORIES, SPACE_CATEGORIES
@@ -77,7 +78,7 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
         pb = mutation_pbx[1][space_size]
         accumulated_pb += pb
         if dice <= accumulated_pb:
-            logging.debug("Space mutated %s - %s", space, mutation_pbx[0])
+            logging.debug("Ind: %s, Space mutated %s - %s", ind, space, mutation_pbx[0])
 
             modified_spaces = mutation_pbx[0](space)
             ind.modified_spaces |= {s.id for s in modified_spaces}
@@ -144,6 +145,16 @@ def _random_space(ind: 'Individual') -> Optional['Space']:
     return random.choices(mutable_spaces, weights=spaces_fitnesses)[0]
 
 
+def _mutable_edges(space: 'Space') -> ['Edge']:
+    """
+    Returns the list of all the edges from the boundary of the space adjacent to another mutable
+    space
+    :param space:
+    :return:
+    """
+    return list(SELECTORS["mutable_edges"].yield_from(space))
+
+
 def _random_removable_edge(space: 'Space') -> Optional['Edge']:
     """
     Returns a random edge of the space
@@ -187,9 +198,11 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
     • for each edge add the corresponding faces
     :return:
     """
-    edge = _random_addable_edge(space)
-    if not edge:
+
+    mutable_edges = _mutable_edges(space)
+    if not mutable_edges:
         return []
+    edge = random.choice(mutable_edges)
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
@@ -197,14 +210,11 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
     spaces_and_edges = map(lambda _e: (space.plan.get_space_of_edge(_e.pair), _e.pair),
                            space.aligned_siblings(edge, max_angle))
     # group edges by spaces
-    edges_by_spaces = {}
+    edges_by_spaces = defaultdict(set)
     for other, _edge in spaces_and_edges:
         if other is None:
             continue
-        if other not in edges_by_spaces:
-            edges_by_spaces[other] = {_edge}
-        else:
-            edges_by_spaces[other].add(_edge)
+        edges_by_spaces[other].add(_edge)
 
     modified_spaces = [space]
     for other in edges_by_spaces:
@@ -247,14 +257,29 @@ def add_face(space: 'Space') -> List['Space']:
     :param space:
     :return:
     """
-    edge = _random_addable_edge(space)
-    if not edge:
+    mutable_edges = _mutable_edges(space)
+    if not mutable_edges:
         return []
+    edge = random.choice(mutable_edges)
 
     plan = space.plan
     face = edge.pair.face
     other_space = plan.get_space_of_edge(edge.pair)
-    if not other_space:
+
+    # check we can actually remove the face
+    if not other_space or not other_space.mutable:
+        return []
+
+    if other_space.number_of_faces == 1:
+        return []
+
+    if _has_needed_linear(edge.pair, other_space):
+        return []
+
+    if _adjacent_to_needed_space(edge.pair, other_space, [edge.pair]):
+        return []
+
+    if other_space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
     logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
@@ -275,9 +300,10 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     if space.number_of_faces <= 1:
         return []
 
-    edge = _random_removable_edge(space)
-    if not edge:
+    mutable_edges = _mutable_edges(space)
+    if not mutable_edges:
         return []
+    edge = random.choice(mutable_edges)
 
     plan = space.plan
 
@@ -299,8 +325,10 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     if not edges:
         return []
 
+    logging.debug("Removing aligned edges : %s from space %s", edges, space)
+
     modified_spaces = [space]
-    faces_by_spaces = {}
+    faces_by_spaces = defaultdict(set)
     faces = set(list(e.face for e in edges))
 
     for edge in edges:
@@ -308,10 +336,11 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         if other is None or not other.mutable and edge.face in faces:
             faces.remove(edge.face)
             continue
-        if other not in faces_by_spaces:
-            faces_by_spaces[other] = {edge.face}
-        else:
-            faces_by_spaces[other].add(edge.face)
+        # NOTE : we must add back a face that was removed because one of its edge was not adjacent
+        # to a mutable space but has another edge that is adjacent
+        if edge.face not in faces:
+            faces.add(edge.face)
+        faces_by_spaces[other].add(edge.face)
 
     if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
@@ -326,9 +355,11 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces
-        space.set_edges()
         other.set_edges()
         modified_spaces.append(other)
+
+    # Note : we must set the edges of the space once all the faces have been removed
+    space.set_edges()
 
     return modified_spaces
 
@@ -344,14 +375,27 @@ def remove_face(space: 'Space') -> List['Space']:
     :param space:
     :return: a list of space
     """
-    edge = _random_removable_edge(space)
-    if not edge:
+    if space.number_of_faces <= 1:
         return []
+
+    mutable_edges = _mutable_edges(space)
+    if not mutable_edges:
+        return []
+    edge = random.choice(mutable_edges)
 
     plan = space.plan
     face = edge.face
     other_space = plan.get_space_of_edge(edge.pair)
     if not other_space:
+        return []
+
+    if _has_needed_linear(edge, space):
+        return []
+
+    if _adjacent_to_needed_space(edge, space, [edge]):
+        return []
+
+    if space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
     logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
