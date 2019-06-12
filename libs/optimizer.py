@@ -86,11 +86,11 @@ class ExecParams:
 
         refiner_params = {
             "ngen": 60,
-            "mu": 64,
-            "cxpb": 0.5
+            "mu": 120,
+            "cxpb": 0.8
         }
 
-        self.grid_type = params.get('grid_type', '001')
+        self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
