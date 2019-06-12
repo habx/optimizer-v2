@@ -104,7 +104,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        #self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -578,8 +578,6 @@ class Corridor:
             if not sp.category.name == "circulation":
                 # corridor must not cut a space in pieces
                 # if sp.corner_stone(layer_edge.face):
-                #    break
-                # if len([sp.faces]) == 1:
                 #    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
