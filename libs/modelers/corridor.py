@@ -21,6 +21,8 @@ from libs.utils.geometry import (
 
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
 
+FaceDict = Dict['Face', 'Space']
+
 EPSILON = 1
 
 
@@ -101,6 +103,11 @@ class Corridor:
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
                                   sp.mutable and not sp.category.name is "circulation"]
 
+        initial_face_space_correspondance = {}
+        for sp in initial_mutable_spaces:
+            for face in sp.faces:
+                initial_face_space_correspondance[face] = sp
+
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
@@ -122,39 +129,79 @@ class Corridor:
                                 sp.mutable and not sp.category.name is "circulation"]
 
         # space repair process : if some spaces have been created by corridor growth
-        self._repair_spaces(initial_mutable_spaces, final_mutable_spaces)
+        self._repair_spaces(initial_mutable_spaces, final_mutable_spaces,
+                            initial_face_space_correspondance)
 
         # linear repair
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
 
+    # def _repair_spaces(self, initial_mutable_spaces: List['Space'],
+    #                    final_mutable_spaces: List['Space']):
+    #     """
+    #     if in the process a corridor has split some mutable spaces, the created resulting spaces
+    #     are merged with an adjacent corridor
+    #     :param initial_mutable_spaces:
+    #     :param final_mutable_spaces:
+    #     :return:
+    #     """
+    #     if len(initial_mutable_spaces) == len(final_mutable_spaces):
+    #         return
+    #     merge = True
+    #     while merge:
+    #         for sp in final_mutable_spaces:
+    #             if not sp in initial_mutable_spaces:
+    #                 adjacent_spaces = list(sp.adjacent_spaces())
+    #                 for adjacent_space in adjacent_spaces:
+    #                     if adjacent_space.category.name == "circulation":
+    #                         adjacent_space.merge(sp)
+    #                         self.plan.remove_null_spaces()
+    #                         break
+    #                 else:
+    #                     raise Exception("The corridor process broke the plan, one or several "
+    #                                     "spaces have been split, this should never happen")
+    #                 final_mutable_spaces = [mut_sp for mut_sp in self.plan.spaces if
+    #                                         mut_sp.mutable and not mut_sp.category.name
+    #                                                                is "circulation"]
+    #                 break
+    #         if len(initial_mutable_spaces) == len(final_mutable_spaces):
+    #             merge = False
+
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
-                       final_mutable_spaces: List['Space']):
+                       final_mutable_spaces: List['Space'],
+                       initial_face_space_correspondance: FaceDict):
         """
-        if in the process a corridor has split some mutable spaces, the created resulting spaces
-        are merged with an adjacent corridor
+        if in the process a mutable space has been split by a corridor propagation,
+        the split space is set back to its state before corridor propagation
         :param initial_mutable_spaces:
         :param final_mutable_spaces:
+        :param initial_face_space_correspondance:
         :return:
         """
         if len(initial_mutable_spaces) == len(final_mutable_spaces):
+            # no space has been split
             return
+
         merge = True
         while merge:
-            for sp in final_mutable_spaces:
-                if not sp in initial_mutable_spaces:
-                    adjacent_spaces = list(sp.adjacent_spaces())
-                    for adjacent_space in adjacent_spaces:
-                        if adjacent_space.category.name == "circulation":
-                            adjacent_space.merge(sp)
-                            self.plan.remove_null_spaces()
-                            break
-                    else:
-                        raise Exception("The corridor process broke the plan, one or several "
-                                        "spaces have been split, this should never happen")
-                    final_mutable_spaces = [mut_sp for mut_sp in self.plan.spaces if
-                                            mut_sp.mutable and not mut_sp.category.name
-                                                                   is "circulation"]
+            for final_space in final_mutable_spaces:
+                if not final_space in initial_mutable_spaces:  # a space has been cut
+                    final_space_faces = list(final_space.faces)
+                    initial_space = initial_face_space_correspondance[final_space_faces[0]]
+                    repair_faces = [face for face in initial_face_space_correspondance
+                                       if initial_face_space_correspondance[face] == initial_space
+                                       and not initial_space.has_face(face)]
+                    while repair_faces:
+                        for face in repair_faces:
+                            sp_with_face = self.plan.get_space_of_face(face)
+                            if [e for e in face.edges if
+                                e.pair.face and initial_space.has_face(e.pair.face)]:
+                                initial_space.add_face(face)
+                                repair_faces.remove(face)
+                                sp_with_face.remove_face(face)
+                    self.plan.remove_null_spaces()
+                    final_mutable_spaces = [sp for sp in self.plan.spaces if
+                                            sp.mutable and not sp.category.name is "circulation"]
                     break
             if len(initial_mutable_spaces) == len(final_mutable_spaces):
                 merge = False
@@ -1046,5 +1093,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "030.json"
+    plan_name = "012.json"
     main(input_file=plan_name)
