@@ -265,6 +265,8 @@ class ConstraintsManager:
         self.duct_next_to_entrance = []
         self._init_duct_next_to_entrance()
         self.toilet_entrance_proximity_constraint_first_pass = True
+        self.externals_connection_constraint_first_pass = True
+        self.large_windows_constraint_first_pass = True
 
         self.item_constraints = {}
         self.add_spaces_constraints()
@@ -978,13 +980,15 @@ def large_windows_constraint(manager: 'ConstraintsManager',
     """
     ct = None
 
-    large_windows_sum = 0
-    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-        for component in space.immutable_components():
-            if component.category.name is "doorWindow" and component.length > 180:
-                large_windows_sum += manager.solver.positions[item.id, j]
-    if large_windows_sum:
-        ct = large_windows_sum >= 1
+    if manager.large_windows_constraint_first_pass:
+        large_windows_sum = 0
+        manager.large_windows_constraint_first_pass = False
+        for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            for component in space.immutable_components():
+                if component.category.name is "doorWindow" and component.length > 180:
+                    large_windows_sum += manager.solver.positions[item.id, j]
+        if large_windows_sum:
+            ct = large_windows_sum >= 1
 
     return ct
 
@@ -1234,7 +1238,8 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
             has_to_be_connected = True
             break
 
-    if has_to_be_connected:
+    if has_to_be_connected and manager.externals_connection_constraint_first_pass:
+        manager.externals_connection_constraint_first_pass = False
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
