@@ -236,7 +236,8 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     scores_fc = [
         evaluation.score_corner,
         evaluation.score_area,
-        evaluation.score_perimeter_area_ratio,
+        # evaluation.score_perimeter_area_ratio,
+        evaluation.score_width_depth_ratio,
         evaluation.score_bounding_box,
         evaluation.score_connectivity,
         # evaluation.score_circulation_width
@@ -323,7 +324,10 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
                   params: dict,
                   hof: Optional['support.HallOfFame']) -> List['core.Individual']:
     """
-    A simple implementation of a genetic algorithm.
+    A simple implementation of a genetic algorithm. We try to select individuals according to the
+    pareto fronts of the population for each space fitness value. The idea is to select the
+    individuals with the best `non dominated` space and to mate them accordingly.
+    This seems a better strategy than to select via the different objectives.
     :param toolbox: a refiner toolbox
     :param initial_ind: an initial individual
     :param params: the parameters of the algorithm
@@ -440,9 +444,9 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 100, "mu": 120, "cxpb": -1.0}
+        params = {"ngen": 50, "mu": 120, "cxpb": 0.8}
 
-        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.INFO)
         plan_number = "029"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder")
 
@@ -459,7 +463,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plans = REFINERS["space_nsga"].run(plan, spec, params, processes=1, hof=10)
+            improved_plans = REFINERS["space_nsga"].run(plan, spec, params, processes=4, hof=10)
             end = time.time()
             for improved_plan in improved_plans:
                 improved_plan.name = "Refined_" + plan_number
