@@ -334,6 +334,16 @@ class Solution:
             return -10
         return 0
 
+    def _circulation_room_penalty(self) -> float:
+        """
+        circulation penalty
+        :return: score : float
+        """
+        if (self.collector.spec.typology <= 3
+              and [item for item in self.items_spaces if item.category.name == "circulation"]):
+            return -10
+        return 0
+
     def _externals_spaces_bonus(self) -> float:
         """
         Good ordering externals spaces size bonus
@@ -599,7 +609,7 @@ class Solution:
         :return: score : float
         """
         solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
-        solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus())
+        solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus() + self._circulation_room_penalty())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
