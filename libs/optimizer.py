@@ -84,11 +84,11 @@ class ExecParams:
 
         refiner_params = {
             "ngen": 60,
-            "mu": 64,
-            "cxpb": 0.5
+            "mu": 120,
+            "cxpb": 0.8
         }
 
-        self.grid_type = params.get('grid_type', '001')
+        self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
@@ -96,7 +96,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'naive')
+        self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
@@ -247,7 +247,8 @@ class Optimizer:
                 for sol in best_solutions:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params)
+                                                                      params.refiner_params,
+                                                                      processes=2)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["refiner"] = time.process_time() - t0_refiner

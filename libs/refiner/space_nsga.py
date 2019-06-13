@@ -1,6 +1,8 @@
 """
 NSGA-II module
 Taken from deap
+Modified to apply the pareto front selection to the spaces components of the fitness rather
+than the differents objectives
 """
 
 import bisect
@@ -10,13 +12,17 @@ import random
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import defaultdict
+from typing import TYPE_CHECKING, Sequence
+
+if TYPE_CHECKING:
+    from libs.refiner.core import Individual
 
 
 ######################################
 # Non-Dominated Sorting   (NSGA-II)  #
 ######################################
 
-def select_nsga(individuals, k, nd='standard'):
+def select_nsga(individuals: Sequence['Individual'], k: int, nd: str = 'standard'):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the
     size of *individuals* will be larger than *k* because any individual
     present in *individuals* will appear in the returned list at most once.
@@ -55,7 +61,7 @@ def select_nsga(individuals, k, nd='standard'):
     return chosen
 
 
-def sort_nondominated(individuals, k, first_front_only=False):
+def sort_nondominated(individuals: Sequence['Individual'], k: int, first_front_only: bool = False):
     """Sort the first *k* *individuals* into different non domination levels
     using the "Fast Nondominated Sorting Approach" proposed by Deb et al.,
     see [Deb2002]_. This algorithm has a time complexity of :math:`O(MN^2)`,
@@ -89,10 +95,10 @@ def sort_nondominated(individuals, k, first_front_only=False):
     # Rank first Pareto front
     for i, fit_i in enumerate(fits):
         for fit_j in fits[i + 1:]:
-            if fit_i.dominates(fit_j):
+            if fit_i.space_dominates(fit_j):
                 dominating_fits[fit_j] += 1
                 dominated_fits[fit_i].append(fit_j)
-            elif fit_j.dominates(fit_i):
+            elif fit_j.space_dominates(fit_i):
                 dominating_fits[fit_i] += 1
                 dominated_fits[fit_j].append(fit_i)
         if dominating_fits[fit_i] == 0:
@@ -122,7 +128,7 @@ def sort_nondominated(individuals, k, first_front_only=False):
     return fronts
 
 
-def assign_crowding_dist(individuals):
+def assign_crowding_dist(individuals: Sequence['Individual']):
     """Assign a crowding distance to each individual's fitness. The
     crowding distance can be retrieve via the :attr:`crowding_dist`
     attribute of each individual's fitness.
@@ -131,22 +137,23 @@ def assign_crowding_dist(individuals):
         return
 
     distances = [0.0] * len(individuals)
-    crowd = [(ind.fitness.values, i) for i, ind in enumerate(individuals)]
+    crowd = [(ind.fitness.sp_wvalue, i) for i, ind in enumerate(individuals)]
 
-    nobj = len(individuals[0].fitness.values)
+    spaces_id = crowd[0][0].keys()
+    n_spaces = len(spaces_id)
 
-    for i in range(nobj):
-        crowd.sort(key=lambda element: element[0][i])
+    for space_id in spaces_id:
+        crowd.sort(key=lambda element: element[0][space_id])
         distances[crowd[0][1]] = math.inf
         distances[crowd[-1][1]] = math.inf
-        if crowd[-1][0][i] == crowd[0][0][i]:
+        if crowd[-1][0][space_id] == crowd[0][0][space_id]:
             continue
-        norm = nobj * float(crowd[-1][0][i] - crowd[0][0][i])
+        norm = n_spaces * float(crowd[-1][0][space_id] - crowd[0][0][space_id])
         for prev, cur, _next in zip(crowd[:-2], crowd[1:-1], crowd[2:]):
-            distances[cur[1]] += (_next[0][i] - prev[0][i]) / norm
+            distances[cur[1]] += (_next[0][space_id] - prev[0][space_id]) / norm
 
-    for i, dist in enumerate(distances):
-        individuals[i].fitness.crowding_dist = dist
+    for space_id, dist in enumerate(distances):
+        individuals[space_id].fitness.crowding_dist = dist
 
 
 def select_tournament_dcd(individuals, k):
@@ -167,9 +174,9 @@ def select_tournament_dcd(individuals, k):
     """
 
     def _tourn(ind1, ind2):
-        if ind1.fitness.dominates(ind2.fitness):
+        if ind1.fitness.space_dominates(ind2.fitness):
             return ind1
-        elif ind2.fitness.dominates(ind1.fitness):
+        elif ind2.fitness.space_dominates(ind1.fitness):
             return ind2
 
         if ind1.fitness.crowding_dist < ind2.fitness.crowding_dist:
@@ -221,7 +228,7 @@ def is_dominated(wvalues1, wvalues2):
     return not_equal
 
 
-def median(seq, key=identity):
+def median(seq: Sequence, key=identity):
     """Returns the median of *seq* - the numeric value separating the higher
     half of a sample from the lower half. If there is an even number of
     elements in *seq*, it returns the mean of the two middle values.
@@ -234,7 +241,9 @@ def median(seq, key=identity):
         return (key(sseq[(length - 1) // 2]) + key(sseq[length // 2])) / 2.0
 
 
-def sort_log_nondominated(individuals, k, first_front_only=False):
+def sort_log_nondominated(individuals: Sequence['Individual'],
+                          k: int,
+                          first_front_only: bool = False):
     """Sort *individuals* in pareto non-dominated fronts using the Generalized
     Reduced Run-Time Complexity Non-Dominated Sorting Algorithm presented by
     Fortin et al. (2013).
@@ -251,10 +260,10 @@ def sort_log_nondominated(individuals, k, first_front_only=False):
     # Separate individuals according to unique fitnesses
     unique_fits = defaultdict(list)
     for i, ind in enumerate(individuals):
-        unique_fits[ind.fitness.wvalues].append(ind)
+        unique_fits[ind.fitness.sp_wvalue_t].append(ind)
 
     # Launch the sorting algorithm
-    obj = len(individuals[0].fitness.wvalues) - 1
+    obj = len(individuals[0].fitness.sp_wvalue_t) - 1
     fitnesses = list(unique_fits.keys())
     front = dict.fromkeys(fitnesses, 0)
 
@@ -456,7 +465,7 @@ def sweep_b(best, worst, front):
 # Strength Pareto         (SPEA-II)  #
 ######################################
 
-def select_spea(individuals, k):
+def select_spea(individuals: Sequence['Individual'], k: int) -> Sequence['Individual']:
     """Apply SPEA-II selection operator on the *individuals*. Usually, the
     size of *individuals* will be larger than *n* because any individual
     present in *individuals* will appear in the returned list at most once.
@@ -473,7 +482,7 @@ def select_spea(individuals, k):
        strength Pareto evolutionary algorithm", 2001.
     """
     n = len(individuals)
-    fit_len = len(individuals[0].fitness.values)
+    fit_len = len(individuals[0].fitness.sp_wvalue_t)
     sqrt_n = math.sqrt(n)
     strength_fits = [0] * n
     fits = [0] * n
@@ -481,10 +490,10 @@ def select_spea(individuals, k):
 
     for i, ind_i in enumerate(individuals):
         for j, ind_j in enumerate(individuals[i + 1:], i + 1):
-            if ind_i.fitness.dominates(ind_j.fitness):
+            if ind_i.fitness.space_dominates(ind_j.fitness):
                 strength_fits[i] += 1
                 dominating_inds[j].append(i)
-            elif ind_j.fitness.dominates(ind_i.fitness):
+            elif ind_j.fitness.space_dominates(ind_i.fitness):
                 strength_fits[j] += 1
                 dominating_inds[i].append(j)
 
@@ -501,8 +510,8 @@ def select_spea(individuals, k):
             for j in range(i + 1, n):
                 dist = 0.0
                 for m in range(fit_len):
-                    val = individuals[i].fitness.values[m] - \
-                          individuals[j].fitness.values[m]
+                    val = (individuals[i].fitness.sp_wvalue_t[m] -
+                           individuals[j].fitness.sp_wvalue_t[m])
                     dist += val * val
                 distances[j] = dist
             kth_dist = _randomized_select(distances, 0, n - 1, sqrt_n)
@@ -523,8 +532,8 @@ def select_spea(individuals, k):
             for j in range(i + 1, n):
                 dist = 0.0
                 for m in range(fit_len):
-                    val = individuals[chosen_indices[i]].fitness.values[m] - \
-                          individuals[chosen_indices[j]].fitness.values[m]
+                    val = (individuals[chosen_indices[i]].fitness.sp_wvalue_t[m] -
+                           individuals[chosen_indices[j]].fitness.sp_wvalue_t[m])
                     dist += val * val
                 distances[i][j] = dist
                 distances[j][i] = dist
@@ -557,8 +566,8 @@ def select_spea(individuals, k):
 
             # Remove minimal distance from sorted_indices
             for i in range(n):
-                distances[i][min_pos] = float("inf")
-                distances[min_pos][i] = float("inf")
+                distances[i][min_pos] = math.inf
+                distances[min_pos][i] = math.inf
 
                 for j in range(1, size - 1):
                     if sorted_indices[i][j] == min_pos:

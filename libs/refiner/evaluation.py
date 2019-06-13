@@ -240,7 +240,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
         box = space.bounding_box()
         box_area = box[0] * box[1]
         area = space.cached_area()
-        space_score = math.fabs((area - box_area) / area) * 100.0
+        space_score = ((area - box_area) / area)**2 * 100.0
         score[space.id] = space_score
 
     return score
