@@ -1050,7 +1050,7 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            GRIDS["001"].apply_to(plan)
+            GRIDS["002"].apply_to(plan)
             # GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["directional_seeder"].apply_to(plan)
             spec.plan = plan
