@@ -189,8 +189,8 @@ class Corridor:
                     final_space_faces = list(final_space.faces)
                     initial_space = initial_face_space_correspondance[final_space_faces[0]]
                     repair_faces = [face for face in initial_face_space_correspondance
-                                       if initial_face_space_correspondance[face] == initial_space
-                                       and not initial_space.has_face(face)]
+                                    if initial_face_space_correspondance[face] == initial_space
+                                    and not initial_space.has_face(face)]
                     while repair_faces:
                         for face in repair_faces:
                             sp_with_face = self.plan.get_space_of_face(face)
@@ -452,10 +452,16 @@ class Corridor:
                 self.add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
                                           corridor_space,
                                           show)
-
                 corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
-                if corridor_space and self.plan.get_space_of_edge(corner_edge):
-                    self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
+                space_corner = self.plan.get_space_of_edge(corner_edge)
+                if not space_corner or not corridor_space:
+                    continue
+                if len(list(space_corner.faces)) < 2:
+                    continue
+                if list([e for e in space_corner.edges if
+                         e.pair.face and corridor_space.has_face(e.pair.face)]):
+                    # self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
+                    corridor_space.merge(space_corner)
 
     def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
@@ -626,6 +632,8 @@ class Corridor:
                 # corridor must not cut a space in pieces
                 # if sp.corner_stone(layer_edge.face):
                 #    break
+                if len(list(sp.faces)) == 1 and sp.components_category_associated():
+                    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -1061,7 +1069,7 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[0]
+                solution = best_solutions[1]
                 plan = solution.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
@@ -1093,5 +1101,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "012.json"
+    plan_name = "005.json"
     main(input_file=plan_name)
