@@ -9,14 +9,16 @@ import logging
 from typing import List, Tuple
 import matplotlib.pyplot as plt
 
-from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES
+from libs.plan.plan import Space, Plan, Edge, Vertex, Linear, LINEAR_CATEGORIES
 from libs.io.plot import plot_save
 
 from libs.utils.geometry import (
-    parallel
+    parallel,
+    move_point,
+    dot_product
 )
 
-width = 90
+DOOR_WIDTH = 90
 
 """
 process:
@@ -56,53 +58,15 @@ def place_door(space1: 'Space', space2: 'Space'):
     :return:
     """
 
-    # TODO : finds better heuristic
-    # detect contact lines between the two spaces
-    # takes the longest line
-    # detects the middle of the line
-    # set a door edge
-    # decides where it opens based on the room sizes
-
-    def _line_forward(_edge: 'Edge') -> List['Edge']:
-        """
-        returns edges aligned with e, contiguous, in forward direction
-        :param _edge:
-        :return:
-        """
-        output = []
-        current = _edge
-        while current:
-            output.append(current)
-            current = current.aligned_edge or current.continuous_edge
-        return output[1:]
-
-    def _get_corner_edge(space: 'Space') -> Edge:
-        """
-        gets a corner edge of space
-        :param space:
-        :return:
-        """
-        for edge in space.edges:
-            if not parallel(edge.vector, space.next_edge(edge).vector):
-                return edge
-
-    # # detect contact lines between the two spaces
-    # contact_lines = []
-    # smaller_space = space1 if space1.cached_area() < space2.cached_area() else space2
-    # bigger_space = space2 if smaller_space is space1 else space1
-    #
-    # corner_edge = _get_corner_edge(smaller_space)
-    # corner_edge_ini = corner_edge
-    # turn_around = True
-    # while turn_around:
-    #     contact_edges = [e for e in _line_forward(corner_edge) if
-    #                      e in smaller_space.edges and e.pair in bigger_space.edges]
-    #     contact_lines.append(contact_edges)
+    def _is_edge_of_point(edge, point: 'Point'):
+        vect1 = (point[0] - edge.start.coords[0], point[1] - edge.start.coords[1])
+        vect2 = (point[0] - edge.end.coords[0], point[1] - edge.end.coords[1])
+        return dot_product(vect1, vect2) < 0
 
     contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
 
     start_index = None
-    for e, edge in contact_edges:
+    for e, edge in enumerate(contact_edges):
         if not space1.previous_edge(edge) in contact_edges:
             start_index = e
     if not start_index == 0:
@@ -116,9 +80,36 @@ def place_door(space1: 'Space', space2: 'Space'):
             lines.append([edge])
 
     contact_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
+    contact_length = contact_line[0].start.distance_to(contact_line[-1].end)
+    door_edges = []
+    if contact_length < DOOR_WIDTH:
+        door_edges.append(contact_line[0])
+    else:
+        coeff_start = 0.5 * (1 - DOOR_WIDTH / contact_length)
+        coeff_end = 0.5 * (1 + DOOR_WIDTH / contact_length)
+        if coeff_start > 0 and coeff_end < 1:
+            start_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+                                          coeff_start)
+            end_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+                                        coeff_end)
+            start_edge = list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
+            end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
+            start_index = 0
+            for e, edge in enumerate(contact_line):
+                if edge is start_edge:
+                    start_index = e
+                    break
+            while contact_line[start_index] is not end_edge:
+                door_edges.append(contact_line[start_index])
+                start_index += 1
+            if not door_edges:
+                door_edges.append(start_edge)
+        else:
+            door_edges.append(contact_line[0])
 
-    edge_test = contact_line[0]
-    Linear(space1.plan, space1.floor, edge_test, LINEAR_CATEGORIES["door"])
+    for door_edge in door_edges:
+        Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
+
     plot(space1.plan)
 
 
@@ -227,10 +218,19 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
-        plan.check()
+        living = None
+        bedroom = None
+        for sp in plan.spaces:
+            if sp.category.name == "livingKitchen":
+                living = sp
+                break
+        for sp in plan.spaces:
+            if sp.category.name == "bedroom":
+                bedroom = sp
+                break
 
-        plan.name = "corridor_" + plan.name
-        plan.plot()
+        place_door(living, bedroom)
+        plot(plan)
 
 
     plan_name = "009.json"
