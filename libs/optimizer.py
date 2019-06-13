@@ -14,7 +14,6 @@ from libs.io import reader
 from libs.io.writer import generate_output_dict
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.modelers.shuffle import SHUFFLES
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
@@ -69,7 +68,6 @@ class ExecParams:
                            'grid': {'name': 'optimal_grid', 'params': {}},
                            'seeder': {'name': 'simple_seeder, 'params': {}},
                            'space_planner': {'name': 'default_space_planner', 'params': {}},
-                           'shuffle': {'name': 'simple_shuffle', 'params': {}, 'run': False},
                            'refiner': {'name': 'simple', 'params': {'mu': 28, 'ngen': 100 ...},
                                        'run': True}
                           }
@@ -86,21 +84,19 @@ class ExecParams:
 
         refiner_params = {
             "ngen": 60,
-            "mu": 64,
-            "cxpb": 0.5
+            "mu": 120,
+            "cxpb": 0.8
         }
 
-        self.grid_type = params.get('grid_type', '001')
+        self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
-        self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
-        self.do_shuffle = params.get('do_shuffle', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'naive')
+        self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
@@ -225,18 +221,6 @@ class Optimizer:
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
-        # shuffle
-        t0_shuffle = time.process_time()
-        if params.do_shuffle:
-            logging.info("Shuffle")
-            if best_solutions:
-                for sol in best_solutions:
-                    SHUFFLES[params.shuffle_type].apply_to(sol.plan)
-                    if params.do_plot:
-                        sol.plan.plot()
-        elapsed_times["shuffle"] = time.process_time() - t0_shuffle
-        logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
-
         # corridor
         t0_corridor = time.process_time()
         if params.do_corridor:
@@ -263,7 +247,8 @@ class Optimizer:
                 for sol in best_solutions:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params)
+                                                                      params.refiner_params,
+                                                                      processes=2)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["refiner"] = time.process_time() - t0_refiner

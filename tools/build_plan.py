@@ -3,7 +3,6 @@ from libs.modelers.seed import Seeder, GROWTH_METHODS, FILL_METHODS
 from libs.space_planner.space_planner import SpacePlanner
 from libs.operators.selector import SELECTORS
 from libs.modelers.grid import GRIDS
-from libs.modelers.shuffle import SHUFFLES
 from libs.plan.plan import Plan
 
 
@@ -47,12 +46,10 @@ def build_plan(input_file: str) -> Plan:
     plan.plot()
     (seeder.plant()
      .grow()
-     .shuffle(SHUFFLES['seed_square_shape'])
      .fill(FILL_METHODS, (SELECTORS["farthest_couple_middle_space_area_min_100000"],
                           "empty"))
      .fill(FILL_METHODS, (SELECTORS["single_edge"], "empty"), recursive=True)
-     .simplify(SELECTORS["fuse_small_cell"])
-     .shuffle(SHUFFLES['seed_square_shape']))
+     .simplify(SELECTORS["fuse_small_cell"]))
 
     input_file_setup = input_file[:-5] + "_setup.json"
     spec = reader.create_specification_from_file(input_file_setup)
