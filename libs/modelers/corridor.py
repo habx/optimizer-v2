@@ -136,46 +136,17 @@ class Corridor:
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
 
-    # def _repair_spaces(self, initial_mutable_spaces: List['Space'],
-    #                    final_mutable_spaces: List['Space']):
-    #     """
-    #     if in the process a corridor has split some mutable spaces, the created resulting spaces
-    #     are merged with an adjacent corridor
-    #     :param initial_mutable_spaces:
-    #     :param final_mutable_spaces:
-    #     :return:
-    #     """
-    #     if len(initial_mutable_spaces) == len(final_mutable_spaces):
-    #         return
-    #     merge = True
-    #     while merge:
-    #         for sp in final_mutable_spaces:
-    #             if not sp in initial_mutable_spaces:
-    #                 adjacent_spaces = list(sp.adjacent_spaces())
-    #                 for adjacent_space in adjacent_spaces:
-    #                     if adjacent_space.category.name == "circulation":
-    #                         adjacent_space.merge(sp)
-    #                         self.plan.remove_null_spaces()
-    #                         break
-    #                 else:
-    #                     raise Exception("The corridor process broke the plan, one or several "
-    #                                     "spaces have been split, this should never happen")
-    #                 final_mutable_spaces = [mut_sp for mut_sp in self.plan.spaces if
-    #                                         mut_sp.mutable and not mut_sp.category.name
-    #                                                                is "circulation"]
-    #                 break
-    #         if len(initial_mutable_spaces) == len(final_mutable_spaces):
-    #             merge = False
-
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
                        final_mutable_spaces: List['Space'],
                        initial_face_space_correspondance: FaceDict):
         """
         if in the process a mutable space has been split by a corridor propagation,
         the split space is set back to its state before corridor propagation
-        :param initial_mutable_spaces:
-        :param final_mutable_spaces:
-        :param initial_face_space_correspondance:
+        This may break a corridor into pieces
+        :param initial_mutable_spaces: list of spaces before corridor propagation
+        :param final_mutable_spaces: list of faces after corridor propagation
+        :param initial_face_space_correspondance: dict containing for each face the space it
+        belong to before corridor propagation
         :return:
         """
         if len(initial_mutable_spaces) == len(final_mutable_spaces):
@@ -186,6 +157,8 @@ class Corridor:
         while merge:
             for final_space in final_mutable_spaces:
                 if not final_space in initial_mutable_spaces:  # a space has been cut
+                    # each face of final_space is given back to the space it belong before corridor
+                    # propagation
                     final_space_faces = list(final_space.faces)
                     initial_space = initial_face_space_correspondance[final_space_faces[0]]
                     repair_faces = [face for face in initial_face_space_correspondance
@@ -456,11 +429,12 @@ class Corridor:
                 space_corner = self.plan.get_space_of_edge(corner_edge)
                 if not space_corner or not corridor_space:
                     continue
-                if len(list(space_corner.faces)) < 2:
+                if not space_corner.category.name == "circulation" and len(
+                        list(space_corner.faces)) < 2:  # do not remove the space
                     continue
                 if list([e for e in space_corner.edges if
                          e.pair.face and corridor_space.has_face(e.pair.face)]):
-                    # self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
+                    # merge if spaces are adjacent
                     corridor_space.merge(space_corner)
 
     def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
@@ -629,9 +603,7 @@ class Corridor:
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
-                # corridor must not cut a space in pieces
-                # if sp.corner_stone(layer_edge.face):
-                #    break
+                # corridor must not make a space with components diseappear
                 if len(list(sp.faces)) == 1 and sp.components_category_associated():
                     break
                 corridor_space.add_face(layer_edge.face)
