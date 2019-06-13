@@ -248,7 +248,7 @@ class Optimizer:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params,
-                                                                      processes=2)
+                                                                      processes=1)
                     if params.do_plot:
                         sol.plan.plot()
         elapsed_times["refiner"] = time.process_time() - t0_refiner
