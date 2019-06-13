@@ -447,8 +447,9 @@ if __name__ == '__main__':
         params = {"ngen": 50, "mu": 120, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "029"  # 004 # 032
-        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder")
+        plan_number = "030"  # 004 # 032
+        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
+                                          solution_number=1)
 
         if plan:
             plan.name = "original_" + plan_number
