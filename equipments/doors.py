@@ -218,20 +218,18 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
-        living = None
-        bedroom = None
-        for sp in plan.spaces:
-            if sp.category.name == "livingKitchen":
-                living = sp
-                break
-        for sp in plan.spaces:
-            if sp.category.name == "bedroom":
-                bedroom = sp
-                break
+        space1 = None
+        space2 = None
+        cat1 = "livingKitchen"
+        cat2 = "bedroom"
+        space1 = list(sp for sp in plan.spaces if
+                      sp.category.name == cat1)[0]
+        space2 = list(sp for sp in plan.spaces if
+                      sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
 
-        place_door(living, bedroom)
+        place_door(space1, space2)
         plot(plan)
 
 
-    plan_name = "009.json"
+    plan_name = "018.json"
     main(input_file=plan_name)
