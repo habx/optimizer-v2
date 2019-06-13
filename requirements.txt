@@ -1,6 +1,7 @@
 numpy==1.16.4
 shapely==1.6.4.post2
-ortools==7.1.6720
+# We need to build ortools from source. Check Dockerfile.pypy to see how
+#ortools==7.1.6720
 Dijkstar==2.4.0
 networkx==2.2
 

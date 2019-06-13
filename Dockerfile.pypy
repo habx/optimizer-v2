@@ -1,0 +1,49 @@
+FROM pypy:3.6
+
+RUN apt-get update && apt-get -y install libgeos-dev build-essential swig cmake lsb-release pypy-setuptools
+
+# Ortools
+RUN wget https://github.com/google/or-tools/archive/v7.1.zip && \
+    unzip v7.1.zip
+
+RUN cd or-tools-7.1 && \
+    make -j 4 third_party
+
+#RUN cd or-tools-7.1 && \
+#    make -j 4 python
+#
+
+RUN cd or-tools-7.1 && \
+    make install_python
+
+#COPY requirements.txt .
+#RUN pip install -r requirements.txt
+#.pypy3-71-x86_64-linux-gnu.so
+#cp /root/.local/lib/pypy3.6/site-packages/ortools-7.1.9999-py3.6-linux-x86_64.egg/ortools/constraint_solver/_pywrapcp.pypy3-71-x86_64-linux-gnu.so /usr/local/lib_pypy/
+# LD_LIBRARY_PATH=/root/.local/lib/pypy3.6/site-packages/ortools-7.1.9999-py3.6-linux-x86_64.egg/ortools/.libs/  > ~/.bashrc
+
+#// Solver: IntVar creation. We always strip the "Make" prefix in python.
+#%rename (IntVar) Solver::MakeIntVar;
+#NotImplementedError: Wrong number or type of arguments for overloaded function 'Solver_IntVar'.
+#  Possible C/C++ prototypes are:
+#    operations_research::Solver::MakeIntVar(int64,int64,std::string const &)
+#    operations_research::Solver::MakeIntVar(std::vector< int64 > const &,std::string const &)
+#    operations_research::Solver::MakeIntVar(std::vector< int > const &,std::string const &)
+#    operations_research::Solver::MakeIntVar(int64,int64)
+#    operations_research::Solver::MakeIntVar(std::vector< int64 > const &)
+#    operations_research::Solver::MakeIntVar(std::vector< int > const &)
+
+# dir(_pywrapcp)
+
+# Makefile.local -> UNIX_PYTHON_VER = 3.5 -> 3
+# makefiles/Makefile.python.mk -> PYTHON_COMPILER ?= python$(UNIX_PYTHON_VER) -> pypy
+
+import cppyy
+cppyy.add_include_path("/root/or-tools-7.1/dependencies/sources/abseil-cpp-bf29470/")
+cppyy.add_include_path("/root/or-tools-7.1/")
+cppyy.add_include_path("/root/or-tools-7.1/ortools/gen/")
+cppyy.add_include_path("/root/or-tools-7.1/dependencies/install/include/")
+cppyy.include('ortools/constraint_solver/constraint_solver.h')
+cppyy.load_library("./lib/libortools.so")
+from cppyy.gbl import operations_research
+solver = operations_research.Solver('SpacePlanner')

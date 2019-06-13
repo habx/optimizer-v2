@@ -78,14 +78,17 @@ class ConstraintSolver:
         :return: None
         """
         # cells in [0, self.items_nbr-1], self.items_nbr for multilevel plans : circulation
+        self.cells_item = []
         if not self.multilevel:
-            self.cells_item = [self.solver.IntVar(0, self.items_nbr - 1,
+            for j_space in range(self.spaces_nbr):
+                self.cells_item.append(self.solver.IntVar(0, self.items_nbr - 1,
                                                   "cells_item[{0}]".format(j_space))
-                               for j_space in range(self.spaces_nbr)]
+                                       )
         else:
-            self.cells_item = [self.solver.IntVar(0, self.items_nbr,
+            for j_space in range(self.spaces_nbr):
+                self.cells_item.append(self.solver.IntVar(0, self.items_nbr,
                                                   "cells_item[{0}]".format(j_space))
-                               for j_space in range(self.spaces_nbr)]
+                                       )
 
         for i_item in range(self.items_nbr):
             for j_space in range(self.spaces_nbr):
