@@ -45,6 +45,12 @@ def place_doors(plan: 'Plan'):
     :param plan:
     :return:
     """
+
+
+    non_circulation_spaces=[sp for sp in plan.spaces if not sp.category.circulation]
+    for sp in non_circulation_spaces:
+        adjacent_circulation_spaces=[sp_c for sp_c]
+
     pass
 
 
@@ -63,8 +69,8 @@ def place_door(space1: 'Space', space2: 'Space'):
         vect2 = (point[0] - edge.end.coords[0], point[1] - edge.end.coords[1])
         return dot_product(vect1, vect2) < 0
 
+    # gets contact edges between both spaces
     contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
-
     start_index = None
     for e, edge in enumerate(contact_edges):
         if not space1.previous_edge(edge) in contact_edges:
@@ -73,15 +79,16 @@ def place_door(space1: 'Space', space2: 'Space'):
     if not start_index == 0:
         contact_edges = contact_edges[start_index:] + contact_edges[:start_index - 1]
 
+    # get the longest contact straight portion
     lines = [[contact_edges[0]]]
     for edge in contact_edges[1:]:
         if parallel(lines[-1][-1].vector, edge.vector) and edge.start is lines[-1][-1].end:
             lines[-1].append(edge)
         else:
             lines.append([edge])
-
     contact_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
     contact_length = contact_line[0].start.distance_to(contact_line[-1].end)
+
     door_edges = []
     if contact_length < DOOR_WIDTH:
         door_edges.append(contact_line[0])
@@ -95,15 +102,9 @@ def place_door(space1: 'Space', space2: 'Space'):
                                         coeff_end)
             start_edge = list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
             end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
-            start_index = 0
-            for e, edge in enumerate(contact_line):
-                if edge is start_edge:
-                    start_index = e
-                    break
-            while contact_line[start_index] is not end_edge:
-                door_edges.append(contact_line[start_index])
-                start_index += 1
-            door_edges.append(end_edge)
+            start_index = [i for i in range(len(contact_line)) if contact_line[i] is start_edge][0]
+            end_index = [i for i in range(len(contact_line)) if contact_line[i] is end_edge][0]
+            door_edges = contact_line[start_index:end_index + 1]
 
             # splitting
             start_split_coeff = (coeff_start - start_edge.start.distance_to(
@@ -112,14 +113,14 @@ def place_door(space1: 'Space', space2: 'Space'):
                 contact_line[0].start)) / (end_edge.length)
             door_edges[0] = start_edge.split_barycenter(start_split_coeff)
             door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
-
-            # if not door_edges:
-            #    door_edges.append(start_edge)
         else:
             door_edges.append(contact_line[0])
 
     for door_edge in door_edges:
         Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
+    # for door_edge in door_edges[:-1]:
+    #    door_edge.end.remove_from_mesh()
+    # Linear(space1.plan, space1.floor, door_edges[0], LINEAR_CATEGORIES["door"])
 
 
 def plot(plan: 'Plan', save: bool = True):
@@ -227,9 +228,7 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
-        space1 = None
-        space2 = None
-        cat1 = "bedroom"
+        cat1 = "livingKitchen"
         cat2 = "bedroom"
         space1 = list(sp for sp in plan.spaces if
                       sp.category.name == cat1)[0]
