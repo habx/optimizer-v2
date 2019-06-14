@@ -19,6 +19,7 @@ from libs.utils.geometry import (
 )
 
 DOOR_WIDTH = 90
+epsilon = 2
 
 """
 process:
@@ -45,21 +46,24 @@ def place_doors(plan: 'Plan'):
     :param plan:
     :return:
     """
-
     circulations_spaces = [sp for sp in plan.spaces if
-                           sp.category.circulation and not sp.category.name == "circulation"]
+                           sp.category.circulation and not sp.category.name == "circulation" and not sp.category.name == "entrance"]
     for sp in circulations_spaces:
         adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
                                       sp_c.category.circulation]
+        if not adjacent_circulation_space:
+            continue
         adjacent_corridor = [sp_c for sp_c in sp.adjacent_spaces() if
                              sp_c.category.name == "circulation"]
         entrance = [sp_e for sp_e in adjacent_circulation_space if
                     sp_e.category.name in ["entrance"]]
+        if not entrance and not adjacent_corridor:
+            place_door(sp, adjacent_circulation_space[0])
+            continue
         if entrance:
             place_door(sp, entrance[0])
-        if adjacent_corridor:
-            place_door(sp, adjacent_corridor[0])
-            continue
+        for corridor in adjacent_corridor:
+            place_door(sp, corridor)
 
     non_circulation_spaces = [sp for sp in plan.spaces if
                               sp.mutable and not sp.category.circulation]
@@ -68,6 +72,8 @@ def place_doors(plan: 'Plan'):
                              sp_c.category.name == "circulation"]
         adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
                                       sp_c.category.circulation]
+        if not adjacent_circulation_space:
+            continue
         entrance = [sp_e for sp_e in adjacent_circulation_space if
                     sp_e.category.name in ["entrance"]]
         if adjacent_corridor:
@@ -102,6 +108,7 @@ def place_door(space1: 'Space', space2: 'Space'):
 
     # gets contact edges between both spaces
     contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
+
     start_index = None
     for e, edge in enumerate(contact_edges):
         if not space1.previous_edge(edge) in contact_edges:
@@ -124,35 +131,93 @@ def place_door(space1: 'Space', space2: 'Space'):
     if contact_length < DOOR_WIDTH:
         door_edges.append(contact_line[0])
     else:
-        coeff_start = contact_length * 0.5 * (1 - DOOR_WIDTH / contact_length)
-        coeff_end = contact_length * 0.5 * (1 + DOOR_WIDTH / contact_length)
-        if coeff_start > 0 and coeff_end < contact_length:
-            start_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
-                                          coeff_start)
-            end_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
-                                        coeff_end)
-            start_edge = list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
-            end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
-            start_index = [i for i in range(len(contact_line)) if contact_line[i] is start_edge][0]
+        # start=True if dist_to_linears(contact_line[0])<dist_to_linears(contact_line[1]) else False
+        start = True
+        coeff_start = 0 if start else contact_length - DOOR_WIDTH
+        coeff_end = contact_length if not start else DOOR_WIDTH
+        if start:
+            if contact_line[0].length > DOOR_WIDTH - epsilon:  # snapping exception
+                end_edge = contact_line[0]
+            else:
+                end_door_point = move_point(contact_line[0].start.coords,
+                                            contact_line[0].unit_vector,
+                                            coeff_end)
+                end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
+            start_index = 0
             end_index = [i for i in range(len(contact_line)) if contact_line[i] is end_edge][0]
             door_edges = contact_line[start_index:end_index + 1]
-
-            # splitting
-            start_split_coeff = (coeff_start - start_edge.start.distance_to(
-                contact_line[0].start)) / (start_edge.length)
             end_split_coeff = (coeff_end - end_edge.start.distance_to(
                 contact_line[0].start)) / (end_edge.length)
-            door_edges[0] = start_edge.split_barycenter(start_split_coeff)
-            if len(door_edges) > 1:
-                door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+            end_split_coeff = 1 if end_split_coeff > 1 else end_split_coeff
+            # if len(door_edges) > 1:
+            door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
         else:
-            door_edges.append(contact_line[0])
+            if contact_line[-1].length > DOOR_WIDTH - epsilon:  # snapping exception
+                start_edge = contact_line[-1]
+            else:
+                start_door_point = move_point(contact_line[0].start.coords,
+                                              contact_line[0].unit_vector,
+                                              coeff_start)
+                start_edge = \
+                    list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
+            start_index = [i for i in range(len(contact_line)) if contact_line[i] is start_edge][0]
+            door_edges = contact_line[start_index:]
+            start_split_coeff = (coeff_start - start_edge.start.distance_to(
+                contact_line[0].start)) / (start_edge.length)
+            # if len(door_edges) > 1:
+            start_split_coeff = 1 if start_split_coeff > 1 else start_split_coeff
+            door_edges[0] = start_edge.split_barycenter(start_split_coeff)
+    #     start_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+    #                                   coeff_start)
+    #     end_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+    #                                 coeff_end)
+    #     start_edge = list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
+    #     end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
+    #     start_index = [i for i in range(len(contact_line)) if contact_line[i] is start_edge][0]
+    #     end_index = [i for i in range(len(contact_line)) if contact_line[i] is end_edge][0]
+    #     door_edges = contact_line[start_index:end_index + 1]
+    #
+    #     # splitting
+    #     start_split_coeff = (coeff_start - start_edge.start.distance_to(
+    #         contact_line[0].start)) / (start_edge.length)
+    #     end_split_coeff = (coeff_end - end_edge.start.distance_to(
+    #         contact_line[0].start)) / (end_edge.length)
+    #     door_edges[0] = start_edge.split_barycenter(start_split_coeff)
+    #     if len(door_edges) > 1:
+    #         door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+    # else:
+
+    # coeff_start = contact_length * 0.5 * (1 - DOOR_WIDTH / contact_length)
+    # coeff_end = contact_length * 0.5 * (1 + DOOR_WIDTH / contact_length)
+    # if coeff_start > 0 and coeff_end < contact_length:
+    #     start_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+    #                                   coeff_start)
+    #     end_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
+    #                                 coeff_end)
+    #     start_edge = list(e for e in contact_line if _is_edge_of_point(e, start_door_point))[0]
+    #     end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
+    #     start_index = [i for i in range(len(contact_line)) if contact_line[i] is start_edge][0]
+    #     end_index = [i for i in range(len(contact_line)) if contact_line[i] is end_edge][0]
+    #     door_edges = contact_line[start_index:end_index + 1]
+    #
+    #     # splitting
+    #     start_split_coeff = (coeff_start - start_edge.start.distance_to(
+    #         contact_line[0].start)) / (start_edge.length)
+    #     end_split_coeff = (coeff_end - end_edge.start.distance_to(
+    #         contact_line[0].start)) / (end_edge.length)
+    #     door_edges[0] = start_edge.split_barycenter(start_split_coeff)
+    #     if len(door_edges) > 1:
+    #         door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+    # else:
+    #     door_edges.append(contact_line[0])
 
     for door_edge in door_edges:
         Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
-    # for door_edge in door_edges[:-1]:
-    #    door_edge.end.remove_from_mesh()
-    # Linear(space1.plan, space1.floor, door_edges[0], LINEAR_CATEGORIES["door"])
+
+
+# for door_edge in door_edges[:-1]:
+#    door_edge.end.remove_from_mesh()
+# Linear(space1.plan, space1.floor, door_edges[0], LINEAR_CATEGORIES["door"])
 
 
 def plot(plan: 'Plan', save: bool = True):
@@ -260,12 +325,13 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
+        print("ENTER DOOR PROCESS")
         bool_place_single_door = False
         if bool_place_single_door:
-            cat1 = "study"
-            cat2 = "entrance"
+            cat1 = "bedroom"
+            cat2 = "circulation"
             space1 = list(sp for sp in plan.spaces if
-                          sp.category.name == cat1)[0]
+                          sp.category.name == cat1)[2]
             space2 = list(sp for sp in plan.spaces if
                           sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
 
@@ -278,5 +344,5 @@ if __name__ == '__main__':
             print(sp)
 
 
-    plan_name = "002.json"
+    plan_name = "013.json"
     main(input_file=plan_name)
