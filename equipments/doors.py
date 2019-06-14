@@ -75,7 +75,7 @@ def place_door(space1: 'Space', space2: 'Space'):
 
     lines = [[contact_edges[0]]]
     for edge in contact_edges[1:]:
-        if parallel(lines[-1][-1].vector, edge.vector):
+        if parallel(lines[-1][-1].vector, edge.vector) and edge.start is lines[-1][-1].end:
             lines[-1].append(edge)
         else:
             lines.append([edge])
@@ -104,6 +104,15 @@ def place_door(space1: 'Space', space2: 'Space'):
                 door_edges.append(contact_line[start_index])
                 start_index += 1
             door_edges.append(end_edge)
+
+            # splitting
+            start_split_coeff = (coeff_start - start_edge.start.distance_to(
+                contact_line[0].start)) / (start_edge.length)
+            end_split_coeff = (coeff_end - end_edge.start.distance_to(
+                contact_line[0].start)) / (end_edge.length)
+            door_edges[0] = start_edge.split_barycenter(start_split_coeff)
+            door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+
             # if not door_edges:
             #    door_edges.append(start_edge)
         else:
@@ -220,7 +229,7 @@ if __name__ == '__main__':
 
         space1 = None
         space2 = None
-        cat1 = "livingKitchen"
+        cat1 = "bedroom"
         cat2 = "bedroom"
         space1 = list(sp for sp in plan.spaces if
                       sp.category.name == cat1)[0]
