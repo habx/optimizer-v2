@@ -69,6 +69,7 @@ def place_door(space1: 'Space', space2: 'Space'):
     for e, edge in enumerate(contact_edges):
         if not space1.previous_edge(edge) in contact_edges:
             start_index = e
+            break
     if not start_index == 0:
         contact_edges = contact_edges[start_index:] + contact_edges[:start_index - 1]
 
@@ -85,9 +86,9 @@ def place_door(space1: 'Space', space2: 'Space'):
     if contact_length < DOOR_WIDTH:
         door_edges.append(contact_line[0])
     else:
-        coeff_start = 0.5 * (1 - DOOR_WIDTH / contact_length)
-        coeff_end = 0.5 * (1 + DOOR_WIDTH / contact_length)
-        if coeff_start > 0 and coeff_end < 1:
+        coeff_start = contact_length * 0.5 * (1 - DOOR_WIDTH / contact_length)
+        coeff_end = contact_length * 0.5 * (1 + DOOR_WIDTH / contact_length)
+        if coeff_start > 0 and coeff_end < contact_length:
             start_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
                                           coeff_start)
             end_door_point = move_point(contact_line[0].start.coords, contact_line[0].unit_vector,
@@ -102,15 +103,14 @@ def place_door(space1: 'Space', space2: 'Space'):
             while contact_line[start_index] is not end_edge:
                 door_edges.append(contact_line[start_index])
                 start_index += 1
-            if not door_edges:
-                door_edges.append(start_edge)
+            door_edges.append(end_edge)
+            # if not door_edges:
+            #    door_edges.append(start_edge)
         else:
             door_edges.append(contact_line[0])
 
     for door_edge in door_edges:
         Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
-
-    plot(space1.plan)
 
 
 def plot(plan: 'Plan', save: bool = True):
