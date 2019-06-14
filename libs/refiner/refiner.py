@@ -537,8 +537,8 @@ if __name__ == '__main__':
 
         params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
-        logging.getLogger().setLevel(logging.INFO)
-        plan_number = "037"  # 004 # 032
+        logging.getLogger().setLevel(logging.DEBUG)
+        plan_number = "047"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
