@@ -60,7 +60,6 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional[int] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id
@@ -867,6 +866,22 @@ class Space(PlanComponent):
 
         return not self.has_face(edge.face)
 
+    def add_faces(self, faces: List['Face']):
+        """
+        add faces to self
+        :param faces:
+        :return:
+        """
+        adding = True
+        while adding and faces:
+            for face in faces:
+                if [e for e in face.edges if e.pair in self.edges]:  # check adjacency before add
+                    self.add_face(face)
+                    faces.remove(face)
+                    break
+            else:
+                adding = False
+
     def add_face(self, face: Face):
         """
         Adds a face to the space
@@ -1007,6 +1022,24 @@ class Space(PlanComponent):
             if edge in self.exterior_edges:
                 logging.warning("Space: Found connected reference edges: %s", self)
                 return False
+
+    def remove_faces(self, faces: List['Face'])->List[Optional['Space']]:
+        """
+        removes faces from self ensuring self is not split
+        :param faces:
+        :return:
+        """
+        created_spaces = []
+        removal = True
+        while removal and faces:
+            for face in faces:
+                if not self.corner_stone(face):
+                    created_spaces += self.remove_face(face)
+                    faces.remove(face)
+                    break
+            else:
+                removal = False
+        return created_spaces
 
     def remove_face(self, face: Face) -> List[Optional['Space']]:
         """
@@ -1227,7 +1260,8 @@ class Space(PlanComponent):
                     if det < 0:  # counter clockwise
                         if found_exterior_edge:
                             self.plan.plot()
-                            raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
+                            raise ValueError("Space: The space has been split ! %s | %s", self,
+                                             self.plan)
                         self._edges_id = [edge.id] + self._edges_id
                         found_exterior_edge = True
                     else:  # clockwise
@@ -3023,8 +3057,9 @@ class Plan:
         for space in self.spaces:
             for edge in space.edges:
                 if (edge.pair.face is None or
-                    edge.pair in list(space.edge
-                                      for space in self.spaces if space.category.external is True)):
+                        edge.pair in list(space.edge
+                                          for space in self.spaces if
+                                          space.category.external is True)):
                     _perimeter += edge.length
         return _perimeter
 
