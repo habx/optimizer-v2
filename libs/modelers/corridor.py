@@ -614,7 +614,6 @@ class Corridor:
         for sp in removal_dict:
             sp.remove_faces(removal_dict[sp])
             corridor_space.add_faces(removal_dict[sp])
-
         # for layer_edge in layer_edges:
         #     sp = self.plan.get_space_of_edge(layer_edge)
         #     if not sp.category.name == "circulation":
