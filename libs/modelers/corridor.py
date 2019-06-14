@@ -129,7 +129,7 @@ class Corridor:
                                 sp.mutable and not sp.category.name is "circulation"]
 
         # space repair process : if some spaces have been created by corridor growth
-        self._repair_spaces(self.initial_mutable_spaces, final_mutable_spaces,
+        self._repair_spaces(initial_mutable_spaces, final_mutable_spaces,
                             initial_face_space_correspondance)
 
         # linear repair
@@ -1088,5 +1088,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "005.json"
+    plan_name = "009.json"
     main(input_file=plan_name)
