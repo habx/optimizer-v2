@@ -129,7 +129,7 @@ class Corridor:
                                 sp.mutable and not sp.category.name is "circulation"]
 
         # space repair process : if some spaces have been created by corridor growth
-        self._repair_spaces(initial_mutable_spaces, final_mutable_spaces,
+        self._repair_spaces(self.initial_mutable_spaces, final_mutable_spaces,
                             initial_face_space_correspondance)
 
         # linear repair
@@ -156,7 +156,7 @@ class Corridor:
         merge = True
         while merge:
             for final_space in final_mutable_spaces:
-                if not final_space in initial_mutable_spaces:  # a space has been cut
+                if final_space not in initial_mutable_spaces:  # a space has been cut
                     # each face of final_space is given back to the space it belong before corridor
                     # propagation
                     final_space_faces = list(final_space.faces)
@@ -172,6 +172,7 @@ class Corridor:
                                 initial_space.add_face(face)
                                 repair_faces.remove(face)
                                 sp_with_face.remove_face(face)
+                                break
                     self.plan.remove_null_spaces()
                     final_mutable_spaces = [sp for sp in self.plan.spaces if
                                             sp.mutable and not sp.category.name is "circulation"]
@@ -600,16 +601,30 @@ class Corridor:
         :return:
         """
         layer_edges = self.get_parallel_layers_edges(edge, width)[1]
+
+        removal_dict = {}
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
-            if not sp.category.name == "circulation":
-                # corridor must not make a space with components diseappear
-                if len(list(sp.faces)) == 1 and sp.components_category_associated():
-                    break
-                corridor_space.add_face(layer_edge.face)
-                sp.remove_face(layer_edge.face)
-                if show:
-                    self.plot.update([sp, corridor_space])
+            if sp.category.name == "circulation":
+                continue
+            if sp not in removal_dict:
+                removal_dict[sp] = [layer_edge.face]
+            else:
+                removal_dict[sp].append(layer_edge.face)
+        for sp in removal_dict:
+            sp.remove_faces(removal_dict[sp])
+            corridor_space.add_faces(removal_dict[sp])
+
+        # for layer_edge in layer_edges:
+        #     sp = self.plan.get_space_of_edge(layer_edge)
+        #     if not sp.category.name == "circulation":
+        #         # corridor must not make a space with components diseappear
+        #         if len(list(sp.faces)) == 1 and sp.components_category_associated():
+        #             break
+        #         corridor_space.add_face(layer_edge.face)
+        #         sp.remove_face(layer_edge.face)
+        #         if show:
+        #             self.plot.update([sp, corridor_space])
 
     def _ortho_slice(self, edge: 'Edge', start: bool = False, show: bool = False):
         """
