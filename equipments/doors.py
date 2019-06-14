@@ -46,11 +46,42 @@ def place_doors(plan: 'Plan'):
     :return:
     """
 
+    circulations_spaces = [sp for sp in plan.spaces if
+                           sp.category.circulation and not sp.category.name == "circulation"]
+    for sp in circulations_spaces:
+        adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
+                                      sp_c.category.circulation]
+        adjacent_corridor = [sp_c for sp_c in sp.adjacent_spaces() if
+                             sp_c.category.name == "circulation"]
+        entrance = [sp_e for sp_e in adjacent_circulation_space if
+                    sp_e.category.name in ["entrance"]]
+        if entrance:
+            place_door(sp, entrance[0])
+        if adjacent_corridor:
+            place_door(sp, adjacent_corridor[0])
+            continue
 
-    non_circulation_spaces=[sp for sp in plan.spaces if not sp.category.circulation]
+    non_circulation_spaces = [sp for sp in plan.spaces if
+                              sp.mutable and not sp.category.circulation]
     for sp in non_circulation_spaces:
-        adjacent_circulation_spaces=[sp_c for sp_c]
-
+        adjacent_corridor = [sp_c for sp_c in sp.adjacent_spaces() if
+                             sp_c.category.name == "circulation"]
+        adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
+                                      sp_c.category.circulation]
+        entrance = [sp_e for sp_e in adjacent_circulation_space if
+                    sp_e.category.name in ["entrance"]]
+        if adjacent_corridor:
+            place_door(sp, adjacent_corridor[0])
+            continue
+        if entrance:
+            place_door(sp, entrance[0])
+            continue
+        living = [sp_l for sp_l in adjacent_circulation_space if
+                  sp_l.category.name in ["living", "livingKitchen"]]
+        if living:
+            place_door(sp, living[0])
+            continue
+        place_door(sp, adjacent_circulation_space[0])
     pass
 
 
@@ -77,7 +108,7 @@ def place_door(space1: 'Space', space2: 'Space'):
             start_index = e
             break
     if not start_index == 0:
-        contact_edges = contact_edges[start_index:] + contact_edges[:start_index - 1]
+        contact_edges = contact_edges[start_index:] + contact_edges[:start_index]
 
     # get the longest contact straight portion
     lines = [[contact_edges[0]]]
@@ -112,7 +143,8 @@ def place_door(space1: 'Space', space2: 'Space'):
             end_split_coeff = (coeff_end - end_edge.start.distance_to(
                 contact_line[0].start)) / (end_edge.length)
             door_edges[0] = start_edge.split_barycenter(start_split_coeff)
-            door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+            if len(door_edges) > 1:
+                door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
         else:
             door_edges.append(contact_line[0])
 
@@ -228,16 +260,23 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec, show=False)
 
-        cat1 = "livingKitchen"
-        cat2 = "bedroom"
-        space1 = list(sp for sp in plan.spaces if
-                      sp.category.name == cat1)[0]
-        space2 = list(sp for sp in plan.spaces if
-                      sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
+        bool_place_single_door = False
+        if bool_place_single_door:
+            cat1 = "study"
+            cat2 = "entrance"
+            space1 = list(sp for sp in plan.spaces if
+                          sp.category.name == cat1)[0]
+            space2 = list(sp for sp in plan.spaces if
+                          sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
 
-        place_door(space1, space2)
+            place_door(space1, space2)
+        else:
+            place_doors(plan)
         plot(plan)
+        mutable_spaces = [sp for sp in plan.spaces if sp.mutable]
+        for sp in mutable_spaces:
+            print(sp)
 
 
-    plan_name = "018.json"
+    plan_name = "002.json"
     main(input_file=plan_name)
