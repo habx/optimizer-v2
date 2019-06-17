@@ -300,9 +300,14 @@ def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
         # empty perimeter (per convention we create the floor with the first empty space)
         empty_space_data = next(space_data for space_data in v2_data["spaces"]
                                 if space_data["id"] in floor_data["elements"]
-                                and space_data["category"] == "empty")
+                                and (space_data["category"] == "empty" or space_data["category"] == "border"))
         perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_space_data["geometry"]]
-        my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+        try:
+            my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+        except ValueError:
+            perimeter.reverse()
+            my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
+
         floor = my_plan.floor_of_given_level(floor_data["level"])
 
         # add linears except steps
@@ -324,7 +329,12 @@ def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
                 space_points = [vertices_by_id[vertex_id] for vertex_id in space_data["geometry"]]
                 space_points = _clean_perimeter(space_points)
                 category = SPACE_CATEGORIES[space_data["category"]]
-                my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
+
+                try:
+                    my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
+                except ValueError:
+                    space_points.reverse()
+                    my_plan.insert_space_from_boundary(space_points, category=category, floor=floor)
 
         # add steps linear "StartingStep". This linear must be inserted after the steps space.
         for linear_data in v2_data["linears"]:
@@ -333,7 +343,11 @@ def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
                 p1 = vertices_by_id[linear_data["geometry"][0]]
                 p2 = vertices_by_id[linear_data["geometry"][1]]
                 category = LINEAR_CATEGORIES[linear_data["category"]]
-                my_plan.insert_linear(p1, p2, category=category, floor=floor)
+
+                try:
+                    my_plan.insert_linear(p1, p2, category=category, floor=floor)
+                except ValueError:
+                    my_plan.insert_linear(p2, p1, category=category, floor=floor)
 
     return my_plan
 
