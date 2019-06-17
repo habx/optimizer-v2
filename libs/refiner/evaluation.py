@@ -10,14 +10,12 @@ import logging
 from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
-from libs.space_planner.circulation import Circulator
 from libs.plan.category import SPACE_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Floor
-    from libs.mesh.mesh import Edge
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
