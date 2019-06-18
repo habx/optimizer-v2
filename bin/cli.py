@@ -71,8 +71,6 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
                         help="the output solutions dir")
     parser.add_argument("-g", dest="grid", required=False,
                         help="grid type")
-    parser.add_argument("-u", dest="shuffle", required=False,
-                        help="shuffle type")
     parser.add_argument("-P", "--plot", dest="plot",
                         help="plot outputs",
                         action="store_true")

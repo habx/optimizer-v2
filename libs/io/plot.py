@@ -54,6 +54,8 @@ def plot_save(save: bool = True, show: bool = False, name: Optional[str] = None)
             file_name = ax.get_title().replace(':', '') + '_' + date_time + '.svg'
         else:
             file_name = name + '.svg'
+
+        plt.gcf().tight_layout()
         plt.savefig(os.path.join(output_path, file_name), format='svg')
         plt.close()  # need to close the plot (otherwise matplotlib keeps it in memory)
 
