@@ -12,8 +12,13 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
+import os
+
 from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
-from ortools.constraint_solver import pywrapcp as ortools
+try:
+    from ortools.constraint_solver import pywrapcp as ortools
+except Exception:
+    from ortools_space_planner_pypy import operations_research as ortools
 from libs.specification.specification import Item
 from libs.plan.category import LinearCategory
 import networkx as nx
@@ -40,9 +45,8 @@ SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
 
-
 SQM = 10000
-BIG_EXTERNAL_SPACE = 7*SQM
+BIG_EXTERNAL_SPACE = 7 * SQM
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
@@ -82,12 +86,12 @@ class ConstraintSolver:
         if not self.multilevel:
             for j_space in range(self.spaces_nbr):
                 self.cells_item.append(self.solver.IntVar(0, self.items_nbr - 1,
-                                                  "cells_item[{0}]".format(j_space))
+                                                          "cells_item[{0}]".format(j_space))
                                        )
         else:
             for j_space in range(self.spaces_nbr):
                 self.cells_item.append(self.solver.IntVar(0, self.items_nbr,
-                                                  "cells_item[{0}]".format(j_space))
+                                                          "cells_item[{0}]".format(j_space))
                                        )
 
         for i_item in range(self.items_nbr):
@@ -135,7 +139,7 @@ class ConstraintSolver:
         """
         t0 = time.process_time()
         decision_builder = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
-                               self.solver.ASSIGN_MIN_VALUE)
+                                             self.solver.ASSIGN_MIN_VALUE)
         time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
         self.solver.NewSearch(decision_builder, time_limit)
 
@@ -265,7 +269,6 @@ class ConstraintsManager:
         self.centroid_space_graph = nx.Graph()
         self._init_centroid_spaces_graph()
 
-
         self.item_constraints = {}
         self.add_spaces_constraints()
         self.add_item_constraints()
@@ -275,6 +278,15 @@ class ConstraintsManager:
         Initialize item area
         :return:
         """
+        ok = self.solver.positions[self.sp.spec.items[0].id, 0]
+        print("OK: ", type(ok), ok)
+        okok = (self.solver.positions[self.sp.spec.items[0].id, j] * round(space.cached_area())
+            for j, space in enumerate(self.sp.spec.plan.mutable_spaces()))
+        print("OKOK: ", type(okok), okok)
+
+        #import sys
+        #sys.exit(0)
+
         for item in self.sp.spec.items:
             self.item_area[item.id] = self.solver.solver.Sum(
                 self.solver.positions[item.id, j] * round(space.cached_area())
@@ -295,7 +307,7 @@ class ConstraintsManager:
                                  * int(round(component.length * 100)))
                     elif component.category.name == "doorWindow":
                         area += (self.solver.positions[item.id, j]
-                                   * int(round(component.length * 200)))
+                                 * int(round(component.length * 200)))
             self.item_windows_area[item.id] = area
 
     def _init_windows_length(self) -> None:
@@ -392,8 +404,8 @@ class ConstraintsManager:
         :return: None
         """
         self.spaces_item_adjacency_matrix = [
-            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(
-                j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and
+            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS / 2).intersection(
+                j_space.as_sp.buffer(LBW_THICKNESS / 2)).length / 2 > ITEM_ADJACENCY_LENGTH and
                              i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
             enumerate(self.sp.spec.plan.mutable_spaces())]
@@ -508,7 +520,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
 
     if min_max == "max":
         if (item.variant in ["l", "xl"]
-             and item.category.name not in ["living", "livingKitchen", "dining"]):
+                and item.category.name not in ["living", "livingKitchen", "dining"]):
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
@@ -544,7 +556,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     elif item.category.name in ["entrance"]:
         param = 2.5
     else:
-        param = 1.8 # toilet, bedroom,
+        param = 1.8  # toilet, bedroom,
 
     max_distance = int(round(param * item.required_area ** 0.5))
 
@@ -565,6 +577,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
+
 def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Item,
                                         max_distance: int) -> ortools.Constraint:
     """
@@ -574,7 +587,7 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
     :param max_distance: int
     :return: ct: ortools.Constraint
     """
-    additional_distance = 150 # 100 for window --> centroid and 50 for centroid --> duct
+    additional_distance = 150  # 100 for window --> centroid and 50 for centroid --> duct
     ct = None
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for j_space_component in j_space.immutable_components():
@@ -596,16 +609,16 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     path_inside_room = 1
                                     for i_path in path:
                                         path_inside_room = (path_inside_room *
-                                                        manager.solver.positions[item.id, i_path])
-                                    ct = path_inside_room*(manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] * path_length
-                                          <= max_distance)
+                                                            manager.solver.positions[item.id, i_path])
+                                    ct = path_inside_room * (manager.solver.positions[item.id, j] *
+                                                             manager.solver.positions[item.id, k] * path_length
+                                                             <= max_distance)
                             else:
                                 if (j not in nx.nodes(manager.centroid_space_graph)
                                         or k not in nx.nodes(manager.centroid_space_graph)
                                         or not nx.has_path(manager.centroid_space_graph, j, k)):
                                     new_ct = (manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] == 0)
+                                              manager.solver.positions[item.id, k] == 0)
                                 else:
                                     path_length, path = nx.single_source_dijkstra(
                                         manager.centroid_space_graph, j, k)
@@ -613,12 +626,13 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     path_inside_room = 1
                                     for i_path in path:
                                         path_inside_room = (path_inside_room *
-                                                        manager.solver.positions[item.id, i_path])
-                                    new_ct = (path_inside_room*(manager.solver.positions[item.id, j]
-                                              * manager.solver.positions[item.id, k] * path_length)
-                                          <= max_distance)
+                                                            manager.solver.positions[item.id, i_path])
+                                    new_ct = (path_inside_room * (manager.solver.positions[item.id, j]
+                                                                  * manager.solver.positions[item.id, k] * path_length)
+                                              <= max_distance)
                                 ct = manager.or_(ct, new_ct)
     return ct == 1
+
 
 def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -745,7 +759,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     elif item.category.name is "bedroom" and item.variant in ["xs"]:
         param = 22
     else:
-        param = 22 # toilet / entrance
+        param = 22  # toilet / entrance
 
     if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
@@ -774,7 +788,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
 
 def windows_ordering_constraint(manager: 'ConstraintsManager',
-                                item: Item) -> Optional[ ortools.Constraint]:
+                                item: Item) -> Optional[ortools.Constraint]:
     """
     Windows length constraint
     :param manager: 'ConstraintsManager'
@@ -804,6 +818,7 @@ def windows_ordering_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+
 def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                             ratio: int) -> ortools.Constraint:
     """
@@ -814,8 +829,9 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
     :return: ct: ortools.Constraint
     """
     ct = round(item.required_area * ratio) <= (
-                manager.item_windows_area[item.id] * 100)
+            manager.item_windows_area[item.id] * 100)
     return ct
+
 
 def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -847,6 +863,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
     return ct
 
+
 def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
     """
@@ -866,6 +883,7 @@ def large_windows_constraint(manager: 'ConstraintsManager',
         ct = large_windows_sum >= 1
 
     return ct
+
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
@@ -916,7 +934,8 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
         current = 0
         for j in range(manager.solver.spaces_nbr):
             memo = manager.solver.solver.Max(j *
-                    manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
+                                             manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j],
+                                             memo)
             current = manager.solver.solver.Max(j * manager.solver.positions[item.id, j], current)
         ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
@@ -1086,10 +1105,11 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
             if (max([ext_space.cached_area() for ext_space in space.connected_spaces()
-                    if ext_space is not None and ext_space.category.external],
-                   default=0) > BIG_EXTERNAL_SPACE))
+                     if ext_space is not None and ext_space.category.external],
+                    default=0) > BIG_EXTERNAL_SPACE))
         ct = (adjacency_sum >= 1)
     return ct
+
 
 def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
                            ct: Optional[ortools.Constraint]) -> Optional[ortools.Constraint]:
@@ -1102,24 +1122,26 @@ def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
     """
     ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
                                      for j, space in enumerate(
-                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+        manager.sp.spec.plan.mutable_spaces())) == 0)
     if ct:
         return manager.or_(ct, ct0)
     else:
         return None
 
+
 def optional_entrance_constraint(manager: 'ConstraintsManager',
-                                    item: Item) -> ortools.Constraint:
+                                 item: Item) -> ortools.Constraint:
     """
     optional entrance constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
     """
-    ct1 = components_adjacency_constraint(manager, item,["frontDoor"], True)
+    ct1 = components_adjacency_constraint(manager, item, ["frontDoor"], True)
     ct = or_no_space_constraint(manager, item, ct1)
 
     return ct
+
 
 def conditional_entrance_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
@@ -1137,12 +1159,13 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
             front_door_space = space
             break
 
-    if front_door_space and front_door_space.cached_area() > 5*SQM:
+    if front_door_space and front_door_space.cached_area() > 5 * SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
 
     return ct
+
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
@@ -1265,7 +1288,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
 T1_T2_ITEMS_CONSTRAINTS = {
     "entrance": [
-        [optional_entrance_constraint,{}],
+        [optional_entrance_constraint, {}],
     ]
 }
 
@@ -1295,4 +1318,3 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [large_windows_constraint, {}]
     ]
 }
-
