@@ -40,58 +40,106 @@ si pas de couloir connecté
 
 def place_doors(plan: 'Plan'):
     """
-    places the foors in the plan following those steps
-    0 - builds a connection graph
-    1 - place doors for non isolated rooms
+    Places the doors in the plan
+    Process:
+    -for circulation spaces,
+        *place doors between the space and adjacent corridors if any
+        *place a door between the space and the entrance if it is adjacent
+        *else place a door with any adjacent circulation space
+    -for non circulation spaces:
+        *place a door between the space and a corridor if any
+        *else place a door between the space and the entrance if it is adjacent
+        *else place a door with any adjacent circulation space
     :param plan:
     :return:
     """
-    circulations_spaces = [sp for sp in plan.spaces if
-                           sp.category.circulation and not sp.category.name == "circulation" and not sp.category.name == "entrance"]
-    for sp in circulations_spaces:
-        adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
-                                      sp_c.category.circulation]
-        if not adjacent_circulation_space:
-            continue
-        adjacent_corridor = [sp_c for sp_c in sp.adjacent_spaces() if
-                             sp_c.category.name == "circulation"]
-        entrance = [sp_e for sp_e in adjacent_circulation_space if
-                    sp_e.category.name in ["entrance"]]
-        if not entrance and not adjacent_corridor:
-            place_door(sp, adjacent_circulation_space[0])
-            continue
-        if entrance:
-            place_door(sp, entrance[0])
-        for corridor in adjacent_corridor:
-            place_door(sp, corridor)
 
-    non_circulation_spaces = [sp for sp in plan.spaces if
-                              sp.mutable and not sp.category.circulation]
-    for sp in non_circulation_spaces:
-        adjacent_corridor = [sp_c for sp_c in sp.adjacent_spaces() if
-                             sp_c.category.name == "circulation"]
-        adjacent_circulation_space = [sp_c for sp_c in sp.adjacent_spaces() if
-                                      sp_c.category.circulation]
-        if not adjacent_circulation_space:
-            continue
-        entrance = [sp_e for sp_e in adjacent_circulation_space if
-                    sp_e.category.name in ["entrance"]]
-        if adjacent_corridor:
-            place_door(sp, adjacent_corridor[0])
-            continue
-        if entrance:
-            place_door(sp, entrance[0])
-            continue
-        living = [sp_l for sp_l in adjacent_circulation_space if
-                  sp_l.category.name in ["living", "livingKitchen"]]
-        if living:
-            place_door(sp, living[0])
-            continue
-        place_door(sp, adjacent_circulation_space[0])
-    pass
+    def _open_space(_space: 'Space'):
+        """
+        place necessary doors on _space border
+        :param _space:
+        :return:
+        """
+        if _space.category.name == "entrance":
+            return
+        if _space.category.name == "circulation":
+            return
+
+        adjacent_circulation_spaces = [adj for adj in _space.adjacent_spaces() if
+                                       adj.category.circulation]
+
+        circulation_spaces = [sp for sp in adjacent_circulation_spaces if
+                              sp.category.name in ["circulation"]]
+        entrance_spaces = [sp for sp in adjacent_circulation_spaces if
+                           sp.category.name in ["entrance"]]
+
+        if _space.category.circulation:
+            for circulation_space in circulation_spaces:
+                place_door_between_two_spaces(_space, circulation_space)
+            for entrance_space in entrance_spaces:
+                place_door_between_two_spaces(_space, entrance_space)
+            if not entrance_spaces and not circulation_spaces and adjacent_circulation_spaces:
+                place_door_between_two_spaces(_space, adjacent_circulation_spaces[0])
+        else:
+            for circulation_space in circulation_spaces:
+                place_door_between_two_spaces(_space, circulation_space)
+                return
+            for entrance_space in entrance_spaces:
+                place_door_between_two_spaces(_space, entrance_space)
+                return
+            if adjacent_circulation_spaces:
+                place_door_between_two_spaces(_space, adjacent_circulation_spaces[0])
+
+    mutable_spaces = [sp for sp in plan.spaces if sp.mutable]
+    for mutable_space in mutable_spaces:
+        _open_space(mutable_space)
 
 
-def place_door(space1: 'Space', space2: 'Space'):
+def get_door_edges(_contact_line: List['Edge'], start: bool = True) -> List['Edge']:
+    """
+    :param _contact_line:
+    :param start:
+    :return:
+    """
+
+    def _is_edge_of_point(_edge: 'Edge', _point: Tuple):
+        """
+        checks if point is on the segment defined by edge
+        assumes _point belongs to the line defined by _edge
+        :param _edge:
+        :param _point:
+        :return:
+        """
+        vect1 = (_point[0] - _edge.start.coords[0], _point[1] - _edge.start.coords[1])
+        vect2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
+        return dot_product(vect1, vect2) < 0
+
+    coeff_end = DOOR_WIDTH
+    if not start:
+        _contact_line = [e.pair for e in _contact_line]
+        _contact_line.reverse()
+    if _contact_line[0].length > DOOR_WIDTH - epsilon:  # snapping exception
+        end_edge = _contact_line[0]
+    else:
+        end_door_point = move_point(_contact_line[0].start.coords,
+                                    _contact_line[0].unit_vector,
+                                    coeff_end)
+        end_edge = list(e for e in _contact_line if _is_edge_of_point(e, end_door_point))[0]
+    start_index = 0
+    end_index = [i for i in range(len(_contact_line)) if _contact_line[i] is end_edge][0]
+    _door_edges = _contact_line[start_index:end_index + 1]
+    end_split_coeff = (coeff_end - end_edge.start.distance_to(
+        _contact_line[0].start)) / (end_edge.length)
+    if not 1 >= end_split_coeff >= 0:
+        end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
+    _door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+    if not start:
+        _door_edges = [e.pair for e in _door_edges]
+        _door_edges.reverse()
+    return _door_edges
+
+
+def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
     """
     places a door between space1 and space2
     *sets the position of the door
@@ -101,48 +149,31 @@ def place_door(space1: 'Space', space2: 'Space'):
     :return:
     """
 
-    def _is_edge_of_point(edge, point: 'Point'):
-        vect1 = (point[0] - edge.start.coords[0], point[1] - edge.start.coords[1])
-        vect2 = (point[0] - edge.end.coords[0], point[1] - edge.end.coords[1])
-        return dot_product(vect1, vect2) < 0
-
-    def _split_process(_contact_line: List['Edge'], start: bool = True) -> List['Edge']:
-        coeff_end = DOOR_WIDTH
-        if not start:
-            _contact_line = [e.pair for e in _contact_line]
-            _contact_line.reverse()
-        if _contact_line[0].length > DOOR_WIDTH - epsilon:  # snapping exception
-            end_edge = _contact_line[0]
-        else:
-            end_door_point = move_point(_contact_line[0].start.coords,
-                                        _contact_line[0].unit_vector,
-                                        coeff_end)
-            end_edge = list(e for e in _contact_line if _is_edge_of_point(e, end_door_point))[0]
-        start_index = 0
-        end_index = [i for i in range(len(_contact_line)) if _contact_line[i] is end_edge][0]
-        _door_edges = _contact_line[start_index:end_index + 1]
-        end_split_coeff = (coeff_end - end_edge.start.distance_to(
-            _contact_line[0].start)) / (end_edge.length)
-        if not 1 >= end_split_coeff >= 0:
-            end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
-        _door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
-        if not start:
-            _door_edges = [e.pair for e in _door_edges]
-            _door_edges.reverse()
-        return _door_edges
+    def _start_side(_contact_line: List['Edge']) -> bool:
+        dist_to_windows_start = sum(
+            [_contact_line[0].start.distance_to(linear.edge.start) for linear in space1.plan.linears
+             if
+             linear.category.window_type and _contact_line[0].start.distance_to(
+                 linear.edge.start) < 150])
+        dist_to_windows_end = sum(
+            [_contact_line[-1].start.distance_to(linear.edge.start) for linear in
+             space1.plan.linears if
+             linear.category.window_type and _contact_line[-1].start.distance_to(
+                 linear.edge.start) < 150])
+        return True if dist_to_windows_start < dist_to_windows_end else False
 
     # gets contact edges between both spaces
     contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
-
-    start_index = None
+    # reorders contact_edges
+    start_index = 0
     for e, edge in enumerate(contact_edges):
         if not space1.previous_edge(edge) in contact_edges:
             start_index = e
             break
-    if not start_index == 0:
-        contact_edges = contact_edges[start_index:] + contact_edges[:start_index]
+    # if not start_index == 0:
+    contact_edges = contact_edges[start_index:] + contact_edges[:start_index]
 
-    # get the longest contact straight portion
+    # get the longest contact straight portion between both spaces
     lines = [[contact_edges[0]]]
     for edge in contact_edges[1:]:
         if parallel(lines[-1][-1].vector, edge.vector) and edge.start is lines[-1][-1].end:
@@ -156,7 +187,7 @@ def place_door(space1: 'Space', space2: 'Space'):
     if contact_length < DOOR_WIDTH:
         door_edges.append(contact_line[0])
     else:
-        door_edges = _split_process(contact_line, start=False)
+        door_edges = get_door_edges(contact_line, start=_start_side(contact_line))
 
     for door_edge in door_edges:
         Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
@@ -277,7 +308,7 @@ if __name__ == '__main__':
             space2 = list(sp for sp in plan.spaces if
                           sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
 
-            place_door(space1, space2)
+            place_door_between_two_spaces(space1, space2)
         else:
             place_doors(plan)
         plot(plan)
@@ -286,5 +317,5 @@ if __name__ == '__main__':
             print(sp)
 
 
-    plan_name = "001.json"
+    # plan_name = "001.json"
     main(input_file=plan_name)
