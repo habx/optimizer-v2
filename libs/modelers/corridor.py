@@ -619,6 +619,7 @@ class Corridor:
                         if f is _face:
                             continue
                         if not self.plan.get_space_of_face(f).category.name == "circulation":
+                            # not all faces of group_face are in corridors
                             return False
             return True
 
