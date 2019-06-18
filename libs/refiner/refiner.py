@@ -57,6 +57,7 @@ def initializer():
     as a seed. TODO : Not sure this is robust on every os.
     :return:
     """
+    # noinspection PyProtectedMember
     worker_id = multiprocessing.current_process()._identity[0]
     logging.info("Setting up random seed %s", worker_id)
     random.seed(worker_id)
@@ -552,7 +553,7 @@ if __name__ == '__main__':
         params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "006"  # 049
+        plan_number = "049"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=0)
 
