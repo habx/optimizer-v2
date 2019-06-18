@@ -17,6 +17,7 @@ import logging
 import json
 import os
 import tempfile
+import sys
 
 import uuid
 
@@ -121,7 +122,11 @@ bin/cli.py -b resources/blueprints/001.json -s resources/specifications/001_setu
 
     td.check()
 
-    response = executor.run(td)
+    try:
+        response = executor.run(td)
+    except TimeoutError as e:
+        logging.warning(e)
+        sys.exit(1)
 
     meta = {
         "times": response.elapsed_times

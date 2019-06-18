@@ -2,6 +2,7 @@
 import argparse
 import logging
 import os
+import sys
 
 import uuid
 import requests
@@ -110,7 +111,11 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
 
     config = Config()
 
-    process_task(config, td)
+    try:
+        process_task(config, td)
+    except TimeoutError as e:
+        logging.warning(e)
+        sys.exit(1)
 
 
 _cli()

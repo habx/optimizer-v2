@@ -4,6 +4,7 @@ import json
 import logging
 import logging.handlers
 import os
+import sys
 import socket
 import uuid
 import sentry_sdk
@@ -50,7 +51,11 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
         if not td.task_id:  # Drop it at some point
             td.task_id = msg.content.get('requestId')
 
-        result = processor.process_task(td)
+        try:
+            result = processor.process_task(td)
+        except TimeoutError as e:
+            logging.warning(e)
+            sys.exit(1)
 
         exchanger.send_result(result)
 
