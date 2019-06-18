@@ -47,6 +47,21 @@ if TYPE_CHECKING:
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
                          List['core.Individual']]
 
+# setting a seed for debugging
+random.seed(0)
+
+
+def initializer():
+    """
+    Used to initialize a seed for each process of the pool. We use the number of the process
+    as a seed. TODO : Not sure this is robust on every os.
+    :return:
+    """
+    # noinspection PyProtectedMember
+    worker_id = multiprocessing.current_process()._identity[0]
+    logging.info("Setting up random seed %s", worker_id)
+    random.seed(worker_id)
+
 
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
@@ -181,7 +196,7 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
+        map_func = multiprocessing.Pool(processes, initializer).map if processes > 1 else map
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -537,10 +552,10 @@ if __name__ == '__main__':
 
         params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
-        logging.getLogger().setLevel(logging.DEBUG)
-        plan_number = "047"  # 004 # 032
+        logging.getLogger().setLevel(logging.INFO)
+        plan_number = "049"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=1)
+                                          solution_number=0)
 
         if plan:
             plan.name = "original_" + plan_number
