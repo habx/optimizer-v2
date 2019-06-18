@@ -76,7 +76,7 @@ class Corridor:
         self.plan: Plan = None
         self.circulator: Circulator = None
         self.corner_data: Dict = None
-        self.grouped_faces: List[List['Face']] = None
+        self.grouped_faces: Dict[int, List[List['Face']]] = None
 
     def _clear(self):
         self.plan = None
@@ -84,7 +84,7 @@ class Corridor:
         self.circulator = None
         self.paths = []
         self.corner_data = {}
-        self.grouped_faces = []
+        self.grouped_faces = {}
 
     def apply_to(self, plan: 'Plan', spec: 'Specification', show: bool = False):
         """
@@ -104,10 +104,10 @@ class Corridor:
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
                                   sp.mutable and not sp.category.name is "circulation"]
-        # store groups of faces that belong to non mutable spaces, for repair process
-        grouped_faces = []
+        # store groups of faces that belong to non mutable spaces, for repair purpose
+        grouped_faces = {level: [] for level in self.plan.levels}
         for sp in initial_mutable_spaces:
-            grouped_faces.append([f for f in sp.faces])
+            grouped_faces[sp.floor.level].append([f for f in sp.faces])
         self.grouped_faces = grouped_faces
 
         # computes circulation paths and stores them
@@ -148,8 +148,8 @@ class Corridor:
         :return:
         """
 
-        def _get_group_face(_face: 'Face') -> List['Face']:
-            for group in self.grouped_faces:
+        def _get_group_face(_level: int, _face: 'Face') -> List['Face']:
+            for group in self.grouped_faces[_level]:
                 if _face in group:
                     return group
 
@@ -158,15 +158,18 @@ class Corridor:
             return
 
         merge = True
+        grouped_faces = []
+        for level in self.plan.levels:
+            grouped_faces += self.grouped_faces[level]
         while merge:
-            for grouped_face in self.grouped_faces:
+            for grouped_face in grouped_faces:
                 # check if the group is distributed within several spaces (other than corridor)
                 # in which case we proceeed to repair
                 l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
                     list(sp.faces)) and not sp.category.name == "circulation"]
                 if len(l) > 1:  # a space has been split by corridor propagation
                     repair_space = l[0]
-                    repair_faces = _get_group_face(repair_space.face)
+                    repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
                     while len(list(repair_space.faces)) != len(repair_faces):
                         for face in repair_faces:
                             space_of_face = self.plan.get_space_of_face(face)
@@ -176,7 +179,7 @@ class Corridor:
                             if [e for e in face.edges if
                                 e.pair.face and repair_space.has_face(e.pair.face)]:
                                 repair_space.add_face(face)
-                                repair_faces.remove(face)
+                                # repair_faces.remove(face)
                                 space_of_face.remove_face(face)
                                 break
                     self.plan.remove_null_spaces()
@@ -627,6 +630,7 @@ class Corridor:
             if not sp.category.name == "circulation":
                 # ensures a corridor does not totally overlapp a space that was present before
                 # corrdor propagation
+                # NB : a space can be cut by corridor propagation, a one face resulting space can be overlapped if there
                 if len(list(sp.faces)) == 1:
                     if _space_totally_overlapped(sp.face):
                         break
