@@ -140,13 +140,14 @@ class Corridor:
         """
         if in the process a mutable space has been split by a corridor propagation,
         the split space is set back to its state before corridor propagation
-        This may break a corridor into pieces
+        This may break a corridor into pieces.
         :param initial_mutable_spaces: list of spaces before corridor propagation
         :param final_mutable_spaces: list of faces after corridor propagation
         :return:
         """
 
         def _get_group_face(_level: int, _face: 'Face') -> List['Face']:
+            # get the group of faces _face belongs to
             for group in self.grouped_faces[_level]:
                 if _face in group:
                     return group
@@ -162,7 +163,7 @@ class Corridor:
         while merge:
             for grouped_face in grouped_faces:
                 # check if the group is distributed within several spaces (other than corridor)
-                # in which case we proceeed to repair
+                # in which case we proceed to repair
                 l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
                     list(sp.faces)) and not sp.category.name == "circulation"]
                 if len(l) > 1:  # a space has been split by corridor propagation
@@ -627,8 +628,9 @@ class Corridor:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
                 # ensures a corridor does not totally overlapp a space that was present before
-                # corrdor propagation
-                # NB : a space can be cut by corridor propagation, a one face resulting space can be overlapped if there
+                # corridor propagation
+                # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
+                # we authorize sp_1 or sp2 to be overlapped by a corridor, but not both
                 if len(list(sp.faces)) == 1:
                     if _space_totally_overlapped(sp.floor.level, sp.face):
                         break
