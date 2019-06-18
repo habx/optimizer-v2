@@ -95,9 +95,12 @@ def place_doors(plan: 'Plan'):
         _open_space(mutable_space)
 
 
-def get_door_edges(_contact_line: List['Edge'], start: bool = True) -> List['Edge']:
+def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge']:
     """
-    :param _contact_line:
+    determines edges of contact_line that will be door linears
+    The output list, door_edges, is a list of contiguous edges
+    A door has width DOOR_WIDTH unless the length of contact_line is smaller
+    :param contact_line:
     :param start:
     :return:
     """
@@ -114,29 +117,33 @@ def get_door_edges(_contact_line: List['Edge'], start: bool = True) -> List['Edg
         vect2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
         return dot_product(vect1, vect2) < 0
 
-    coeff_end = DOOR_WIDTH
     if not start:
-        _contact_line = [e.pair for e in _contact_line]
-        _contact_line.reverse()
-    if _contact_line[0].length > DOOR_WIDTH - epsilon:  # snapping exception
-        end_edge = _contact_line[0]
+        contact_line = [e.pair for e in contact_line]
+        contact_line.reverse()
+
+    # determines door edges
+    if contact_line[0].length > DOOR_WIDTH - epsilon:  # deal with snapping
+        end_edge = contact_line[0]
     else:
-        end_door_point = move_point(_contact_line[0].start.coords,
-                                    _contact_line[0].unit_vector,
-                                    coeff_end)
-        end_edge = list(e for e in _contact_line if _is_edge_of_point(e, end_door_point))[0]
-    start_index = 0
-    end_index = [i for i in range(len(_contact_line)) if _contact_line[i] is end_edge][0]
-    _door_edges = _contact_line[start_index:end_index + 1]
-    end_split_coeff = (coeff_end - end_edge.start.distance_to(
-        _contact_line[0].start)) / (end_edge.length)
+        end_door_point = move_point(contact_line[0].start.coords,
+                                    contact_line[0].unit_vector,
+                                    DOOR_WIDTH)
+        end_edge = list(e for e in contact_line if _is_edge_of_point(e, end_door_point))[0]
+    end_index = [i for i in range(len(contact_line)) if contact_line[i] is end_edge][0]
+    door_edges = contact_line[:end_index + 1]
+
+    # splits door_edges[-1] if needed, so as to get a proper door width
+    end_split_coeff = (DOOR_WIDTH - end_edge.start.distance_to(
+        contact_line[0].start)) / (end_edge.length)
     if not 1 >= end_split_coeff >= 0:
         end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
-    _door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+    door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+
     if not start:
-        _door_edges = [e.pair for e in _door_edges]
-        _door_edges.reverse()
-    return _door_edges
+        door_edges = [e.pair for e in door_edges]
+        door_edges.reverse()
+
+    return door_edges
 
 
 def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
@@ -170,10 +177,9 @@ def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
         if not space1.previous_edge(edge) in contact_edges:
             start_index = e
             break
-    # if not start_index == 0:
     contact_edges = contact_edges[start_index:] + contact_edges[:start_index]
 
-    # get the longest contact straight portion between both spaces
+    # gets the longest contact straight portion between both spaces
     lines = [[contact_edges[0]]]
     for edge in contact_edges[1:]:
         if parallel(lines[-1][-1].vector, edge.vector) and edge.start is lines[-1][-1].end:
@@ -317,5 +323,5 @@ if __name__ == '__main__':
             print(sp)
 
 
-    # plan_name = "001.json"
+    plan_name = "001.json"
     main(input_file=plan_name)
