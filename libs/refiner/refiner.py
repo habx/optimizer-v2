@@ -552,9 +552,9 @@ if __name__ == '__main__':
         params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "049"  # 004 # 032
+        plan_number = "006"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=1)
+                                          solution_number=0)
 
         if plan:
             plan.name = "original_" + plan_number
