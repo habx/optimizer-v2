@@ -21,8 +21,6 @@ from libs.utils.geometry import (
 
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
 
-FaceDict = Dict['Face', 'Space']
-
 EPSILON = 1
 
 
@@ -611,10 +609,10 @@ class Corridor:
         :return:
         """
 
-        def _space_totally_overlapped(_face: 'Face') -> bool:
+        def _space_totally_overlapped(_level: int, _face: 'Face') -> bool:
             # checks if the space that contained _face before corridor propagation
             # will be completely overlapped by corridors if _face is removed from it
-            for group_face in self.grouped_faces:
+            for group_face in self.grouped_faces[_level]:
                 if _face in group_face:
                     for f in group_face:
                         if f is _face:
@@ -632,7 +630,7 @@ class Corridor:
                 # corrdor propagation
                 # NB : a space can be cut by corridor propagation, a one face resulting space can be overlapped if there
                 if len(list(sp.faces)) == 1:
-                    if _space_totally_overlapped(sp.face):
+                    if _space_totally_overlapped(sp.floor.level, sp.face):
                         break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
