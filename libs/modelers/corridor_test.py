@@ -74,7 +74,7 @@ def test_simple_grid():
     group_faces = []
     for sp in corridor.plan.spaces:
         group_faces.append([f for f in sp.faces])
-    corridor.group_faces = group_faces
+    corridor.grouped_faces = group_faces
     corridor.cut(circulation_path)
     plan.check()
     corridor.grow(circulation_path)
