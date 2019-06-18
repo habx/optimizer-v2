@@ -2280,9 +2280,7 @@ class Plan:
             self.floors[new_floor.id] = new_floor
 
     def __repr__(self):
-        output = 'Plan ' + self.name + ':'
-        for space in self.spaces:
-            output += space.__repr__() + ' | '
+        output = 'Plan: {}'.format(self.id)
         return output
 
     def get_id(self) -> int:
@@ -2351,6 +2349,7 @@ class Plan:
         :return:
         """
         output = {
+            "id": str(self.id),
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
@@ -2368,6 +2367,7 @@ class Plan:
         """
         self.clear()
         self.name = data["name"]
+        self.id = uuid.UUID(data["id"]) if "id" in data else uuid.uuid4()
 
         # add floors
         for floor in data["floors"]:

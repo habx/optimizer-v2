@@ -55,7 +55,7 @@ def merge_adjacent_circulation(ind: 'Individual') -> None:
     :return:
     """
     try_again = True
-    adjacency_length = 80.0
+    adjacency_length = 20.0
 
     while try_again:
         try_again = False
@@ -68,6 +68,52 @@ def merge_adjacent_circulation(ind: 'Individual') -> None:
                     break
             if try_again:
                 break
+
+
+def merge_circulation_living(ind: 'Individual') -> None:
+    """
+    Merges a circulation space with the living or the livingKitchen if
+    their adjacency length is superior a certain ratio of the circulation perimeter
+    :return:
+    """
+    adjacency_ratio = 0.4
+
+    circulations = list(ind.get_spaces("circulation"))
+    livings = list(ind.get_spaces("living", "livingKitchen"))
+
+    for circulation in circulations:
+        merged = False
+        perimeter = circulation.perimeter
+        for living in livings:
+            if circulation.adjacency_to(living) >= perimeter * adjacency_ratio:
+                living.merge(circulation)
+                merged = True
+                break
+        if merged:
+            break
+
+
+def merge_circulation_entrance(ind: 'Individual') -> None:
+    """
+    Merges a circulation space with the entrance if
+    their adjacency length is superior a certain ratio of the circulation perimeter
+    :return:
+    """
+    adjacency_ratio = 0.24
+
+    circulations = list(ind.get_spaces("circulation"))
+    entrances = list(ind.get_spaces("entrance"))
+
+    for circulation in circulations:
+        merged = False
+        perimeter = circulation.perimeter
+        for entrance in entrances:
+            if circulation.adjacency_to(entrance) >= perimeter * adjacency_ratio:
+                entrance.merge(circulation)
+                merged = True
+                break
+        if merged:
+            break
 
 
 class Refiner:
@@ -100,6 +146,10 @@ class Refiner:
         """
         results = self.run(plan, spec, params, processes, hof=1)
         output = max(results, key=lambda i: i.fitness)
+
+        # clean unnecessary circulation
+        merge_circulation_living(output)
+        merge_circulation_entrance(output)
         merge_adjacent_circulation(output)
         return output
 
@@ -236,11 +286,9 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     scores_fc = [
         evaluation.score_corner,
         evaluation.score_area,
-        # evaluation.score_perimeter_area_ratio,
         evaluation.score_width_depth_ratio,
         evaluation.score_bounding_box,
         evaluation.score_connectivity,
-        # evaluation.score_circulation_width
     ]
     toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
 
@@ -433,7 +481,7 @@ REFINERS = {
 
 if __name__ == '__main__':
 
-    def with_corridor():
+    def run():
         """
         Plan to check :
         • 049 / 050 / 027
@@ -444,10 +492,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 120, "cxpb": 0.8}
+        params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "030"  # 004 # 032
+        plan_number = "021"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
@@ -476,4 +524,48 @@ if __name__ == '__main__':
 
                 evaluation.check(improved_plan, spec)
 
-    with_corridor()
+    def apply():
+        """
+        Plan to check :
+        • 049 / 050 / 027
+        :return:
+        """
+        import tools.cache
+        import time
+
+        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
+
+        params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        plan_number = "047"  # 004 # 032
+        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
+                                          solution_number=1)
+
+        if plan:
+            plan.name = "original_" + plan_number
+            plan.remove_null_spaces()
+            plan.plot()
+
+            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
+                     ).apply_to(plan, spec)
+
+            plan.name = "Corridor_" + plan_number
+            plan.plot()
+            # run genetic algorithm
+            start = time.time()
+            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params, processes=4)
+            end = time.time()
+
+            # display solution
+            improved_plan.name = "Refined_" + plan_number
+            improved_plan.plot()
+            # analyse found solution
+            logging.info("Time elapsed: {}".format(end - start))
+            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                           improved_plan.fitness.values))
+
+            evaluation.check(improved_plan, spec)
+
+    apply()

@@ -266,9 +266,6 @@ class Individual(Plan):
         if plan:
             self.copy(plan)
 
-    def __repr__(self):
-        return str(self.id)
-
     def plot(self,
              show: bool = False,
              save: bool = True,
