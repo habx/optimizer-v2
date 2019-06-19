@@ -7,10 +7,8 @@ Puts doors in a plan
 
 import logging
 from typing import List, Tuple
-import matplotlib.pyplot as plt
 
-from libs.plan.plan import Space, Plan, Edge, Vertex, Linear, LINEAR_CATEGORIES
-from libs.io.plot import plot_save
+from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES
 
 from libs.utils.geometry import (
     parallel,
@@ -157,17 +155,32 @@ def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
     """
 
     def _start_side(_contact_line: List['Edge']) -> bool:
-        dist_to_windows_start = sum(
-            [_contact_line[0].start.distance_to(linear.edge.start) for linear in space1.plan.linears
-             if
-             linear.category.window_type and _contact_line[0].start.distance_to(
-                 linear.edge.start) < 150])
-        dist_to_windows_end = sum(
-            [_contact_line[-1].start.distance_to(linear.edge.start) for linear in
-             space1.plan.linears if
-             linear.category.window_type and _contact_line[-1].start.distance_to(
-                 linear.edge.start) < 150])
-        return True if dist_to_windows_start < dist_to_windows_end else False
+
+        linear_edges = [linear.edge for linear in space1.plan.linears if
+                        space1.has_edge(linear.edge) or space2.has_edge(linear.edge)]
+        duct_edges = [e for e in space1.edges if
+                      e.pair.face and space1.plan.get_space_of_edge(e.pair).category.name == "duct"]
+        duct_edges += [e for e in space2.edges if
+                       e.pair.face and space2.plan.get_space_of_edge(
+                           e.pair).category.name == "duct"]
+
+        all_edges = linear_edges + duct_edges
+
+        dist_to_start = min([_contact_line[0].start.distance_to(e.start) for e in all_edges])
+        dist_to_end = min([_contact_line[-1].end.distance_to(e.start) for e in all_edges])
+
+        # dist_to_windows_start = sum(
+        #     [_contact_line[0].start.distance_to(linear.edge.start) for linear in space1.plan.linears
+        #      if
+        #      linear.category.window_type and _contact_line[0].start.distance_to(
+        #          linear.edge.start) < 150])
+        # dist_to_windows_end = sum(
+        #     [_contact_line[-1].start.distance_to(linear.edge.start) for linear in
+        #      space1.plan.linears if
+        #      linear.category.window_type and _contact_line[-1].start.distance_to(
+        #          linear.edge.start) < 150])
+
+        return True if dist_to_start > dist_to_end else False
 
     # gets contact edges between both spaces
     contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
@@ -195,30 +208,16 @@ def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
     else:
         door_edges = get_door_edges(contact_line, start=_start_side(contact_line))
 
-    for door_edge in door_edges:
-        Linear(space1.plan, space1.floor, door_edge, LINEAR_CATEGORIES["door"])
+    # determines opening sense
+
+    # set linear
+    door = Linear(space1.plan, space1.floor, door_edges[0], LINEAR_CATEGORIES["door"])
+    if len(door_edges) == 1:
+        return
+    for door_edge in door_edges[1:]:
+        door.add_edge(door_edge)
 
 
-def plot(plan: 'Plan', save: bool = True):
-    """
-    plots plan with circulation paths
-    :return:
-    """
-
-    ax = plan.plot(save=False)
-    number_of_levels = plan.floor_count
-    for level in range(number_of_levels):
-        _ax = ax[level] if number_of_levels > 1 else ax
-        for linear in plan.linears:
-            if linear.floor.level is level and linear.category.name is "door":
-                linear.edge.plot(ax=_ax, color='blue')
-
-    plot_save(save)
-
-
-# __all__ = []
-#
-#
 if __name__ == '__main__':
     import argparse
     from libs.modelers.grid import GRIDS
@@ -317,10 +316,7 @@ if __name__ == '__main__':
             place_door_between_two_spaces(space1, space2)
         else:
             place_doors(plan)
-        plot(plan)
-        mutable_spaces = [sp for sp in plan.spaces if sp.mutable]
-        for sp in mutable_spaces:
-            print(sp)
+        plan.plot()
 
 
     plan_name = "001.json"
