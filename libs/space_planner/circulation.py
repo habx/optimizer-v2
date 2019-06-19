@@ -567,16 +567,16 @@ class Circulator:
                     return True
                 return False
 
-            duct_edges = self.plan.category_edges('duct')
             score = 0
             path_line_selected = [e.pair for e in path_line] if pair else path_line
-
             for e in path_line_selected:
                 sp = self.plan.get_space_of_edge(e)
                 area_space[sp] -= e.length * CORRIDOR_WIDTH
                 if _needs_duct(sp):
-                    if [ed for ed in sp.edges if
-                        ed.pair in duct_edges and ed not in e.face.edges]:
+                    sp_duct_edges = [d_e for d_e in sp.edges if
+                                     d_e.pair in self.plan.category_edges('duct')
+                                     and d_e not in e.face.edges]
+                    if not sp_duct_edges:
                         # water room separated from its only duct
                         score += PENALTY
 
