@@ -11,7 +11,7 @@ import mimetypes
 import os
 
 from libs.io import reader
-from libs.io.writer import generate_output_dict
+from libs.io.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
@@ -92,6 +92,7 @@ class ExecParams:
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
+        self.save_ll_bp = params.get('save_ll_pp', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
@@ -134,10 +135,11 @@ class Optimizer:
         files: Dict[str, Dict] = {}
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
-            if extension in (".tif", ".tiff",
+            if (extension in (".tif", ".tiff",
                              ".jpeg", ".jpg", ".jif", ".jfif",
                              ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
+                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                    or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
                     'title': os.path.splitext(file)[0].capitalize(),
@@ -190,6 +192,8 @@ class Optimizer:
         GRIDS[params.grid_type].apply_to(plan)
         if params.do_plot:
             plan.plot(name="grid")
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -199,6 +203,8 @@ class Optimizer:
         SEEDERS[params.seeder_type].apply_to(plan)
         if params.do_plot:
             plan.plot(name="seeder")
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -227,14 +233,17 @@ class Optimizer:
             logging.info("Corridor")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
                              growth_method=corridor_building_rule["growth_method"]).apply_to(
                         sol.plan, spec)
                     if params.do_plot:
-                        sol.plan.plot()
+                        sol.plan.plot(name=f"corridor sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(plan.serialize(), f"corridor sol {i+1}",
+                                          libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
@@ -250,7 +259,10 @@ class Optimizer:
                                                                       params.refiner_params,
                                                                       processes=2)
                     if params.do_plot:
-                        sol.plan.plot()
+                        sol.plan.plot(name=f"refiner sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(plan.serialize(), f"refiner sol {i+1}",
+                                          libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 

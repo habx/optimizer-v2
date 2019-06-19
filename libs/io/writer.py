@@ -33,13 +33,16 @@ def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None
         json.dump(data, fp, sort_keys=True, indent=2)
 
 
-def save_plan_as_json(data: Dict, file_name: Optional[str] = None):
+def save_plan_as_json(data: Dict,
+                      file_name: Optional[str] = None,
+                      output_folder: Optional[str] = None):
     """
     Saves the serialized plan as a json
     :param data: the serialized data
     :param file_name: the name of the file (without the extension)
     """
-    save_as_json(data, reader.DEFAULT_PLANS_OUTPUT_FOLDER, file_name)
+    output_folder = output_folder or reader.DEFAULT_PLANS_OUTPUT_FOLDER
+    save_as_json(data, output_folder, file_name)
 
 
 def save_mesh_as_json(data: Dict, name: Optional[str] = None):
