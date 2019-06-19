@@ -281,7 +281,6 @@ class Optimizer:
 
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
-        print(local_context.files)
 
         return Response(solutions, elapsed_times)
 
