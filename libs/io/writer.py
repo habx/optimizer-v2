@@ -42,6 +42,8 @@ def save_plan_as_json(data: Dict,
     :param file_name: the name of the file (without the extension)
     """
     output_folder = output_folder or reader.DEFAULT_PLANS_OUTPUT_FOLDER
+    if file_name[-5:] != ".json":
+        file_name += ".json"
     save_as_json(data, output_folder, file_name)
 
 

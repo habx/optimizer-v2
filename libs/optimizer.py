@@ -92,7 +92,7 @@ class ExecParams:
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
-        self.save_ll_bp = params.get('save_ll_pp', False)
+        self.save_ll_bp = params.get('save_ll_bp', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
@@ -281,6 +281,7 @@ class Optimizer:
 
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
+        print(local_context.files)
 
         return Response(solutions, elapsed_times)
 
