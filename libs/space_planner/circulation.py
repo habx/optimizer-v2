@@ -29,6 +29,7 @@ DirectionsDict = Dict[int, Dict['Edge', float]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
 
 CORRIDOR_WIDTH = 90
+PENALTY = 1000
 
 
 class PathInfo:
@@ -554,13 +555,30 @@ class Circulator:
             :param _score_function
             :return:
             """
-            score = 0
 
+            def _needs_duct(_sp: 'Space'):
+                """
+                checks if space needs a duct
+                :param _sp:
+                :return:
+                """
+                if list(needed_space for needed_space in sp.category.needed_spaces if
+                        needed_space.name == 'duct'):
+                    return True
+                return False
+
+            duct_edges = self.plan.category_edges('duct')
+            score = 0
             path_line_selected = [e.pair for e in path_line] if pair else path_line
 
             for e in path_line_selected:
                 sp = self.plan.get_space_of_edge(e)
                 area_space[sp] -= e.length * CORRIDOR_WIDTH
+                if _needs_duct(sp):
+                    if [ed for ed in sp.edges if
+                        ed.pair in duct_edges and ed not in e.face.edges]:
+                        # water room separated from its only duct
+                        score += PENALTY
 
             for sp in area_space:
                 item = (space_item_dict[sp.id] if space_item_dict
