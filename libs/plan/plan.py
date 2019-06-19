@@ -1081,7 +1081,7 @@ class Space(PlanComponent):
                     break
             else:
                 self.plan.plot()
-                raise Exception("This should never happen!!")
+                raise Exception("This should never happen!! %s | %s", self, face)
             self.remove_face_id(face.id)
             self._clean_hole_disappearance()
             return [self]
@@ -1208,6 +1208,7 @@ class Space(PlanComponent):
         space_edges = []
         seen = []
         self._edges_id = []
+        found_exterior_edge = False
         for face in self.faces:
             for edge in face.edges:
                 if edge in seen:
@@ -1224,13 +1225,17 @@ class Space(PlanComponent):
                     previous_edge = self.previous_edge(ref_edge)
                     det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
                     if det < 0:  # counter clockwise
+                        if found_exterior_edge:
+                            self.plan.plot()
+                            raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
                         self._edges_id = [edge.id] + self._edges_id
+                        found_exterior_edge = True
                     else:  # clockwise
                         self.add_edge(edge)
 
                     space_edges = list(self.edges)
 
-        if not len(self._edges_id):
+        if not len(self._edges_id) or not found_exterior_edge:
             raise ValueError("The space is badly shaped: {}".format(self))
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
@@ -2275,9 +2280,7 @@ class Plan:
             self.floors[new_floor.id] = new_floor
 
     def __repr__(self):
-        output = 'Plan ' + self.name + ':'
-        for space in self.spaces:
-            output += space.__repr__() + ' | '
+        output = 'Plan: {}'.format(self.id)
         return output
 
     def get_id(self) -> int:
@@ -2315,7 +2318,7 @@ class Plan:
         :param other:
         :return:
         """
-        min_difference = 1000
+        min_difference = 500
         # check that both plan have the same meshes
         for _id, floor in self.floors.items():
             other_floor = other.get_floor_from_id(_id)
@@ -2346,6 +2349,7 @@ class Plan:
         :return:
         """
         output = {
+            "id": str(self.id),
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
@@ -2363,6 +2367,7 @@ class Plan:
         """
         self.clear()
         self.name = data["name"]
+        self.id = uuid.UUID(data["id"]) if "id" in data else uuid.uuid4()
 
         # add floors
         for floor in data["floors"]:

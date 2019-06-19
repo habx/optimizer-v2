@@ -253,6 +253,8 @@ class ConstraintsManager:
         self.duct_next_to_entrance = []
         self._init_duct_next_to_entrance()
         self.toilet_entrance_proximity_constraint_first_pass = True
+        self.externals_connection_constraint_first_pass = True
+        self.large_windows_constraint_first_pass = True
 
         self.item_constraints = {}
         self.add_spaces_constraints()
@@ -476,6 +478,39 @@ class ConstraintsManager:
                         ct = self.and_(ct, adjacency_sum <= 1)
         self.solver.add_constraint(ct)
 
+    def add_duct_constraints(self) -> None:
+        """
+        Each duct has to be associated with different type of item if it's possible
+        :return: None
+        """
+        item_type_list = ["toilet", "bathroom"]
+        duct_list = [space for space in self.sp.spec.plan.spaces if
+                     space.category.name == "duct"]
+        ct = None
+        for item_type in item_type_list:
+            list_item = [i_item for i_item in self.sp.spec.items if
+                         i_item.category.name == item_type]
+            if 1 < len(list_item) <= len(duct_list):
+                for duct in duct_list:
+                    adjacency_sum = 0
+                    for item in self.sp.spec.items:
+                        if item.category.name == item_type:
+                            item_duct_adjacency = None
+                            for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                                if duct in [component for component in
+                                            space.immutable_components()]:
+                                    if item_duct_adjacency is None:
+                                        item_duct_adjacency = self.solver.positions[item.id, j_space]
+                                    else:
+                                        item_duct_adjacency = self.solver.solver.Max(self.solver.positions[item.id, j_space], item_duct_adjacency)
+                            adjacency_sum += item_duct_adjacency
+
+                    if ct is None:
+                        ct = adjacency_sum <= 1
+                    else:
+                        ct = self.and_(ct, adjacency_sum <= 1)
+        self.solver.add_constraint(ct)
+
     def add_item_constraints(self) -> None:
         """
         add items constraints
@@ -595,7 +630,6 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
 
     return ct
 
-
 def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
     Maximum distance constraint between spaces constraint
@@ -607,7 +641,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     """
     if item.category.name in ["living", "dining", "livingKitchen", "wardrobe", "laundry"]:
         param = 2
-    elif item.category.name in ["bathroom"]:
+    elif item.category.name in ["bathroom", "bedroom"]:
         param = 1.9
     elif item.category.name in ["study", "misc", "kitchen"]:
         param = 1.8
@@ -616,7 +650,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     elif item.category.name in ["circulation"]:
         param = 3
     else:
-        param = 1.8 # toilet, bedroom,
+        param = 1.8 # toilet
 
     max_distance = int(round(param * item.required_area ** 0.5))
 
@@ -634,69 +668,6 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
                                manager.solver.positions[item.id, k])
                               <= int(max_distance / manager.spaces_max_distance[j][k]))
                     ct = manager.and_(ct, new_ct)
-    ct = or_no_space_constraint(manager, item, ct)
-    return ct
-
-def max_distance_to_window_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
-    """
-    Maximum distance constraint between spaces constraint
-    :param manager: 'ConstraintsManager'
-    :param item: Item
-    :return: ct: ortools.Constraint
-    # TODO : find best param
-    # TODO : unit tests
-    """
-    ct = None
-    max_distance = 1000
-    additional_distance = 150
-    for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-        current_ct = None
-        if "window" in j_space.components_category_associated() or "doorWindow" in j_space.components_category_associated():
-            for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                if j < k:
-                    if current_ct is None:
-                        if (j not in nx.nodes(manager.centroid_space_graph)
-                                or k not in nx.nodes(manager.centroid_space_graph)
-                                or not nx.has_path(manager.centroid_space_graph, j, k)):
-                            current_ct = (manager.solver.positions[item.id, j] *
-                                  manager.solver.positions[item.id, k] == 0)
-                        else:
-                            path_length, path = nx.single_source_dijkstra(
-                                manager.centroid_space_graph, j, k)
-                            path_length += additional_distance
-                            path_inside_room = 1
-                            for i_path in path:
-                                path_inside_room = (path_inside_room *
-                                                    manager.solver.positions[item.id, i_path])
-                            current_ct = path_inside_room * (manager.solver.positions[item.id, j] *
-                                                     manager.solver.positions[
-                                                         item.id, k] * path_length
-                                                     <= max_distance)
-                            print(path_length)
-                    else:
-                        if (j not in nx.nodes(manager.centroid_space_graph)
-                                or k not in nx.nodes(manager.centroid_space_graph)
-                                or not nx.has_path(manager.centroid_space_graph, j, k)):
-                            new_ct = (manager.solver.positions[item.id, j] *
-                                      manager.solver.positions[item.id, k] == 0)
-                        else:
-                            path_length, path = nx.single_source_dijkstra(
-                                manager.centroid_space_graph, j, k)
-                            path_length += additional_distance
-                            path_inside_room = 1
-                            for i_path in path:
-                                path_inside_room = path_inside_room * manager.solver.positions[
-                                    item.id, i_path]
-                            new_ct = path_inside_room * (manager.solver.positions[item.id, j] *
-                                                         manager.solver.positions[
-                                                             item.id, k] * path_length
-                                                         <= max_distance)
-                            print(path_length)
-                        current_ct = manager.or_(current_ct, new_ct)
-            if ct is None:
-                ct = current_ct
-            else:
-                ct = manager.or_(current_ct, ct)
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
@@ -1039,7 +1010,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
 def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
-    warning : symmetry breaker
+    toilet entrance proximity constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -1055,6 +1026,9 @@ def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: It
             ct = toilet_entrance_proximity >= 1
 
     manager.toilet_entrance_proximity_constraint_first_pass = False
+    for i_item in manager.sp.spec.items:
+        if i_item.category.name == "entrance":
+            ct = or_no_space_constraint(manager, i_item, ct)
     return ct
 
 
@@ -1069,13 +1043,15 @@ def large_windows_constraint(manager: 'ConstraintsManager',
     """
     ct = None
 
-    large_windows_sum = 0
-    for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-        for component in space.immutable_components():
-            if component.category.name is "doorWindow" and component.length > 180:
-                large_windows_sum += manager.solver.positions[item.id, j]
-    if large_windows_sum:
-        ct = large_windows_sum >= 1
+    if manager.large_windows_constraint_first_pass:
+        large_windows_sum = 0
+        manager.large_windows_constraint_first_pass = False
+        for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+            for component in space.immutable_components():
+                if component.category.name is "doorWindow" and component.length > 180:
+                    large_windows_sum += manager.solver.positions[item.id, j]
+        if large_windows_sum:
+            ct = large_windows_sum >= 1
 
     return ct
 
@@ -1236,6 +1212,39 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 
     return ct
 
+def non_isolated_item_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    non isolated item constraint :
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    adjacency_sum = 0
+    adjacency_circulation_room_sum = 0
+    for num, num_item in enumerate(manager.sp.spec.items):
+        if num_item != item:
+            adjacency_sum += manager.solver.solver.Sum(
+                manager.solver.solver.Sum(
+                    int(manager.spaces_item_adjacency_matrix[j][k]) *
+                    int(k_space.floor.level == j_space.floor.level) *
+                    manager.solver.positions[item.id, j] *
+                    manager.solver.positions[num, k] for
+                    j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+            if num_item.category.name in CIRCULATION_ROOMS:
+                adjacency_circulation_room_sum += manager.solver.solver.Sum(
+                    manager.solver.solver.Sum(
+                        int(manager.spaces_item_adjacency_matrix[j][k]) *
+                        int(k_space.floor.level == j_space.floor.level) *
+                        manager.solver.positions[item.id, j] *
+                        manager.solver.positions[num, k] for
+                        j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+                    for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+
+
+    ct = manager.or_(adjacency_sum >= 2, adjacency_circulation_room_sum >= 1)
+
+    return ct
 
 def circulation_adjacency_constraint(manager: 'ConstraintsManager',
                                      item: Item) -> ortools.Constraint:
@@ -1387,7 +1396,6 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
-
 def externals_connection_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
     """
@@ -1404,7 +1412,8 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
             has_to_be_connected = True
             break
 
-    if has_to_be_connected:
+    if has_to_be_connected and manager.externals_connection_constraint_first_pass:
+        manager.externals_connection_constraint_first_pass = False
         adjacency_sum = manager.solver.solver.Sum(
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
@@ -1634,17 +1643,13 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}]
     ],
-    "bedroom": [
-
-    ],
-    "study": [
+    "laundry": [
+        [non_isolated_item_constraint, {}],
+        [item_adjacency_constraint,
+         {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
 
     ],
     "dressing": [
-        [item_adjacency_constraint,
-         {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
-    ],
-    "laundry": [
         [item_adjacency_constraint,
          {"item_categories": ["entrance", "circulation"], "adj": True, "addition_rule": "Or"}]
     ],

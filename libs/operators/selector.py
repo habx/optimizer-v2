@@ -589,7 +589,7 @@ def _is_wall(edge: 'Edge', plan: 'Plan') -> bool:
     :param edge:
     :return:
     """
-    min_lbwall_length = 25.0
+    min_lbwall_length = 40.0
     other = plan.get_space_of_edge(edge.pair)
     return (not other or other.category.external
             or (other.category.name == "loadBearingWall" and edge.length > min_lbwall_length))
@@ -2282,7 +2282,7 @@ SELECTORS = {
 
     "close_to_wall": Selector(close_to_walls, [close_to_apartment_boundary(90, 80)]),
 
-    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(80, 15)]),
+    "close_to_wall_finer": Selector(close_to_walls, [close_to_apartment_boundary(70, 15)]),
 
     "h_edge": Selector(boundary_faces, [h_edge, edge_length(max_length=200)]),
 
@@ -2369,6 +2369,8 @@ SELECTORS = {
                                                        pair(is_not(adjacent_to_needed_space)),
                                                        pair(is_not(corner_stone))]),
 
+    "mutable_edges": Selector(space_external_boundary, [pair(is_mutable)]),
+
     "plan_boundary_no_linear": Selector(space_boundary,
                                         [edge_length(min_length=40),
                                          _or(is_not(close_to_corner_wall),
@@ -2379,8 +2381,7 @@ SELECTORS = {
                                                       close_to_corner_wall]),
     "previous_close_to_corner_wall": Selector(space_boundary,
                                               [edge_length(min_length=110.0),
-                                               space_previous_has(close_to_corner_wall)]),
-
+                                               space_previous_has(close_to_corner_wall)])
 }
 
 SELECTOR_FACTORIES = {
