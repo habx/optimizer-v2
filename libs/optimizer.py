@@ -83,9 +83,9 @@ class ExecParams:
             params = {}
 
         refiner_params = {
-            "ngen": 80,
+            "ngen": 60,
             "mu": 40,
-            "cxpb": 0.8
+            "cxpb": 0.9
         }
 
         self.grid_type = params.get('grid_type', '002')

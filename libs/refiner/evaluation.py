@@ -10,14 +10,12 @@ import logging
 from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
-from libs.space_planner.circulation import Circulator
 from libs.plan.category import SPACE_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Floor
-    from libs.mesh.mesh import Edge
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
@@ -185,13 +183,15 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
+    ratios = {
+        SPACE_CATEGORIES["circulation"]: 5.0,
+        SPACE_CATEGORIES["livingKitchen"]: 0.5,
+        SPACE_CATEGORIES["living"]: 0.5,
+        "default": 1.0
+    }
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
-            continue
-        if space.category in excluded_spaces:
-            score[space.id] = 0.0
             continue
         if space.cached_area() == 0:
             score[space.id] = 100
@@ -200,7 +200,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
         box_area = box[0] * box[1]
         area = space.cached_area()
         space_score = ((area - box_area) / area)**2 * 100.0
-        score[space.id] = space_score
+        score[space.id] = space_score * ratios.get(space.category, ratios["default"])
 
     return score
 

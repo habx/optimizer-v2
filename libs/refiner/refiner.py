@@ -22,6 +22,7 @@ TODO :
 import random
 import logging
 import multiprocessing
+import math
 
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
@@ -46,6 +47,21 @@ if TYPE_CHECKING:
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
                          List['core.Individual']]
+
+# setting a seed for debugging
+random.seed(0)
+
+
+def initializer():
+    """
+    Used to initialize a seed for each process of the pool. We use the number of the process
+    as a seed. TODO : Not sure this is robust on every os.
+    :return:
+    """
+    # noinspection PyProtectedMember
+    worker_id = multiprocessing.current_process()._identity[0]
+    logging.info("Setting up random seed %s", worker_id)
+    random.seed(worker_id)
 
 
 def merge_adjacent_circulation(ind: 'Individual') -> None:
@@ -144,7 +160,7 @@ class Refiner:
         :param processes: number of process to spawn
         :return:
         """
-        results = self.run(plan, spec, params, processes, hof=1)
+        results = self.run(plan, spec, params, processes)
         output = max(results, key=lambda i: i.fitness)
 
         # clean unnecessary circulation
@@ -181,7 +197,7 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = multiprocessing.Pool(processes=processes).map if processes > 1 else map
+        map_func = multiprocessing.Pool(processes, initializer).map if processes > 1 else map
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -216,6 +232,28 @@ def mate_and_mutate(mate_func,
     mutate_func(_ind2)
 
     return _ind1, _ind2
+
+
+def elite_select(mutate_func, ratio: float, pop: List['Individual'], k: int) -> List['Individual']:
+    """
+    Keep only the `ratio` best individuals.
+    Replace the removed one by a random top individual mutated.
+    :param mutate_func:
+    :param pop:
+    :param k: number of individual of the total pop (can be different from the size of the specified
+    population
+    :param ratio:
+    :return:
+    """
+    # note we need to reverse because fitness values are negative
+    pop.sort(key=lambda i: i.fitness.wvalue, reverse=True)
+    len_pop = len(pop)
+    elite_size = int(len_pop*ratio)
+    pop = pop[0:elite_size]
+    if k <= elite_size:
+        return pop[0:k]
+    new_pop = [mutate_func(random.choice(pop).clone()) for _ in range(k - elite_size)]
+    return pop + new_pop
 
 
 def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
@@ -309,6 +347,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
+    toolbox.register("elite_select", elite_select, toolbox.mutate, 0.1)
     toolbox.register("select", space_nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
@@ -394,6 +433,9 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     # no actual selection is done
     pop = toolbox.select(pop, len(pop))
 
+    best_fitness = -math.inf
+    no_improvement_count = 0
+
     # Begin the generational process
     for gen in range(1, ngen + 1):
         logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
@@ -408,16 +450,30 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         # Evaluate the individuals with an invalid fitness
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
 
-        # best score
-        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
-
         # Select the next generation population
-        pop = toolbox.select(pop + offspring, mu)
+        pop = toolbox.elite_select(pop + offspring, mu)
+
+        # print best individual and check if we found a better solution
+        best_ind = pop[0]
+        best_ind_fitness = best_ind.fitness.wvalue
+        if best_ind_fitness > best_fitness:
+            best_fitness = best_ind_fitness
+            no_improvement_count = 0
+        else:
+            no_improvement_count += 1
 
         # store best individuals in hof
         if hof is not None:
             hof.update(pop, value=True)
+        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
+
+        # if we do not improvement 10 times in a row we estimate we have reached the global min.
+        # and we can stop.
+        if no_improvement_count > 10:
+            break
+
+        # order individual on pareto front for tournament selection
+        pop = toolbox.select(pop, mu)
 
     return pop
 
@@ -492,10 +548,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
+        params = {"ngen": 50, "mu": 40, "cxpb": 0.9}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "021"  # 004 # 032
+        plan_number = "049"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
@@ -537,8 +593,8 @@ if __name__ == '__main__':
 
         params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
 
-        logging.getLogger().setLevel(logging.DEBUG)
-        plan_number = "047"  # 004 # 032
+        logging.getLogger().setLevel(logging.INFO)
+        plan_number = "021"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
