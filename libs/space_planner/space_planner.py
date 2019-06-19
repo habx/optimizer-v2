@@ -80,8 +80,7 @@ class SpacePlanner:
         space_planner_spec.init_id(category_name_list)
 
         # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
-                                "misc"]
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe"]
         #invariant_categories = ["entrance"]
 
         # area - without circulation
