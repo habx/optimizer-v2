@@ -9,6 +9,7 @@ import logging
 from typing import List, Tuple
 
 from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES
+from libs.io.plot import plot_save
 
 from libs.utils.geometry import (
     parallel,
@@ -132,7 +133,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
 
     # splits door_edges[-1] if needed, so as to get a proper door width
     end_split_coeff = (DOOR_WIDTH - end_edge.start.distance_to(
-        contact_line[0].start)) / (end_edge.length)
+        contact_line[0].start)) / end_edge.length
     if not 1 >= end_split_coeff >= 0:
         end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
     door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
@@ -144,24 +145,24 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     return door_edges
 
 
-def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
+def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
     places a door between space1 and space2
     *sets the position of the door
     *sets the aperture direction
-    :param space1:
-    :param space2:
+    :param space:
+    :param circulation_space:
     :return:
     """
 
     def _start_side(_contact_line: List['Edge']) -> bool:
 
-        linear_edges = [linear.edge for linear in space1.plan.linears if
-                        space1.has_edge(linear.edge) or space2.has_edge(linear.edge)]
-        duct_edges = [e for e in space1.edges if
-                      e.pair.face and space1.plan.get_space_of_edge(e.pair).category.name == "duct"]
-        duct_edges += [e for e in space2.edges if
-                       e.pair.face and space2.plan.get_space_of_edge(
+        linear_edges = [linear.edge for linear in space.plan.linears if
+                        space.has_edge(linear.edge) or circulation_space.has_edge(linear.edge)]
+        duct_edges = [e for e in space.edges if
+                      e.pair.face and space.plan.get_space_of_edge(e.pair).category.name == "duct"]
+        duct_edges += [e for e in circulation_space.edges if
+                       e.pair.face and circulation_space.plan.get_space_of_edge(
                            e.pair).category.name == "duct"]
 
         all_edges = linear_edges + duct_edges
@@ -183,12 +184,12 @@ def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
         return True if dist_to_start > dist_to_end else False
 
     # gets contact edges between both spaces
-    contact_edges = [edge for edge in space1.edges if edge.pair in space2.edges]
+    contact_edges = [edge for edge in space.edges if edge.pair in circulation_space.edges]
     # reorders contact_edges
     start_index = 0
-    for e, edge in enumerate(contact_edges):
-        if not space1.previous_edge(edge) in contact_edges:
-            start_index = e
+    for i, edge in enumerate(contact_edges):
+        if not space.previous_edge(edge) in contact_edges:
+            start_index = i
             break
     contact_edges = contact_edges[start_index:] + contact_edges[:start_index]
 
@@ -209,13 +210,56 @@ def place_door_between_two_spaces(space1: 'Space', space2: 'Space'):
         door_edges = get_door_edges(contact_line, start=_start_side(contact_line))
 
     # determines opening sense
+    # opens outside of ["toilet", "bathroom", "kitchen"], else inside room
+
+    # start_side = _start_side(contact_line)
+    # start_vertex = door_edges[0].start if start_side else door_edges[-1].end
+
+    if space.category.name in ["toilet", "bathroom"]:
+        door_edges = [d_e.pair for d_e in reversed(door_edges)]
+        # door_edges = [d_e.pair for d_e in door_edges]
 
     # set linear
-    door = Linear(space1.plan, space1.floor, door_edges[0], LINEAR_CATEGORIES["door"])
+    door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
     if len(door_edges) == 1:
         return
     for door_edge in door_edges[1:]:
         door.add_edge(door_edge)
+
+
+def plot(plan: 'Plan', save: bool = True):
+    """
+    plots plan with circulation paths
+    :return:
+    """
+
+    ax = plan.plot(save=False)
+    number_of_levels = plan.floor_count
+    for level in range(number_of_levels):
+        _ax = ax[level] if number_of_levels > 1 else ax
+        for linear in plan.linears:
+            if linear.category.name == "door":
+                start_edge = list(linear.edges)[0]
+                sp = plan.get_space_of_edge(start_edge)
+                if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
+                    start_door_point = list(linear.edges)[0].start.coords
+                    end_door_point = list(linear.edges)[-1].end.coords
+                else:
+                    start_door_point = list(linear.edges)[-1].end.coords
+                    end_door_point = list(linear.edges)[0].start.coords
+
+                door_vect = (end_door_point[0] - start_door_point[0],
+                             end_door_point[1] - start_door_point[1])
+                door_vect_ortho = start_edge.normal
+                door_vect_ortho = tuple([DOOR_WIDTH * x for x in door_vect_ortho])
+
+                pt_end = (start_door_point[0] + 0.5 * (door_vect[0] + door_vect_ortho[0]),
+                          start_door_point[1] + 0.5 * (door_vect[1] + door_vect_ortho[1]))
+                _ax.arrow(start_door_point[0], start_door_point[1],
+                          pt_end[0] - start_door_point[0],
+                          pt_end[1] - start_door_point[1])
+
+    plot_save(save)
 
 
 if __name__ == '__main__':
@@ -309,15 +353,16 @@ if __name__ == '__main__':
             cat1 = "bedroom"
             cat2 = "circulation"
             space1 = list(sp for sp in plan.spaces if
-                          sp.category.name == cat1)[2]
+                          sp.category.name == cat1)[0]
             space2 = list(sp for sp in plan.spaces if
                           sp.category.name == cat2 and sp in space1.adjacent_spaces())[0]
 
             place_door_between_two_spaces(space1, space2)
         else:
             place_doors(plan)
-        plan.plot()
+        # plan.plot()
+        plot(plan)
 
 
-    plan_name = "001.json"
+    # plan_name = "005.json"
     main(input_file=plan_name)
