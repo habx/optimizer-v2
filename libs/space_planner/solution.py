@@ -81,19 +81,17 @@ class SolutionsCollector:
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
         distance_from_results = [dist_from_best_sol]
 
-        for i in range(self.max_results - 1):
+        for i in range(self.max_results-1):
             current_score = None
             index_current_sol = None
             for i_sol in range(len(self.solutions)):
                 current_distance_from_results = functools.reduce(operator.mul, [list_dist[i_sol]
-                                                                                for list_dist in
-                                                                                distance_from_results])
+                                                         for list_dist in distance_from_results])
                 if ((current_score is None and current_distance_from_results > 0)
                         or (current_score is not None
-                            and list_scores[
-                                i_sol] * current_distance_from_results > current_score)):
+                            and list_scores[i_sol]*current_distance_from_results > current_score)):
                     index_current_sol = i_sol
-                    current_score = list_scores[i_sol] * current_distance_from_results
+                    current_score = list_scores[i_sol]*current_distance_from_results
             if current_score:
                 best_sol_list.append(self.solutions[index_current_sol])
                 logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
@@ -154,6 +152,7 @@ class Solution:
         self.score = None
         self._score()
         self.compute_cache()
+
 
     def __repr__(self):
         output = 'Solution Id' + str(self._id)
@@ -290,8 +289,7 @@ class Solution:
                 if (item1 != item2 and item1.category.name not in ["entrance", "circulation"] and
                         item2.category.name not in ["entrance", "circulation"]):
                     if (item1.required_area < item2.required_area and
-                            self.items_spaces[item1].cached_area() > self.items_spaces[
-                                item2].cached_area()):
+                            self.items_spaces[item1].cached_area() > self.items_spaces[item2].cached_area()):
                         logging.debug("Solution %i: Size bonus : %i", self._id, 0)
                         return 0
         logging.debug("Solution %i: Size bonus : %i", self._id, 10)
@@ -600,10 +598,8 @@ class Solution:
         compilation of different scores
         :return: score : float
         """
-        solution_score = (
-                                     self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
-        solution_score = (
-                    solution_score + self._good_size_bonus() + self._entrance_bonus() + self._circulation_penalty())
+        solution_score = (self._area_score() + self._shape_score() + self._night_and_day_score()) / 3
+        solution_score = (solution_score + self._good_size_bonus() + self._entrance_bonus())
         logging.debug("Solution %i: Final score : %f", self._id, solution_score)
 
         self.score = solution_score
@@ -634,7 +630,7 @@ class Solution:
                             and (comp not in other_solution_space.cached_immutable_components)
                             and [other_space for other_space in other_solution.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
-                                     and other_space.category.name == space.category.name)] == []):
+                                     and other_space.category.name == space.category.name )] == []):
                         distance += 1
             elif item.category.name in duct_list:
                 for comp in space.cached_immutable_components:
