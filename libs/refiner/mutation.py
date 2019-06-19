@@ -180,9 +180,11 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
         space.add_face_id(*faces_id)
         other.remove_face_id(*faces_id)
         # set the reference edges of each spaces
-        space.set_edges()
         other.set_edges()
         modified_spaces.append(other)
+
+    # Note : we must set the edges of the space once all the faces have been removed
+    space.set_edges()
 
     return modified_spaces if len(modified_spaces) > 1 else []
 
@@ -280,6 +282,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         # to a mutable space but has another edge that is adjacent
         if edge.face not in faces:
             faces.add(edge.face)
+
         faces_by_spaces[other].add(edge.face)
 
     if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):

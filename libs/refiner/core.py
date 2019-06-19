@@ -266,9 +266,6 @@ class Individual(Plan):
         if plan:
             self.copy(plan)
 
-    def __repr__(self):
-        return str(self.id)
-
     def plot(self,
              show: bool = False,
              save: bool = True,
@@ -348,7 +345,7 @@ class Individual(Plan):
 
 cloneFunc = Callable[['Individual'], 'Individual']
 mapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
-selectFunc = Callable[[List['Individual']], List['Individual']]
+selectFunc = Callable[[List['Individual'], int], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 evaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
 mutateFunc = Callable[['Individual'], 'Individual']
@@ -377,6 +374,7 @@ class Toolbox:
         "clone",
         "mate",
         "select",
+        "elite_select",
         "mutate",
         "populate",
         "evaluate",
@@ -391,6 +389,7 @@ class Toolbox:
         self.map: mapFunc = map
         self.mate:  Optional[mateFunc] = None
         self.select: Optional[selectFunc] = None
+        self.elite_select: Optional[selectFunc] = None
         self.evaluate: Optional[evaluateFunc] = None
         self.mutate: Optional[mutateFunc] = None
         self.populate: Optional[populateFunc] = None
