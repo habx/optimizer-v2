@@ -46,6 +46,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import MeshModification
+    from libs.plan.furniture import FurnitureList
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -2266,11 +2267,13 @@ class Plan:
                  floor_level: int = 0,
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
-                 linears: Optional[List['Linear']] = None):
+                 linears: Optional[List['Linear']] = None,
+                 furniture_list: Optional[FurnitureList] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
+        self.furniture_list = furniture_list
         self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
 
