@@ -15,6 +15,7 @@ from libs.io.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
+from libs.plan.furniture import GARNISHERS
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.version import VERSION as OPTIMIZER_VERSION
@@ -99,6 +100,8 @@ class ExecParams:
         self.do_refiner = params.get('do_refiner', False)
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
+        self.do_garnisher = params.get('do_garnisher', False)
+        self.garnisher_type = params.get('garnisher_type', 'bed')
 
 
 class Optimizer:
@@ -136,9 +139,9 @@ class Optimizer:
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
             if (extension in (".tif", ".tiff",
-                             ".jpeg", ".jpg", ".jif", ".jfif",
-                             ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                              ".jpeg", ".jpg", ".jif", ".jfif",
+                              ".jp2", ".jpx", ".j2k", ".j2c",
+                              ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
                     or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
@@ -266,6 +269,21 @@ class Optimizer:
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
+        # garnisher
+        t0_garnisher = time.process_time()
+        if params.do_garnisher:
+            logging.info("Garnisher")
+            if best_solutions and space_planner:
+                for i, sol in enumerate(best_solutions):
+                    GARNISHERS[params.garnisher_type].apply_to(sol.plan)
+                    if params.do_plot:
+                        sol.plan.plot(name=f"garnisher sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.plan.serialize(), f"garnisher sol {i+1}",
+                                          libs.io.plot.output_path)
+        elapsed_times["garnisher"] = time.process_time() - t0_garnisher
+        logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
+
         # output
         t0_output = time.process_time()
         logging.info("Output")
@@ -293,12 +311,13 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "016.json",
-            "016_setup0.json",
+            "048.json",
+            "048_setup0.json",
             {
                 "grid_type": "001",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
+                "do_garnisher": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
