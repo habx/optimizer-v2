@@ -8,10 +8,11 @@ from typing import (
 )
 from libs.utils.geometry import rectangle, unit
 from libs.plan.category import SpaceCategory, SPACE_CATEGORIES
+from libs.io.plot import plot_polygon
 
 if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d
-from libs.plan.plan import Plan, Space
+    from libs.plan.plan import Plan, Space
 
 
 class Garnisher:
@@ -31,15 +32,15 @@ class Garnisher:
         for order in self.orders:
             self._apply_order(plan, order)
 
-    def _apply_order(self, plan: Plan, order: Tuple[SpaceCategory, str, bool]):
+    def _apply_order(self, plan: 'Plan', order: Tuple[SpaceCategory, str, bool]):
         for space in plan.spaces:
             if space.category == order[0]:
                 furniture = Furniture(order[1], order[2])
                 plan.furniture_list.add(space, furniture)
                 self._fit(space, furniture)
 
-    def _fit(self, space: Space, furniture: 'Furniture'):
-        furniture.ref_point = space.centroid
+    def _fit(self, space: 'Space', furniture: 'Furniture'):
+        furniture.ref_point = space.centroid()
 
 
 class FurnitureList:
@@ -47,8 +48,11 @@ class FurnitureList:
     def __init__(self):
         self.furniture: Dict['Space', List['Furniture']] = {}
 
-    def add(self, space: Space, furniture: 'Furniture'):
+    def add(self, space: 'Space', furniture: 'Furniture'):
         self.furniture.setdefault(space, []).append(furniture)
+
+    def get(self, space: 'Space') -> List['Furniture']:
+        return self.furniture.get(space, [])
 
 
 class Furniture:
@@ -62,23 +66,38 @@ class Furniture:
     def __init__(self,
                  category: str,
                  prm: bool,
-                 ref_point: Optional[Coords2d] = None,
-                 ref_vect: Optional[Vector2d] = None):
+                 ref_point: Optional['Coords2d'] = None,
+                 ref_vect: Optional['Vector2d'] = None):
         self.category = category
         self.prm = prm
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (1, 0)
 
-    def bounding_box(self) -> FourCoords2d:
+    def bounding_box(self) -> 'FourCoords2d':
         """
         :return: rectangle shape of the furniture
         """
         size = Furniture.prm_sizes[self.category] if self.prm else Furniture.sizes[self.category]
         return rectangle(self.ref_point, self.ref_vect, *size)
 
+    def plot(self, ax=None,
+             options=('fill', 'border'),
+             save: Optional[bool] = None):
+        """
+        Plots the face
+        :return:
+        """
+        color = "black"
+        bounding_box = self.bounding_box()
+        x = [p[0] for p in bounding_box]
+        y = [p[1] for p in bounding_box]
+        return plot_polygon(ax, x, y, options, color, save)
 
+
+bed_garnisher = Garnisher("bed", [(SPACE_CATEGORIES["bedroom"], "bed", False)])
 prm_bed_garnisher = Garnisher("prm_bed", [(SPACE_CATEGORIES["bedroom"], "bed", True)])
 
 GARNISHERS = {
-    "prm_bed": prm_bed_garnisher
+    "prm_bed": prm_bed_garnisher,
+    "bed": bed_garnisher
 }

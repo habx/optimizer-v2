@@ -46,7 +46,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import MeshModification
-    from libs.plan.furniture import FurnitureList
+    from libs.plan.furniture import FurnitureList, Furniture
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -1557,7 +1557,7 @@ class Space(PlanComponent):
 
     def plot(self, ax=None,
              save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'border', 'half-edge')):
+             options: Tuple['str'] = ('face', 'border', 'half-edge', 'furniture')):
         """
         plot the space
         """
@@ -1579,6 +1579,10 @@ class Space(PlanComponent):
         if 'half-edge' in options:
             for edge in self.edges:
                 edge.plot_half_edge(ax, color=color, save=save)
+
+        if 'furniture' in options and self.plan.furniture_list is not None:
+            for furniture in self.furnitures():
+                ax = furniture.plot(ax, save=save, options=('fill', 'border', 'dash'))
 
         return ax
 
@@ -1915,6 +1919,13 @@ class Space(PlanComponent):
                 if space is not self and space not in connected_spaces:
                     connected_spaces.append(space)
         return connected_spaces
+
+    def furnitures(self) -> ['Furniture']:
+        """
+        Returns furniture associated with space
+        :return: ['Furniture']
+        """
+        return self.plan.furniture_list.get(self)
 
     def centroid(self) -> Coords2d:
         """
@@ -2268,7 +2279,7 @@ class Plan:
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None,
-                 furniture_list: Optional[FurnitureList] = None):
+                 furniture_list: Optional['FurnitureList'] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
@@ -3125,7 +3136,7 @@ class Plan:
     def plot(self,
              show: bool = False,
              save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
+             options: Tuple = ('face', 'edge', 'half-edge', 'border', 'furniture'),
              floor: Optional['Floor'] = None,
              name: Optional[str] = None):
         """
