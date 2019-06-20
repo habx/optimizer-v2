@@ -242,7 +242,7 @@ class Optimizer:
                     if params.do_plot:
                         sol.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(plan.serialize(), f"corridor sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
                                           libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
@@ -261,7 +261,7 @@ class Optimizer:
                     if params.do_plot:
                         sol.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(plan.serialize(), f"refiner sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
                                           libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
