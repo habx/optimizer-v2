@@ -30,7 +30,7 @@ epsilon = 2
 # some more rules
 # if we have the choice, opens room on entrance rather than corridor except for water rooms :
 # to be opened as close as possible to the doors
-
+# ATTENTION : ajout - faire en sorte
 
 def place_doors(plan: 'Plan'):
     """
