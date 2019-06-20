@@ -16,23 +16,33 @@ if TYPE_CHECKING:
 
 
 class Garnisher:
+    """
+    Instanciates and fit furniture in plan with rooms.
+    """
 
     def __init__(self, name: str, orders: Sequence[Tuple[SpaceCategory, str, bool]]):
-        """
-
-        :param name:
-        :param to_do_list:
-        """
         self.name = name
         self.orders = orders
 
     def apply_to(self, plan: 'Plan'):
+        """
+        Modify the plan by applying the successive orders.
+        :param plan:
+        :return: the plan
+        """
         if plan.furniture_list is None:
             plan.furniture_list = FurnitureList()
         for order in self.orders:
             self._apply_order(plan, order)
+        return plan
 
     def _apply_order(self, plan: 'Plan', order: Tuple[SpaceCategory, str, bool]):
+        """
+        Apply an oder by updating plan list of furniture and fitting them in space
+        :param plan: plan to modify
+        :param order: (space category, furniture category, prm true/false)
+        :return:
+        """
         for space in plan.spaces:
             if space.category == order[0]:
                 furniture = Furniture(order[1], order[2])
@@ -40,6 +50,12 @@ class Garnisher:
                 self._fit(space, furniture)
 
     def _fit(self, space: 'Space', furniture: 'Furniture'):
+        """
+        Adapt a furniture to fit in a space
+        :param space:
+        :param furniture:
+        :return:
+        """
         furniture.ref_point = space.centroid()
 
 
