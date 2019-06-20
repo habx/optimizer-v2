@@ -14,27 +14,18 @@ from libs.io.plot import plot_save
 from libs.utils.geometry import (
     parallel,
     move_point,
-    dot_product
+    dot_product,
+    ccw_angle
 )
 
 DOOR_WIDTH = 90
 epsilon = 2
 
-"""
-process:
-pour chaque pièce de circulation, placer les portes avec un espace de circulation adjacent
-nb : 
-couloir en priorité
-si pas de couloir connecté
-*connecter avec une pièce de circulation avec un ordre de priorité
-    -entrée
-    -salon
-    -dining?
 
-*fonctions :
-    -place_doors(plan)
-    -place_door(space1,space2)
-"""
+# TODO
+# -deal with intersecting doors
+# =>starts with smallest rooms and when adding new doors check for existing linears for intersection check
+# deal with door intersting other linears
 
 
 def place_doors(plan: 'Plan'):
@@ -144,47 +135,46 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
 
     return door_edges
 
-
 def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
     places a door between space1 and space2
-    *sets the position of the door
-    *sets the aperture direction
+
     :param space:
     :param circulation_space:
     :return:
     """
 
-    def _start_side(_contact_line: List['Edge']) -> bool:
+    def _check_corner(_contact_line: List['Edge'], start: bool = True) -> bool:
+        sp = space.plan.get_space_of_edge(_contact_line[0])
+        if start:
+            if ccw_angle(_contact_line[0].vector, sp.previous_edge(_contact_line[0]).vector) > 180:
+                return True
+            return False
+        else:
+            if ccw_angle(sp.next_edge(_contact_line[-1]).vector, _contact_line[-1].vector):
+                return True
+            return False
 
-        linear_edges = [linear.edge for linear in space.plan.linears if
-                        space.has_edge(linear.edge) or circulation_space.has_edge(linear.edge)]
-        duct_edges = [e for e in space.edges if
-                      e.pair.face and space.plan.get_space_of_edge(e.pair).category.name == "duct"]
-        duct_edges += [e for e in circulation_space.edges if
-                       e.pair.face and circulation_space.plan.get_space_of_edge(
-                           e.pair).category.name == "duct"]
+    def _get_door_position(_lines: List[List['Edge']]) -> Tuple:
+        longest_line = sorted(_lines, key=lambda x: sum(e.length for e in x))[-1]
+        longest_length = sum(e.length for e in longest_line)
+        if longest_length <= DOOR_WIDTH:
+            return longest_line, True
 
-        all_edges = linear_edges + duct_edges
-
-        dist_to_start = min([_contact_line[0].start.distance_to(e.start) for e in all_edges])
-        dist_to_end = min([_contact_line[-1].end.distance_to(e.start) for e in all_edges])
-
-        # dist_to_windows_start = sum(
-        #     [_contact_line[0].start.distance_to(linear.edge.start) for linear in space1.plan.linears
-        #      if
-        #      linear.category.window_type and _contact_line[0].start.distance_to(
-        #          linear.edge.start) < 150])
-        # dist_to_windows_end = sum(
-        #     [_contact_line[-1].start.distance_to(linear.edge.start) for linear in
-        #      space1.plan.linears if
-        #      linear.category.window_type and _contact_line[-1].start.distance_to(
-        #          linear.edge.start) < 150])
-
-        return True if dist_to_start > dist_to_end else False
+        sorted_lines = (sorted(_lines, key=lambda x: sum(e.length for e in x), reverse=True))
+        for l, line in enumerate(sorted_lines):
+            line_length = sum(e.length for e in line)
+            if line_length < DOOR_WIDTH:
+                continue
+            if _check_corner(line, start=True):
+                return sorted_lines[l], True
+            if _check_corner(line, start=False):
+                return sorted_lines[l], False
+        return sorted_lines[0], True
 
     # gets contact edges between both spaces
     contact_edges = [edge for edge in space.edges if edge.pair in circulation_space.edges]
+
     # reorders contact_edges
     start_index = 0
     for i, edge in enumerate(contact_edges):
@@ -200,24 +190,24 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
             lines[-1].append(edge)
         else:
             lines.append([edge])
-    contact_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
+
+    inside = False if space.category.name in ["toilet", "bathroom"] else True
+    if not inside:
+        for l, line in enumerate(lines):
+            lines[l] = [e.pair for e in reversed(line)]
+
+    # contact_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
+    contact_line, start = _get_door_position(lines)
     contact_length = contact_line[0].start.distance_to(contact_line[-1].end)
 
     door_edges = []
     if contact_length < DOOR_WIDTH:
         door_edges.append(contact_line[0])
     else:
-        door_edges = get_door_edges(contact_line, start=_start_side(contact_line))
+        door_edges = get_door_edges(contact_line[:], start=start)
 
-    # determines opening sense
-    # opens outside of ["toilet", "bathroom", "kitchen"], else inside room
-
-    # start_side = _start_side(contact_line)
-    # start_vertex = door_edges[0].start if start_side else door_edges[-1].end
-
-    if space.category.name in ["toilet", "bathroom"]:
-        door_edges = [d_e.pair for d_e in reversed(door_edges)]
-        # door_edges = [d_e.pair for d_e in door_edges]
+    # if space.category.name in ["toilet", "bathroom"]:
+    #    door_edges = [d_e.pair for d_e in reversed(door_edges)]
 
     # set linear
     door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
@@ -229,10 +219,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
 
 def plot(plan: 'Plan', save: bool = True):
     """
-    plots plan with circulation paths
+    plots plan with doors
     :return:
     """
-
     ax = plan.plot(save=False)
     number_of_levels = plan.floor_count
     for level in range(number_of_levels):
@@ -350,8 +339,8 @@ if __name__ == '__main__':
         print("ENTER DOOR PROCESS")
         bool_place_single_door = False
         if bool_place_single_door:
-            cat1 = "bedroom"
-            cat2 = "circulation"
+            cat1 = "toilet"
+            cat2 = "livingKitchen"
             space1 = list(sp for sp in plan.spaces if
                           sp.category.name == cat1)[0]
             space2 = list(sp for sp in plan.spaces if
@@ -364,5 +353,5 @@ if __name__ == '__main__':
         plot(plan)
 
 
-    # plan_name = "005.json"
+    # plan_name = "002.json"
     main(input_file=plan_name)
