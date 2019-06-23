@@ -1,0 +1,14 @@
+<lcgdict>
+    <selection>
+        <class pattern="operations_research::*"/>
+        <class pattern="gtl::*"/>
+        <class pattern="absl::*"/>
+    </selection>
+    <exclusion>
+        <class pattern="*thread_mutex*" />
+        <class pattern="*new_allocator*" />
+        <class pattern="*Alloc_hider*" />
+        <class pattern="std::*" />
+        <class pattern="__gnu_cxx::*" />
+    </exclusion>
+</lcgdict>
