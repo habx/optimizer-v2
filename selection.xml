@@ -1,8 +1,6 @@
 <lcgdict>
     <selection>
         <class pattern="operations_research::*"/>
-        <class pattern="gtl::*"/>
-        <class pattern="absl::*"/>
     </selection>
     <exclusion>
         <class pattern="*thread_mutex*" />
