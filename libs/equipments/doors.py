@@ -26,9 +26,7 @@ epsilon = 2
 
 # TODO
 # -deal with intersecting doors
-# =>starts with smallest rooms and when adding new doors check for existing linears for intersection check
-# deal with door intersectnig other linears
-# checks there is enough space to open the door
+# intersection with other linears rather than doors only?
 # some more rules
 # if we have the choice, opens room on entrance rather than corridor except for water rooms :
 # to be opened as close as possible to the doors
@@ -242,10 +240,12 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
             end_point = _contact_line[-1].end.coords
             start_point = move_point(end_point, door_vect, -DOOR_WIDTH)
         door_poly = _get_linear_poly(start_point, end_point)
+        door_poly_reverse = _get_linear_poly(end_point, start_point)
 
         sp_door = space.plan.get_space_of_edge(_contact_line[0])
+        sp_door_pair = space.plan.get_space_of_edge(_contact_line[0].pair)
 
-        if not sp_door.as_sp.contains(door_poly):
+        if not sp_door_pair.as_sp.contains(door_poly_reverse):
             # the door cannot completely open in the space
             return False
 
@@ -257,6 +257,7 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
             linear_poly = _get_linear_poly(list(linear.edges)[0].start.coords,
                                            list(linear.edges)[-1].end.coords)
             if linear_poly.intersects(door_poly):
+                # the door intersects another door
                 return False
         return True
 
@@ -465,5 +466,5 @@ if __name__ == '__main__':
         plot(plan)
 
 
-    plan_name = "013.json"
+    plan_name = "009.json"
     main(input_file=plan_name)
