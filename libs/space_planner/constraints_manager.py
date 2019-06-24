@@ -1335,12 +1335,12 @@ def min_perimeter_length(manager: 'ConstraintsManager',
     """
     min_length = {
         "bedroom": 210,
-        "living": 350,
-        "livingKitchen": 350,
-        "dining": 210,
+        "living": 340,
+        "livingKitchen": 340,
+        "dining": 240,
         "study": 210,
-        "kitchen": 200,
-        "entrance": 100,
+        "kitchen": 160,
+        "entrance": 120,
     }
     ct = None
 
