@@ -34,10 +34,14 @@ epsilon = 2
 
 
 def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
-    adjacent_spaces = [adj for adj in space.adjacent_spaces()
-                       if adj.category.circulation
-                       and sum([e.length for e in space.edges if e.pair in adj.edges])
-                       > DOOR_WIDTH - DOOR_WIDTH_TOLERANCE]
+    """
+    get all circulation spaces adjacent to space with adjacent min adjacent length
+    :param space:
+    :return:
+    """
+    adjacent_spaces = [adj for adj in
+                       space.adjacent_spaces(length=DOOR_WIDTH - DOOR_WIDTH_TOLERANCE)
+                       if adj.category.circulation]
     return adjacent_spaces
 
 
@@ -46,10 +50,22 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
 ##### selection rules
 
 def select_circulation_spaces(space: 'Space') -> List['Space']:
+    """
+    get all circulation spaces adjacent to space with adjacent min adjacent length
+    :param space:
+    :return:
+    """
     return get_adjacent_circulation_spaces(space)
 
 
 def select_preferential_circulation_space(space: 'Space') -> List['Space']:
+    """
+    get entrance if entrance is adjacent to space,
+    else adjacent corridors
+    else an adjacent circulation space if any
+    :param space:
+    :return:
+    """
     adjacent_circulation_spaces = get_adjacent_circulation_spaces(space)
     if not adjacent_circulation_spaces:
         return []
@@ -65,15 +81,33 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
     return [adjacent_circulation_spaces[0]]
 
 
-def bathroom_proximity(space):
+def bathroom_proximity(space: 'Space') -> List['Space']:
+    """
+    selects circulation space adjacent to space and having maximum number of contact with bathrooms
+    :param space:
+    :return:
+    """
     return room_proximity(space, "bathroom")
 
 
-def bedroom_proximity(space):
+def bedroom_proximity(space: 'Space') -> List['Space']:
+    """
+    selects circulation space adjacent to space and having maximum number of contact with bedroom
+    :param space:
+    :return:
+    """
     return room_proximity(space, "bedroom")
 
 
-def room_proximity(space, cat_name):
+def room_proximity(space: 'Space', cat_name: str) -> List['Space']:
+    """
+    selects circulation space adjacent to space and having maximum number of contact with rooms of
+    category name cat_name
+    :param space:
+    :param cat_name:
+    :return:
+    """
+
     def _get_nb_of_adjacent_cat(_space, _cat_name):
         return len([sp for sp in _space.adjacent_spaces() if sp.category.name is cat_name])
 
@@ -110,14 +144,9 @@ def place_doors(plan: 'Plan'):
     """
     Places the doors in the plan
     Process:
-    -for circulation spaces,
-        *place doors between the space and adjacent corridors if any
-        *place a door between the space and the entrance if it is adjacent
-        *else place a door with any adjacent circulation space
-    -for non circulation spaces:
-        *place a door between the space and a corridor if any
-        *else place a door between the space and the entrance if it is adjacent
-        *else place a door with any adjacent circulation space
+    -for each room, selection of the spaces the room has to open on
+    -for each couple of space between which a door has to be set, selection of the optimal
+    door position
     :param plan:
     :return:
     """
@@ -128,22 +157,24 @@ def place_doors(plan: 'Plan'):
         :param _space:
         :return:
         """
+
         if _space.category.name == "entrance":
             return
         if _space.category.name == "circulation":
             return
 
         if _space.category.name in space_selection_rules:
-            list_door_spaces = space_selection_rules[_space.category.name](_space)
+            # rooms for which specific rules are designed
+            list_openning_spaces = space_selection_rules[_space.category.name](_space)
         elif _space.category.circulation:
-            list_door_spaces = space_selection_rules["default_circulation"](_space)
+            list_openning_spaces = space_selection_rules["default_circulation"](_space)
         else:
-            list_door_spaces = space_selection_rules["default_non_circulation"](_space)
+            list_openning_spaces = space_selection_rules["default_non_circulation"](_space)
 
-        for d_sp in list_door_spaces:
-            place_door_between_two_spaces(_space, d_sp)
+        for openning_space in list_openning_spaces:
+            place_door_between_two_spaces(_space, openning_space)
 
-    # treat mutable spaces starting with smallest - which are the most constrained
+    # treat mutable spaces in ascending area order - smallest spaces are are the most constrained
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area, reverse=True)
 
@@ -157,7 +188,7 @@ def place_doors(plan: 'Plan'):
 
 def along_corner(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
-    checks that the door would open along a wall
+    checks that the door would open along a wall or not
     :param contact_line:
     :param space:
     :param start:
@@ -192,7 +223,7 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
                        move_point(_start_point, linear_vect_ortho, 1),
                        ]
         poly = geometry.Polygon([[p[0], p[1]] for p in poly_points])
-        #return poly.buffer(-epsilon)
+        # return poly.buffer(-epsilon)
         return poly.centroid.buffer(DOOR_WIDTH / 3)
         # return poly
 
@@ -213,9 +244,10 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
         # not possible to access the door
         return False
     if not sp_door.as_sp.contains(door_poly):
-        # the door cannot completely open in the space
+        # the door cannot completely open in the reception space
         return False
 
+    # checks that the door does not intersect another door
     other_doors = [linear for linear in sp_door.plan.linears if
                    linear.category.name is 'door' and sp_door.has_linear(linear)]
     for other_door in other_doors:
@@ -227,11 +259,18 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
     return True
 
 
-def distant_from_linear(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
-    return True
+# TODO :
+# def distant_from_linear(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+#     return True
 
 
 def door_width(contact_line: List['Edge'], *_):
+    """
+    checks there is contact_line is long enough for a door to be placed
+    :param contact_line:
+    :param _:
+    :return:
+    """
     length = sum(e.length for e in contact_line)
     return length > DOOR_WIDTH - epsilon
 
@@ -306,9 +345,17 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
     """
 
     def _get_portion_score(_space: 'Space', _line: List['Edge'], _start: bool) -> int:
+        """
+        gets the score of the contact portion
+        :param _space:
+        :param _line:
+        :param _start:
+        :return:
+        """
         score = 0
         for score_func in door_position_rules["imperative"]:
             if not score_func(_line, _space, _start):
+                # if an imperative constraint is not satisfied, zero score
                 return 0
         score += sum(
             score_func(_line, _space, _start) for score_func in
@@ -316,6 +363,13 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
         return score
 
     def _kept_portion(_space: Space, _lines: List[List['Edge']], start: bool) -> Tuple:
+        """
+        selection of the best contact portion to place door
+        :param _space:
+        :param _lines:
+        :param start:
+        :return:
+        """
         score = 0
         line = _lines[0]
         for _l, _line in enumerate(_lines):
@@ -328,6 +382,7 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
     longest_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
     longest_length = sum(e.length for e in longest_line)
     if longest_length <= DOOR_WIDTH:
+        # no optimal placement
         return longest_line, True
 
     sorted_lines = sorted(lines, key=lambda x: sum(e.length for e in x))
@@ -335,6 +390,7 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
     line_end, score_end = _kept_portion(space, sorted_lines, start=False)
 
     if score_end == score_start == 0:
+        # no optimal placement
         return longest_line, True
 
     if score_end > score_start:
@@ -345,8 +401,9 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
 
 def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
-    places a door between space1 and space2
-
+    places a door between space and circulation_space
+    process :
+    gets the straight contact portions between both spaces
     :param space:
     :param circulation_space:
     :return:
@@ -372,6 +429,7 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
             lines.append([edge])
 
     # door arbitrarily opens on the inside for toilets and bathroom
+    # TODO : more generic rule should be applied
     inside = False if space.category.name in ["toilet", "bathroom"] else True
     if not inside:
         for l, line in enumerate(lines):
@@ -381,6 +439,7 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     contact_length = contact_line[0].start.distance_to(contact_line[-1].end)
 
     if contact_length < DOOR_WIDTH:
+        # the door is placed on the whole portion
         door_edges = contact_line
     else:
         door_edges = get_door_edges(contact_line[:], start=start)
@@ -396,7 +455,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
 
 def plot(plan: 'Plan', save: bool = True):
     """
-    plots plan with doors
+    plots plan with door
+    :param plan:
+    :param save:
     :return:
     """
     ax = plan.plot(save=False)
