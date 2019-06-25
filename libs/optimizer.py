@@ -97,6 +97,7 @@ class ExecParams:
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
+        self.nb_processes = params.get('nb_processes', 2)
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
@@ -136,9 +137,9 @@ class Optimizer:
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
             if (extension in (".tif", ".tiff",
-                             ".jpeg", ".jpg", ".jif", ".jfif",
-                             ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                              ".jpeg", ".jpg", ".jif", ".jfif",
+                              ".jp2", ".jpx", ".j2k", ".j2c",
+                              ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
                     or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
@@ -253,11 +254,11 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params,
-                                                                      processes=2)
+                                                                      processes=params.nb_processes)
                     if params.do_plot:
                         sol.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:
