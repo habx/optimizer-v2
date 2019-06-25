@@ -32,6 +32,80 @@ epsilon = 2
 # to be opened as close as possible to the doors
 # ATTENTION : ajout - faire en sorte
 
+
+def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
+    adjacent_spaces = [adj for adj in space.adjacent_spaces()
+                       if adj.category.circulation
+                       and sum([e.length for e in space.edges if e.pair in adj.edges])
+                       > DOOR_WIDTH - DOOR_WIDTH_TOLERANCE]
+    return adjacent_spaces
+
+
+###############################################
+
+##### selection rules
+
+def select_circulation_spaces(space: 'Space') -> List['Space']:
+    return get_adjacent_circulation_spaces(space)
+
+
+def select_preferential_circulation_space(space: 'Space') -> List['Space']:
+    adjacent_circulation_spaces = get_adjacent_circulation_spaces(space)
+    if not adjacent_circulation_spaces:
+        return []
+
+    entrances = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'entrance']
+    if entrances:
+        return entrances
+
+    corridors = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'circulation']
+    if corridors:
+        return corridors
+
+    return [adjacent_circulation_spaces[0]]
+
+
+def bathroom_proximity(space):
+    return room_proximity(space, "bathroom")
+
+
+def bedroom_proximity(space):
+    return room_proximity(space, "bedroom")
+
+
+def room_proximity(space, cat_name):
+    def _get_nb_of_adjacent_cat(_space, _cat_name):
+        return len([sp for sp in _space.adjacent_spaces() if sp.category.name is cat_name])
+
+    adjacent_circulation_spaces = get_adjacent_circulation_spaces(space)
+    if not adjacent_circulation_spaces:
+        return []
+
+    corridor = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'circulation']
+    entrance = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'entrance']
+
+    if not corridor and not entrance:
+        return [adjacent_circulation_spaces[0]]
+    if not corridor:
+        return [entrance[0]]
+    if not entrance:
+        return [corridor[0]]
+
+    if _get_nb_of_adjacent_cat(corridor[0], cat_name) >= _get_nb_of_adjacent_cat(entrance[0],
+                                                                                 cat_name):
+        return [corridor[0]]
+    else:
+        return [entrance[0]]
+
+
+space_selection_rules = {
+    "default_circulation": select_circulation_spaces,
+    "default_non_circulation": select_preferential_circulation_space,
+    "bedroom": bathroom_proximity,
+    "bathroom": bedroom_proximity,
+}
+
+
 def place_doors(plan: 'Plan'):
     """
     Places the doors in the plan
@@ -59,80 +133,116 @@ def place_doors(plan: 'Plan'):
         if _space.category.name == "circulation":
             return
 
-        adjacent_circulation_spaces = [adj for adj in _space.adjacent_spaces()
-                                       if adj.category.circulation
-                                       and sum(
-                [e.length for e in _space.edges if
-                 e.pair in adj.edges]) > DOOR_WIDTH - DOOR_WIDTH_TOLERANCE]
-
-        # if not adjacent_circulation_spaces:
-        #    # TODO : this should not happen
-        #    adjacent_circulation_spaces = [adj for adj in _space.adjacent_spaces() if
-        #                                   adj.category.circulation]
-
-        circulation_spaces = [sp for sp in adjacent_circulation_spaces if
-                              sp.category.name in ["circulation"]]
-        entrance_spaces = [sp for sp in adjacent_circulation_spaces if
-                           sp.category.name in ["entrance"]]
-
-        list_door_spaces = []
-        if _space.category.circulation:
-            list_door_spaces = entrance_spaces + circulation_spaces
-            if not list_door_spaces and adjacent_circulation_spaces:
-                list_door_spaces = [adjacent_circulation_spaces[0]]
+        if _space.category.name in space_selection_rules:
+            list_door_spaces = space_selection_rules[_space.category.name](_space)
+        elif _space.category.circulation:
+            list_door_spaces = space_selection_rules["default_circulation"](_space)
         else:
-            if circulation_spaces:
-                list_door_spaces = circulation_spaces
-            elif entrance_spaces:
-                list_door_spaces = entrance_spaces
-            elif adjacent_circulation_spaces:
-                list_door_spaces = [adjacent_circulation_spaces[0]]
+            list_door_spaces = space_selection_rules["default_non_circulation"](_space)
 
         for d_sp in list_door_spaces:
             place_door_between_two_spaces(_space, d_sp)
 
-    # def _open_space(_space: 'Space'):
-    #     """
-    #     place necessary doors on _space border
-    #     :param _space:
-    #     :return:
-    #     """
-    #     if _space.category.name == "entrance":
-    #         return
-    #     if _space.category.name == "circulation":
-    #         return
-    #
-    #     adjacent_circulation_spaces = [adj for adj in _space.adjacent_spaces() if
-    #                                    adj.category.circulation]
-    #
-    #     circulation_spaces = [sp for sp in adjacent_circulation_spaces if
-    #                           sp.category.name in ["circulation"]]
-    #     entrance_spaces = [sp for sp in adjacent_circulation_spaces if
-    #                        sp.category.name in ["entrance"]]
-    #
-    #     if _space.category.circulation:
-    #         for entrance_space in entrance_spaces:
-    #             place_door_between_two_spaces(_space, entrance_space)
-    #         for circulation_space in circulation_spaces:
-    #             place_door_between_two_spaces(_space, circulation_space)
-    #         if not entrance_spaces and not circulation_spaces and adjacent_circulation_spaces:
-    #             place_door_between_two_spaces(_space, adjacent_circulation_spaces[0])
-    #     else:
-    #         for circulation_space in circulation_spaces:
-    #             place_door_between_two_spaces(_space, circulation_space)
-    #             return
-    #         for entrance_space in entrance_spaces:
-    #             place_door_between_two_spaces(_space, entrance_space)
-    #             return
-    #         if adjacent_circulation_spaces:
-    #             place_door_between_two_spaces(_space, adjacent_circulation_spaces[0])
-
     # treat mutable spaces starting with smallest - which are the most constrained
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
-                            key=lambda x: x.area)
+                            key=lambda x: x.area, reverse=True)
 
     for mutable_space in mutable_spaces:
         _open_space(mutable_space)
+
+
+###############################################
+
+##### door rules
+
+def along_corner(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+    """
+    checks that the door would open along a wall
+    :param contact_line:
+    :param space:
+    :param start:
+    :return:
+    """
+    sp = space.plan.get_space_of_edge(contact_line[0])
+    if start:
+        if ccw_angle(contact_line[0].vector, sp.previous_edge(contact_line[0]).vector) > 180:
+            return True
+        return False
+    else:
+        if ccw_angle(sp.next_edge(contact_line[-1]).vector, contact_line[-1].vector) > 180:
+            return True
+        return False
+
+
+def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+    """
+    checks the door can open on 90 deg without intersecting another door or a wall
+    :param contact_line:
+    :param space:
+    :param start:
+    :return:
+    """
+
+    def _get_linear_poly(_start_point: Tuple, _end_point: Tuple):
+        linear_vect = [_end_point[0] - _start_point[0], _end_point[1] - _start_point[1]]
+        linear_vect_ortho = [-linear_vect[1], linear_vect[0]]
+        poly_points = [_start_point,
+                       _end_point,
+                       move_point(_end_point, linear_vect_ortho, 1),
+                       move_point(_start_point, linear_vect_ortho, 1),
+                       ]
+        poly = geometry.Polygon([[p[0], p[1]] for p in poly_points])
+        #return poly.buffer(-epsilon)
+        return poly.centroid.buffer(DOOR_WIDTH / 3)
+        # return poly
+
+    door_vect = contact_line[0].unit_vector
+    if start:
+        start_point = contact_line[0].start.coords
+        end_point = move_point(start_point, door_vect, DOOR_WIDTH)
+    else:
+        end_point = contact_line[-1].end.coords
+        start_point = move_point(end_point, door_vect, -DOOR_WIDTH)
+    door_poly = _get_linear_poly(start_point, end_point)
+    door_poly_reverse = _get_linear_poly(end_point, start_point)
+
+    sp_door = space.plan.get_space_of_edge(contact_line[0])
+    sp_door_pair = space.plan.get_space_of_edge(contact_line[0].pair)
+
+    if not sp_door_pair.as_sp.contains(door_poly_reverse):
+        # not possible to access the door
+        return False
+    if not sp_door.as_sp.contains(door_poly):
+        # the door cannot completely open in the space
+        return False
+
+    other_doors = [linear for linear in sp_door.plan.linears if
+                   linear.category.name is 'door' and sp_door.has_linear(linear)]
+    for other_door in other_doors:
+        linear_poly = _get_linear_poly(list(other_door.edges)[0].start.coords,
+                                       list(other_door.edges)[-1].end.coords)
+        if linear_poly.intersects(door_poly):
+            # the door intersects another door
+            return False
+    return True
+
+
+def distant_from_linear(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+    return True
+
+
+def door_width(contact_line: List['Edge'], *_):
+    length = sum(e.length for e in contact_line)
+    return length > DOOR_WIDTH - epsilon
+
+
+door_position_rules = {
+    # "imperative": [door_space, door_width],
+    "imperative": [door_width, door_space],
+    # "non_imperative": [along_corner, distant_from_linear],
+    "non_imperative": [along_corner]
+    # "non_imperative": []
+}
 
 
 def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge']:
@@ -186,6 +296,53 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     return door_edges
 
 
+def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
+    """
+    gets the contact portion between both space where the door will stand, and whether the door
+    is at the beginning or end of this portion
+    :param space:
+    :param lines:
+    :return:
+    """
+
+    def _get_portion_score(_space: 'Space', _line: List['Edge'], _start: bool) -> int:
+        score = 0
+        for score_func in door_position_rules["imperative"]:
+            if not score_func(_line, _space, _start):
+                return 0
+        score += sum(
+            score_func(_line, _space, _start) for score_func in
+            door_position_rules["non_imperative"])
+        return score
+
+    def _kept_portion(_space: Space, _lines: List[List['Edge']], start: bool) -> Tuple:
+        score = 0
+        line = _lines[0]
+        for _l, _line in enumerate(_lines):
+            current_score = _get_portion_score(_space, _line, start)
+            if current_score > score:
+                line = _line
+                score = current_score
+        return line, score
+
+    longest_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
+    longest_length = sum(e.length for e in longest_line)
+    if longest_length <= DOOR_WIDTH:
+        return longest_line, True
+
+    sorted_lines = sorted(lines, key=lambda x: sum(e.length for e in x))
+    line_start, score_start = _kept_portion(space, sorted_lines, start=True)
+    line_end, score_end = _kept_portion(space, sorted_lines, start=False)
+
+    if score_end == score_start == 0:
+        return longest_line, True
+
+    if score_end > score_start:
+        return line_end, False
+
+    return line_start, True
+
+
 def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
     places a door between space1 and space2
@@ -194,96 +351,6 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     :param circulation_space:
     :return:
     """
-
-    def _check_corner(_contact_line: List['Edge'], _start: bool = True) -> bool:
-        """
-        checks that the door would open along a wall
-        :param _contact_line:
-        :param _start:
-        :return:
-        """
-        sp = space.plan.get_space_of_edge(_contact_line[0])
-        if _start:
-            if ccw_angle(_contact_line[0].vector, sp.previous_edge(_contact_line[0]).vector) > 180:
-                return True
-            return False
-        else:
-            if ccw_angle(sp.next_edge(_contact_line[-1]).vector, _contact_line[-1].vector):
-                return True
-            return False
-
-    def _check_door_space(_contact_line: List['Edge'], _start: bool = True) -> bool:
-        """
-        checks the door can open on 90 deg without intersecting another door or a wall
-        :param _contact_line:
-        :param _start:
-        :return:
-        """
-
-        def _get_linear_poly(_start_point: Tuple, _end_point: Tuple):
-            linear_vect = [_end_point[0] - _start_point[0], _end_point[1] - _start_point[1]]
-            linear_vect_ortho = [-linear_vect[1], linear_vect[0]]
-            poly_points = [_start_point,
-                           _end_point,
-                           move_point(_end_point, linear_vect_ortho, 1),
-                           move_point(_start_point, linear_vect_ortho, 1),
-                           ]
-            poly = geometry.Polygon([[p[0], p[1]] for p in poly_points])
-            return poly.buffer(-5)
-            # return poly
-
-        door_vect = _contact_line[0].unit_vector
-        if _start:
-            start_point = _contact_line[0].start.coords
-            end_point = move_point(start_point, door_vect, DOOR_WIDTH)
-        else:
-            end_point = _contact_line[-1].end.coords
-            start_point = move_point(end_point, door_vect, -DOOR_WIDTH)
-        door_poly = _get_linear_poly(start_point, end_point)
-        door_poly_reverse = _get_linear_poly(end_point, start_point)
-
-        sp_door = space.plan.get_space_of_edge(_contact_line[0])
-        sp_door_pair = space.plan.get_space_of_edge(_contact_line[0].pair)
-
-        if not sp_door_pair.as_sp.contains(door_poly_reverse):
-            # the door cannot completely open in the space
-            return False
-
-        # sp_door_linears = [linear for linear in sp_door.plan.linears
-        #                   if sp_door.has_linear(linear)]
-        other_doors = [linear for linear in sp_door.plan.linears if
-                       linear.category.name is 'door' and sp_door.has_linear(linear)]
-        for linear in other_doors:
-            linear_poly = _get_linear_poly(list(linear.edges)[0].start.coords,
-                                           list(linear.edges)[-1].end.coords)
-            if linear_poly.intersects(door_poly):
-                # the door intersects another door
-                return False
-        return True
-
-    def _get_door_position(_lines: List[List['Edge']]) -> Tuple:
-        """
-        gets the contact portion between both space where the door will stand, and if the door
-        is at the beginning or end of this portion
-        :param _lines:
-        :return:
-        """
-        longest_line = sorted(_lines, key=lambda x: sum(e.length for e in x))[-1]
-        longest_length = sum(e.length for e in longest_line)
-        if longest_length <= DOOR_WIDTH:
-            return longest_line, True
-
-        sorted_lines = (sorted(_lines, key=lambda x: sum(e.length for e in x), reverse=True))
-        for _l, _line in enumerate(sorted_lines):
-            line_length = sum(e.length for e in _line)
-            if line_length < DOOR_WIDTH:
-                continue
-            if _check_corner(_line, _start=True) and _check_door_space(_line, _start=True):
-                return sorted_lines[_l], True
-            if _check_corner(_line, _start=False) and _check_door_space(_line, _start=False):
-                return sorted_lines[_l], False
-
-        return sorted_lines[-1], True
 
     # gets contact edges between both spaces
     contact_edges = [edge for edge in space.edges if edge.pair in circulation_space.edges]
@@ -304,22 +371,19 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         else:
             lines.append([edge])
 
+    # door arbitrarily opens on the inside for toilets and bathroom
     inside = False if space.category.name in ["toilet", "bathroom"] else True
     if not inside:
         for l, line in enumerate(lines):
             lines[l] = [e.pair for e in reversed(line)]
 
-    # contact_line = sorted(lines, key=lambda x: sum(e.length for e in x))[-1]
-    contact_line, start = _get_door_position(lines)
+    contact_line, start = get_door_position(space, lines)
     contact_length = contact_line[0].start.distance_to(contact_line[-1].end)
 
     if contact_length < DOOR_WIDTH:
         door_edges = contact_line
     else:
         door_edges = get_door_edges(contact_line[:], start=start)
-
-    # if space.category.name in ["toilet", "bathroom"]:
-    #    door_edges = [d_e.pair for d_e in reversed(door_edges)]
 
     # set linear
     door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
