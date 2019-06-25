@@ -453,7 +453,7 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         door.add_edge(door_edge)
 
 
-def plot(plan: 'Plan', save: bool = True):
+def door_plot(plan: 'Plan', save: bool = True):
     """
     plots plan with door
     :param plan:
@@ -588,7 +588,7 @@ if __name__ == '__main__':
         else:
             place_doors(plan)
         # plan.plot()
-        plot(plan)
+        door_plot(plan)
 
 
     plan_name = "009.json"
