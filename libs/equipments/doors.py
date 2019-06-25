@@ -25,13 +25,9 @@ epsilon = 2
 
 
 # TODO
-# -deal with intersecting doors
-# intersection with other linears rather than doors only?
-# some more rules
-# if we have the choice, opens room on entrance rather than corridor except for water rooms :
-# to be opened as close as possible to the doors
-# ATTENTION : ajout - faire en sorte
-
+# deal with intersection with other linears rather than doors only?
+# DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
+# more generic rule for openning inside/outside a room
 
 def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -224,6 +220,7 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
                        ]
         poly = geometry.Polygon([[p[0], p[1]] for p in poly_points])
         # return poly.buffer(-epsilon)
+        #TODO : a buffer of poly would be more adapted
         return poly.centroid.buffer(DOOR_WIDTH / 3)
         # return poly
 
@@ -561,15 +558,10 @@ if __name__ == '__main__':
 
     def main(input_file: str):
 
-        # TODO : à reprendre
-        # * 61 : wrong corridor shape
-
         out = get_plan(input_file)
         plan = out[0]
         spec = out[1]
         plan.name = input_file[:-5]
-
-        # corridor = Corridor(layer_width=25, nb_layer=5)
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
