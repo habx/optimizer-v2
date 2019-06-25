@@ -4,26 +4,18 @@ Evaluation Module
 Contains the function used to evaluate the fitness of an individual
 An evaluation function should take an individual
 
-We use a composition factory:
-ex.
-my_evaluation_func = compose([fc_score_area(spec), score_corner, score_bounding_box)
-
-TODO : • when no entrance -> front_door must go to living or livingKitchen
-       • penalize rooms with holes
-
 """
 import math
 import logging
 from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
-from libs.space_planner.circulation import Circulator
+from libs.plan.category import SPACE_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space
-    from libs.mesh.mesh import Edge
+    from libs.plan.plan import Space, Floor
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
@@ -56,12 +48,11 @@ def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
     output = {}
     spec_items = _spec.items[:]
     for sp in _spec.plan.mutable_spaces():
-        corresponding_items = list(filter(lambda i: i.category.name == sp.category.name,
-                                          spec_items))
+        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
         # Note : corridors have no corresponding spec item
         best_item = min(corresponding_items,
                         key=lambda i: math.fabs(i.required_area - sp.cached_area()), default=None)
-        if sp.category.name != "circulation":
+        if sp.category is not SPACE_CATEGORIES["circulation"]:
             assert best_item, "Score: Each space should have a corresponding item in the spec"
         output[sp.id] = best_item
         if best_item is not None:
@@ -93,50 +84,15 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     :param ind
     :return:
     """
-    excluded_spaces = ("circulation",)  # circulation space have no target areas in the spec
+    min_areas = {
+        SPACE_CATEGORIES["bedroom"]: 90000.0,
+        SPACE_CATEGORIES["bathroom"]: 30000.0,
+        SPACE_CATEGORIES["toilet"]: 10000.0,
+        "default": 10000.0
+    }
+    min_size_penalty = 1000.0
+
     space_to_item = ind.fitness.cache.get("space_to_item", None)
-
-    # Create a corridor if needed and check which spaces are modified
-    circulator = Circulator(plan=ind, spec=spec)
-    circulator.connect(space_to_item, _score_space_area)
-    edge_paths: Dict[int, List[List['Edge']]] = circulator.paths['edge']
-    edge_direction = circulator.directions
-
-    modified_spaces = {}
-    for level in ind.levels:
-        for line in edge_paths[level]:
-            for edge in line:
-                _edge = edge if edge_direction[level][edge] > 0 else edge.pair
-                space = ind.get_space_of_edge(_edge)
-                if not space:
-                    logging.warning("Refiner: Path Edge has no space :%s", _edge)
-                    continue
-                if space in modified_spaces:
-                    modified_spaces[space].append(_edge)
-                else:
-                    modified_spaces[space] = [_edge]
-
-    # compute the removed area for each modified space
-    # Note : the area of two rotated rectangle of same depth and sharing a corner is equal to :
-    #         tan(90.0 - angle / 2 * pi / 180.0) * depth**2
-
-    depth = 90.0
-    removed_areas = {}
-    for space in modified_spaces:
-        previous_e = modified_spaces[space][0]
-        removed_area = previous_e.length * depth
-        for e in modified_spaces[space][1:]:
-            if e is not space.next_edge(previous_e):
-                removed_area += e.length * depth
-                previous_e = e
-                continue
-            angle = space.next_angle(previous_e)
-            if pseudo_equal(angle, 180.0, 5.0):  # for performance purpose
-                shared_area = 0
-            else:
-                shared_area = math.tan(math.pi/180 * (90.0 - angle / 2)) * depth**2
-            removed_area += e.length * depth - shared_area
-        removed_areas[space] = removed_area
 
     area_score = {}
     if spec is None:
@@ -146,11 +102,18 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
-            area_score[space.id] = space.cached_area()/100.0
+        if space.category is SPACE_CATEGORIES["circulation"]:
+            # area_score[space.id] = _score_space_area(space.cached_area(),
+            # min_circulation_size, min_circulation_size) / 10.0
+            area_score[space.id] = 0
             continue
         item = space_to_item[space.id]
-        space_area = space.cached_area() - removed_areas[space] if space in removed_areas else 0
+        space_area = space.cached_area()
+
+        if space_area < min_areas.get(space.category, min_areas["default"]):
+            area_score[space.id] = min_size_penalty
+            continue
+
         area_score[space.id] = _score_space_area(space_area, item.min_size.area, item.max_size.area)
 
     return area_score
@@ -167,10 +130,13 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0.0
             continue
-        score[space.id] = number_of_corners(space)
+        # score[space.id] = number_of_corners(space)
+        score[space.id] = space.number_of_corners() - 4.0
+        if space.has_holes:
+            score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
     return score
 
 
@@ -181,6 +147,10 @@ def number_of_corners(space: 'Space') -> int:
     :param space:
     :return:
     """
+    if not space.edge:
+        logging.warning("Refiner: Space with no edge found : %s", space)
+        return 0
+
     corner_min_angle = 20.0
     num_corners = 0
     previous_corner = False
@@ -213,13 +183,15 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation", "living", "livingKitchen")
+    ratios = {
+        SPACE_CATEGORIES["circulation"]: 5.0,
+        SPACE_CATEGORIES["livingKitchen"]: 0.5,
+        SPACE_CATEGORIES["living"]: 0.5,
+        "default": 1.0
+    }
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
-            continue
-        if space.category.name in excluded_spaces:
-            score[space.id] = 0.0
             continue
         if space.cached_area() == 0:
             score[space.id] = 100
@@ -227,8 +199,8 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
         box = space.bounding_box()
         box_area = box[0] * box[1]
         area = space.cached_area()
-        space_score = math.fabs((area - box_area) / area) * 100.0
-        score[space.id] = space_score
+        space_score = ((area - box_area) / area)**2 * 100.0
+        score[space.id] = space_score * ratios.get(space.category, ratios["default"])
 
     return score
 
@@ -239,13 +211,13 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation",)
+    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
+        if space.category in excluded_spaces:
             score[space.id] = 0
             continue
         if space.cached_area() == 0:
@@ -264,7 +236,6 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
     :param ind:
     :return:
     """
-    excluded_spaces = ("circulation",)
     ratios = {
         "bedroom": 1.2,
         "toilet": 1.7,
@@ -272,14 +243,23 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
         "entrance": 1.7,
         "default": 1.5
     }
+    circulation_min_width = 80.0
+    circulation_max_width = 110.0
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.category.name in excluded_spaces:
-            score[space.id] = 0
-            continue
         box = space.bounding_box()
+        # different rule for circulation we look for a specific width
+        if space.category is SPACE_CATEGORIES["circulation"]:
+            if circulation_min_width <= min(box) <= circulation_max_width:
+                score[space.id] = 0
+            elif circulation_min_width > min(box):
+                # we add a ten times penalty because a narrow corridor can not be tolerated
+                score[space.id] = ((circulation_min_width - min(box))/circulation_min_width) * 10
+            elif circulation_max_width < min(box):
+                score[space.id] = ((min(box) - circulation_max_width) / circulation_max_width)
+            continue
         space_ratio = max(box)/min(box)
         ratio = ratios.get(space.category.name, ratios["default"])
         if space_ratio >= ratio:
@@ -297,64 +277,71 @@ def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :param ind:
     :return:
     """
-    min_length = 90.0
-    cost_per_unconnected_space = 1.0
+    min_length = 80.0
+    penalty = 1.0  # per unconnected space
     score = {}
 
     front_door = list(ind.get_linears("frontDoor"))[0]
-    front_door_space = ind.get_space_of_edge(front_door.edge)
-    connected_circulation_spaces = [front_door_space]
-    score[front_door_space.id] = 0.0
+    starting_steps = list(ind.get_linears("startingStep")) if ind.has_multiple_floors else []
+    for floor in ind.floors.values():
+        if floor is not front_door.floor:
+            starting_step = [ss for ss in starting_steps if ss.floor is floor][0]
+            root_space = ind.get_space_of_edge(starting_step.edge)
+        else:
+            root_space = ind.get_space_of_edge(front_door.edge)
 
-    circulation_spaces = list(ind.circulation_spaces())
-    if front_door_space in circulation_spaces:
-        circulation_spaces.remove(front_door_space)
-    # for simplicity we estimate that at maximum a circulation space is connected
-    # to the front door through 3 others spaces.
-    for _ in range(3):
-        for circulation_space in circulation_spaces[:]:
-            for connected_space in connected_circulation_spaces:
-                if circulation_space.adjacent_to(connected_space, 90.0):
-                    # we place the newly found spaces at the beginning of the array
-                    connected_circulation_spaces.insert(0, circulation_space)
-                    circulation_spaces.remove(circulation_space)
-                    score[circulation_space.id] = 0.0
-                    break
+        floor_score = _score_floor_connectivity(ind, floor, root_space, min_length, penalty)
+        score.update(floor_score)
 
-    for unconnected_space in circulation_spaces:
-        score[unconnected_space.id] = cost_per_unconnected_space
+    return score
+
+
+def _score_floor_connectivity(ind: 'Individual',
+                              floor: 'Floor',
+                              root_space: 'Space',
+                              min_length: float = 80.0,
+                              penalty: float = 1.0) -> Dict[int, float]:
+    """
+    Scores the connectivity of a given floor
+    :return:
+    """
+    score = {}
+    connected_spaces = [root_space]
+    score[root_space.id] = 0.0
+
+    circulation_spaces = [s for s in ind.circulation_spaces() if s.floor is floor]
+    if root_space in circulation_spaces:
+        circulation_spaces.remove(root_space)
+    unconnected_spaces = circulation_spaces[:]
+    for connected_space in connected_spaces:
+        for unconnected_space in unconnected_spaces[:]:
+            if unconnected_space.adjacent_to(connected_space, min_length):
+                # we place the newly found spaces at the beginning of the array
+                connected_spaces.append(unconnected_space)
+                unconnected_spaces.remove(unconnected_space)
+                score[unconnected_space.id] = 0.0
+        if not unconnected_spaces:
+            break
+
+    for unconnected_space in unconnected_spaces:
+        score[unconnected_space.id] = penalty
+
+    circulation_spaces.append(root_space)
 
     for space in ind.mutable_spaces():
-        if space.category.circulation or space is front_door_space:
+        # only check the connectivity of the space of the floor
+        if space.floor is not floor:
             continue
-
-        found_adjacency = False
-        for edge in space.exterior_edges:
-            if edge.pair.face is None:
-                continue
-            other = ind.get_space_of_edge(edge.pair)
-            if not other or other not in connected_circulation_spaces:
-                continue
-            # forward check
-            shared_length = edge.length
-            for e in space.siblings(edge):
-                if e is edge:
-                    continue
-                if other.has_edge(e.pair):
-                    shared_length += e.length
-
-            # backward check
-            for e in other.siblings(edge.pair):
-                if e is edge.pair:
-                    continue
-                if space.has_edge(e.pair):
-                    shared_length += e.length
-
-            if shared_length >= min_length:
-                found_adjacency = True
+        # no need to check the root space or the circulation space
+        if space.category.circulation or space is root_space:
+            continue
+        # check if a circulation is adjacent to the space
+        for circulation_space in circulation_spaces:
+            if circulation_space.adjacent_to(space, min_length):
+                score[space.id] = 0.0
                 break
-
-        score[space.id] = cost_per_unconnected_space if not found_adjacency else 0.0
+        else:
+            score[space.id] = penalty
 
     return score
 
@@ -368,15 +355,28 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     """
     min_width = 90.0
     score = {}
+    circulation_categories = (
+        SPACE_CATEGORIES["entrance"],
+        SPACE_CATEGORIES["circulation"],
+        # SPACE_CATEGORIES["livingKitchen"],
+        # SPACE_CATEGORIES["living"]
+    )
+
     for space in ind.mutable_spaces():
-        if space.category.name != "circulation":
+        if not space.edge:
+            score[space.id] = 0.0
+            continue
+        if space.category not in circulation_categories:
             score[space.id] = 0.0
             continue
         if space.id not in ind.modified_spaces:
             continue
         polygon = space.boundary_polygon()
         width = min_section(polygon)
-        score[space.id] = math.fabs((width - min_width)/min_width)*100.0
+        if width > min_width:
+            score[space.id] = 0
+        else:
+            score[space.id] = (min_width - width)/min_width*100.0
 
     return score
 

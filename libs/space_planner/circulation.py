@@ -11,7 +11,7 @@ TODO : deal with load bearing walls by defining locations where they can be cros
 import logging
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable
+from typing import TYPE_CHECKING, Dict, List, Tuple, Any, Type, Union, Optional, Callable, Set
 
 from libs.io.plot import plot_save
 from libs.utils.graph import GraphNx, EdgeGraph
@@ -24,10 +24,29 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
 
 PathsDict = Dict[str, Dict[int, List[List[Union['Vertex', 'Edge']]]]]
+
 DirectionsDict = Dict[int, Dict['Edge', float]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
 
 CORRIDOR_WIDTH = 90
+PENALTY = 1000
+
+
+class PathInfo:
+    """
+    class storing information on the circulation path
+    """
+
+    def __init__(self, edge_path: List[Tuple['Edge', float]] = None,
+                 departure_space: List['Space'] = None,
+                 arrival_spaces: List['Space'] = None,
+                 departure_penetration: Optional['Edge'] = None,
+                 arrival_penetration: Optional['Edge'] = None):
+        self.edge_path = edge_path or []
+        self.departure_space = departure_space or []
+        self.arrival_spaces = arrival_spaces or []
+        self.departure_penetration = departure_penetration
+        self.arrival_penetration = arrival_penetration
 
 
 class CostRules(Enum):
@@ -70,11 +89,13 @@ class Circulator:
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
         self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
-        self.paths_info = []
-        self.updated_areas = {space: space.cached_area() for space in self.plan.spaces if
-                              space.mutable}
+
+        self.paths_info: List[PathInfo] = []
 
         self.cost = 0
+
+        self._updated_areas = {space: space.cached_area() for space in self.plan.spaces if
+                               space.mutable}
         self._reachable_edges = {space: [] for space in self.plan.spaces}
         self._path_calculator = PathCalculator(plan=self.plan, cost_rules=cost_rules)
         self._path_calculator.build()
@@ -93,6 +114,51 @@ class Circulator:
         self._add_all_other_spaces()
         self._set_directions(space_items_dict, score_function)
         self._set_penetrations()
+        self._remove_redundant_paths()
+
+    def _remove_redundant_paths(self):
+        """
+        removes redundant paths from self.paths_info
+        path_i is considered to be redundant with path_j if the list of rooms connected by
+        path_i is included in the list of rooms connected by path_j
+        :return:
+        """
+
+        def _get_connected_rooms(_edge_path: List['Edge'], _path_info: PathInfo) -> Set:
+            """
+            gets the set of rooms connected by _edge_path
+            :param _edge_path:
+            :param _path_info:
+            :return:
+            """
+            connected_rooms = []
+            for edge in edge_path:
+                sp = self.plan.get_space_of_edge(edge)
+                sp_pair = self.plan.get_space_of_edge(edge.pair)
+                if sp and sp.mutable:
+                    connected_rooms.append(sp)
+                if sp_pair and sp_pair.mutable:
+                    connected_rooms.append(sp_pair)
+            for room in _path_info.departure_space:
+                connected_rooms = connected_rooms + [room] if room else connected_rooms
+            for room in _path_info.arrival_spaces:
+                connected_rooms = connected_rooms + [room] if room else connected_rooms
+            return set(connected_rooms)
+
+        list_tuple_connected_rooms = []
+        for p, path_info in enumerate(self.paths_info):
+            edge_path = [t[0] for t in path_info.edge_path]
+            # index of the path_info is stored for later removal
+            list_tuple_connected_rooms.append((p, _get_connected_rooms(edge_path, path_info)))
+
+        # tuples sorted by sets length
+        list_tuple_connected_rooms.sort(key=lambda t: len(t[1]))
+        # redundant paths removal
+        for i, tuple_i in enumerate(list_tuple_connected_rooms[:-1]):
+            for j, tuple_j in enumerate(list_tuple_connected_rooms[i + 1:]):
+                if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
+                    del (self.paths_info[tuple_i[0]])
+                    break
 
     def _set_penetrations(self):
         """
@@ -106,7 +172,7 @@ class Circulator:
             if a penetration in the space is needed to ensure a proper circulation,
             returns the edge through which the path should penetrate in the space
             :param _tuple:
-            :param _spaces:
+            :param _spaces: the start spaces or the end spaces
             :param start:
             :return:
             """
@@ -124,25 +190,24 @@ class Circulator:
 
             for _space in _spaces:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
-                    penetration_edge = connecting_edge.aligned_edge or connecting_edge.continuous_edge
+                    penetration_edge = (connecting_edge.aligned_edge
+                                        or connecting_edge.continuous_edge)
                     if start:
                         penetration_edge = penetration_edge.pair
                     return penetration_edge
             return None
 
-        for connection_dict in self.paths_info:
-            current_path = connection_dict['edge_path']
+        for path_info in self.paths_info:
+            current_path = path_info.edge_path
             if not current_path:
                 continue
 
-            connection_dict["start_penetration"] = _get_penetration_edge(current_path[0],
-                                                                         connection_dict[
-                                                                             'start_space'])
+            path_info.departure_penetration = _get_penetration_edge(current_path[0],
+                                                                    path_info.departure_space)
 
-            connection_dict["end_penetration"] = _get_penetration_edge(current_path[-1],
-                                                                       connection_dict[
-                                                                           'arrival_spaces'],
-                                                                       start=False)
+            path_info.arrival_penetration = _get_penetration_edge(current_path[-1],
+                                                                  path_info.arrival_spaces,
+                                                                  start=False)
 
     def _set_directions(self,
                         space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
@@ -295,18 +360,25 @@ class Circulator:
                         # connected_room is no longer isolated
                         self._space_graph.add_edge(connected_room, node)
 
-    def _add_path(self, path: List['Vertex'], start_space: 'Space',
-                  arrival_space: 'Space') -> List['Space']:
+    def _add_path(self, path: List['Vertex'], departure_space: 'Space',
+                  arrival_space: 'Space', link_to_existing_path: bool = False) -> List['Space']:
         """
         update based on computed circulation path
         :return: the list of spaces connected by path
         """
 
-        level = start_space.floor.level
-        edge_path = self._get_edge_path(path)
-        self.paths['edge'][level].append(edge_path)
+        level = departure_space.floor.level
 
         connected_rooms = []  # will contain the list of rooms connected by the path
+
+        edge_path = self._get_edge_path(path)
+        if not path or not edge_path:
+            return connected_rooms
+
+        # TODO : this attribute should no longer be usefull, to be suppressed
+        self.paths['edge'][level].append(edge_path)
+
+        # update list of rooms
         for e in edge_path:
             connected = self.plan.get_space_of_edge(e)
             if connected and connected not in connected_rooms and connected.mutable:
@@ -314,9 +386,6 @@ class Circulator:
             connected = self.plan.get_space_of_edge(e.pair)
             if connected and connected not in connected_rooms and connected.mutable:
                 connected_rooms.append(connected)
-
-        if not path:
-            return connected_rooms
 
         path_end = path[-1]
         terminal_room = None
@@ -337,9 +406,21 @@ class Circulator:
         if terminal_room and not self._space_graph.node_connected(terminal_room):
             arrival_spaces.append(terminal_room)
 
-        path_dict = {'edge_path': [(e, 0) for e in edge_path], 'start_space': [start_space],
-                     'arrival_spaces': arrival_spaces}
-        self.paths_info.append(path_dict)
+        if link_to_existing_path:
+            # case when the path links an isolated path to an already existing circulation path
+            connection_vert = path[-1]
+            for path_info in self.paths_info:
+                if path_info.edge_path[0][0].start is connection_vert:
+                    complementary_edge_path = [(e, 0) for e in edge_path]
+                    path_info.edge_path = complementary_edge_path + path_info.edge_path
+                    path_info.departure_space = [departure_space]
+                    return connected_rooms
+
+        path_info = PathInfo(edge_path=[(e, 0) for e in edge_path],
+                             departure_space=[departure_space],
+                             arrival_spaces=arrival_spaces)
+
+        self.paths_info.append(path_info)
 
         return connected_rooms
 
@@ -374,7 +455,7 @@ class Circulator:
         connected_rooms = []
         if path_min is not None:
             arrival_space = connected_room if not link_to_existing_path else None
-            connected_rooms = self._add_path(path_min, space, arrival_space)
+            connected_rooms = self._add_path(path_min, space, arrival_space, link_to_existing_path)
             self.cost += cost_min
 
         if connected_room not in connected_rooms:
@@ -415,7 +496,7 @@ class Circulator:
 
         return best_item
 
-    def _set_growing_direction(self, path_info: Dict,
+    def _set_growing_direction(self, path_info: PathInfo,
                                space_items_dict: Optional[Dict[int, Optional['Item']]] = None,
                                score_function: ScoreArea = score_space_area):
         """
@@ -467,6 +548,7 @@ class Circulator:
             computes the area of each space amputated when a corridor of the path grows on it
             TODO : we should also check the depth of the space to ensure we will not split
                    the space in half by creating the corridor
+            adds penalty if the growth would separate a duct from a water room that needs it
             :param area_space:
             :param path_line:
             :param pair:
@@ -474,13 +556,32 @@ class Circulator:
             :param _score_function
             :return:
             """
+
+            def _needs_duct(_sp: 'Space'):
+                """
+                checks if space needs a duct
+                :param _sp:
+                :return:
+                """
+                if list(needed_space for needed_space in _sp.category.needed_spaces if
+                        needed_space.name == 'duct'):
+                    return True
+                return False
+
+            spaces_requiring_ducts = [s for s in self.plan.spaces if s.mutable and _needs_duct(s)]
+
             score = 0
-
             path_line_selected = [e.pair for e in path_line] if pair else path_line
-
             for e in path_line_selected:
                 sp = self.plan.get_space_of_edge(e)
                 area_space[sp] -= e.length * CORRIDOR_WIDTH
+                if sp in spaces_requiring_ducts:
+                    sp_duct_edges_after_growth = [d_e for d_e in sp.edges if
+                                                  d_e.pair in self.plan.category_edges('duct')
+                                                  and d_e not in e.face.edges]
+                    if not sp_duct_edges_after_growth:
+                        # water room separated from its only duct
+                        score += PENALTY
 
             for sp in area_space:
                 item = (space_item_dict[sp.id] if space_item_dict
@@ -514,7 +615,7 @@ class Circulator:
                     return -1.0
                 else:
                     # area_space_ccw[space_ccw] = space_ccw.cached_area()
-                    area_space_ccw[space_ccw] = self.updated_areas[space_ccw]
+                    area_space_ccw[space_ccw] = self._updated_areas[space_ccw]
 
                 # cw side
                 space_cw = self.plan.get_space_of_edge(e.pair)
@@ -522,7 +623,7 @@ class Circulator:
                     return 1.0
                 else:
                     # area_space_cw[space_cw] = space_cw.cached_area()
-                    area_space_cw[space_cw] = self.updated_areas[space_cw]
+                    area_space_cw[space_cw] = self._updated_areas[space_cw]
 
             score_cw = _get_score(area_space_cw, path_line, pair=True,
                                   space_item_dict=space_item_dict, _score_function=_score_function)
@@ -532,8 +633,9 @@ class Circulator:
             return 1.0 if score_ccw < score_cw else -1.0
 
         #####
-        path_lines = _get_lines_of_path([t[0] for t in path_info["edge_path"]])
-        level = path_info["start_space"][0].floor.level
+
+        path_lines = _get_lines_of_path([t[0] for t in path_info.edge_path])
+        level = path_info.departure_space[0].floor.level
         edge_path = []
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
@@ -543,8 +645,8 @@ class Circulator:
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair
                 space_overlapped = self.plan.get_space_of_edge(support_edge)
-                self.updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
-        path_info["edge_path"] = edge_path
+                self._updated_areas[space_overlapped] -= support_edge.length * CORRIDOR_WIDTH
+        path_info.edge_path = edge_path
         return path_info
 
     def plot(self, show: bool = False, save: bool = True):
@@ -558,9 +660,9 @@ class Circulator:
         number_of_floors = self.plan.floor_count
 
         for path_info in self.paths_info:
-            level = path_info["start_space"][0].floor.level
+            level = path_info.departure_space[0].floor.level
             _ax = ax[level] if number_of_floors > 1 else ax
-            for tup in path_info["edge_path"]:
+            for tup in path_info.edge_path:
                 edge = tup[0]
                 edge.plot(ax=_ax, color='blue')
                 # representing the growing direction
@@ -741,7 +843,7 @@ if __name__ == '__main__':
         plan.plot()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
 
-        return space_planner.apply_to(spec), space_planner
+        return space_planner.apply_to(spec, 3), space_planner
 
 
     def connect_plan():

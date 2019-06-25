@@ -20,7 +20,6 @@ from typing import (
     Any,
     Iterable
 )
-from functools import reduce
 import logging
 import uuid
 
@@ -142,7 +141,7 @@ class Space(PlanComponent):
     • a ref to its parent plan
     """
 
-    __slots__ = '_edges_id', '_faces_id'
+    __slots__ = '_edges_id', '_faces_id', '_cached_immutable_components'
 
     def __init__(self,
                  plan: 'Plan',
@@ -154,6 +153,7 @@ class Space(PlanComponent):
         self._edges_id = [edge.id] if edge else []
         self._faces_id = [edge.face.id] if edge and edge.face else []
         self.category = category
+        self._cached_immutable_components = []
 
     def serialize(self) -> Dict:
         """
@@ -1081,7 +1081,7 @@ class Space(PlanComponent):
                     break
             else:
                 self.plan.plot()
-                raise Exception("This should never happen!!")
+                raise Exception("This should never happen!! %s | %s", self, face)
             self.remove_face_id(face.id)
             self._clean_hole_disappearance()
             return [self]
@@ -1208,6 +1208,7 @@ class Space(PlanComponent):
         space_edges = []
         seen = []
         self._edges_id = []
+        found_exterior_edge = False
         for face in self.faces:
             for edge in face.edges:
                 if edge in seen:
@@ -1224,13 +1225,17 @@ class Space(PlanComponent):
                     previous_edge = self.previous_edge(ref_edge)
                     det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
                     if det < 0:  # counter clockwise
+                        if found_exterior_edge:
+                            self.plan.plot()
+                            raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
                         self._edges_id = [edge.id] + self._edges_id
+                        found_exterior_edge = True
                     else:  # clockwise
                         self.add_edge(edge)
 
                     space_edges = list(self.edges)
 
-        if not len(self._edges_id):
+        if not len(self._edges_id) or not found_exterior_edge:
             raise ValueError("The space is badly shaped: {}".format(self))
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
@@ -1315,11 +1320,13 @@ class Space(PlanComponent):
             return True
         return False
 
-    def corner_stone(self, *faces: 'Face') -> bool:
+    def corner_stone(self, *faces: 'Face', min_adjacency_length: Optional[float] = None) -> bool:
         """
         Checks if the removal of a list of connected faces will split the space.
+        Per convention : we also return True if we try to remove all the faces from the space.
         NOTE : it is expected that the faces are all connected
         :param faces:
+        :param min_adjacency_length
         :return:
         """
         assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
@@ -1327,50 +1334,10 @@ class Space(PlanComponent):
             assert self.has_face(f), ("Space: Corner Stone, the faces "
                                       "provided must belong to the space: {}".format(f))
 
-        # case 1 : if we are trying to remove all the faces of the space
-        if self.number_of_faces == len(faces):
-            logging.debug("Space: Corner Stone : Trying to remove all the faces of the space: "
-                          "{}".format(self))
+        remaining_faces = set(self.faces) - set(faces)
+        if not bool(remaining_faces):
             return True
-
-        faces = list(set(faces))
-        faces_edges = reduce(lambda a, b: a + b, [list(face.edges) for face in faces])
-
-        # remove internal edges of the face cluster
-        internal_edges = [e for e in faces_edges if e.pair in faces_edges]
-        for e in internal_edges:
-            faces_edges.remove(e)
-
-        # case 2 : fully enclosing face cluster
-        for edge in self.exterior_edges:
-            if edge not in faces_edges:
-                break
-        else:
-            return False
-
-        # case 3 : standard case
-        # find all the faces adjacent to the removed faces
-        adjacent_faces = [e.pair.face for e in faces_edges if self.has_face(e.pair.face)]
-        if len(adjacent_faces) == 1:
-            return False
-
-        # temporarily remove the faces from the self
-        list(map(lambda _f: self.remove_face_id(_f.id), faces))
-
-        # we must check to see if we split the other_self by removing the face
-        # for each adjacent face inside the other_self check if they are still connected
-        adjacent_face = adjacent_faces[0]
-
-        for connected_face in self.connected_faces(adjacent_face):
-            # try to reach the other adjacent faces
-            if connected_face in adjacent_faces:
-                adjacent_faces.remove(connected_face)
-
-        adjacent_faces.remove(adjacent_face)
-
-        list(map(lambda _f: self.add_face_id(_f.id), faces))
-
-        return len(adjacent_faces) != 0
+        return Mesh.connected(list(remaining_faces), min_adjacency_length)
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """
@@ -1662,24 +1629,23 @@ class Space(PlanComponent):
 
         return immutable_associated
 
+    @property
+    def cached_immutable_components(self) -> ['PlanComponent']:
+        """
+        property
+        Returns the cached components associated to the space
+        :return:
+        """
+        if self._cached_immutable_components is None:
+            self._cached_immutable_components = self.immutable_components()
+        return self._cached_immutable_components
+
     def components_category_associated(self) -> [str]:
         """
         Return the name of the components associated to the space
         :return: [Plan Component name]
         """
         return [component.category.name for component in self.immutable_components()]
-
-    def neighboring_mutable_spaces(self) -> ['Space']:
-        """
-        Return the neighboring mutable spaces
-        :return: ['Space']
-        """
-        neighboring_spaces = []
-        for edge in self.edges:
-            if edge.pair.face is not None and edge.pair.face.space.category.mutable is True:
-                if not (edge.pair.face.space in neighboring_spaces):
-                    neighboring_spaces.append(edge.pair.face.space)
-        return neighboring_spaces
 
     def adjacent_to(self, other: 'Space', length: float = None) -> bool:
         """
@@ -1732,6 +1698,7 @@ class Space(PlanComponent):
     def contact_length(self, space: 'Space') -> float:
         """
         Returns the border's length between two spaces
+        Todo : this is wrong
         :return: float
         """
         border_length = 0
@@ -2313,9 +2280,7 @@ class Plan:
             self.floors[new_floor.id] = new_floor
 
     def __repr__(self):
-        output = 'Plan ' + self.name + ':'
-        for space in self.spaces:
-            output += space.__repr__() + ' | '
+        output = 'Plan: {}'.format(self.id)
         return output
 
     def get_id(self) -> int:
@@ -2353,7 +2318,7 @@ class Plan:
         :param other:
         :return:
         """
-        min_difference = 1000
+        min_difference = 500
         # check that both plan have the same meshes
         for _id, floor in self.floors.items():
             other_floor = other.get_floor_from_id(_id)
@@ -2384,6 +2349,7 @@ class Plan:
         :return:
         """
         output = {
+            "id": str(self.id),
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
@@ -2401,6 +2367,7 @@ class Plan:
         """
         self.clear()
         self.name = data["name"]
+        self.id = uuid.UUID(data["id"]) if "id" in data else uuid.uuid4()
 
         # add floors
         for floor in data["floors"]:

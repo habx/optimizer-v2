@@ -48,6 +48,7 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 def process_task(config: Config, td: TaskDefinition):
     processor = TaskProcessor(config)
     processor.prepare()
+    logging.getLogger().setLevel(logging.INFO)
     result = processor.process_task(td)
 
     exchanger = Exchanger(config)
