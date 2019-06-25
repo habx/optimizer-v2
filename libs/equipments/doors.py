@@ -28,6 +28,8 @@ epsilon = 2
 # deal with intersection with other linears rather than doors only?
 # DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
 # more generic rule for openning inside/outside a room
+# TODO : not to many doors in same region, even if they don't intersect
+# TODO : preferentially open on room diagonal
 
 def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -220,7 +222,7 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
                        ]
         poly = geometry.Polygon([[p[0], p[1]] for p in poly_points])
         # return poly.buffer(-epsilon)
-        #TODO : a buffer of poly would be more adapted
+        # TODO : a buffer of poly would be more adapted
         return poly.centroid.buffer(DOOR_WIDTH / 3)
         # return poly
 
@@ -257,8 +259,19 @@ def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -
 
 
 # TODO :
-# def distant_from_linear(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
-#     return True
+def distant_from_linear(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+    door_edge = contact_line[0] if start else contact_line[-1]
+    vert_door = door_edge.start if start else door_edge.end
+    linears = [linear for linear in space.plan.linears if not linear.edge in door_edge.line]
+    closest_linear = sorted(linears,
+                            key=lambda x: min(vert_door.distance_to(x.edge.start),
+                                              vert_door.distance_to(x.edge.end)))
+    if not closest_linear:
+        return True
+    d_min = min(vert_door.distance_to(closest_linear[0].edge.start),
+                vert_door.distance_to(closest_linear[0].edge.end))
+
+    return d_min > DOOR_WIDTH
 
 
 def door_width(contact_line: List['Edge'], *_):
@@ -273,11 +286,9 @@ def door_width(contact_line: List['Edge'], *_):
 
 
 door_position_rules = {
-    # "imperative": [door_space, door_width],
     "imperative": [door_width, door_space],
-    # "non_imperative": [along_corner, distant_from_linear],
-    "non_imperative": [along_corner]
-    # "non_imperative": []
+    #"non_imperative": [along_corner],
+    "non_imperative": [along_corner, distant_from_linear]
 }
 
 

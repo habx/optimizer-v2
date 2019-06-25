@@ -111,7 +111,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -992,7 +992,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 
 # corridor rules
-no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
+no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=True,
                              width=130, penetration_length=130)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
