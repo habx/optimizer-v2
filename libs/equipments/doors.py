@@ -326,7 +326,8 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         contact_line[0].start)) / end_edge.length
     if not 1 >= end_split_coeff >= 0:
         end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
-    door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
+    if end_edge.length > end_split_coeff * end_edge.length > 1:
+        door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
 
     if not start:
         door_edges = [e.pair for e in door_edges]
@@ -591,5 +592,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    plan_name = "009.json"
+    plan_name = "003.json"
     main(input_file=plan_name)
