@@ -17,6 +17,7 @@ from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
+from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 import libs.io.plot
 
@@ -253,6 +254,18 @@ class Optimizer:
                         sol.plan.plot()
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
+
+        # placing doors
+        t0_door = time.process_time()
+        if params.do_door:
+            logging.info("Door")
+            if best_solutions and space_planner:
+                for sol in best_solutions:
+                    place_doors(sol.plan)
+                    if params.do_plot:
+                        door_plot(sol.plan)
+        elapsed_times["door"] = time.process_time() - t0_door
+        logging.info("Door placement achieved in %f", elapsed_times["door"])
 
         # output
         t0_output = time.process_time()
