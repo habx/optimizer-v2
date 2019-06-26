@@ -81,7 +81,7 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
 
 def bathroom_proximity(space: 'Space') -> List['Space']:
     """
-    if space is connected to entrance or corridors, selects the circulation space adjacent to space
+    if space is connected to entrance or corridors, selects entrance/corridor adjacent to space
     and having maximum number of contact with bathrooms
     :param space:
     :return:
@@ -91,7 +91,7 @@ def bathroom_proximity(space: 'Space') -> List['Space']:
 
 def bedroom_proximity(space: 'Space') -> List['Space']:
     """
-    if space is connected to entrance or corridors, selects circulation space adjacent to space
+    if space is connected to entrance or corridors, selects entrance/corridor adjacent to space
     and having maximum number of contact with bedroom
     :param space:
     :return:
@@ -101,7 +101,7 @@ def bedroom_proximity(space: 'Space') -> List['Space']:
 
 def room_proximity(space: 'Space', cat_name: str) -> List['Space']:
     """
-    selects circulation space adjacent to space and having maximum number of contact with rooms of
+    selects circulation space with categroy name cat_name adjacent to space and having maximum number of contact with rooms of
     category name cat_name
     :param space:
     :param cat_name:
@@ -109,7 +109,7 @@ def room_proximity(space: 'Space', cat_name: str) -> List['Space']:
     """
 
     def _get_nb_of_adjacent_cat(_space, _cat_name):
-        return len([sp for sp in _space.adjacent_spaces() if sp.category.name is cat_name])
+        return len([sp for sp in _space.adjacent_spaces() if sp.category.name is _cat_name])
 
     adjacent_circulation_spaces = get_adjacent_circulation_spaces(space)
     if not adjacent_circulation_spaces:
@@ -165,14 +165,14 @@ def place_doors(plan: 'Plan'):
 
         if _space.category.name in space_selection_rules:
             # rooms for which specific rules are designed
-            list_openning_spaces = space_selection_rules[_space.category.name](_space)
+            list_opening_spaces = space_selection_rules[_space.category.name](_space)
         elif _space.category.circulation:
-            list_openning_spaces = space_selection_rules["default_circulation"](_space)
+            list_opening_spaces = space_selection_rules["default_circulation"](_space)
         else:
-            list_openning_spaces = space_selection_rules["default_non_circulation"](_space)
+            list_opening_spaces = space_selection_rules["default_non_circulation"](_space)
 
-        for openning_space in list_openning_spaces:
-            place_door_between_two_spaces(_space, openning_space)
+        for opening_space in list_opening_spaces:
+            place_door_between_two_spaces(_space, opening_space)
 
     # treat mutable spaces in ascending area order - smallest spaces are are the most constrained
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
@@ -486,7 +486,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
     places a door between space and circulation_space
     process :
-    gets the straight contact portions between both spaces
+    -gets the straight contact portions between both spaces
+    -scores each of them to determine door location
+    -add door linear at the determined location
     :param space:
     :param circulation_space:
     :return:
