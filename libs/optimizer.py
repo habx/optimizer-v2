@@ -82,13 +82,8 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {
-            "ngen": 60,
-            "mu": 40,
-            "cxpb": 0.9,
-            "processes": 8,
-            "hof": 0
-        }
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                          "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
