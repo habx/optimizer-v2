@@ -45,7 +45,7 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
 
 ###############################################
 
-##### selection rules
+##### selection rules : rules to determine for each space, which other space it shall open on
 
 def select_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -184,7 +184,7 @@ def place_doors(plan: 'Plan'):
 
 ###############################################
 
-##### door rules
+##### rules to determine optimal door placement
 
 def along_border(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
@@ -213,7 +213,7 @@ def along_border(contact_line: List['Edge'], space: 'Space', start: bool = True)
 
 def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
-    checks the door can open on 90 deg without intersecting another door or a wall
+    checks the door can open  without intersecting another door or a wall
     :param contact_line:
     :param space:
     :param start:
@@ -323,6 +323,8 @@ def cloth_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool
     :return:
     """
 
+    max_length = 400
+
     door_edge = contact_line[0] if start else contact_line[-1]
     space_pair = space.plan.get_space_of_edge(door_edge.pair)
     if space.category.name or space_pair.category.name in ['entrance', 'corridor']:
@@ -331,7 +333,7 @@ def cloth_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool
     front_door = [linear for linear in space.plan.linears if linear.category.name is 'frontDoor'][0]
     dist_to_front_door = door_edge.start.distance_to(front_door.edge.start)
 
-    return dist_to_front_door < 400
+    return dist_to_front_door < max_length
 
 
 def door_width(contact_line: List['Edge'], *_):
@@ -345,7 +347,7 @@ def door_width(contact_line: List['Edge'], *_):
     return length > DOOR_WIDTH - epsilon
 
 
-# scoring function for door placement
+# scoring functions for door placement
 # imperative refers to conditions that must be satisfied
 # non_imperative refers to conditions that are important for circulation quality but not required
 # cosmetic refers to less important conditions that improve the circulation quality
@@ -358,7 +360,7 @@ door_position_rules = {
 
 def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge']:
     """
-    determines edges of contact_line that will be door linears
+    determines edges of contact_line that will belong to the door, splits if needed
     The output list, door_edges, is a list of contiguous edges
     A door has width DOOR_WIDTH unless the length of contact_line is smaller
     :param contact_line:
@@ -410,21 +412,24 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     return door_edges
 
 
-def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
+def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['Edge'], bool]:
     """
-    gets the contact portion between both space where the door will stand, and whether the door
+    gets the straight contact portion between both space where the door will stand, and whether the door
     is at the beginning or end of this portion
     :param space:
-    :param lines:
+    :param lines: list of list of edges, each element is list of contiguous parallel edges,
+    straight portion of space on which the door may be placed
     :return:
     """
 
-    def _get_portion_score(_space: 'Space', _line: List['Edge'], _start: bool) -> int:
+    def _get_portion_score(_space: 'Space', _line: List['Edge'], _start: bool) -> float:
         """
         gets the score of the contact portion
         :param _space:
-        :param _line:
-        :param _start:
+        :param _line: list of contiguous parallel edges, straight portion of space on which the door
+         may be placed
+        :param _start: bool indicating whether we try to place the door at the beginning or end
+        of _line
         :return:
         """
 
@@ -445,13 +450,15 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple:
 
         return score
 
-    def _kept_portion(_space: Space, _lines: List[List['Edge']], start: bool) -> Tuple:
+    def _kept_portion(_space: Space, _lines: List[List['Edge']], start: bool) -> Tuple[
+        List['Edge'], float]:
         """
         selection of the best contact portion to place door
         :param _space:
         :param _lines:
         :param start:
-        :return:
+        :return: the best portion and a bool indicating where the door is placed in this portion
+        #TODO : add possibility to place door at the middle?
         """
         score = 0
         line = _lines[0]
