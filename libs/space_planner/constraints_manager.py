@@ -1358,7 +1358,7 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item:
     :return: ct: ortools.Constraint
     """
     ct = None
-    nbr_toilet = len([item for item in manager.sp.spec.items if item.category.name == "toilet"])
+    nbr_toilet = len([i_item for i_item in manager.sp.spec.items if i_item.category.name == "toilet"])
 
     if nbr_toilet >= manager.sp.spec.plan.floor_count and manager.multiplex_toilet_repartition_constraint_first_pass:
         manager.multiplex_toilet_repartition_constraint_first_pass = False
@@ -1367,22 +1367,21 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item:
             if i_item.category.name == "toilet":
                 item_floor = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
+                    item_floor = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor)
                 item_floors.append(item_floor)
         for floor in manager.sp.spec.plan.floors.values():
             ct_floor = None
             for i, i_floor in enumerate(item_floors):
                 if ct_floor is None:
-                    ct_floor = (i_floor == floor.level)
+                    ct_floor = (i_floor == (floor.level+10))
                 else:
-                    new_ct = (i_floor == floor.level)
+                    new_ct = (i_floor == (floor.level+10))
                     ct_floor = manager.solver.solver.Max(ct_floor, new_ct)
 
             if ct is None:
                 ct = ct_floor
             else:
-                ct = manager.solver.solver.Min(ct, ct_floor)
-        ct = ct == 1
+                ct = manager.solver.solver.Min(ct, ct_floor) == 1
 
     return ct
 
@@ -1394,7 +1393,7 @@ def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', ite
     :return: ct: ortools.Constraint
     """
     ct = None
-    nbr_bathroom = len([item for item in manager.sp.spec.items if item.category.name == "bathroom"])
+    nbr_bathroom = len([i_item for i_item in manager.sp.spec.items if i_item.category.name == "bathroom"])
 
     if nbr_bathroom >= manager.sp.spec.plan.floor_count and manager.multiplex_bathroom_repartition_constraint_first_pass:
         manager.multiplex_bathroom_repartition_constraint_first_pass = False
@@ -1402,37 +1401,35 @@ def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', ite
         item_floors_bed = []
         for i_item in manager.sp.spec.items:
             if i_item.category.name == "bathroom":
-                item_floor = 0
+                item_floor_bath = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
-                item_floors_bath.append(item_floor)
-            if i_item.category.name in ["bathroom", "study"]:
-                item_floor = 0
+                    item_floor_bath = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor_bath)
+                item_floors_bath.append(item_floor_bath)
+            if i_item.category.name in ["bedroom", "study"]:
+                item_floor_bed = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
-                item_floors_bed.append(item_floor)
+                    item_floor_bed = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor_bed)
+                item_floors_bed.append(item_floor_bed)
         for floor in manager.sp.spec.plan.floors.values():
             ct_floor_bath = None
-            for i, i_floor in enumerate(item_floors_bath):
+            for i_floor_bath in item_floors_bath:
                 if ct_floor_bath is None:
-                    ct_floor_bath = (i_floor == floor.level)
+                    ct_floor_bath = (i_floor_bath == (floor.level+10))
                 else:
-                    new_ct = (i_floor == floor.level)
-                    ct_floor_bath = manager.solver.solver.Max(ct_floor_bath, new_ct)
+                    new_ct_bath = (i_floor_bath == (floor.level+10))
+                    ct_floor_bath = manager.solver.solver.Max(ct_floor_bath, new_ct_bath)
 
             ct_floor_bed = None
-            for i, i_floor in enumerate(item_floors_bed):
+            for i_floor_bed in item_floors_bed:
                 if ct_floor_bed is None:
-                    ct_floor_bed = (i_floor == floor.level)
+                    ct_floor_bed = (i_floor_bed == (floor.level+10))
                 else:
-                    new_ct = (i_floor == floor.level)
-                    ct_floor_bed = manager.solver.solver.Max(ct_floor_bed, new_ct)
-
+                    new_ct_bed = (i_floor_bed == (floor.level+10))
+                    ct_floor_bed = manager.solver.solver.Max(ct_floor_bed, new_ct_bed)
             if ct is None:
                 ct = ct_floor_bath == ct_floor_bed
             else:
-                ct = manager.solver.solver.Min(ct, ct_floor_bath == ct_floor_bed)
-        ct = ct == 1
+                ct = manager.solver.solver.Min(ct, ct_floor_bath == ct_floor_bed)==1
 
     return ct
 
