@@ -40,6 +40,7 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
     adjacent_spaces = [adj for adj in
                        space.adjacent_spaces(length=DOOR_WIDTH - DOOR_WIDTH_TOLERANCE)
                        if adj.category.circulation]
+
     return adjacent_spaces
 
 
@@ -536,6 +537,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     else:
         door_edges = get_door_edges(contact_line[:], start=start)
 
+    if not door_edges:
+        return
+
     # set linear
     door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
 
@@ -575,8 +579,9 @@ def door_plot(plan: 'Plan', save: bool = True):
                 pt_end = (start_door_point[0] + 0.5 * (door_vect[0] + door_vect_ortho[0]),
                           start_door_point[1] + 0.5 * (door_vect[1] + door_vect_ortho[1]))
                 _ax.arrow(start_door_point[0], start_door_point[1],
-                          pt_end[0] - start_door_point[0],
-                          pt_end[1] - start_door_point[1])
+                         pt_end[0] - start_door_point[0],
+                         pt_end[1] - start_door_point[1])
+
 
     plot_save(save)
 
@@ -678,5 +683,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    plan_name = "056.json"
+    plan_name = "032.json"
     main(input_file=plan_name)
