@@ -25,11 +25,11 @@ epsilon = 2
 
 
 # TODO
-# deal with intersection with other linears rather than doors only?
-# DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
-# more generic rule for openning inside/outside a room
-# TODO : not to many doors in same region, even if they don't intersect
-# TODO : preferentially open on room diagonal
+# TODO DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
+# TODO more generic rule for openning inside/outside a room
+# TODO : preferentially opens on room larger diagonal
+# TODO : rooms are treating in ascending area order. First door placements may be in conflict with
+# further placements
 
 def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -278,7 +278,7 @@ def distant_from_door(contact_line: List['Edge'], space: 'Space', start: bool = 
     door_edge = contact_line[0] if start else contact_line[-1]
     vert_door = door_edge.start if start else door_edge.end
     doors = [linear for linear in space.plan.linears
-             if not linear.edge in door_edge.line
+             if not (linear.edge in door_edge.line or linear.edge.pair in door_edge.line)
              and linear.category.name is 'door']
     clothest_door = sorted(doors,
                            key=lambda x: min(vert_door.distance_to(x.edge.start),
@@ -302,7 +302,7 @@ def distant_from_linears(contact_line: List['Edge'], space: 'Space', start: bool
     door_edge = contact_line[0] if start else contact_line[-1]
     vert_door = door_edge.start if start else door_edge.end
     linears = [linear for linear in space.plan.linears
-               if not linear.edge in door_edge.line]
+               if not (linear.edge in door_edge.line or linear.edge.pair in door_edge.line)]
     clothest_linear = sorted(linears,
                              key=lambda x: min(vert_door.distance_to(x.edge.start),
                                                vert_door.distance_to(x.edge.end)))
@@ -653,10 +653,10 @@ if __name__ == '__main__':
         corridor.apply_to(plan, spec=spec, show=False)
 
         print("ENTER DOOR PROCESS")
-        bool_place_single_door = True
+        bool_place_single_door = False
         if bool_place_single_door:
-            cat1 = "bedroom"
-            cat2 = "livingKitchen"
+            cat1 = "livingKitchen"
+            cat2 = "circulation"
             space1 = list(sp for sp in plan.spaces if
                           sp.category.name == cat1)[0]
             space2 = list(sp for sp in plan.spaces if
@@ -669,5 +669,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    plan_name = "043.json"
+    plan_name = "056.json"
     main(input_file=plan_name)
