@@ -255,7 +255,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for i,sol in enumerate(best_solutions):
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params,
@@ -307,14 +307,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "048.json",
-            "048_setup0.json",
+            "032.json",
+            "032_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_refiner":True,
-                "do_door":True
+                "do_refiner": True,
+                "do_door": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
