@@ -329,7 +329,7 @@ def cloth_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool
         return True
 
     front_door = [linear for linear in space.plan.linears if linear.category.name is 'frontDoor'][0]
-    dist_to_front_door = min(door_edge.start.distance_to(front_door.edge.start))
+    dist_to_front_door = door_edge.start.distance_to(front_door.edge.start)
 
     return dist_to_front_door < 400
 
