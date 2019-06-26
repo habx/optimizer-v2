@@ -55,18 +55,6 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 random.seed(0)
 
 
-def initializer():
-    """
-    Used to initialize a seed for each process of the pool. We use the number of the process
-    as a seed. TODO : Not sure this is robust on every os.
-    :return:
-    """
-    # noinspection PyProtectedMember
-    # worker_id = multiprocessing.current_process()._identity[0]
-    logging.info("Setting up random seed %s", 0)
-    random.seed(0)
-
-
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
     Merges two adjacent corridors
@@ -197,7 +185,7 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = multiprocessing.Pool(processes, initializer).imap if processes > 1 else map
+        map_func = multiprocessing.Pool(processes).imap if processes > 1 else map
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
