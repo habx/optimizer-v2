@@ -992,7 +992,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 
 # corridor rules
-no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=True,
+no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
                              width=130, penetration_length=130)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
