@@ -62,6 +62,7 @@ class TaskDefinition:
 
         # Preferring blueprint to lot (as it describes more precisely what we are actually
         # processing.
+        td.task_id = data.get('taskId')
         td.blueprint = data.get('blueprint')
         if not td.blueprint:
             td.blueprint = data.get('lot')
