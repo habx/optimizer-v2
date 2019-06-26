@@ -458,7 +458,7 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['
         :param _lines:
         :param start:
         :return: the best portion and a bool indicating where the door is placed in this portion
-        #TODO : add possibility to place door at the middle?
+        #TODO : add possibility to place door in the middle?
         """
         score = 0
         line = _lines[0]
