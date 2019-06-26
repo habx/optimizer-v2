@@ -85,7 +85,9 @@ class ExecParams:
         refiner_params = {
             "ngen": 60,
             "mu": 40,
-            "cxpb": 0.9
+            "cxpb": 0.9,
+            "processes": 8,
+            "hof": 0
         }
 
         self.grid_type = params.get('grid_type', '002')
@@ -256,8 +258,7 @@ class Optimizer:
                 for sol in best_solutions:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params,
-                                                                      processes=2)
+                                                                      params.refiner_params)
                     if params.do_plot:
                         sol.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:

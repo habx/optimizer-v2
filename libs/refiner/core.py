@@ -344,7 +344,7 @@ class Individual(Plan):
 
 
 CloneFunc = Callable[['Individual'], 'Individual']
-MapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
+MapFunc = Callable[[Callable[[Any], Any], Iterator[Any], int], Iterator[Any]]
 SelectFunc = Callable[[List['Individual'], int], List['Individual']]
 MateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 EvaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
@@ -386,7 +386,7 @@ class Toolbox:
     def __init__(self):
         # operators
         self.clone: CloneFunc = _standard_clone
-        self.map: MapFunc = map
+        self.map: MapFunc = lambda f, p, _: map(f, p)
         self.mate:  Optional[MateFunc] = None
         self.select: Optional[SelectFunc] = None
         self.elite_select: Optional[SelectFunc] = None
@@ -452,7 +452,8 @@ class Toolbox:
     @staticmethod
     def evaluate_pop(map_func: MapFunc,
                      eval_func: EvaluateFunc,
-                     pop: Sequence['Individual']) -> None:
+                     pop: Sequence['Individual'],
+                     chunk_size: int) -> None:
         """
         Evaluates the fitness of a specified population. Note: the method has to be made static
         for multiprocessing purposes.
@@ -460,9 +461,10 @@ class Toolbox:
         :param eval_func: an evaluation function (NOTE: we cannot refer to self.evaluate for
                multiprocessing concerns)
         :param pop: a list of individuals
+        :param chunk_size: size of chunks for ma processes
         :return:
         """
-        fitnesses = map_func(eval_func, pop)
+        fitnesses = map_func(eval_func, pop, chunk_size)
         for ind, fit in zip(pop, fitnesses):
             ind.fitness.update(fit)
             ind.modified_spaces = set()

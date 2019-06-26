@@ -23,12 +23,12 @@ TODO :
 
 """
 import random
+import math
 import logging
 import multiprocessing
-
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
-from libs.plan.plan import Plan
 
+from libs.plan.plan import Plan
 from libs.refiner import (
     core,
     crossover,
@@ -62,9 +62,9 @@ def initializer():
     :return:
     """
     # noinspection PyProtectedMember
-    worker_id = multiprocessing.current_process()._identity[0]
-    logging.info("Setting up random seed %s", worker_id)
-    random.seed(worker_id)
+    # worker_id = multiprocessing.current_process()._identity[0]
+    logging.info("Setting up random seed %s", 0)
+    random.seed(0)
 
 
 def merge_adjacent_circulation(ind: 'Individual') -> None:
@@ -154,16 +154,15 @@ class Refiner:
     def apply_to(self,
                  plan: 'Plan',
                  spec: 'Specification',
-                 params: dict, processes: int = 1) -> 'Individual':
+                 params: dict) -> 'Individual':
         """
         Applies the refiner to the plan and returns the result.
         :param plan:
         :param spec:
         :param params: the parameters of the genetic algorithm (ex. cxpb, mupb etc.)
-        :param processes: number of process to spawn
         :return:
         """
-        results = self.run(plan, spec, params, processes)
+        results = self.run(plan, spec, params)
         output = max(results, key=lambda i: i.fitness.wvalue)
 
         # clean unnecessary circulation
@@ -175,20 +174,18 @@ class Refiner:
     def run(self,
             plan: 'Plan',
             spec: 'Specification',
-            params: dict,
-            processes: int = 1,
-            hof: int = 0) -> Union[List['core.Individual'], 'support.HallOfFame']:
+            params: dict) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
         :param plan:
         :param spec:
         :param params:
-        :param processes: The number of processes to fork (if equal to 1: no multiprocessing
-                          is used.
-        :param hof: number of individual to store in a hof. If hof > 0 then the output is the hof
         :return:
         """
+        processes = params.get("processes", 1)
+        hof = params.get("hof", 0)
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
+        chunk_size = math.ceil(params["mu"]/processes)
 
         # 1. create plan cache for performance reason
         for floor in plan.floors.values():
@@ -200,7 +197,7 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = multiprocessing.Pool(processes, initializer).map if processes > 1 else map
+        map_func = multiprocessing.Pool(processes, initializer).imap if processes > 1 else map
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -208,7 +205,7 @@ class Refiner:
         results = self._algorithm(toolbox, initial_ind, params, _hof)
 
         output = results if hof == 0 else _hof
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output, chunk_size)
         return output
 
 
@@ -350,10 +347,11 @@ def nsga_ga(toolbox: 'core.Toolbox',
     # algorithm parameters
     ngen = params["ngen"]
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    chunk_size = math.ceil(mu / params["processes"])
     initial_ind.all_spaces_modified()
     initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
     pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop, chunk_size)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -367,11 +365,12 @@ def nsga_ga(toolbox: 'core.Toolbox',
         offspring = [toolbox.clone(ind) for ind in offspring]
 
         # note : list is needed because map lazy evaluates
-        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
+                                    math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
@@ -405,10 +404,11 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     # algorithm parameters
     ngen = params["ngen"]
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    chunk_size = math.ceil(mu / params["processes"])
     initial_ind.all_spaces_modified()
     initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
     pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop, chunk_size)
 
     # This is just to assign the crowding distance to the individuals
     # no actual selection is done
@@ -425,11 +425,12 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         offspring = [toolbox.clone(ind) for ind in offspring]
 
         # note : list is needed because map lazy evaluates
-        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
+                        math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
 
         # Select the next generation population
         pop = toolbox.elite_select(pop + offspring, mu)
@@ -476,12 +477,13 @@ def naive_ga(toolbox: 'core.Toolbox',
     # algorithm parameters
     ngen = params["ngen"]
     mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
+    chunk_size = math.ceil(mu / params["processes"])
     initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
     initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
     logging.info("Initial : {:.2f} - {}".format(initial_ind.fitness.wvalue,
                                                 initial_ind.fitness.values))
     pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop)
+    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop, chunk_size)
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
@@ -491,11 +493,12 @@ def naive_ga(toolbox: 'core.Toolbox',
         random.shuffle(offspring)
 
         # note : list is needed because map lazy evaluates
-        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2])))
+        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
+                                    math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
 
         # best score
         best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
@@ -531,7 +534,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 60, "mu": 64, "cxpb": 0.5}
+        params = {"ngen": 60, "mu": 64, "cxpb": 0.5, "processes": 8, "hof": 10}
 
         logging.getLogger().setLevel(logging.DEBUG)
         plan_number = "013"  # 004 # 032
@@ -551,7 +554,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plans = REFINERS["space_nsga"].run(plan, spec, params, processes=4, hof=10)
+            improved_plans = REFINERS["space_nsga"].run(plan, spec, params)
             end = time.time()
             for improved_plan in improved_plans:
                 improved_plan.name = "Refined_" + plan_number
@@ -574,7 +577,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 80, "cxpb": 0.8, "max_tries": 10, "elite": 0.2}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 15, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "038"  # 049
@@ -594,7 +597,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params, processes=8)
+            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params)
             end = time.time()
 
             # display solution
