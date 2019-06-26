@@ -246,6 +246,9 @@ class ConstraintsManager:
             self.solver = ConstraintSolver(len(self.sp.spec.items),
                                            self.sp.spec.plan.count_mutable_spaces(),
                                            self.spaces_adjacency_matrix, True)
+
+        self.space_and_perimeter_adjacency_length = []
+        self._init_space_and_perimeter_adjacency_length()
         self.item_area = {}
         self._init_item_area()
         self.item_windows_area = {}
@@ -267,6 +270,8 @@ class ConstraintsManager:
         self.toilet_entrance_proximity_constraint_first_pass = True
         self.externals_connection_constraint_first_pass = True
         self.large_windows_constraint_first_pass = True
+        self.multiplex_toilet_repartition_constraint_first_pass = True
+        self.multiplex_bathroom_repartition_constraint_first_pass = True
 
         self.item_constraints = {}
         self.add_spaces_constraints()
@@ -421,6 +426,20 @@ class ConstraintsManager:
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
             enumerate(self.sp.spec.plan.mutable_spaces())]
 
+    def _init_space_and_perimeter_adjacency_length(self) -> None:
+        """
+        space and blueprint perimeter adjacency length
+        :return: None
+        """
+        for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+            self.space_and_perimeter_adjacency_length.append(0)
+            for edge in space.edges:
+                if (edge.pair.face is None or
+                    edge.pair in list(edge
+                                      for space in self.sp.spec.plan.spaces if space.category.external is True for edge in space.edges)):
+                    self.space_and_perimeter_adjacency_length[j] += edge.length
+            self.space_and_perimeter_adjacency_length[j] = int(round(self.space_and_perimeter_adjacency_length[j]))
+
     def add_spaces_constraints(self) -> None:
         """
         add spaces constraints
@@ -489,6 +508,9 @@ class ConstraintsManager:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.plan.floor_count > 1:
+                for constraint in DUPLEX_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
@@ -954,7 +976,8 @@ def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: It
     """
     ct = None
     toilet_entrance_proximity = 0
-    if manager.toilet_entrance_proximity_constraint_first_pass:
+    if (not manager.sp.spec.plan.has_multiple_floors and
+            manager.toilet_entrance_proximity_constraint_first_pass):
         for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
             for component in space.immutable_components():
                 if component in manager.duct_next_to_entrance:
@@ -1302,6 +1325,117 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+def min_perimeter_length(manager: 'ConstraintsManager',
+                                    item: Item) -> ortools.Constraint:
+    """
+    minimal intersection with blueprint perimeter
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    min_length = {
+        "bedroom": 210,
+        "living": 300,
+        "livingKitchen": 300,
+        "dining": 240,
+        "study": 210,
+        "kitchen": 160,
+        "entrance": 120,
+    }
+    ct = None
+
+    if not item.opens_on:
+        adjacency_sum = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * manager.space_and_perimeter_adjacency_length[j]
+                                                  for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+        ct = (adjacency_sum >= min_length[item.category.name])
+    return ct
+
+def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    multiplex_toilet_repartition_constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    nbr_toilet = len([item for item in manager.sp.spec.items if item.category.name == "toilet"])
+
+    if nbr_toilet >= manager.sp.spec.plan.floor_count and manager.multiplex_toilet_repartition_constraint_first_pass:
+        manager.multiplex_toilet_repartition_constraint_first_pass = False
+        item_floors = []
+        for i_item in manager.sp.spec.items:
+            if i_item.category.name == "toilet":
+                item_floor = 0
+                for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
+                item_floors.append(item_floor)
+        for floor in manager.sp.spec.plan.floors.values():
+            ct_floor = None
+            for i, i_floor in enumerate(item_floors):
+                if ct_floor is None:
+                    ct_floor = (i_floor == floor.level)
+                else:
+                    new_ct = (i_floor == floor.level)
+                    ct_floor = manager.solver.solver.Max(ct_floor, new_ct)
+
+            if ct is None:
+                ct = ct_floor
+            else:
+                ct = manager.solver.solver.Min(ct, ct_floor)
+        ct = ct == 1
+
+    return ct
+
+def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+    """
+    multiplex_bathroom_repartition_constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    nbr_bathroom = len([item for item in manager.sp.spec.items if item.category.name == "bathroom"])
+
+    if nbr_bathroom >= manager.sp.spec.plan.floor_count and manager.multiplex_bathroom_repartition_constraint_first_pass:
+        manager.multiplex_bathroom_repartition_constraint_first_pass = False
+        item_floors_bath = []
+        item_floors_bed = []
+        for i_item in manager.sp.spec.items:
+            if i_item.category.name == "bathroom":
+                item_floor = 0
+                for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
+                item_floors_bath.append(item_floor)
+            if i_item.category.name in ["bathroom", "study"]:
+                item_floor = 0
+                for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
+                    item_floor = manager.solver.solver.Max(manager.solver.positions[item.id, j] * space.floor.level, item_floor)
+                item_floors_bed.append(item_floor)
+        for floor in manager.sp.spec.plan.floors.values():
+            ct_floor_bath = None
+            for i, i_floor in enumerate(item_floors_bath):
+                if ct_floor_bath is None:
+                    ct_floor_bath = (i_floor == floor.level)
+                else:
+                    new_ct = (i_floor == floor.level)
+                    ct_floor_bath = manager.solver.solver.Max(ct_floor_bath, new_ct)
+
+            ct_floor_bed = None
+            for i, i_floor in enumerate(item_floors_bed):
+                if ct_floor_bed is None:
+                    ct_floor_bed = (i_floor == floor.level)
+                else:
+                    new_ct = (i_floor == floor.level)
+                    ct_floor_bed = manager.solver.solver.Max(ct_floor_bed, new_ct)
+
+            if ct is None:
+                ct = ct_floor_bath == ct_floor_bed
+            else:
+                ct = manager.solver.solver.Min(ct, ct_floor_bath == ct_floor_bed)
+        ct = ct == 1
+
+    return ct
+
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
         [inside_adjacency_constraint, {}],
@@ -1438,6 +1572,7 @@ T2_MORE_ITEMS_CONSTRAINTS = {
 T3_MORE_ITEMS_CONSTRAINTS = {
     "entrance": [
         [conditional_entrance_constraint, {}],
+        [min_perimeter_length, {}],
     ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
@@ -1448,14 +1583,37 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "living": [
         [externals_connection_constraint, {}],
-        [large_windows_constraint, {}]
+        [large_windows_constraint, {}],
+        [min_perimeter_length, {}],
     ],
     "livingKitchen": [
         [externals_connection_constraint, {}],
-        [large_windows_constraint, {}]
+        [large_windows_constraint, {}],
+        [min_perimeter_length, {}],
+    ],
+    "bedroom": [
+        [min_perimeter_length, {}],
+    ],
+    "study": [
+        [min_perimeter_length, {}],
+    ],
+    "dining": [
+        [min_perimeter_length, {}],
+    ],
+    "kitchen": [
+        [min_perimeter_length, {}],
     ],
     "laundry": [
         [non_isolated_item_constraint, {}],
     ]
 }
 
+DUPLEX_CONSTRAINTS = {
+    "toilet": [
+        [multiplex_toilet_repartition_constraint, {}],
+    ],
+    "bathroom": [
+        [multiplex_bathroom_repartition_constraint, {}],
+    ],
+
+}
