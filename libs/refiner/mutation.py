@@ -142,20 +142,18 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
-    # retrieve all the aligned edges
+    # retrieve all the aligned edges pairs and their space
     spaces_and_edges = map(lambda _e: (space.plan.get_space_of_edge(_e.pair), _e.pair),
                            space.aligned_siblings(edge, max_angle))
     # group edges by spaces
     edges_by_spaces = defaultdict(set)
     for other, _edge in spaces_and_edges:
-        if other is None:
+        if other is None or not other.mutable:
             continue
         edges_by_spaces[other].add(_edge)
 
     modified_spaces = [space]
     for other in edges_by_spaces:
-        if not other.mutable:
-            continue
 
         # remove all edges that have a needed linear for the space
         for e in edges_by_spaces[other].copy():
@@ -168,6 +166,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
                 edges_by_spaces[other].remove(e)
 
         if not edges_by_spaces[other]:
+            logging.debug("Refiner: Mutation: No more edges for space %s", other)
             continue
 
         # check if we are breaking the space if we remove the faces
@@ -225,9 +224,9 @@ def add_face(space: 'Space') -> List['Space']:
     logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
                   other_space)
 
-    created_spaces = other_space.remove_face(face)
+    other_space.remove_face(face)
     space.add_face(face)
-    return [space] + list(created_spaces)
+    return [space, other_space]
 
 
 def remove_aligned_faces(space: 'Space') -> List['Space']:
@@ -269,7 +268,6 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
 
     logging.debug("Removing aligned edges : %s from space %s", edges, space)
 
-    modified_spaces = [space]
     faces_by_spaces = defaultdict(set)
     faces = set(list(e.face for e in edges))
 
@@ -288,6 +286,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
+    modified_spaces = [space]
     for other in faces_by_spaces:
         if not other.mutable:
             continue
@@ -346,10 +345,10 @@ def remove_face(space: 'Space') -> List['Space']:
     logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
                   other_space)
 
-    created_spaces = space.remove_face(face)
+    space.remove_face(face)
     other_space.add_face(face)
 
-    return [other_space] + list(created_spaces)
+    return [other_space, space]
 
 
 """

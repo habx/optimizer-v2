@@ -818,7 +818,7 @@ class Space(PlanComponent):
         :param other:
         :return:
         """
-        shared_edges = (e for e in self.edges for other_e in other.edges if e.pair is other_e)
+        shared_edges = (e for e in self.edges if other.has_edge(e.pair))
         return sum(map(lambda e: e.length, shared_edges))
 
     @property

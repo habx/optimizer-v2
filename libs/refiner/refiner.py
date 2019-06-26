@@ -17,12 +17,14 @@ It implements a simple version of the NSGA-II algorithm:
 
 TODO :
 • merge circulation with livingRoom or entrance when only adjacent to livingRoom and entrance
+• recompute spec areas to take into account corridor space ?
+• profile time and add cache for edge lengths and edge angles
+• make a bunch of tests
 
 """
 import random
 import logging
 import multiprocessing
-import math
 
 from typing import TYPE_CHECKING, Optional, Callable, List, Union, Tuple
 from libs.plan.plan import Plan
@@ -35,7 +37,8 @@ from libs.refiner import (
     nsga,
     space_nsga,
     population,
-    support
+    support,
+    selection
 )
 
 
@@ -115,7 +118,7 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
     their adjacency length is superior a certain ratio of the circulation perimeter
     :return:
     """
-    adjacency_ratio = 0.24
+    adjacency_ratio = 0.4
 
     circulations = list(ind.get_spaces("circulation"))
     entrances = list(ind.get_spaces("entrance"))
@@ -161,12 +164,12 @@ class Refiner:
         :return:
         """
         results = self.run(plan, spec, params, processes)
-        output = max(results, key=lambda i: i.fitness)
+        output = max(results, key=lambda i: i.fitness.wvalue)
 
         # clean unnecessary circulation
+        merge_adjacent_circulation(output)
         merge_circulation_living(output)
         merge_circulation_entrance(output)
-        merge_adjacent_circulation(output)
         return output
 
     def run(self,
@@ -234,28 +237,6 @@ def mate_and_mutate(mate_func,
     return _ind1, _ind2
 
 
-def elite_select(mutate_func, ratio: float, pop: List['Individual'], k: int) -> List['Individual']:
-    """
-    Keep only the `ratio` best individuals.
-    Replace the removed one by a random top individual mutated.
-    :param mutate_func:
-    :param pop:
-    :param k: number of individual of the total pop (can be different from the size of the specified
-    population
-    :param ratio:
-    :return:
-    """
-    # note we need to reverse because fitness values are negative
-    pop.sort(key=lambda i: i.fitness.wvalue, reverse=True)
-    len_pop = len(pop)
-    elite_size = int(len_pop*ratio)
-    pop = pop[0:elite_size]
-    if k <= elite_size:
-        return pop[0:k]
-    new_pop = [mutate_func(random.choice(pop).clone()) for _ in range(k - elite_size)]
-    return pop + new_pop
-
-
 def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     """
     Returns a toolbox
@@ -312,7 +293,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -1.0, -50.0, -10.0, -50000.0,)
+    weights = (-15.0, -5.0, -50.0, -10.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -347,7 +328,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
-    toolbox.register("elite_select", elite_select, toolbox.mutate, 0.1)
+    toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
     toolbox.register("select", space_nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
@@ -433,7 +414,7 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     # no actual selection is done
     pop = toolbox.select(pop, len(pop))
 
-    best_fitness = -math.inf
+    best_fitness = max(pop, key=lambda i: i.fitness.wvalue).fitness.wvalue
     no_improvement_count = 0
 
     # Begin the generational process
@@ -465,11 +446,13 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         # store best individuals in hof
         if hof is not None:
             hof.update(pop, value=True)
-        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
 
-        # if we do not improvement 10 times in a row we estimate we have reached the global min.
-        # and we can stop.
-        if no_improvement_count > 10:
+        logging.info("Best x{}: {:.2f} - {}".format(no_improvement_count, best_ind.fitness.wvalue,
+                                                    best_ind.fitness.values))
+
+        # if we do not improve more than `max_tries times in a row we estimate we have reached t`
+        # he global min and we can stop.
+        if no_improvement_count > params.get("max_tries", 10):
             break
 
         # order individual on pareto front for tournament selection
@@ -548,10 +531,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 40, "cxpb": 0.9}
+        params = {"ngen": 60, "mu": 64, "cxpb": 0.5}
 
-        logging.getLogger().setLevel(logging.INFO)
-        plan_number = "049"  # 004 # 032
+        logging.getLogger().setLevel(logging.DEBUG)
+        plan_number = "013"  # 004 # 032
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
@@ -591,10 +574,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 50, "mu": 40, "cxpb": 0.8}
+        params = {"ngen": 50, "mu": 80, "cxpb": 0.8, "max_tries": 10, "elite": 0.2}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "021"  # 049
+        plan_number = "038"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
@@ -611,7 +594,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params, processes=4)
+            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params, processes=8)
             end = time.time()
 
             # display solution
