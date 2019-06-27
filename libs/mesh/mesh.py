@@ -1990,10 +1990,12 @@ class Face(MeshComponent):
             for edge in self.edges:
                 if (edge.pair.face is not None and edge.pair.face not in seen
                         and edge.length >= min_adjacency_length):
+                    seen.append(edge.pair.face)
                     yield edge.pair.face
         else:
             for edge in self.edges:
                 if edge.pair.face is not None and edge.pair.face not in seen:
+                    seen.append(edge.pair.face)
                     yield edge.pair.face
 
     def is_adjacent(self, other: 'Face') -> bool:
@@ -3586,6 +3588,7 @@ class Mesh:
             return True
 
         current = faces[0]
+        faces = set(faces)
         parent = {current: None}
         while current:
             for f in current.siblings(min_adjacency_length):
@@ -3600,4 +3603,4 @@ class Mesh:
             else:
                 current = parent[current]
 
-        return len(parent) < len(faces)
+        return len(parent) == len(faces)

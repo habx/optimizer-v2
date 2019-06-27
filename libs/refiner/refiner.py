@@ -185,7 +185,8 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = multiprocessing.Pool(processes).imap if processes > 1 else map
+        map_func = (multiprocessing.Pool(processes).imap
+                    if processes > 1 else lambda f, it, _: map(f, it))
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -565,10 +566,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 15, "elite": 0.1, "processes": 8}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 15, "elite": 0.1, "processes": 1}
 
-        logging.getLogger().setLevel(logging.INFO)
-        plan_number = "006"  # 049
+        logging.getLogger().setLevel(logging.DEBUG)
+        plan_number = "020"  # 049
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=0)
 
