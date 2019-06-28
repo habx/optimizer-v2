@@ -399,12 +399,15 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     # splits door_edges[-1] if needed, so as to get a proper door width
     end_split_coeff = (DOOR_WIDTH - end_edge.start.distance_to(
         contact_line[0].start)) / end_edge.length
+
     if not 1 > end_split_coeff > 0:
         end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
-    if end_edge.length > end_split_coeff * end_edge.length > 1:
-        door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
-    elif end_split_coeff * end_edge.length <= 1:
+
+    if end_split_coeff * end_edge.length <= 1 and len(door_edges) > 1:
         door_edges.pop()
+    elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
+        # split edge
+        door_edges[-1] = end_edge.split_barycenter(end_split_coeff).previous
 
     if not start:
         door_edges = [e.pair for e in door_edges]
@@ -565,7 +568,7 @@ def door_plot(plan: 'Plan', save: bool = True):
                 start_edge = list(linear.edges)[0]
                 sp = plan.get_space_of_edge(start_edge)
                 if not sp.floor.level is level:
-                   continue
+                    continue
                 if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
                     start_door_point = list(linear.edges)[0].start.coords
                     end_door_point = list(linear.edges)[-1].end.coords
