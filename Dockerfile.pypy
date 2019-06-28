@@ -28,11 +28,6 @@ RUN pip install -r requirements.txt
 #RUN apt-get -y install vim
 
 COPY selection.xml /or-tools-7.1
-
-COPY ortools_space_planner_pypy/constraints.cc  /or-tools-7.1/ortools/constraint_solver/constraints.cc
-COPY ortools_space_planner_pypy/constraint_solver.cc  /or-tools-7.1/ortools/constraint_solver/constraint_solver.cc
-COPY ortools_space_planner_pypy/constraint_solver.h /or-tools-7.1/ortools/constraint_solver/constraint_solver.h
-
 RUN cd or-tools-7.1 && \
     make -j 4 cc
 
@@ -46,15 +41,4 @@ RUN cd /or-tools-7.1 && genreflex ortools/constraint_solver/constraint_solver.h 
     cp -pr /or-tools-7.1/ortools/gen/* /usr/local/site-packages/cppyy_backend/include/ && \
     cp /or-tools-7.1/ortools_pypy_rdict.pcm /usr/local/site-packages/cppyy_backend/lib/
 
-#RUN apt-get -y install vim gdb
-
 COPY ortools_space_planner_pypy/__init__.py /usr/local/site-packages/ortools_space_planner_pypy/
-
-# export LD_LIBRARY_PATH=./lib
-# import cppyy ; cppyy.load_reflection_info('libOrtoolsPypyDict.so')
-
-# from ortools_space_planner_pypy import operations_research as ortools
-# solver = ortools.Solver("ok")
-# intvar =  solver.IntVar(1, 2, "okrange")
-# constraint = (intvar == 1)
-# constraint.Var()
