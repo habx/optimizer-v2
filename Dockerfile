@@ -43,5 +43,8 @@ RUN cd /or-tools-7.1 && genreflex ortools/constraint_solver/constraint_solver.h 
 
 COPY ortools_space_planner_pypy/__init__.py /usr/local/site-packages/ortools_space_planner_pypy/
 
+RUN rm -rf /or-tools-7.1
+COPY . .
+
 ENV CPPYY_DISABLE_FASTPATH=1
 CMD ["bin/worker.py"]
