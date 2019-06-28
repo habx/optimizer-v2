@@ -42,7 +42,6 @@ class TaskProcessor:
         try:
             result = self._process_task_core(td)
         except Exception as e:
-            logging.exception("Problem handing message")
             result = {
                 'type': 'optimizer-processing-result',
                 'data': {
@@ -59,6 +58,8 @@ class TaskProcessor:
             # error.
             if isinstance(e, TimeoutError):
                 result['data']['status'] = 'timeout'
+            else:
+                logging.exception("Problem handing message")
 
         if result:
             # OPT-74: The fields coming from the request are always added to the result

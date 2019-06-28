@@ -11,10 +11,9 @@ import mimetypes
 import os
 
 from libs.io import reader
-from libs.io.writer import generate_output_dict
+from libs.io.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.modelers.shuffle import SHUFFLES
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
@@ -68,7 +67,6 @@ class ExecParams:
                            'grid': {'name': 'optimal_grid', 'params': {}},
                            'seeder': {'name': 'simple_seeder, 'params': {}},
                            'space_planner': {'name': 'default_space_planner', 'params': {}},
-                           'shuffle': {'name': 'simple_shuffle', 'params': {}, 'run': False},
                            'refiner': {'name': 'simple', 'params': {'mu': 28, 'ngen': 100 ...},
                                        'run': True}
                           }
@@ -85,21 +83,20 @@ class ExecParams:
 
         refiner_params = {
             "ngen": 60,
-            "mu": 64,
-            "cxpb": 0.5
+            "mu": 40,
+            "cxpb": 0.9
         }
 
-        self.grid_type = params.get('grid_type', '001')
+        self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
         self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
-        self.shuffle_type = params.get('shuffle_type', 'bedrooms_corner')
-        self.do_shuffle = params.get('do_shuffle', False)
+        self.save_ll_bp = params.get('save_ll_bp', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
         self.do_corridor = params.get('do_corridor', False)
         self.corridor_type = params.get('corridor_params', 'no_cut')
         self.do_refiner = params.get('do_refiner', False)
-        self.refiner_type = params.get('refiner_type', 'naive')
+        self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
 
 
@@ -137,10 +134,11 @@ class Optimizer:
         files: Dict[str, Dict] = {}
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
-            if extension in (".tif", ".tiff",
+            if (extension in (".tif", ".tiff",
                              ".jpeg", ".jpg", ".jif", ".jfif",
                              ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf"):
+                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                    or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
                     'title': os.path.splitext(file)[0].capitalize(),
@@ -188,6 +186,8 @@ class Optimizer:
         GRIDS[params.grid_type].apply_to(plan)
         if params.do_plot:
             plan.plot(name="grid")
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -197,6 +197,8 @@ class Optimizer:
         SEEDERS[params.seeder_type].apply_to(plan)
         if params.do_plot:
             plan.plot(name="seeder")
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -219,32 +221,23 @@ class Optimizer:
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
-        # shuffle
-        t0_shuffle = time.process_time()
-        if params.do_shuffle:
-            logging.info("Shuffle")
-            if best_solutions:
-                for sol in best_solutions:
-                    SHUFFLES[params.shuffle_type].apply_to(sol.plan)
-                    if params.do_plot:
-                        sol.plan.plot()
-        elapsed_times["shuffle"] = time.process_time() - t0_shuffle
-        logging.info("Shuffle achieved in %f", elapsed_times["shuffle"])
-
         # corridor
         t0_corridor = time.process_time()
         if params.do_corridor:
             logging.info("Corridor")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
                              growth_method=corridor_building_rule["growth_method"]).apply_to(
                         sol.plan, spec)
                     if params.do_plot:
-                        sol.plan.plot()
+                        sol.plan.plot(name=f"corridor sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
+                                          libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
@@ -257,9 +250,13 @@ class Optimizer:
                 for sol in best_solutions:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params)
+                                                                      params.refiner_params,
+                                                                      processes=2)
                     if params.do_plot:
-                        sol.plan.plot()
+                        sol.plan.plot(name=f"refiner sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
+                                          libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 

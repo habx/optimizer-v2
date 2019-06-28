@@ -6,7 +6,7 @@ from functools import reduce
 
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.plan.plan import Plan, Space, Edge, Vertex
+from libs.plan.plan import Plan, Space, Face, Edge, Vertex
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
@@ -68,6 +68,7 @@ class Corridor:
         self.plan: Plan = None
         self.circulator: Circulator = None
         self.corner_data: Dict = None
+        self.grouped_faces: Dict[int, List[List['Face']]] = None
 
     def _clear(self):
         self.plan = None
@@ -75,6 +76,7 @@ class Corridor:
         self.circulator = None
         self.paths = []
         self.corner_data = {}
+        self.grouped_faces = {}
 
     def apply_to(self, plan: 'Plan', spec: 'Specification'):
         """
@@ -90,9 +92,19 @@ class Corridor:
         self.spec = spec
         self.plan = plan
 
+        # store mutable spaces, for repair purpose
+        initial_mutable_spaces = [sp for sp in self.plan.spaces if
+                                  sp.mutable and not sp.category.name is "circulation"]
+        # store groups of faces that belong to non mutable spaces, for repair purpose
+        grouped_faces = {level: [] for level in self.plan.levels}
+        for sp in initial_mutable_spaces:
+            grouped_faces[sp.floor.level].append([f for f in sp.faces])
+        self.grouped_faces = grouped_faces
+
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -100,11 +112,71 @@ class Corridor:
         for path in self.paths:
             self.cut(path).grow(path)
 
+        self.plan.remove_null_spaces()
+
+        final_mutable_spaces = [sp for sp in self.plan.spaces if
+                                sp.mutable and not sp.category.name is "circulation"]
+
+        # space repair process : if some spaces have been cut by corridor growth
+        self._repair_spaces(initial_mutable_spaces, final_mutable_spaces)
+
         # linear repair
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
 
-        self.plan.remove_null_spaces()
+    def _repair_spaces(self, initial_mutable_spaces: List['Space'],
+                       final_mutable_spaces: List['Space']):
+        """
+        if in the process a mutable space has been split by a corridor propagation,
+        the split space is set back to its state before corridor propagation
+        This may break a corridor into pieces.
+        :param initial_mutable_spaces: list of spaces before corridor propagation
+        :param final_mutable_spaces: list of faces after corridor propagation
+        :return:
+        """
+
+        def _get_group_face(_level: int, _face: 'Face') -> List['Face']:
+            # get the group of faces _face belongs to
+            for group in self.grouped_faces[_level]:
+                if _face in group:
+                    return group
+
+        if len(initial_mutable_spaces) == len(final_mutable_spaces):
+            # no space has been split
+            return
+
+        merge = True
+        grouped_faces = []
+        for level in self.plan.levels:
+            grouped_faces += self.grouped_faces[level]
+        while merge:
+            for grouped_face in grouped_faces:
+                # check if the group is distributed within several spaces (other than corridor)
+                # in which case we proceed to repair
+                l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
+                    list(sp.faces)) and not sp.category.name == "circulation"]
+                if len(l) > 1:  # a space has been split by corridor propagation
+                    repair_space = l[0]
+                    repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
+                    while len(list(repair_space.faces)) != len(repair_faces):
+                        for face in repair_faces:
+                            space_of_face = self.plan.get_space_of_face(face)
+                            if space_of_face is repair_space:
+                                continue
+                            # adds face if adjacent to repair_space
+                            if [e for e in face.edges if
+                                e.pair.face and repair_space.has_face(e.pair.face)]:
+                                repair_space.add_face(face)
+                                # repair_faces.remove(face)
+                                space_of_face.remove_face(face)
+                                break
+                    self.plan.remove_null_spaces()
+                    final_mutable_spaces = [sp for sp in self.plan.spaces if
+                                            sp.mutable and not sp.category.name is "circulation"]
+                    break
+
+            if len(initial_mutable_spaces) == len(final_mutable_spaces):
+                merge = False
 
     def _set_paths(self):
         """
@@ -202,9 +274,10 @@ class Corridor:
         :return:
         """
 
-        def _get_neighbor_direction(_edge):
-            for _e in self.circulator.directions[level]:
-                if parallel(_e.vector, _edge.vector):
+        def _get_neighbor_direction(_edge, _path):
+            # for _e in self.circulator.directions[level]:
+            for _e in _path:
+                if _e in self.circulator.directions[level] and parallel(_e.vector, _edge.vector):
                     return self.circulator.directions[level][_e]
 
         if self.plan.get_space_of_edge(path[0]):
@@ -213,7 +286,7 @@ class Corridor:
             level = self.plan.get_space_of_edge(path[0].pair).floor.level
         for e, edge in enumerate(path):
             if edge not in self.circulator.directions[level]:
-                self.circulator.directions[level][edge] = _get_neighbor_direction(edge)
+                self.circulator.directions[level][edge] = _get_neighbor_direction(edge, path)
 
     def _update_path(self, path: List['Edge']):
         """
@@ -345,10 +418,17 @@ class Corridor:
                 self.add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space)
                 self.add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
                                           corridor_space)
-
                 corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
-                if corridor_space and self.plan.get_space_of_edge(corner_edge):
-                    self.plan.get_space_of_edge(corner_edge).merge(corridor_space)
+                space_corner = self.plan.get_space_of_edge(corner_edge)
+                if not space_corner or not corridor_space:
+                    continue
+                if not space_corner.category.name == "circulation" and len(
+                        list(space_corner.faces)) < 2:  # do not remove the space
+                    continue
+                if list([e for e in space_corner.edges if
+                         e.pair.face and corridor_space.has_face(e.pair.face)]):
+                    # merge if spaces are adjacent
+                    corridor_space.merge(space_corner)
 
     def grow(self, path: List['Edge']) -> 'Corridor':
         """
@@ -481,7 +561,7 @@ class Corridor:
         while next_layer:
             for e in start_edge.face.edges:
                 angle = ccw_angle(e.normal, start_edge.normal)
-                angle = angle - 180 * (angle > 180)
+                angle = angle - 180 * (angle > 180 + EPSILON)
 
                 dist_tmp = e.start.distance_to(edge.end)
                 if (pseudo_equal(angle, 180, 10)
@@ -506,13 +586,32 @@ class Corridor:
         :param corridor_space:
         :return:
         """
+
+        def _space_totally_overlapped(_level: int, _face: 'Face') -> bool:
+            # checks if the space that contained _face before corridor propagation
+            # will be completely overlapped by corridors if _face is removed from it
+            for group_face in self.grouped_faces[_level]:
+                if _face in group_face:
+                    for f in group_face:
+                        if f is _face:
+                            continue
+                        if not self.plan.get_space_of_face(f).category.name == "circulation":
+                            # not all faces of group_face are in corridors
+                            return False
+            return True
+
         layer_edges = self.get_parallel_layers_edges(edge, width)[1]
+
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
             if not sp.category.name == "circulation":
-                # corridor must not cut a space in pieces
-                if sp.corner_stone(layer_edge.face):
-                    break
+                # ensures a corridor does not totally overlapp a space that was present before
+                # corridor propagation
+                # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
+                # we authorize sp_1 or sp2 to be overlapped by a corridor, but not both
+                if len(list(sp.faces)) == 1:
+                    if _space_totally_overlapped(sp.floor.level, sp.face):
+                        break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
 
@@ -716,7 +815,6 @@ def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edg
     :param edge_line:
     :return:
     """
-
     if corridor.plan.get_space_of_edge(edge_line[0]):
         floor = corridor.plan.get_space_of_edge(edge_line[0]).floor
     else:
@@ -838,7 +936,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge']) -> 'Spac
 
 # corridor rules
 no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
-                             width=130, penetration_length=110)
+                             width=130, penetration_length=130)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
                                layer_width=25,
@@ -903,7 +1001,7 @@ if __name__ == '__main__':
             plan = reader.create_plan_from_file(input_file)
             spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
 
-            GRIDS["001"].apply_to(plan)
+            GRIDS["002"].apply_to(plan)
             # GRIDS['optimal_finer_grid'].apply_to(plan)
             SEEDERS["directional_seeder"].apply_to(plan)
             spec.plan = plan
@@ -914,7 +1012,7 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[0]
+                solution = best_solutions[1]
                 plan = solution.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
@@ -944,5 +1042,6 @@ if __name__ == '__main__':
 
         plan.name = "corridor_" + plan.name
 
-    plan_name = "009.json"
+
+    plan_name = "030.json"
     main(input_file=plan_name)

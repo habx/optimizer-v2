@@ -7,6 +7,7 @@ The individuals are modified in place
 import random
 from typing import TYPE_CHECKING
 import logging
+import math
 
 from libs.refiner.mutation import MIN_ADJACENCY_EDGE_LENGTH
 
@@ -28,34 +29,51 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
     :param ind_2:
     :return: a tuple of the blended individual
     """
+    # Note : this should never happen
     if not ind_1 or not ind_2:
         return ind_1, ind_2
+
+    differences = {}
+
     for floor in ind_1.floors.values():
-        differences = [f for f in floor.mesh.faces
-                       if ind_1.get_space_of_face(f) != ind_2.get_space_of_face(f)]
+
+        for f in floor.mesh.faces:
+            space_1 = ind_1.get_space_of_face(f)
+            space_2 = ind_2.get_space_of_face(f)
+            if space_1 is space_2 or not space_1.mutable or not space_2.mutable:
+                continue
+            differences[f] = (space_1, space_2)
 
         if len(differences) <= 1:
             # nothing to do
             continue
 
         # pick a random face and find all different faces connected to it
-        seed_face = random.choice(differences)
+        # we apply the difference between the fitness value of the corresponding spaces to
+        # select the face to select
+        faces = list(differences.keys())
+        weights = (math.fabs(ind_1.fitness.sp_wvalue[differences[f][0].id]
+                             - ind_2.fitness.sp_wvalue[differences[f][1].id])
+                   for f in faces)
+        seed_face = random.choices(faces, weights=weights)[0]
+        space_dict = differences.copy()
         connected_faces = {seed_face}
-        differences.remove(seed_face)
+        del differences[seed_face]
         while True:
-            connections = set([f for f in differences for o in connected_faces if o.is_adjacent(f)])
+            connections = set([f for f in differences.keys()
+                               for o in connected_faces if o.is_adjacent(f)])
             for f in connections:
-                differences.remove(f)
+                del differences[f]
                 connected_faces.add(f)
             if not connections:
                 break
 
         connected_faces = list(connected_faces)
-        impacted_spaces_ind_1 = [ind_1.get_space_of_face(f) for f in connected_faces]
-        impacted_spaces_ind_2 = [ind_2.get_space_of_face(f) for f in connected_faces]
+        impacted_spaces_ind_1 = (space_dict[f][0] for f in connected_faces)
+        impacted_spaces_ind_2 = (space_dict[f][1] for f in connected_faces)
 
         for space in set(impacted_spaces_ind_1) | set(impacted_spaces_ind_2):
-            faces = list(filter(lambda f: space.has_face(f), connected_faces))
+            faces = list(filter(lambda _f: space.has_face(_f), connected_faces))
             if space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
                 logging.debug("Crossover: No crossover possible")
                 return ind_1, ind_2

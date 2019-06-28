@@ -48,6 +48,7 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 def process_task(config: Config, td: TaskDefinition):
     processor = TaskProcessor(config)
     processor.prepare()
+    logging.getLogger().setLevel(logging.INFO)
     result = processor.process_task(td)
 
     exchanger = Exchanger(config)
@@ -69,21 +70,9 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "-b", "--blueprint-id", dest="blueprint_id", default=os.getenv('BLUEPRINT_ID'),
-        metavar="ID", help="Blueprint ID",
+        "-r", "--result-id", dest="result_id", default=os.getenv('RESULT_ID'),
+        metavar="ID", help="Result ID",
 
-    )
-    parser.add_argument(
-        "-s", "--setup-id", dest="setup_id", default=os.getenv('SETUP_ID'),
-        metavar="ID", help="Setup ID"
-    )
-    parser.add_argument(
-        "-p", "--params-id", dest="params_id", default=os.getenv('PARAMS_ID'),
-        metavar="ID", help="Params ID"
-    )
-    parser.add_argument(
-        "-B", "--batch-execution-id", dest="batch_execution_id", default=os.getenv('BATCH_EXECUTION_ID'),
-        metavar="ID", help="BatchExecution ID"
     )
 
     # OPT-106: Allowing to specify a taskId
@@ -94,15 +83,13 @@ BLUEPRINT_ID=1000 SETUP_ID=2000 bin/job.py
     args = parser.parse_args()
 
     job_fetching_params = {
-        'blueprintId': args.blueprint_id,
-        'setupId': args.setup_id,
-        'paramsId': args.params_id,
-        'batchExecutionId': args.batch_execution_id,
+        'resultId': args.result_id,
     }
 
     td = fetch_task_definition(job_fetching_params)
 
-    td.task_id = args.task_id
+    if args.task_id is not None:
+        td.task_id = args.task_id
 
     # If no taskId is specified, we should specify one
     if not td.task_id:

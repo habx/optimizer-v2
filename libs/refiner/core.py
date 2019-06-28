@@ -48,9 +48,9 @@ class Fitness:
        the associated objective and positive weight to the maximization."""
 
     def __init__(self):
-        # dict containing the fitness values for each space
+        # dict containing the fitness values of each objective for each space
         self._spvalues: Dict[int, Tuple[float, ...]] = {}
-        # tuple containing the added fitness values of each space for each constraint
+        # tuple containing the summed fitness values of each space for each objective
         self._values = self.compute_values(self._spvalues)
 
     @staticmethod
@@ -78,6 +78,16 @@ class Fitness:
         """ property: returns the arithmetic sum of the weighted values for each space
         """
         return {i: sum(x * y for x, y in zip(v, self._weights)) for i, v in self._spvalues.items()}
+
+    @property
+    def sp_wvalue_t(self) -> Tuple[float, ...]:
+        """ property: returns a Tuple containing each fitness weighted value for each space,
+        ordered by space id to preserve order. Useful for nsga algorithm adaptation.
+        """
+        output = list(((i, sum(x * y for x, y in zip(v, self._weights)))
+                       for i, v in self._spvalues.items()))
+        output.sort(key=lambda e: e[0])
+        return tuple(e[1] for e in output)
 
     @property
     def weights(self) -> Optional[Tuple[float, ...]]:
@@ -145,6 +155,21 @@ class Fitness:
             if self_wvalue > other_wvalue:
                 dominates = True
             elif self_wvalue < other_wvalue:
+                return False
+        return dominates
+
+    def space_dominates(self, other: 'Fitness'):
+        """Return true if each space of *self* has not a strictly worse fitness value than
+        the corresponding space of *other* and at least one space is
+        strictly better.
+        :param other: Fitness to be compared
+        """
+        dominates = False
+        for i, self_sp_wvalue in self.sp_wvalue.items():
+            other_sp_wvalue = other.sp_wvalue[i]
+            if self_sp_wvalue > other_sp_wvalue:
+                dominates = True
+            elif self_sp_wvalue < other_sp_wvalue:
                 return False
         return dominates
 
@@ -286,7 +311,7 @@ class Individual(Plan):
 
 cloneFunc = Callable[['Individual'], 'Individual']
 mapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
-selectFunc = Callable[[List['Individual']], List['Individual']]
+selectFunc = Callable[[List['Individual'], int], List['Individual']]
 mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
 evaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
 mutateFunc = Callable[['Individual'], 'Individual']
@@ -315,6 +340,7 @@ class Toolbox:
         "clone",
         "mate",
         "select",
+        "elite_select",
         "mutate",
         "populate",
         "evaluate",
@@ -329,6 +355,7 @@ class Toolbox:
         self.map: mapFunc = map
         self.mate:  Optional[mateFunc] = None
         self.select: Optional[selectFunc] = None
+        self.elite_select: Optional[selectFunc] = None
         self.evaluate: Optional[evaluateFunc] = None
         self.mutate: Optional[mutateFunc] = None
         self.populate: Optional[populateFunc] = None

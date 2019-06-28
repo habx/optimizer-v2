@@ -3,7 +3,7 @@ shapely==1.6.4.post2
 # We need to build ortools from source. Check Dockerfile.pypy to see how
 #ortools==7.1.6720
 Dijkstar==2.4.0
-networkx==2.2
+networkx==2.3
 
 # WARNING: This should not be shared externally. We're using a token because fetching private
 #          dependencies using the SSH key prior to building the container is a lot more difficult,
@@ -20,7 +20,7 @@ requests
 
 # For tests and linting:
 pytest
-pylint==2.2.2
+pylint==2.3.1
 
 # Needed for ortools
 cppyy==1.4.11
