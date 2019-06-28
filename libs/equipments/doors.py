@@ -567,7 +567,7 @@ def door_plot(plan: 'Plan', save: bool = True):
             if linear.category.name == "door":
                 start_edge = list(linear.edges)[0]
                 sp = plan.get_space_of_edge(start_edge)
-                if not sp.floor.level is level:
+                if not sp.floor.level is plan.get_space_of_edge(linear.edge).floor.level:
                     continue
                 if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
                     start_door_point = list(linear.edges)[0].start.coords
