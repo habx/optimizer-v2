@@ -571,9 +571,9 @@ if __name__ == '__main__':
             for improved_plan in improved_plans:
                 improved_plan.name = "Refined_" + plan_number
                 # analyse found solutions
-            logging.info("Time elapsed: {}".format(end - start))
-            logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                           improved_plan.fitness.values))
+                logging.info("Time elapsed: {}".format(end - start))
+                logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
+                                                               improved_plan.fitness.values))
 
                 evaluation.check(improved_plan, spec)
 
