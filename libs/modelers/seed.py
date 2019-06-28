@@ -865,6 +865,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
     if not list_side_faces:
         return []
 
+
     other_space = Space(space.plan, space.floor,
                         list_side_faces[0].edge,
                         SPACE_CATEGORIES[space.category.name])
@@ -872,7 +873,8 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
         if face in space.faces:
             space.remove_face_id(face.id)
             other_space.add_face_id(face.id)
-
+    print("edge sp", space.edge)
+    print("lineedge", line_edges)
     other_space.set_edges()
     space.set_edges()
     return [space, other_space]
@@ -906,7 +908,6 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
 
     _get_contiguous_edges(contiguous_edges, edge_origin)
     _get_contiguous_edges(contiguous_edges, edge_origin.pair)
-
     return contiguous_edges
 
 
@@ -1047,7 +1048,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "004"
+        plan_name = "test_g"
 
         # to not run each time the grid generation
         try:
@@ -1055,7 +1056,7 @@ if __name__ == '__main__':
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS["001"].apply_to(plan)
+            GRIDS["002"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
