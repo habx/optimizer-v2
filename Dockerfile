@@ -11,13 +11,13 @@ RUN wget https://habx-artifacts.s3-eu-west-1.amazonaws.com/ortools-cppyy.tar.gz 
     cp -pr ortools-cppyy/lib/* /usr/lib/ && \
     cp -pr ortools-cppyy/include/* /usr/local/site-packages/cppyy_backend/include/
 
-COPY . /app
+COPY . .
 
 # GCC 8+ is needed to build cppyy
 RUN apt-get -y install libgeos-dev && \
-    pip3 install -r /app/requirements.txt
+    pip3 install -r requirements.txt
 
-RUN cp -pr /app/ortools_space_planner_pypy/ /usr/local/site-packages/
+RUN cp -pr ortools_space_planner_pypy/ /usr/local/site-packages/
 
 ENV CPPYY_DISABLE_FASTPATH=1
 CMD ["bin/worker.py"]
