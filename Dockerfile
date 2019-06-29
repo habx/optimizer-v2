@@ -14,7 +14,7 @@ RUN wget https://habx-artifacts.s3-eu-west-1.amazonaws.com/ortools-cppyy.tar.gz 
 COPY . /app
 
 # GCC 8+ is needed to build cppyy
-RUN apt-get install libgeos-dev && \
+RUN apt-get -y install libgeos-dev && \
     pip3 install -r /app/requirements.txt
 
 RUN cp -pr /app/ortools_space_planner_pypy/ /usr/local/site-packages/
