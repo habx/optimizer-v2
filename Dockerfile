@@ -1,4 +1,4 @@
-FROM pypy:3.6-slim
+FROM pypy:3.6-stretch
 
 RUN echo "deb http://ftp.debian.org/debian testing main" >> /etc/apt/sources.list && \
     apt-get update && apt-get install -t testing -y g++
