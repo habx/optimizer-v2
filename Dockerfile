@@ -17,6 +17,9 @@ COPY . .
 RUN apt-get -y install libgeos-dev && \
     pip3 install -r requirements.txt
 
+RUN rm /usr/bin/python3 && \
+    ln -s /usr/local/bin/pypy3 /usr/bin/python3
+
 RUN cp -pr ortools_space_planner_pypy/ /usr/local/site-packages/
 
 ENV CPPYY_DISABLE_FASTPATH=1
