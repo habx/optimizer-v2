@@ -41,7 +41,10 @@ def Min(self, *args):
     return self.MakeMin(v)
 
 def __eq__(self, v) -> "operations_research::Constraint *":
-    return self.solver().MakeEquality.__overload__("operations_research::IntExpr*const,int")(self.solver(), self, v)
+    if type(v) is int:
+        return self.solver().MakeEquality.__overload__("operations_research::IntExpr*const,int")(self.solver(), self, v)
+    else:
+        return self.solver().MakeEquality.__overload__("operations_research::IntExpr*const,operations_research::IntExpr*const")(self.solver(), self, v)
 
 def __radd__IntExpr_int(self, v) -> "int64":
     return self.solver().MakeSum.__overload__("operations_research::IntExpr*const,int64")(self.solver(), self.Var(), v)
