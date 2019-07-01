@@ -864,6 +864,8 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
         :param _faces:
         :return:
         """
+        if not _faces:
+            return []
         ref_face = _faces[0]
         list_remaining = _faces[1:]
         groups = [[ref_face]]
@@ -873,11 +875,12 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
             while adj:
                 adj = False
                 for f in list_remaining[:]:
-                    adjacent_faces = [adj_f for adj_f in groups[count] if f.is_adjacent(adj_f)]
-                    if adjacent_faces:
+                    adjacent_f = [adj_f for adj_f in groups[count] if f.is_adjacent(adj_f)]
+                    if adjacent_f:
                         groups[count].append(f)
                         list_remaining.remove(f)
                         adj = True
+                        break
             if len(list_remaining) == 1:
                 groups.append([list_remaining[0]])
                 return groups
@@ -897,7 +900,11 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
         return []
 
     groups_of_adjacent_faces = _groups_of_adjacent_faces(list_side_faces)
-    # groups_of_adjacent_faces =[list_side_faces]
+    list_otherside_faces = [f for f in space.faces if not f in list_side_faces]
+    groups_of_adjacent_faces_other_side = _groups_of_adjacent_faces(list_otherside_faces)
+
+    groups_of_adjacent_faces+=groups_of_adjacent_faces_other_side[1:]
+
     other_spaces = []
     for group in groups_of_adjacent_faces:
         if not group:
@@ -1083,7 +1090,6 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        # plan_name = "test_g"
         plan_name = "001"
 
         # to not run each time the grid generation
@@ -1096,7 +1102,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
