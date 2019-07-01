@@ -903,7 +903,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
     list_otherside_faces = [f for f in space.faces if not f in list_side_faces]
     groups_of_adjacent_faces_other_side = _groups_of_adjacent_faces(list_otherside_faces)
 
-    groups_of_adjacent_faces+=groups_of_adjacent_faces_other_side[1:]
+    groups_of_adjacent_faces += groups_of_adjacent_faces_other_side[1:]
 
     other_spaces = []
     for group in groups_of_adjacent_faces:
@@ -1090,7 +1090,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "001"
+        # plan_name = "001"
 
         # to not run each time the grid generation
         try:
@@ -1102,7 +1102,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=True)
+        SEEDERS["directional_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
