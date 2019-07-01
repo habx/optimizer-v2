@@ -631,7 +631,7 @@ class Solution:
                             and [other_space for other_space in other_solution.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
                                      and other_space.category.name == space.category.name )] == []):
-                        distance += 2
+                        distance += 1
             elif item.category.name in duct_list:
                 for comp in space.cached_immutable_components:
                     if (comp.category.name == "duct"
