@@ -858,6 +858,31 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
                             added = True
             return list_side_face
 
+    def _groups_of_adjacent_faces(_faces: List['Face']) -> List[List['Face']]:
+        ref_face = _faces[0]
+        list_remaining = _faces[1:]
+        groups = [[ref_face]]
+        count = 0
+        while list_remaining:
+            adj = True
+            while adj:
+                adj = False
+                for f in list_remaining[:]:
+                    if f.is_adjacent(ref_face):
+                        groups[count].append(f)
+                        list_remaining.remove(f)
+                        adj = True
+            if len(list_remaining) == 1:
+                groups.append([list_remaining[0]])
+                return groups
+            if list_remaining:
+                count += 1
+                ref_face = list_remaining[0]
+                list_remaining = list_remaining[1:]
+                groups.append([ref_face])
+
+        return groups
+
     if not line_edges:
         return []
 
@@ -865,19 +890,22 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
     if not list_side_faces:
         return []
 
-
-    other_space = Space(space.plan, space.floor,
-                        list_side_faces[0].edge,
-                        SPACE_CATEGORIES[space.category.name])
-    for face in list_side_faces:
-        if face in space.faces:
-            space.remove_face_id(face.id)
-            other_space.add_face_id(face.id)
-    print("edge sp", space.edge)
-    print("lineedge", line_edges)
-    other_space.set_edges()
+    groups_of_adjacent_faces = _groups_of_adjacent_faces(list_side_faces)
+    other_spaces = []
+    for group in groups_of_adjacent_faces:
+        if not group:
+            continue
+        other_space = Space(space.plan, space.floor,
+                            group[0].edge,
+                            SPACE_CATEGORIES[space.category.name])
+        for face in group:
+            if face in space.faces:
+                space.remove_face_id(face.id)
+                other_space.add_face_id(face.id)
+        other_space.set_edges()
+        other_spaces.append(other_space)
     space.set_edges()
-    return [space, other_space]
+    return [space] + other_spaces
 
 
 def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
