@@ -8,7 +8,7 @@ import pytest
 
 from libs.plan.plan import Plan, Space
 from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
-from libs.io import reader, reader_test
+from libs.inout import reader, reader_test
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
@@ -49,7 +49,7 @@ def test_serialization():
     Test
     :return:
     """
-    import libs.io.writer as writer
+    import libs.inout.writer as writer
 
     plan = reader.create_plan_from_file(INPUT_FILES[0])
 

@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import os
 import json
 import logging
-import libs.io.reader as reader
+import libs.inout.reader as reader
 from libs.space_planner.solution import Solution
 
 

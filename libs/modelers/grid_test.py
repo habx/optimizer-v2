@@ -5,7 +5,7 @@ Test module for grid module
 
 import pytest
 
-from libs.io import reader, reader_test
+from libs.inout import reader, reader_test
 from libs.modelers.grid import GRIDS, Grid
 from libs.operators.selector import SELECTORS
 from libs.operators.mutation import MUTATIONS

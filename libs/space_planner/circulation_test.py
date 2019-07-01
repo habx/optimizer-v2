@@ -5,7 +5,7 @@ Circulation Module Tests
 
 import pytest
 
-from libs.io import reader
+from libs.inout import reader
 from libs.modelers.seed import SEEDERS
 from libs.modelers.grid import GRIDS
 from libs.space_planner.circulation import Circulator

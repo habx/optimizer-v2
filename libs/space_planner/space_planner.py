@@ -14,7 +14,7 @@ from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
-import libs.io.writer as writer
+import libs.inout.writer as writer
 
 SQM = 10000
 
@@ -212,7 +212,7 @@ SPACE_PLANNERS = {
 }
 
 if __name__ == '__main__':
-    import libs.io.reader as reader
+    import libs.inout.reader as reader
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
 

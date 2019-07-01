@@ -946,8 +946,8 @@ if __name__ == '__main__':
         """
         from libs.modelers.grid import GRIDS
         from libs.operators.selector import SELECTORS
-        import libs.io.writer as writer
-        import libs.io.reader as reader
+        import libs.inout.writer as writer
+        import libs.inout.reader as reader
 
         logging.getLogger().setLevel(logging.INFO)
 

@@ -3158,7 +3158,7 @@ class Plan:
 
 
 if __name__ == '__main__':
-    import libs.io.reader as reader
+    import libs.inout.reader as reader
 
     logging.getLogger().setLevel(logging.DEBUG)
 

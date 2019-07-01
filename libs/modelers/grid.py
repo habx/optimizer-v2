@@ -6,7 +6,7 @@ Grid module
 from typing import Tuple, Sequence, TYPE_CHECKING
 import logging
 
-from libs.io import reader
+from libs.inout import reader
 from libs.operators.mutation import MUTATIONS, MUTATION_FACTORIES
 from libs.operators.selector import SELECTORS, SELECTOR_FACTORIES
 

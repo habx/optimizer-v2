@@ -10,8 +10,8 @@ import time
 import mimetypes
 import os
 
-from libs.io import reader
-from libs.io.writer import generate_output_dict, save_plan_as_json
+from libs.inout import reader
+from libs.inout.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
@@ -254,7 +254,7 @@ class Optimizer:
                     # if params.do_plot:
                     # sol.plan.plot(name=f"refiner sol {i+1}")
                     #if params.save_ll_bp:
-                    #    save_plan_as_json(sol.plan.serialize(), f"refiner sol {i + 1}",
+                    #    save_plan_as_json (sol.plan.serialize(), f"refiner sol {i + 1}",
                     #                      libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])

@@ -744,7 +744,7 @@ class PathCalculator:
 
 
 if __name__ == '__main__':
-    import libs.io.reader as reader
+    import libs.inout.reader as reader
     from libs.plan.plan import Plan
     from libs.modelers.seed import SEEDERS
     from libs.modelers.grid import GRIDS

@@ -5,7 +5,7 @@ Space planner Module Tests
 
 import pytest
 
-from libs.io import reader
+from libs.inout import reader
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS

@@ -978,10 +978,10 @@ if __name__ == '__main__':
 
     def get_plan(input_file: str = "001.json") -> Tuple['Plan', 'Specification']:
 
-        import libs.io.reader as reader
-        import libs.io.writer as writer
+        import libs.inout.reader as reader
+        import libs.inout.writer as writer
         from libs.space_planner.space_planner import SPACE_PLANNERS
-        from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
+        from libs.inout.reader import DEFAULT_PLANS_OUTPUT_FOLDER
 
         folder = DEFAULT_PLANS_OUTPUT_FOLDER
 

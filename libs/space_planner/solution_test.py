@@ -10,7 +10,7 @@ from libs.specification.specification import Specification
 from libs.plan.plan import Plan
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
-from libs.io import reader
+from libs.inout import reader
 from libs.space_planner.space_planner import SPACE_PLANNERS
 
 

@@ -4,7 +4,7 @@ Test module for reader module
 """
 
 import pytest
-import libs.io.reader as reader
+import libs.inout.reader as reader
 
 # ls.init()
 
