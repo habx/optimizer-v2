@@ -873,7 +873,8 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
             while adj:
                 adj = False
                 for f in list_remaining[:]:
-                    if f.is_adjacent(ref_face):
+                    adjacent_faces = [adj_f for adj_f in groups[count] if f.is_adjacent(adj_f)]
+                    if adjacent_faces:
                         groups[count].append(f)
                         list_remaining.remove(f)
                         adj = True
@@ -896,6 +897,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
         return []
 
     groups_of_adjacent_faces = _groups_of_adjacent_faces(list_side_faces)
+    # groups_of_adjacent_faces =[list_side_faces]
     other_spaces = []
     for group in groups_of_adjacent_faces:
         if not group:
