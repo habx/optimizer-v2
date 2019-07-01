@@ -860,7 +860,7 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
 
     def _groups_of_adjacent_faces(_faces: List['Face']) -> List[List['Face']]:
         """
-        get lits of faces in _faces that form adjacent groupes
+        get lists of faces in _faces forming adjacent groups
         :param _faces:
         :return:
         """
@@ -900,8 +900,8 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
         return []
 
     groups_of_adjacent_faces = _groups_of_adjacent_faces(list_side_faces)
-    list_otherside_faces = [f for f in space.faces if not f in list_side_faces]
-    groups_of_adjacent_faces_other_side = _groups_of_adjacent_faces(list_otherside_faces)
+    list_other_side_faces = [f for f in space.faces if not f in list_side_faces]
+    groups_of_adjacent_faces_other_side = _groups_of_adjacent_faces(list_other_side_faces)
 
     groups_of_adjacent_faces += groups_of_adjacent_faces_other_side[1:]
 
