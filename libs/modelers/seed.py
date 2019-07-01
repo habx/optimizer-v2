@@ -1081,7 +1081,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        plan_name = "test_g"
+        #plan_name = "test_g"
 
         # to not run each time the grid generation
         try:
