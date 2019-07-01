@@ -135,9 +135,9 @@ class Optimizer:
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
             if (extension in (".tif", ".tiff",
-                             ".jpeg", ".jpg", ".jif", ".jfif",
-                             ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                              ".jpeg", ".jpg", ".jif", ".jfif",
+                              ".jp2", ".jpx", ".j2k", ".j2c",
+                              ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
                     or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
@@ -167,7 +167,6 @@ class Optimizer:
 
         params = ExecParams(params_dict)
 
-
         # times
         elapsed_times = {}
         t0_total = time.process_time()
@@ -184,10 +183,10 @@ class Optimizer:
         logging.info("Grid")
         t0_grid = time.process_time()
         GRIDS[params.grid_type].apply_to(plan)
-        if params.do_plot:
-            plan.plot(name="grid")
-        if params.save_ll_bp:
-            save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
+        # if params.do_plot:
+        #    plan.plot(name="grid")
+        #if params.save_ll_bp:
+        #    save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -195,10 +194,10 @@ class Optimizer:
         logging.info("Seeder")
         t0_seeder = time.process_time()
         SEEDERS[params.seeder_type].apply_to(plan)
-        if params.do_plot:
-            plan.plot(name="seeder")
-        if params.save_ll_bp:
-            save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
+        # if params.do_plot:
+        #    plan.plot(name="seeder")
+        #if params.save_ll_bp:
+        #    save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -233,11 +232,11 @@ class Optimizer:
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
                              growth_method=corridor_building_rule["growth_method"]).apply_to(
                         sol.plan, spec)
-                    if params.do_plot:
-                        sol.plan.plot(name=f"corridor sol {i+1}")
-                    if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
-                                          libs.io.plot.output_path)
+                    # if params.do_plot:
+                    #    sol.plan.plot(name=f"corridor sol {i+1}")
+                    #if params.save_ll_bp:
+                    #    save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
+                    #                      libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
@@ -251,12 +250,12 @@ class Optimizer:
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params,
-                                                                      processes=2)
-                    if params.do_plot:
-                        sol.plan.plot(name=f"refiner sol {i+1}")
-                    if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
-                                          libs.io.plot.output_path)
+                                                                      processes=1)
+                    # if params.do_plot:
+                    # sol.plan.plot(name=f"refiner sol {i+1}")
+                    #if params.save_ll_bp:
+                    #    save_plan_as_json(sol.plan.serialize(), f"refiner sol {i + 1}",
+                    #                      libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
@@ -273,7 +272,6 @@ class Optimizer:
                      elapsed_times["total"],
                      elapsed_times["totalReal"])
 
-
         return Response(solutions, elapsed_times)
 
 
@@ -285,12 +283,13 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "016.json",
-            "016_setup0.json",
+            "009.json",
+            "009_setup0.json",
             {
-                "grid_type": "001",
+                "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": True,
+                "do_corridor": True,
+                "do_refiner": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
