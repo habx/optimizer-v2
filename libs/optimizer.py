@@ -185,7 +185,7 @@ class Optimizer:
         GRIDS[params.grid_type].apply_to(plan)
         # if params.do_plot:
         #    plan.plot(name="grid")
-        #if params.save_ll_bp:
+        # if params.save_ll_bp:
         #    save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
@@ -196,7 +196,7 @@ class Optimizer:
         SEEDERS[params.seeder_type].apply_to(plan)
         # if params.do_plot:
         #    plan.plot(name="seeder")
-        #if params.save_ll_bp:
+        # if params.save_ll_bp:
         #    save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
@@ -234,7 +234,7 @@ class Optimizer:
                         sol.plan, spec)
                     # if params.do_plot:
                     #    sol.plan.plot(name=f"corridor sol {i+1}")
-                    #if params.save_ll_bp:
+                    # if params.save_ll_bp:
                     #    save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
                     #                      libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
@@ -253,7 +253,7 @@ class Optimizer:
                                                                       processes=1)
                     # if params.do_plot:
                     # sol.plan.plot(name=f"refiner sol {i+1}")
-                    #if params.save_ll_bp:
+                    # if params.save_ll_bp:
                     #    save_plan_as_json (sol.plan.serialize(), f"refiner sol {i + 1}",
                     #                      libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
@@ -283,13 +283,13 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "009.json",
-            "009_setup0.json",
+            "027.json",
+            "027_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_corridor": True,
-                "do_refiner": True
+                "do_refiner": False
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
