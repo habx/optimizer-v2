@@ -829,7 +829,7 @@ def merge_enclosed_faces(seeder: 'Seeder', show: bool) -> List['Space']:
 
 def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']:
     """
-    Divides the space into two sub-spaces, cut performed along the line formed by line_edges
+    Divides the space into sub-spaces, cut performed along the line formed by line_edges
     :param space:
     :param line_edges:
     :return:
@@ -859,6 +859,11 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
             return list_side_face
 
     def _groups_of_adjacent_faces(_faces: List['Face']) -> List[List['Face']]:
+        """
+        get lits of faces in _faces that form adjacent groupes
+        :param _faces:
+        :return:
+        """
         ref_face = _faces[0]
         list_remaining = _faces[1:]
         groups = [[ref_face]]
