@@ -9,7 +9,7 @@ import logging
 from typing import List, Tuple
 from shapely import geometry
 
-from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES
+from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES
 from libs.io.plot import plot_save
 
 from libs.utils.geometry import (
@@ -21,15 +21,14 @@ from libs.utils.geometry import (
 
 DOOR_WIDTH = 90
 DOOR_WIDTH_TOLERANCE = 20
-epsilon = 2
+EPSILON = 2
 
 
-# TODO
 # TODO DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
-# TODO more generic rule for openning inside/outside a room
+# TODO more generic rule for opening inside/outside a room
 # TODO : preferentially opens on room larger diagonal
 # TODO : rooms are treating in ascending area order. First door placements may be in conflict with
-# further placements
+#       further placements
 
 def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -45,8 +44,7 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
 
 
 ###############################################
-
-##### selection rules : rules to determine for each space, which other space it shall open on
+# selection rules : rules to determine for each space, which other space it shall open on
 
 def select_circulation_spaces(space: 'Space') -> List['Space']:
     """
@@ -69,11 +67,13 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
     if not adjacent_circulation_spaces:
         return []
 
-    entrances = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'entrance']
+    entrances = [sp for sp in adjacent_circulation_spaces
+                 if sp.category is SPACE_CATEGORIES['entrance']]
     if entrances:
         return entrances
 
-    corridors = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'circulation']
+    corridors = [sp for sp in adjacent_circulation_spaces
+                 if sp.category is SPACE_CATEGORIES['circulation']]
     if corridors:
         return corridors
 
@@ -102,22 +102,24 @@ def bedroom_proximity(space: 'Space') -> List['Space']:
 
 def room_proximity(space: 'Space', cat_name: str) -> List['Space']:
     """
-    selects circulation space with categroy name cat_name adjacent to space and having maximum number of contact with rooms of
-    category name cat_name
+    selects circulation space with category name `cat_name` adjacent to space and
+    having maximum number of contacts with other rooms of category name `cat_name`
     :param space:
     :param cat_name:
-    :return:
+    :return: a list of circulation spaces
     """
 
-    def _get_nb_of_adjacent_cat(_space, _cat_name):
-        return len([sp for sp in _space.adjacent_spaces() if sp.category.name is _cat_name])
+    def _get_nb_of_adjacent_cat(circulation, _cat_name):
+        return len([sp for sp in circulation.adjacent_spaces() if sp.category.name is _cat_name])
 
     adjacent_circulation_spaces = get_adjacent_circulation_spaces(space)
     if not adjacent_circulation_spaces:
         return []
 
-    corridor = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'circulation']
-    entrance = [sp for sp in adjacent_circulation_spaces if sp.category.name is 'entrance']
+    corridor = [sp for sp in adjacent_circulation_spaces
+                if sp.category is SPACE_CATEGORIES['circulation']]
+    entrance = [sp for sp in adjacent_circulation_spaces
+                if sp.category is SPACE_CATEGORIES['entrance']]
 
     if not corridor and not entrance:
         return [adjacent_circulation_spaces[0]]
@@ -159,9 +161,9 @@ def place_doors(plan: 'Plan'):
         :return:
         """
 
-        if _space.category.name == "entrance":
+        if _space.category is SPACE_CATEGORIES["entrance"]:
             return
-        if _space.category.name == "circulation":
+        if _space.category is SPACE_CATEGORIES["circulation"]:
             return
 
         if _space.category.name in space_selection_rules:
@@ -184,8 +186,7 @@ def place_doors(plan: 'Plan'):
 
 
 ###############################################
-
-##### rules to determine optimal door placement
+# rules to determine optimal door placement
 
 def along_border(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
@@ -214,7 +215,7 @@ def along_border(contact_line: List['Edge'], space: 'Space', start: bool = True)
 
 def door_space(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
-    checks the door can open  without intersecting another door or a wall
+    checks the door can open without intersecting another door or a wall
     :param contact_line:
     :param space:
     :param start:
@@ -281,15 +282,14 @@ def distant_from_door(contact_line: List['Edge'], space: 'Space', start: bool = 
     doors = [linear for linear in space.plan.linears
              if not (linear.edge in door_edge.line or linear.edge.pair in door_edge.line)
              and linear.category.name is 'door']
-    clothest_door = sorted(doors,
-                           key=lambda x: min(vert_door.distance_to(x.edge.start),
-                                             vert_door.distance_to(x.edge.end)))
-    if not clothest_door:
+    closest_door = sorted(doors, key=lambda x: min(vert_door.distance_to(x.edge.start),
+                                                   vert_door.distance_to(x.edge.end)))
+    if not closest_door:
         return True
-    dist_to_clothest_door = min(vert_door.distance_to(clothest_door[0].edge.start),
-                                vert_door.distance_to(clothest_door[0].edge.end))
+    dist_to_closest_door = min(vert_door.distance_to(closest_door[0].edge.start),
+                               vert_door.distance_to(closest_door[0].edge.end))
 
-    return dist_to_clothest_door > DOOR_WIDTH
+    return dist_to_closest_door > DOOR_WIDTH
 
 
 def distant_from_linears(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
@@ -304,18 +304,18 @@ def distant_from_linears(contact_line: List['Edge'], space: 'Space', start: bool
     vert_door = door_edge.start if start else door_edge.end
     linears = [linear for linear in space.plan.linears
                if not (linear.edge in door_edge.line or linear.edge.pair in door_edge.line)]
-    clothest_linear = sorted(linears,
-                             key=lambda x: min(vert_door.distance_to(x.edge.start),
-                                               vert_door.distance_to(x.edge.end)))
-    if not clothest_linear:
+    closest_linear = sorted(linears,
+                            key=lambda x: min(vert_door.distance_to(x.edge.start),
+                                              vert_door.distance_to(x.edge.end)))
+    if not closest_linear:
         return True
-    dist_to_clothest_linear = min(vert_door.distance_to(clothest_linear[0].edge.start),
-                                  vert_door.distance_to(clothest_linear[0].edge.end))
+    dist_to_closest_linear = min(vert_door.distance_to(closest_linear[0].edge.start),
+                                 vert_door.distance_to(closest_linear[0].edge.end))
 
-    return dist_to_clothest_linear > DOOR_WIDTH
+    return dist_to_closest_linear > DOOR_WIDTH
 
 
-def cloth_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
+def close_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool = True) -> bool:
     """
     returns true if the door is not too far from the entrance or a corridor
     :param contact_line:
@@ -337,7 +337,7 @@ def cloth_to_circulation(contact_line: List['Edge'], space: 'Space', start: bool
     return dist_to_front_door < max_length
 
 
-def door_width(contact_line: List['Edge'], *_):
+def door_width(contact_line: List['Edge'], *_) -> bool:
     """
     checks there is contact_line is long enough for a door to be placed
     :param contact_line:
@@ -345,7 +345,7 @@ def door_width(contact_line: List['Edge'], *_):
     :return:
     """
     length = sum(e.length for e in contact_line)
-    return length > DOOR_WIDTH - epsilon
+    return length > DOOR_WIDTH - EPSILON
 
 
 # scoring functions for door placement
@@ -355,7 +355,7 @@ def door_width(contact_line: List['Edge'], *_):
 door_position_rules = {
     "imperative": [door_width, door_space],
     "non_imperative": [along_border, distant_from_door],
-    "cosmetic": [cloth_to_circulation, distant_from_linears]
+    "cosmetic": [close_to_circulation, distant_from_linears]
 }
 
 
@@ -377,16 +377,16 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         :param _point:
         :return:
         """
-        vect1 = (_point[0] - _edge.start.coords[0], _point[1] - _edge.start.coords[1])
-        vect2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
-        return dot_product(vect1, vect2) <= 0
+        vect_1 = (_point[0] - _edge.start.coords[0], _point[1] - _edge.start.coords[1])
+        vect_2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
+        return dot_product(vect_1, vect_2) <= 0
 
     if not start:
         contact_line = [e.pair for e in contact_line]
         contact_line.reverse()
 
     # determines door edges
-    if contact_line[0].length > DOOR_WIDTH - epsilon:  # deal with snapping
+    if contact_line[0].length > DOOR_WIDTH - EPSILON:  # deal with snapping
         end_edge = contact_line[0]
     else:
         end_door_point = move_point(contact_line[0].start.coords,
@@ -403,7 +403,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     if not 1 > end_split_coeff > 0:
         end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
 
-    if end_split_coeff * end_edge.length <= 1 and len(door_edges) > 1:
+    if end_split_coeff * end_edge.length <= 1 < len(door_edges):
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -418,8 +418,8 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
 
 def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['Edge'], bool]:
     """
-    gets the straight contact portion between both space where the door will stand, and whether the door
-    is at the beginning or end of this portion
+    gets the straight contact portion between both space where the door will stand,
+    and whether the door is at the beginning or end of this portion
     :param space:
     :param lines: list of list of edges, each element is list of contiguous parallel edges,
     straight portion of space on which the door may be placed
@@ -454,15 +454,16 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['
 
         return score
 
-    def _kept_portion(_space: Space, _lines: List[List['Edge']], start: bool) -> Tuple[
-        List['Edge'], float]:
+    def _kept_portion(_space: Space,
+                      _lines: List[List['Edge']],
+                      start: bool) -> Tuple[List['Edge'], float]:
         """
         selection of the best contact portion to place door
         :param _space:
         :param _lines:
         :param start:
         :return: the best portion and a bool indicating where the door is placed in this portion
-        #TODO : add possibility to place door in the middle?
+        TODO : add possibility to place door in the middle?
         """
         score = 0
         line = _lines[0]
@@ -506,11 +507,12 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
     """
 
     # gets contact edges between both spaces
-    contact_edges = [edge for edge in space.edges if edge.pair in circulation_space.edges]
+    contact_edges = [edge for edge in space.edges if circulation_space.has_edge(edge.pair)]
 
     # reorders contact_edges
     start_index = 0
     for i, edge in enumerate(contact_edges):
+        # TODO : would faster to do using the pair next_edge
         if not space.previous_edge(edge) in contact_edges:
             start_index = i
             break
@@ -561,14 +563,15 @@ def door_plot(plan: 'Plan', save: bool = True):
     """
     ax = plan.plot(save=False)
     number_of_levels = plan.floor_count
-    for level in range(number_of_levels):
+    for floor in plan.floors.values():
+        level = floor.level
         _ax = ax[level] if number_of_levels > 1 else ax
         for linear in plan.linears:
+            if linear.floor is not floor:
+                continue
             if linear.category.name == "door":
                 start_edge = list(linear.edges)[0]
                 sp = plan.get_space_of_edge(start_edge)
-                if not sp.floor.level is plan.get_space_of_edge(linear.edge).floor.level:
-                    continue
                 if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
                     start_door_point = list(linear.edges)[0].start.coords
                     end_door_point = list(linear.edges)[-1].end.coords
@@ -614,6 +617,11 @@ if __name__ == '__main__':
 
 
     def get_plan(input_file: str = "001.json") -> Tuple['Plan', 'Specification']:
+        """
+        Get a plan
+        :param input_file:
+        :return:
+        """
 
         import libs.io.reader as reader
         import libs.io.writer as writer
@@ -660,6 +668,11 @@ if __name__ == '__main__':
 
 
     def main(input_file: str):
+        """
+        Test
+        :param input_file:
+        :return:
+        """
 
         out = get_plan(input_file)
         plan = out[0]
@@ -668,7 +681,7 @@ if __name__ == '__main__':
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec, show=False)
+        corridor.apply_to(plan, spec=spec)
 
         print("ENTER DOOR PROCESS")
         bool_place_single_door = False
@@ -687,5 +700,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    plan_name = "032.json"
-    main(input_file=plan_name)
+    _plan_name = "032.json"
+    main(input_file=_plan_name)
