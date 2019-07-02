@@ -697,7 +697,6 @@ if __name__ == '__main__':
             place_door_between_two_spaces(space1, space2)
         else:
             place_doors(plan)
-        # plan.plot()
         door_plot(plan)
 
 
