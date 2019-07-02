@@ -142,20 +142,18 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
-    # retrieve all the aligned edges
+    # retrieve all the aligned edges pairs and their space
     spaces_and_edges = map(lambda _e: (space.plan.get_space_of_edge(_e.pair), _e.pair),
                            space.aligned_siblings(edge, max_angle))
     # group edges by spaces
     edges_by_spaces = defaultdict(set)
     for other, _edge in spaces_and_edges:
-        if other is None:
+        if other is None or not other.mutable:
             continue
         edges_by_spaces[other].add(_edge)
 
     modified_spaces = [space]
     for other in edges_by_spaces:
-        if not other.mutable:
-            continue
 
         # remove all edges that have a needed linear for the space
         for e in edges_by_spaces[other].copy():
@@ -168,6 +166,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
                 edges_by_spaces[other].remove(e)
 
         if not edges_by_spaces[other]:
+            logging.debug("Refiner: Mutation: No more edges for space %s", other)
             continue
 
         # check if we are breaking the space if we remove the faces
@@ -175,6 +174,9 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
         faces = set(e.face for e in edges_by_spaces[other])
         if other.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
             continue
+
+        logging.debug("Mutation: Adding aligned edges %s to space %s from % s",
+                      edges_by_spaces[other], space, other)
 
         faces_id = [f.id for f in faces]
         space.add_face_id(*faces_id)
@@ -225,9 +227,9 @@ def add_face(space: 'Space') -> List['Space']:
     logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
                   other_space)
 
-    created_spaces = other_space.remove_face(face)
+    other_space.remove_face(face)
     space.add_face(face)
-    return [space] + list(created_spaces)
+    return [space, other_space]
 
 
 def remove_aligned_faces(space: 'Space') -> List['Space']:
@@ -267,34 +269,31 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         logging.info("No more edges %s", space)
         return []
 
-    logging.debug("Removing aligned edges : %s from space %s", edges, space)
+    logging.debug("Mutation: Removing aligned edges : %s from space %s", edges, space)
 
-    modified_spaces = [space]
     faces_by_spaces = defaultdict(set)
     faces = set(list(e.face for e in edges))
+    remaining_faces = set()
 
     for edge in edges:
         other = plan.get_space_of_edge(edge.pair)
         if other is None or not other.mutable and edge.face in faces:
-            faces.remove(edge.face)
             continue
-        # NOTE : we must add back a face that was removed because one of its edge was not adjacent
-        # to a mutable space but has another edge that is adjacent
-        if edge.face not in faces:
-            faces.add(edge.face)
+        remaining_faces.add(edge.face)
+        faces_by_spaces[other].add(edge.face)  # Note : a face can be linked to 2+ spaces
 
-        faces_by_spaces[other].add(edge.face)
-
-    if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
+    if not faces or space.corner_stone(*remaining_faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
+    modified_spaces = [space]
     for other in faces_by_spaces:
         if not other.mutable:
             continue
         # Note : a face can be adjacent to multiple other spaces. We must check that the face
         #        has not already been given to another space. This is why we only retain
         #        the intersection of the identified faces set with the remaining faces of the space
-        faces_id = set(map(lambda f: f.id, faces_by_spaces[other])) & set(space._faces_id)
+        faces_id = set(map(lambda f: f.id,
+                           faces_by_spaces[other])).intersection(set(space._faces_id))
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces
@@ -346,10 +345,10 @@ def remove_face(space: 'Space') -> List['Space']:
     logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
                   other_space)
 
-    created_spaces = space.remove_face(face)
+    space.remove_face(face)
     other_space.add_face(face)
 
-    return [other_space] + list(created_spaces)
+    return [other_space, space]
 
 
 """
