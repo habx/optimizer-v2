@@ -615,9 +615,9 @@ class Solution:
         duct_list = ["bathroom", "toilet", "laundry", "wardrobe"]
 
         distance = 0
+        if len(self.items_spaces) != len(other_solution.items_spaces):
+            distance += 1
         for item in self.items_spaces:
-            if len(self.items_spaces) != len(other_solution.items_spaces):
-                distance += 1
             if item not in other_solution.items_spaces:
                 continue
             space = self.items_spaces[item]
