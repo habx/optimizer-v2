@@ -61,7 +61,7 @@ def initializer():
     # noinspection PyProtectedMember
     worker_id = multiprocessing.current_process()._identity[0]
     logging.info("Setting up random seed %s", worker_id)
-    random.seed(worker_id)
+    # random.seed(worker_id)
 
 
 def merge_adjacent_circulation(ind: 'Individual') -> None:
@@ -585,6 +585,7 @@ if __name__ == '__main__':
         """
         import tools.cache
         import time
+        from libs.inout.writer import save_plan_as_json
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
@@ -598,14 +599,12 @@ if __name__ == '__main__':
         if plan:
             plan.name = "original_" + plan_number
             plan.remove_null_spaces()
-            plan.plot()
 
             Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                      growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
                      ).apply_to(plan, spec)
 
             plan.name = "Corridor_" + plan_number
-            plan.plot()
             # run genetic algorithm
             start = time.time()
             improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params, processes=4)
@@ -613,12 +612,14 @@ if __name__ == '__main__':
 
             # display solution
             improved_plan.name = "Refined_" + plan_number
-            improved_plan.plot()
             # analyse found solution
             logging.info("Time elapsed: {}".format(end - start))
             logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                            improved_plan.fitness.values))
 
             evaluation.check(improved_plan, spec)
+            save_plan_as_json(improved_plan.serialize(), "refiner")
+
+
 
     apply()

@@ -40,7 +40,7 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
         for f in floor.mesh.faces:
             space_1 = ind_1.get_space_of_face(f)
             space_2 = ind_2.get_space_of_face(f)
-            if space_1 is space_2 or not space_1.mutable or not space_2.mutable:
+            if space_1.id == space_2.id or not space_1.mutable or not space_2.mutable:
                 continue
             differences[f] = (space_1, space_2)
 
@@ -69,8 +69,8 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
                 break
 
         connected_faces = list(connected_faces)
-        impacted_spaces_ind_1 = (space_dict[f][0] for f in connected_faces)
-        impacted_spaces_ind_2 = (space_dict[f][1] for f in connected_faces)
+        impacted_spaces_ind_1 = [space_dict[f][0] for f in connected_faces]
+        impacted_spaces_ind_2 = [space_dict[f][1] for f in connected_faces]
 
         for space in set(impacted_spaces_ind_1) | set(impacted_spaces_ind_2):
             faces = list(filter(lambda _f: space.has_face(_f), connected_faces))
