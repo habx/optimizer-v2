@@ -546,7 +546,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         return
 
     # set linear
-    door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
+    start_door_vertex = door_edges[0].start if start else door_edges[-1].end
+    door = Linear(plan=space.plan, floor=space.floor, edge=door_edges[0],
+                  category=LINEAR_CATEGORIES["door"], start=start_door_vertex)
 
     if len(door_edges) == 1:
         return
@@ -573,10 +575,10 @@ def door_plot(plan: 'Plan', save: bool = True):
                 start_edge = list(linear.edges)[0]
                 sp = plan.get_space_of_edge(start_edge)
                 if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
-                    start_door_point = list(linear.edges)[0].start.coords
+                    start_door_point = linear.start.coords
                     end_door_point = list(linear.edges)[-1].end.coords
                 else:
-                    start_door_point = list(linear.edges)[-1].end.coords
+                    start_door_point = linear.start.coords
                     end_door_point = list(linear.edges)[0].start.coords
 
                 door_vect = (end_door_point[0] - start_door_point[0],
@@ -683,7 +685,6 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec)
 
-        print("ENTER DOOR PROCESS")
         bool_place_single_door = False
         if bool_place_single_door:
             cat1 = "livingKitchen"
@@ -700,5 +701,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "032.json"
+    _plan_name = "002.json"
     main(input_file=_plan_name)
