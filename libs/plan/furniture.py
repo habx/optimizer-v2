@@ -11,7 +11,7 @@ from libs.plan.category import SpaceCategory, SPACE_CATEGORIES
 from libs.io.plot import plot_polygon
 
 if TYPE_CHECKING:
-    from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d
+    from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
     from libs.plan.plan import Plan, Space
 
 
@@ -110,10 +110,20 @@ class Furniture:
         return plot_polygon(ax, x, y, options, color, save)
 
 
-bed_garnisher = Garnisher("bed", [(SPACE_CATEGORIES["bedroom"], "bed", False)])
-prm_bed_garnisher = Garnisher("prm_bed", [(SPACE_CATEGORIES["bedroom"], "bed", True)])
+class FurnitureCategory:
+    def __init__(self,
+                 name: str,
+                 polygon: 'ListCoords2d',
+                 is_prm: bool):
+        self.name = name
+        self.polygon = polygon
+        self.is_prm = is_prm
+
 
 GARNISHERS = {
-    "prm_bed": prm_bed_garnisher,
-    "bed": bed_garnisher
+    "default": Garnisher("default", [(SPACE_CATEGORIES["bedroom"], "bed", True)])
+}
+
+FURNITURE_CATEGORIES = {
+    "bed": FurnitureCategory("bed", ((0,0),(140,0),(140,190),(0,190)), False)
 }
