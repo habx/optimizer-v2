@@ -573,12 +573,10 @@ def door_plot(plan: 'Plan', save: bool = True):
                 continue
             if linear.category.name == "door":
                 start_edge = list(linear.edges)[0]
-                sp = plan.get_space_of_edge(start_edge)
-                if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
-                    start_door_point = linear.start.coords
+                start_door_point = linear.start.coords
+                if list(linear.edges)[-1].end is not linear.start:
                     end_door_point = list(linear.edges)[-1].end.coords
                 else:
-                    start_door_point = linear.start.coords
                     end_door_point = list(linear.edges)[0].start.coords
 
                 door_vect = (end_door_point[0] - start_door_point[0],
@@ -700,5 +698,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "002.json"
+    _plan_name = "009.json"
     main(input_file=_plan_name)
