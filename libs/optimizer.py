@@ -83,11 +83,8 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {
-            "ngen": 60,
-            "mu": 40,
-            "cxpb": 0.9
-        }
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                          "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
@@ -258,8 +255,7 @@ class Optimizer:
                 for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params,
-                                                                      processes=2)
+                                                                      params.refiner_params)
                     if params.do_plot:
                         sol.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:

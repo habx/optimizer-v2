@@ -33,10 +33,22 @@ def compose(funcs: List[scoreFunc],
     :param ind:
     :return:
     """
-    mutable_spaces_id = {space.id for space in spec.plan.mutable_spaces()}
-    output = {k: tuple(d.get(k, None) for d in (f(spec, ind) for f in funcs))
-              for k in mutable_spaces_id}
-    return output
+    current_fitness = ind.fitness.sp_values
+    scores = [f(spec, ind) for f in funcs]
+    spaces_id = [s.id for s in ind.mutable_spaces()]
+    n_scores = len(funcs)
+
+    for space_id in spaces_id:
+        new_space_fitness = [None] * n_scores
+        for i in range(n_scores):
+            if space_id in scores[i]:
+                new_space_fitness[i] = scores[i][space_id]
+            else:
+                new_space_fitness[i] = current_fitness[space_id][i]
+        current_fitness[space_id] = tuple(new_space_fitness)
+
+    ind.modified_spaces = set()  # reset the set of the modified spaces
+    return current_fitness
 
 
 def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
@@ -70,9 +82,10 @@ def _score_space_area(space_area: float, min_area: float, max_area: float) -> fl
     """
     sp_score = 0
     if space_area < min_area:
-        sp_score = (((min_area - space_area) / min_area) ** 2) * 100
+        # note: worse to be smaller
+        sp_score = (((min_area - space_area) / min_area) ** 2) * 100 * 3.0
     elif space_area > max_area:
-        sp_score = (((space_area - max_area) / max_area) ** 2) * 100
+        sp_score = (((space_area - max_area) / max_area) ** 2) * 100.0
     return sp_score
 
 
@@ -103,9 +116,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         if space.id not in ind.modified_spaces:
             continue
         if space.category is SPACE_CATEGORIES["circulation"]:
-            # area_score[space.id] = _score_space_area(space.cached_area(),
-            # min_circulation_size, min_circulation_size) / 10.0
-            area_score[space.id] = 0
+            area_score[space.id] = 0.0
             continue
         item = space_to_item[space.id]
         space_area = space.cached_area()
@@ -134,7 +145,7 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
             score[space.id] = 0.0
             continue
         # score[space.id] = number_of_corners(space)
-        score[space.id] = space.number_of_corners() - 4.0
+        score[space.id] = max(space.number_of_corners() - 4.0, 0)
         if space.has_holes:
             score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
     return score
@@ -363,13 +374,13 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     )
 
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if not space.edge:
             score[space.id] = 0.0
             continue
         if space.category not in circulation_categories:
             score[space.id] = 0.0
-            continue
-        if space.id not in ind.modified_spaces:
             continue
         polygon = space.boundary_polygon()
         width = min_section(polygon)
