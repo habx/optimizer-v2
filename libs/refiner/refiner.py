@@ -564,7 +564,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 15, "elite": 0.1, "processes": 8}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "006"  # 049
