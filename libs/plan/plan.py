@@ -60,7 +60,6 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional[int] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id
@@ -1226,7 +1225,8 @@ class Space(PlanComponent):
                 if det < 0:  # counter clockwise
                     if found_exterior_edge:
                         self.plan.plot()
-                        raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
+                        raise ValueError("Space: The space has been split ! %s | %s", self,
+                                         self.plan)
                     self._edges_id = [edge.id] + self._edges_id
                     found_exterior_edge = True
                 else:  # clockwise
@@ -1955,14 +1955,15 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    __slots__ = '_edges_id'
+    __slots__ = '_edges_id', '_start_id'
 
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
                  edge: Optional[Edge] = None,
                  category: Optional[LinearCategory] = None,
-                 _id: Optional[int] = None):
+                 _id: Optional[int] = None,
+                 start: Optional[Vertex] = None):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
@@ -1970,6 +1971,7 @@ class Linear(PlanComponent):
         super().__init__(plan, floor, _id)
         self.category = category
         self._edges_id = [edge.id] if edge else []
+        self._start_id = start.id if start else None
 
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
@@ -1983,7 +1985,8 @@ class Linear(PlanComponent):
             "id": self.id,
             "floor": str(self.floor.id),
             "edges": list(map(str, self._edges_id)),
-            "category": self.category.name
+            "category": self.category.name,
+            "start": self._start_id
         }
 
         return output
@@ -1996,6 +1999,7 @@ class Linear(PlanComponent):
         """
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self.category = LINEAR_CATEGORIES[value["category"]]
+        self._start_id = int(value["start"]) if value["start"] else None
         return self
 
     def clone(self, plan: 'Plan') -> 'Linear':
@@ -2006,6 +2010,7 @@ class Linear(PlanComponent):
         new_floor = plan.floors[self.floor.id]
         new_linear = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
+        new_linear._start_id = self._start_id
         return new_linear
 
     @property
@@ -2017,6 +2022,16 @@ class Linear(PlanComponent):
         if not self._edges_id:
             return None
         return self.mesh.get_edge(self._edges_id[0])
+
+    @property
+    def start(self) -> Optional['Vertex']:
+        """
+        The first edge of the linear
+        :return:
+        """
+        if not self._start_id:
+            return None
+        return self.mesh.get_vertex(self._start_id)
 
     @property
     def edges(self) -> Generator[Edge, None, None]:
@@ -2038,7 +2053,7 @@ class Linear(PlanComponent):
 
     def remove_edge_id(self, edge_id: int):
         """
-        Adds the edge id
+        Removes the edge id
         :param edge_id:
         :return:
         """
@@ -3027,8 +3042,9 @@ class Plan:
         for space in self.spaces:
             for edge in space.edges:
                 if (edge.pair.face is None or
-                    edge.pair in list(space.edge
-                                      for space in self.spaces if space.category.external is True)):
+                        edge.pair in list(space.edge
+                                          for space in self.spaces if
+                                          space.category.external is True)):
                     _perimeter += edge.length
         return _perimeter
 
