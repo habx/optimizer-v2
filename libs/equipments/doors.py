@@ -698,5 +698,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "009.json"
+    _plan_name = "002.json"
     main(input_file=_plan_name)
