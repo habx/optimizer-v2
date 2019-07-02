@@ -9,7 +9,7 @@ and a customer input setup
 import logging
 import multiprocessing
 
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from libs.specification.specification import Specification, Item
 from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
@@ -162,11 +162,13 @@ class SpacePlanner:
         return plan, dict_items_space
 
     @staticmethod
-    def scoring_solution(solutions_collector: SolutionsCollector, plan: Plan,
-                         dict_items_spaces: Dict):
+    def scoring_solution(score_tuple: Tuple[SolutionsCollector, Plan, Dict]):
+        solutions_collector = score_tuple[0]
+        plan = score_tuple[1]
+        dict_items_spaces = score_tuple[2]
         sol = Solution(solutions_collector, plan, dict_items_spaces,
                        len(solutions_collector.solutions))
-        return sol.score
+        return sol
 
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
@@ -182,7 +184,7 @@ class SpacePlanner:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
 
-            nb_processes = 1
+            nb_processes = 2
             # map_func = multiprocessing.Pool(nb_processes).map
             # map_func(_sets_solution, range(len(self.manager.solver.solutions)))
             # pool = multiprocessing.Pool(nb_processes)
@@ -198,19 +200,20 @@ class SpacePlanner:
             list_solution_collector = [self.solutions_collector]
             list_solution_collector *= len(list_plans)
             pool = multiprocessing.Pool(nb_processes)
-            scores = list(pool.map(self.scoring_solution, zip(list_solution_collector, list_plans,
-                                                              list_dict_items_spaces)))
-
-            print("SCORE")
-            print(scores)
-
-            for i, sol in enumerate(self.manager.solver.solutions):
-                plan_solution = self.spec.plan.clone()
-                plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
-                self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
-                logging.debug(plan_solution)
+            solutions = list(
+                pool.map(self.scoring_solution, zip(list_solution_collector, list_plans,
+                                                    list_dict_items_spaces)))
+            for sol in solutions:
+                self.solutions_collector.solutions.append(sol)
                 if show:
-                    plan_solution.plot()
+                    sol.plan.plot()
+            # for i, sol in enumerate(self.manager.solver.solutions):
+            #     plan_solution = self.spec.plan.clone()
+            #     plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
+            #     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
+            #     logging.debug(plan_solution)
+            #     if show:
+            #         plan_solution.plot()
 
             if show:
                 for plan_solution in self.solutions_collector.solutions.plan:
