@@ -7,6 +7,8 @@ and a customer input setup
 
 """
 import logging
+import multiprocessing
+
 from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
 from libs.specification.size import Size
@@ -63,7 +65,7 @@ class SpacePlanner:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
+                        # opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                         size_max, item.opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
@@ -159,12 +161,18 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
+    @staticmethod
+    def scoring_solution(solutions_collector: SolutionsCollector, plan: Plan,
+                         dict_items_spaces: Dict):
+        sol = Solution(solutions_collector, plan, dict_items_spaces,
+                       len(solutions_collector.solutions))
+        return sol.score
+
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
         :return: None
         """
-
         self.manager.solver.solve()
 
         if len(self.manager.solver.solutions) == 0:
@@ -173,15 +181,40 @@ class SpacePlanner:
         else:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
-            if len(self.manager.solver.solutions) > 0:
-                for i, sol in enumerate(self.manager.solver.solutions):
-                    plan_solution = self.spec.plan.clone()
-                    plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
-                    logging.debug(plan_solution)
 
-                    if show:
-                        plan_solution.plot()
+            nb_processes = 1
+            # map_func = multiprocessing.Pool(nb_processes).map
+            # map_func(_sets_solution, range(len(self.manager.solver.solutions)))
+            # pool = multiprocessing.Pool(nb_processes)
+            # list(pool.map(_sets_solution, zip(range(len(self.manager.solver.solutions)))))
+
+            list_plans = []
+            list_dict_items_spaces = []
+            for i, sol in enumerate(self.manager.solver.solutions):
+                plan_solution = self.spec.plan.clone()
+                plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
+                list_plans.append(plan_solution)
+                list_dict_items_spaces.append(dict_items_spaces)
+            list_solution_collector = [self.solutions_collector]
+            list_solution_collector *= len(list_plans)
+            pool = multiprocessing.Pool(nb_processes)
+            scores = list(pool.map(self.scoring_solution, zip(list_solution_collector, list_plans,
+                                                              list_dict_items_spaces)))
+
+            print("SCORE")
+            print(scores)
+
+            for i, sol in enumerate(self.manager.solver.solutions):
+                plan_solution = self.spec.plan.clone()
+                plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
+                self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
+                logging.debug(plan_solution)
+                if show:
+                    plan_solution.plot()
+
+            if show:
+                for plan_solution in self.solutions_collector.solutions.plan:
+                    plan_solution.plot()
 
         return []
 
@@ -224,7 +257,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    #logging.getLogger().setLevel(logging.DEBUG)
+    # logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -234,7 +267,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "026.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)

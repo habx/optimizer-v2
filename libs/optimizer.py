@@ -303,14 +303,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "032.json",
-            "032_setup0.json",
+            "009.json",
+            "009_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_refiner": True,
-                "do_door": True
+                "do_refiner": False,
+                "do_door": False
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
