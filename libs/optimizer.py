@@ -17,6 +17,7 @@ from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
+from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 import libs.io.plot
 
@@ -96,6 +97,7 @@ class ExecParams:
         self.do_refiner = params.get('do_refiner', False)
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
+        self.do_door = params.get('do_door', False)
 
 
 class Optimizer:
@@ -133,9 +135,9 @@ class Optimizer:
         for file in os.listdir(output_dir):
             extension = os.path.splitext(file)[-1].lower()
             if (extension in (".tif", ".tiff",
-                             ".jpeg", ".jpg", ".jif", ".jfif",
-                             ".jp2", ".jpx", ".j2k", ".j2c",
-                             ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
+                              ".jpeg", ".jpg", ".jif", ".jfif",
+                              ".jp2", ".jpx", ".j2k", ".j2c",
+                              ".gif", ".svg", ".fpx", ".pcd", ".png", ".pdf")
                     or extension == ".json"):
                 files[file] = {
                     'type': os.path.splitext(file)[0],
@@ -250,7 +252,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params)
@@ -261,6 +263,18 @@ class Optimizer:
                                           libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
+
+        # placing doors
+        t0_door = time.process_time()
+        if params.do_door:
+            logging.info("Door")
+            if best_solutions and space_planner:
+                for sol in best_solutions:
+                    place_doors(sol.plan)
+                    if params.do_plot:
+                        door_plot(sol.plan)
+        elapsed_times["door"] = time.process_time() - t0_door
+        logging.info("Door placement achieved in %f", elapsed_times["door"])
 
         # output
         t0_output = time.process_time()
@@ -289,12 +303,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "016.json",
-            "016_setup0.json",
+            "032.json",
+            "032_setup0.json",
             {
-                "grid_type": "001",
+                "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
+                "do_refiner": True,
+                "do_door": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
