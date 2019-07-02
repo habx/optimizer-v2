@@ -1330,7 +1330,10 @@ class Space(PlanComponent):
         :param min_adjacency_length
         :return:
         """
-        assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
+        # per convention if not faces are specified, we won't break the space
+        if not faces:
+            return False
+
         for f in faces:
             assert self.has_face(f), ("Space: Corner Stone, the faces "
                                       "provided must belong to the space: {}".format(f))
