@@ -365,7 +365,7 @@ def luminosity_scoring(solution: 'Solution') -> float:
     for space, item in solution.space_item.items():
         windows_list = [lin for lin in solution.spec.plan.linears
                         if (lin.category.window_type and lin in space.immutable_components()
-                            and lin.floor == space.floor)]
+                            and lin.floor.level == space.floor.level)]
         if windows_list:
             for face in space.faces:
                 face_luminosity[face] = 0
@@ -373,7 +373,9 @@ def luminosity_scoring(solution: 'Solution') -> float:
                 for lin in windows_list:
                     try:
                         ray = sun_ray_dict[face][lin]
-                    except ValueError:
+                    except KeyError:
+                        logging.warning("sun_ray_dict - Problem")
+                        logging.warning(lin, face, space)
                         continue
 
                     if ray.length <= distance_max:
@@ -782,6 +784,7 @@ if __name__ == '__main__':
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
     from libs.space_planner.space_planner import SPACE_PLANNERS
+    from libs.io.writer import save_plan_as_json
 
 
     def spec_adaptation(spec: 'Specification', archi_plan: 'Plan') -> 'Specification':
@@ -917,10 +920,11 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        input_blueprint_list = ["noisy-le-grand_A543_blueprint.json"]
+        input_blueprint_list = ["032.json"]
 
         for input_file in input_blueprint_list:
-            input_file_setup = input_file[:-14] + "setup.json"
+            #input_file_setup = input_file[:-14] + "setup0.json"
+            input_file_setup = input_file[:-5] + "_setup0.json"
             print(input_file)
             plan = reader.create_plan_from_file(input_file)
 
@@ -939,22 +943,22 @@ if __name__ == '__main__':
             print("best_solutions", best_solutions)
 
             # architect plan
-            architect_input_plan = input_file[:-14] + "plan.json"
-            architect_plan = reader.create_plan_from_file(architect_input_plan)
-            architect_plan.remove_null_spaces()
-            architect_plan.plot()
-            architect_plan_spec = spec_adaptation(input_spec, architect_plan)
-            architect_plan_spec.plan = architect_plan
-            architect_space_item = create_item_dict(architect_plan_spec, architect_plan)
-            space_planner.solutions_collector.add_plan(architect_plan_spec, architect_space_item)
-            architect_plan.plot()
-            architect_final_score, architect_final_score_components = final_scoring(
-                space_planner.solutions_collector.architect_plans[0])
-            print(architect_final_score_components)
-            radar_chart(architect_final_score,
-                        architect_final_score_components,
-                        000, plan.name + "Archi_FinalScore")
-            plt.close()
+            # architect_input_plan = input_file[:-14] + "plan.json"
+            # architect_plan = reader.create_plan_from_file(architect_input_plan)
+            # architect_plan.remove_null_spaces()
+            # architect_plan.plot()
+            # architect_plan_spec = spec_adaptation(input_spec, architect_plan)
+            # architect_plan_spec.plan = architect_plan
+            # architect_space_item = create_item_dict(architect_plan_spec, architect_plan)
+            # space_planner.solutions_collector.add_plan(architect_plan_spec, architect_space_item)
+            # architect_plan.plot()
+            # architect_final_score, architect_final_score_components = final_scoring(
+            #     space_planner.solutions_collector.architect_plans[0])
+            # print(architect_final_score_components)
+            # radar_chart(architect_final_score,
+            #             architect_final_score_components,
+            #             000, plan.name + "Archi_FinalScore")
+            # plt.close()
 
             for sol in best_solutions:
                 final_score, final_score_components = final_scoring(sol)
