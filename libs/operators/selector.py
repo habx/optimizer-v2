@@ -506,14 +506,20 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
             edge_along_plan = edge
             break
 
+    list_plant_edge = []
     if edge_along_plan:
         # duct sides
         next_side = get_duct_side(edge_along_plan)
         if next_side:
-            yield next_side.pair
+            list_plant_edge.append(next_side.pair)
         previous_side = get_duct_side(edge_along_plan, next=False)
         if previous_side:
-            yield previous_side.pair
+            for e in list_plant_edge:
+                if previous_side in e.pair.line:
+                    #do not yield edges aligned on the duct
+                    break
+            else:
+                list_plant_edge.append(previous_side.pair)
         # sides on internal duct border
         last_side = None
         if next_side:
@@ -521,7 +527,14 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
         elif previous_side:
             last_side = get_duct_side(previous_side, next=False)
         if last_side and check_duct_length(last_side):
-            yield last_side.pair
+            for e in list_plant_edge:
+                if last_side in e.pair.line:
+                    # do not yield edges aligned on the duct
+                    break
+            else:
+                list_plant_edge.append(last_side.pair)
+        for e in list_plant_edge:
+            yield e
 
     else:
         for edge in space.edges:
