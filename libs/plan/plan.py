@@ -22,6 +22,7 @@ from typing import (
 )
 import logging
 import uuid
+from enum import Enum
 
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
@@ -1948,6 +1949,12 @@ class Space(PlanComponent):
         return max_distance
 
 
+class LinearOrientation(Enum):
+    ALONG = "Along"
+    OPPOSITE = "Opposite"
+    NONE = None
+
+
 class Linear(PlanComponent):
     """
     Linear Class
@@ -1955,7 +1962,7 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    __slots__ = '_edges_id', '_start_id'
+    __slots__ = '_edges_id', 'orientation'
 
     def __init__(self,
                  plan: 'Plan',
@@ -1963,7 +1970,7 @@ class Linear(PlanComponent):
                  edge: Optional[Edge] = None,
                  category: Optional[LinearCategory] = None,
                  _id: Optional[int] = None,
-                 start: Optional[Vertex] = None):
+                 orientation: LinearOrientation = LinearOrientation.NONE):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
@@ -1971,7 +1978,7 @@ class Linear(PlanComponent):
         super().__init__(plan, floor, _id)
         self.category = category
         self._edges_id = [edge.id] if edge else []
-        self._start_id = start.id if start else None
+        self.orientation = orientation
 
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
@@ -1986,7 +1993,7 @@ class Linear(PlanComponent):
             "floor": str(self.floor.id),
             "edges": list(map(str, self._edges_id)),
             "category": self.category.name,
-            "start": self._start_id
+            "orientation": str(self.orientation)
         }
 
         return output
@@ -1999,7 +2006,7 @@ class Linear(PlanComponent):
         """
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self.category = LINEAR_CATEGORIES[value["category"]]
-        self._start_id = int(value["start"]) if value["start"] else None
+        self.orientation = value["orientation"]
         return self
 
     def clone(self, plan: 'Plan') -> 'Linear':
@@ -2010,7 +2017,7 @@ class Linear(PlanComponent):
         new_floor = plan.floors[self.floor.id]
         new_linear = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
-        new_linear._start_id = self._start_id
+        new_linear.orientation = self.orientation
         return new_linear
 
     @property
@@ -2022,16 +2029,6 @@ class Linear(PlanComponent):
         if not self._edges_id:
             return None
         return self.mesh.get_edge(self._edges_id[0])
-
-    @property
-    def start(self) -> Optional['Vertex']:
-        """
-        The first edge of the linear
-        :return:
-        """
-        if not self._start_id:
-            return None
-        return self.mesh.get_vertex(self._start_id)
 
     @property
     def edges(self) -> Generator[Edge, None, None]:
