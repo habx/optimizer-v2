@@ -8,7 +8,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
+from typing import Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
 import enum
 
 from shapely.geometry.polygon import Polygon
@@ -1977,7 +1977,8 @@ class Face(MeshComponent):
         except StopIteration:
             return False
 
-    def siblings(self, min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
+    def siblings(self,
+                 min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
         :param min_adjacency_length:
