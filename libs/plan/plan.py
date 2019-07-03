@@ -186,6 +186,9 @@ class Space(PlanComponent):
                                             self.id)
         return output
 
+    def __hash__(self):
+        return self.id
+
     def clone(self, plan: 'Plan') -> 'Space':
         """
         Creates a clone of the space
