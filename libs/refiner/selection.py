@@ -31,6 +31,8 @@ def elite_select(mutate_func: 'MutateFunc',
     pop = pop[0:elite_size]
     if k <= elite_size:
         return pop[0:k]
+
+    # TODO : enable multiple mutations ?
     new_pop = [mutate_func(random.choice(pop).clone()) for _ in range(k - elite_size)]
     return pop + new_pop
 

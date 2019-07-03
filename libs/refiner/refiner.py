@@ -311,7 +311,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
                                                   mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.best_spaces)
+    toolbox.register("mate", crossover.connected_differences)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
     toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
