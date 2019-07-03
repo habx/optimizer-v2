@@ -9,7 +9,8 @@ import logging
 from typing import List, Tuple
 from shapely import geometry
 
-from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES
+from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES, \
+    LinearOrientation
 from libs.io.plot import plot_save
 
 from libs.utils.geometry import (
@@ -546,9 +547,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         return
 
     # set linear
-    start_door_vertex = door_edges[0].start if start else door_edges[-1].end
+    orientation = LinearOrientation.ALONG if start else LinearOrientation.OPPOSITE
     door = Linear(plan=space.plan, floor=space.floor, edge=door_edges[0],
-                  category=LINEAR_CATEGORIES["door"], start=start_door_vertex)
+                  category=LINEAR_CATEGORIES["door"], orientation=orientation)
 
     if len(door_edges) == 1:
         return
@@ -573,10 +574,11 @@ def door_plot(plan: 'Plan', save: bool = True):
                 continue
             if linear.category.name == "door":
                 start_edge = list(linear.edges)[0]
-                start_door_point = linear.start.coords
-                if list(linear.edges)[-1].end is not linear.start:
+                if linear.orientation is LinearOrientation.ALONG:
+                    start_door_point = start_edge.start.coords
                     end_door_point = list(linear.edges)[-1].end.coords
                 else:
+                    start_door_point = list(linear.edges)[-1].end.coords
                     end_door_point = list(linear.edges)[0].start.coords
 
                 door_vect = (end_door_point[0] - start_door_point[0],
@@ -698,5 +700,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "002.json"
+    _plan_name = "009.json"
     main(input_file=_plan_name)
