@@ -1950,6 +1950,11 @@ class Space(PlanComponent):
 
 
 class LinearOrientation(Enum):
+    """
+    defines opening orientation of a linear
+    -along : opens along linear edge direction
+    -opposite : opens in the opposite direction
+    """
     ALONG = "Along"
     OPPOSITE = "Opposite"
     NONE = None
