@@ -24,5 +24,3 @@ def test_simple_plan():
 
     plan.check()
 
-
-test_simple_plan()
