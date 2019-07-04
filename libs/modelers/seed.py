@@ -998,6 +998,7 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
 
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
+    border_division("hole", SELECTORS["not_aligned_edges"])
     border_division("empty", SELECTORS["not_aligned_edges_border"])
 
     return []
@@ -1102,7 +1103,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
