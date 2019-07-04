@@ -474,7 +474,9 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if not space.category or space.category.name != 'duct':
         raise ValueError('You should provide a duct to the query seed_duct!')
 
-    def check_duct_length(_edge: 'Edge', min_size: float = 60):
+    def check_duct_length(_edge: 'Edge', min_size: float = 60) -> bool:
+        if not _edge:
+            return False
         l = _edge.length
         current = _edge.next
         while parallel(_edge.vector, current.vector):
@@ -482,21 +484,61 @@ def seed_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
             current = current.next
         return l > min_size
 
+    def get_duct_side(_edge: 'Edge', next: bool = True) -> Optional['Edge']:
+        following_edge = _edge.next if next else _edge.previous
+        sp_follow = space.plan.get_space_of_edge(following_edge.pair)
+        if (sp_follow
+                and sp_follow.mutable
+                and not parallel(following_edge.vector, _edge.vector)):
+            return following_edge
+        while not following_edge is _edge:
+            following_edge = following_edge.next if next else following_edge.previous
+            sp_follow = space.plan.get_space_of_edge(following_edge.pair)
+            if (sp_follow
+                    and sp_follow.mutable
+                    and not parallel(following_edge.vector, _edge.vector)):
+                return following_edge
+        return None
+
     edge_along_plan = None
     for edge in space.edges:
         if edge.pair.face is None:
             edge_along_plan = edge
             break
 
+    list_plant_edge = []
     if edge_along_plan:
-        yield edge_along_plan.next_ortho().pair
-        yield edge_along_plan.previous_ortho().pair
-        # for ducts along walls, no seed planted along the side parallel to the wall if too small
-        if check_duct_length(edge_along_plan.next_ortho().next_ortho()):
-            yield edge_along_plan.next_ortho().next_ortho().pair
+        # duct sides
+        next_side = get_duct_side(edge_along_plan)
+        if next_side:
+            list_plant_edge.append(next_side.pair)
+        previous_side = get_duct_side(edge_along_plan, next=False)
+        if previous_side:
+            for e in list_plant_edge:
+                if previous_side in e.pair.line:
+                    #do not yield edges aligned on the duct
+                    break
+            else:
+                list_plant_edge.append(previous_side.pair)
+        # sides on internal duct border
+        last_side = None
+        if next_side:
+            last_side = get_duct_side(next_side)
+        elif previous_side:
+            last_side = get_duct_side(previous_side, next=False)
+        if last_side and check_duct_length(last_side):
+            for e in list_plant_edge:
+                if last_side in e.pair.line:
+                    # do not yield edges aligned on the duct
+                    break
+            else:
+                list_plant_edge.append(last_side.pair)
+        for e in list_plant_edge:
+            yield e
+
     else:
         for edge in space.edges:
-            if edge.next_ortho() is edge.next:
+            if not parallel(edge.vector, edge.next.vector):
                 yield edge.pair
 
 
