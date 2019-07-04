@@ -37,7 +37,7 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual',
 
     # check if the plans are different
     if max(differences) == 0.0:
-        logging.info("Refiner: Crossover: The individuals are the same")
+        logging.debug("Refiner: Crossover: The individuals are the same")
         return ind_1, ind_1
 
     # select a random space
@@ -49,16 +49,16 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual',
         try:
             output_2 = copy_space(ind_1, ind_2, random_space_id)
         except SpaceShapeError:
-            logging.info("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
-                         ind_2.get_space_from_id(random_space_id))
+            logging.debug("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
+                          ind_2.get_space_from_id(random_space_id))
             output_2 = ind_2
     else:
         output_2 = ind_2
         try:
             output_1 = copy_space(ind_2, ind_1, random_space_id)
         except SpaceShapeError:
-            logging.info("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
-                         ind_1.get_space_from_id(random_space_id))
+            logging.debug("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
+                          ind_1.get_space_from_id(random_space_id))
             output_1 = ind_1
 
     return output_1, output_2
@@ -113,6 +113,8 @@ def copy_space(from_ind: 'Individual', to_ind: 'Individual', space_id: int) -> '
     # this might raise a SpaceShapeError Exception if we've split a space in half
     for space in modified_spaces:
         space.set_edges()
+
+    modified_ind.modified_spaces |= {s.id for s in modified_spaces}
 
     return modified_ind
 

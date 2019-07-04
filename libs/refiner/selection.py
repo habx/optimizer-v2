@@ -27,9 +27,8 @@ def elite_select(mutate_func: 'MutateFunc',
     :return:
     """
     # note we need to reverse because fitness values are negative
-    pop.sort(key=lambda i: i.fitness.wvalue, reverse=True)
+    pop.sort(key=lambda _i: _i.fitness.wvalue, reverse=True)
     len_pop = len(pop)
-    logging.info("LENGTH OF POP %i", len_pop)
     elite_size = int(len_pop*ratio)
     elite_pop = []
     fitness_values = []
@@ -37,14 +36,12 @@ def elite_select(mutate_func: 'MutateFunc',
     offset = 0
     while len(elite_pop) < elite_size:
         while len(pop) > offset and pop[offset].fitness.wvalue in fitness_values:
-            logging.info("Found same individual ! %i", offset)
+            logging.debug("Found same individual ! %i", offset)
             offset += 1
         if len(pop) <= offset:
             break
         elite_pop.append(pop[offset])
         fitness_values.append(pop[offset].fitness.wvalue)
-
-    logging.info("Elite size: %s", len(elite_pop))
 
     if k <= len(elite_pop):
         return elite_pop[0:k]
@@ -65,4 +62,3 @@ def elite_select(mutate_func: 'MutateFunc',
         new_pop.append(ind)
 
     return elite_pop + new_pop
-

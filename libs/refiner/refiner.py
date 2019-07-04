@@ -284,7 +284,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-15.0, -5.0, -50.0, -10.0, -50000.0,)
+    weights = (-15.0, -10.0, -50.0, -10.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -422,7 +422,6 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
                         math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
-        logging.info("DELETE : len(offspring): %i", len(offspring))
         total_pop = pop + offspring
 
         # Evaluate the individuals with an invalid fitness
@@ -573,10 +572,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.05, "processes": 8}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "006"  # 049
+        plan_number = "006"  # 062 006 020
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=0)
 
