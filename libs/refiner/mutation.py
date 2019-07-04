@@ -385,8 +385,14 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
+        # Note : enable to keep only one needed linear
         if linear and linear.category in needed_linears:
-            return True
+            for other_edge in space.exterior_edges:
+                other_linear = space.plan.get_linear_from_edge(other_edge)
+                if other_linear and other_linear.category in needed_linears:
+                    break
+            else:
+                return True
     return False
 
 
