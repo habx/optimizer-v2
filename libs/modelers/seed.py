@@ -1092,6 +1092,7 @@ if __name__ == '__main__':
             plan_name = '0' + str(plan_index)
 
         # plan_name = "001"
+        plan_name = "test_g"
 
         # to not run each time the grid generation
         try:
@@ -1103,7 +1104,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=True)
+        SEEDERS["directional_seeder"].apply_to(plan, show=False)
         plan.plot()
         plan.check()
 
