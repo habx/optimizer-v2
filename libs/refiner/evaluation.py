@@ -217,10 +217,15 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
+    excluded_spaces = ()
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
+        if space.category is SPACE_CATEGORIES["circulation"]:
+            box = space.bounding_box()
+            width = min(box)
+            score[space.id] = _score_space_area(width, 90.0, 110.0)
+            continue
         if space.id not in ind.modified_spaces:
             continue
         if space.category in excluded_spaces:
