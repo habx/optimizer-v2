@@ -330,28 +330,6 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
     return minimal_dimensions_score
 
 
-def sun_ray(plan: 'Plan') -> Dict['Face', Dict['Linear', 'LineString']]:
-    """
-    sun ray from window to each face
-    :param plan
-    :return: sun_ray dict
-    """
-    sun_ray_dict = {}
-    for floor in plan.floors.values():
-        windows_list = [lin for lin in plan.linears
-                        if lin.category.window_type and lin.floor == floor]
-        for face in floor.mesh.faces:
-            face_dict = {}
-            for window in windows_list:
-                ray = sp.geometry.LineString([[window.as_sp.centroid.xy[0][0],
-                                               window.as_sp.centroid.xy[1][0]],
-                                              [face.as_sp.centroid.xy[0][0],
-                                               face.as_sp.centroid.xy[1][0]]])
-                face_dict[window] = ray
-            sun_ray_dict[face] = face_dict
-    return sun_ray_dict
-
-
 def luminosity_scoring(solution: 'Solution') -> float:
     """
     Natural luminosity surface ratio
@@ -360,32 +338,27 @@ def luminosity_scoring(solution: 'Solution') -> float:
     """
     distance_max = 600
     face_luminosity = {}
-    sun_ray_dict = sun_ray(solution.spec.plan)
     rooms_faces = 0
     for space, item in solution.space_item.items():
         windows_list = [lin for lin in solution.spec.plan.linears
-                        if (lin.category.window_type and lin in space.immutable_components()
-                            and lin.floor.level == space.floor.level)]
+                        if (lin.category.window_type and lin in space.immutable_components())]
         if windows_list:
             for face in space.faces:
                 face_luminosity[face] = 0
                 rooms_faces += 1
                 for lin in windows_list:
-                    try:
-                        ray = sun_ray_dict[face][lin]
-                    except KeyError:
-                        logging.warning("sun_ray_dict - Problem")
-                        logging.warning(lin, face, space)
-                        continue
-
+                    ray = sp.geometry.LineString([[lin.as_sp.centroid.xy[0][0],
+                                                   lin.as_sp.centroid.xy[1][0]],
+                                                  [face.as_sp.centroid.xy[0][0],
+                                                   face.as_sp.centroid.xy[1][0]]])
                     if ray.length <= distance_max:
                         inside_intersection = ray.intersection(space.as_sp)
                         if round(inside_intersection.length) == round(ray.length):
                             for test_room in solution.spec.plan.mutable_spaces():
                                 if test_room != space:
-                                    environnement_inside_intersection = ray.intersection(
+                                    environment_inside_intersection = ray.intersection(
                                         test_room.as_sp)
-                                    if environnement_inside_intersection:
+                                    if environment_inside_intersection:
                                         break
                             face_luminosity[face] = 100
                             break
