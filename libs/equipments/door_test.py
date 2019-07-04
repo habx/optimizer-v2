@@ -23,4 +23,3 @@ def test_simple_plan():
         place_door_between_two_spaces(sp_0, adj)
 
     plan.check()
-
