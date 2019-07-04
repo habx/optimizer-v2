@@ -86,6 +86,9 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
     else:
         logging.info("Refiner: No mutation occurred")
 
+    if not ind.modified_spaces:
+        logging.info("Refiner: No mutation occurred")
+
     return ind
 
 

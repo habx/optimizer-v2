@@ -8,7 +8,7 @@ import logging
 import math
 import random
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from libs.utils.custom_exceptions import SpaceShapeError
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from libs.plan.plan import Space
 
 
-def best_spaces(ind_1: 'Individual', ind_2: 'Individual'):
+def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual', 'Individual']:
     """
     Blends the two plans.
     For each floor :
@@ -31,27 +31,35 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual'):
     :return: a tuple of the crossed over individuals
     """
 
-    differences = [(i, ind_1.fitness.sp_wvalue[i] - ind_2.fitness.sp_wvalue[i])
-                   for i in ind_1.fitness.sp_wvalue]
+    spaces_id = [i for i in ind_1.fitness.sp_wvalue]
+    differences = [math.fabs(ind_1.fitness.sp_wvalue[i] - ind_2.fitness.sp_wvalue[i])
+                   for i in spaces_id]
 
-    differences.sort(key=lambda t: t[1])
+    # check if the plans are different
+    if max(differences) == 0.0:
+        logging.info("Refiner: Crossover: The individuals are the same")
+        return ind_1, ind_1
 
-    best_1 = differences[0][0]
-    best_2 = differences[-1][0]
+    # select a random space
+    random_space_id = random.choices(spaces_id, differences, k=1)[0]
 
-    try:
-        output_1 = copy_space(ind_2, ind_1, best_2)
-    except SpaceShapeError:
-        logging.info("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
-                     ind_1.get_space_from_id(best_2))
+    # copy the best version of the selected space into the other individual
+    if ind_1.fitness.sp_wvalue[random_space_id] > ind_2.fitness.sp_wvalue[random_space_id]:
         output_1 = ind_1
-
-    try:
-        output_2 = copy_space(ind_1, ind_2, best_1)
-    except SpaceShapeError:
-        logging.info("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
-                     ind_2.get_space_from_id(best_1))
+        try:
+            output_2 = copy_space(ind_1, ind_2, random_space_id)
+        except SpaceShapeError:
+            logging.info("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
+                         ind_2.get_space_from_id(random_space_id))
+            output_2 = ind_2
+    else:
         output_2 = ind_2
+        try:
+            output_1 = copy_space(ind_2, ind_1, random_space_id)
+        except SpaceShapeError:
+            logging.info("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
+                         ind_1.get_space_from_id(random_space_id))
+            output_1 = ind_1
 
     return output_1, output_2
 

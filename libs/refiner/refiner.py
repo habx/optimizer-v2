@@ -215,12 +215,17 @@ def mate_and_mutate(mate_func,
     """
     cxpb = params["cxpb"]
     _ind1, _ind2 = couple
+    new_ind_1, new_ind_2 = couple
     if random.random() <= cxpb:
-        mate_func(_ind1, _ind2)
-    mutate_func(_ind1)
-    mutate_func(_ind2)
+        new_ind_1, new_ind_2 = mate_func(_ind1, _ind2)
 
-    return _ind1, _ind2
+    if new_ind_1 is _ind1:
+        mutate_func(new_ind_1)
+
+    if new_ind_2 is _ind2:
+        mutate_func(new_ind_2)
+
+    return new_ind_1, new_ind_2
 
 
 def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
@@ -311,7 +316,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
                                                   mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate", crossover.best_spaces)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
     toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
@@ -417,12 +422,14 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
                         math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
+        logging.info("DELETE : len(offspring): %i", len(offspring))
+        total_pop = pop + offspring
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, total_pop, chunk_size)
 
         # Select the next generation population
-        pop = toolbox.elite_select(pop + offspring, mu)
+        pop = toolbox.elite_select(total_pop, mu)
 
         # print best individual and check if we found a better solution
         best_ind = pop[0]
@@ -566,7 +573,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 15, "elite": 0.1, "processes": 8}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.05, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "006"  # 049
