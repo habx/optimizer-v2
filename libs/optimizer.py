@@ -100,6 +100,7 @@ class ExecParams:
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_door = params.get('do_door', False)
+        self.ref_plan_url = params.get('ref_plan_url', None)
 
 
 class Optimizer:
