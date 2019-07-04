@@ -52,10 +52,12 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str, float]
+                 elapsed_times: Dict[str, float],
+                 ref_plan_scoring: Optional[dict] = None
                  ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self.ref_plan_score = ref_plan_scoring
 
 
 class ExecParams:
@@ -292,6 +294,7 @@ class Optimizer:
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
+        # TODO: once scoring has been added, add the ref_plan_score to the solution
         return Response(solutions, elapsed_times)
 
 
