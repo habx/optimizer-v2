@@ -190,7 +190,7 @@ class Refiner:
         :return:
         """
         # FIX that should probably be in corridor module
-        merge_similar_circulations(plan)
+        merge_similar_circulations(solution.spec.plan)
 
         processes = params.get("processes", 1)
         hof = params.get("hof", 0)
