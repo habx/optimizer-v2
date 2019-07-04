@@ -310,7 +310,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-15.0, -5.0, -50.0, -10.0, -50000.0,)
+    weights = (-15.0, -10.0, -50.0, -10.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
