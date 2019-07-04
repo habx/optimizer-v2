@@ -55,6 +55,29 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 random.seed(0)
 
 
+def merge_similar_circulations(plan: 'Plan') -> None:
+    """
+    Merges two adjacent corridors
+    :param plan:
+    :return:
+    """
+    try_again = True
+    adjacency_ratio = 0.3
+
+    while try_again:
+        try_again = False
+        circulations = list(plan.get_spaces("circulation"))
+        for circulation in circulations:
+            min_perimeter = circulation.perimeter*adjacency_ratio
+            for other_circulation in circulations:
+                if circulation.adjacency_to(other_circulation) >= min_perimeter:
+                    circulation.merge(other_circulation)
+                    try_again = True
+                    break
+            if try_again:
+                break
+
+
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
     Merges two adjacent corridors
@@ -170,6 +193,9 @@ class Refiner:
         :param params:
         :return:
         """
+        # FIX that should probably be in corridor module
+        merge_similar_circulations(plan)
+
         processes = params.get("processes", 1)
         hof = params.get("hof", 0)
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
