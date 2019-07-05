@@ -236,7 +236,7 @@ class Optimizer:
                 for i, sol in enumerate(best_solutions):
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol, space_planner.solutions_collector.spec)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
