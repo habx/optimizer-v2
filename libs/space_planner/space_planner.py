@@ -200,7 +200,7 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List['Solution']:
         """
         Runs the space planner
         :param spec:
@@ -213,7 +213,7 @@ class SpacePlanner:
 
         self.manager = ConstraintsManager(self)
 
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions,processes)
 
         self.solution_research()
 
