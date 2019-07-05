@@ -20,8 +20,10 @@ from libs.utils.geometry import (
 )
 
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
+CorridorMerge = Callable[['Corridor'], None]
 
 EPSILON = 1
+SMALL_CORRIDOR_AREA = 5000
 
 
 # TODO LIST:
@@ -111,7 +113,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        #self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -128,8 +130,8 @@ class Corridor:
         final_mutable_spaces = [sp for sp in self.plan.spaces if
                                 sp.mutable and not sp.category.name is "circulation"]
 
-        # merging corridor spaces to get the smallest set of rectangular corridors
-        self._rectangular_merge()
+        # merging corridor spaces when needed
+        self._merge_corridors()
 
         # space repair process : if some spaces have been cut by corridor growth
         self._repair_spaces(initial_mutable_spaces, final_mutable_spaces)
@@ -138,27 +140,67 @@ class Corridor:
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
 
+    def _merge_corridors(self):
+        """
+        merges corridors spaces
+        :return:
+        """
+        self._rectangular_merge()
+        self._small_space_merge()
+
+    def _small_space_merge(self):
+        """
+        merges small corridor spaces with adjacent corridor space (if any) that has maximal contact
+        :return:
+        """
+        corridors = list(self.plan.get_spaces("circulation"))
+        small_corridors = [corridor for corridor in corridors
+                           if corridor.area < SMALL_CORRIDOR_AREA]
+
+        merge = True if small_corridors else False
+        while merge:
+            merge = False
+            for small_corridor in small_corridors:
+                adjacent_corridors = (adj for adj in small_corridor.adjacent_spaces() if
+                                      adj in corridors)
+                if not adjacent_corridors:
+                    continue
+                    
+                # among adjacent corridors gets the one with maximal contact length
+                contact_length = 0
+                adjacent_corridor_selected = None
+                for adjacent_corridor in adjacent_corridors:
+                    current_contact_length = adjacent_corridor.contact_length(small_corridor)
+                    if current_contact_length > contact_length:
+                        contact_length = current_contact_length
+                        adjacent_corridor_selected = adjacent_corridor
+
+                adjacent_corridor_selected.merge(small_corridor)
+                small_corridors.remove(small_corridor)
+                merge = True
+                break
+
     def _rectangular_merge(self):
         """
         merges corridor spaces when the merge is a rectangle
         purpose : ease the refiner process
         :return:
         """
-        corridors = [sp for sp in self.plan.spaces if
-                     sp.category is SPACE_CATEGORIES["circulation"]]
+
+        corridors = list(self.plan.get_spaces("circulation"))
+
         merge = True if corridors else False
         while merge:
             merge = False
             for corridor in corridors:
-                adjacent_corridors = [adj for adj in corridor.adjacent_spaces() if adj in corridors]
+                adjacent_corridors = (adj for adj in corridor.adjacent_spaces() if adj in corridors)
                 for adjacent_corridor in adjacent_corridors:
                     if corridor.number_of_corners(adjacent_corridor) == 4:
                         corridor.merge(adjacent_corridor)
+                        corridors.remove(adjacent_corridor)
                         merge = True
                         break
                 if merge:
-                    corridors = [sp for sp in self.plan.spaces
-                                 if sp.category is SPACE_CATEGORIES["circulation"]]
                     break
 
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
