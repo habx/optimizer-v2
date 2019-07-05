@@ -70,7 +70,7 @@ def test_simple_grid():
     simple_grid = GRIDS["simple_grid"]
     plan = rectangular_plan(500, 500)
     plan = simple_grid.apply_to(plan)
-    assert len(plan.empty_space.faces_id) == 64
+    assert len(plan.empty_space._faces_id) == 64
 
 
 def test_multiple_floors_grid():

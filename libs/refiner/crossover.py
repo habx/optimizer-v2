@@ -86,8 +86,8 @@ def copy_space(from_ind: 'Individual', to_ind: 'Individual', space_id: int) -> '
     copied_space = copied_ind.get_space_from_id(space_id)
     modified_space = modified_ind.get_space_from_id(space_id)
 
-    copied_space_faces_id = copied_space.faces_id
-    modified_space_faces_id = modified_space.faces_id
+    copied_space_faces_id = set(copied_space._faces_id)
+    modified_space_faces_id = set(modified_space._faces_id)
 
     shared_faces_id = copied_space_faces_id & modified_space_faces_id
     missing_faces_id = copied_space_faces_id - shared_faces_id
