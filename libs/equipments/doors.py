@@ -627,6 +627,7 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         from libs.space_planner.space_planner import SPACE_PLANNERS
         from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
+        from libs.refiner.refiner import REFINERS
 
         folder = DEFAULT_PLANS_OUTPUT_FOLDER
 
@@ -654,15 +655,22 @@ if __name__ == '__main__':
             space_planner = SPACE_PLANNERS["standard_space_planner"]
             best_solutions = space_planner.apply_to(spec, 3)
 
-            new_spec = space_planner.spec
+            spec = space_planner.spec
 
-            if best_solutions:
+            refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                              "processes": 8}
+
+            do_refiner = True
+            if best_solutions and do_refiner:
                 solution = best_solutions[0]
+                spec.plan = solution.plan
+                solution.plan = REFINERS['space_nsga'].apply_to(solution.plan, spec,
+                                                                refiner_params)
                 plan = solution.plan
-                new_spec.plan = plan
+                spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
-                return plan, new_spec
+                writer.save_as_json(spec.serialize(), folder, spec_file_name + ".json")
+                return plan, spec
             else:
                 logging.info("No solution for this plan")
 
@@ -700,5 +708,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "032.json"
+    _plan_name = "001.json"
     main(input_file=_plan_name)
