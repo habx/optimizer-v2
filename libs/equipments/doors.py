@@ -10,7 +10,6 @@ from typing import List, Tuple
 from shapely import geometry
 
 from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES
-from libs.io.plot import plot_save
 
 from libs.utils.geometry import (
     parallel,
@@ -554,45 +553,6 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         door.add_edge(door_edge)
 
 
-def door_plot(plan: 'Plan', save: bool = True):
-    """
-    plots plan with door
-    :param plan:
-    :param save:
-    :return:
-    """
-    ax = plan.plot(save=False)
-    number_of_levels = plan.floor_count
-    for floor in plan.floors.values():
-        level = floor.level
-        _ax = ax[level] if number_of_levels > 1 else ax
-        for linear in plan.linears:
-            if linear.floor is not floor:
-                continue
-            if linear.category.name == "door":
-                start_edge = list(linear.edges)[0]
-                sp = plan.get_space_of_edge(start_edge)
-                if not parallel(start_edge.vector, sp.previous_edge(start_edge).vector):
-                    start_door_point = list(linear.edges)[0].start.coords
-                    end_door_point = list(linear.edges)[-1].end.coords
-                else:
-                    start_door_point = list(linear.edges)[-1].end.coords
-                    end_door_point = list(linear.edges)[0].start.coords
-
-                door_vect = (end_door_point[0] - start_door_point[0],
-                             end_door_point[1] - start_door_point[1])
-                door_vect_ortho = start_edge.normal
-                door_vect_ortho = tuple([DOOR_WIDTH * x for x in door_vect_ortho])
-
-                pt_end = (start_door_point[0] + 0.5 * (door_vect[0] + door_vect_ortho[0]),
-                          start_door_point[1] + 0.5 * (door_vect[1] + door_vect_ortho[1]))
-                _ax.arrow(start_door_point[0], start_door_point[1],
-                          pt_end[0] - start_door_point[0],
-                          pt_end[1] - start_door_point[1])
-
-    plot_save(save)
-
-
 if __name__ == '__main__':
     import argparse
     from libs.modelers.grid import GRIDS
@@ -696,8 +656,6 @@ if __name__ == '__main__':
             place_door_between_two_spaces(space1, space2)
         else:
             place_doors(plan)
-        # plan.plot()
-        door_plot(plan)
 
 
     _plan_name = "032.json"
