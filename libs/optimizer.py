@@ -18,7 +18,7 @@ from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
-from libs.equipments.doors import place_doors, door_plot
+from libs.equipments.doors import place_doors
 from libs.version import VERSION as OPTIMIZER_VERSION
 
 
@@ -269,8 +269,8 @@ class Optimizer:
             if best_solutions and space_planner:
                 for sol in best_solutions:
                     place_doors(sol.plan)
-                    if params.do_plot:
-                        door_plot(sol.plan)
+                    # if params.do_plot:
+                    #    door_plot(sol.plan)
         elapsed_times["door"] = time.process_time() - t0_door
         logging.info("Door placement achieved in %f", elapsed_times["door"])
 
@@ -299,13 +299,15 @@ if __name__ == '__main__':
         executor = Optimizer()
         response = executor.run_from_file_names(
 
-            "032.json",
-            "032_setup0.json",
+            "009.json",
+            "009_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": True,
+                "do_plot": False,
+                "do_corridor": True,
                 "do_refiner": True,
+                "do_door": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
