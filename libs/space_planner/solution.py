@@ -37,7 +37,7 @@ class SolutionsCollector:
         :param: plan
         :return: None
         """
-        sol = Solution(self, spec, dict_space_item, len(self.solutions))
+        sol = Solution(spec, dict_space_item, len(self.solutions))
         self.solutions.append(sol)
 
     def add_plan(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
@@ -149,12 +149,10 @@ class Solution:
     """
 
     def __init__(self,
-                 collector: 'SolutionsCollector',
                  spec: 'Specification',
                  dict_space_item: Dict['Space', 'Item'],
                  _id: int):
         self._id = _id
-        self.collector = collector
         self.spec = spec
         self.spec.plan.name = self.spec.plan.name + "_Solution_Id" + str(self._id)
         self.space_item: Dict['Space', 'Item'] = dict_space_item

@@ -145,7 +145,7 @@ class Corridor:
 
         # specification update
         new_corridor = [space for space in solution.spec.plan.mutable_spaces() if space.category.name == "circulation"]
-        circulation_item = [item for item in solution.collector.spec.items if item.category.name == "circulation"]
+        circulation_item = [item for item in solution.spec.items if item.category.name == "circulation"]
         if new_corridor and circulation_item:
             for space in new_corridor:
                 solution.space_item[space] = circulation_item[0]

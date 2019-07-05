@@ -309,8 +309,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "007.json",
-            "007_setup0.json",
+            "001.json",
+            "001_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
