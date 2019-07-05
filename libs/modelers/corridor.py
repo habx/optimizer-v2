@@ -111,7 +111,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
+        self.circulator.plot()
 
         self._set_paths()
 
@@ -424,7 +424,8 @@ class Corridor:
 
             line = []
             for line_edge in _line_forward(edge):
-                if _condition(line_edge) or _condition(line_edge.pair):
+                if ((_condition(line_edge) or _condition(line_edge.pair))
+                        and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
@@ -1069,7 +1070,7 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[1]
+                solution = best_solutions[0]
                 plan = solution.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
@@ -1101,5 +1102,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "003.json"
+    plan_name = "050.json"
     main(input_file=plan_name)
