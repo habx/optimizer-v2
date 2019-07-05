@@ -16,8 +16,6 @@ from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
 import libs.inout.writer as writer
 
-import time
-
 SQM = 10000
 
 
@@ -65,7 +63,7 @@ class SpacePlanner:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        # opens_on = item.opens_on.remove("kitchen")
+                        #opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                         size_max, item.opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
@@ -182,6 +180,7 @@ class SpacePlanner:
                     self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
                     logging.debug(plan_solution)
 
+
         return []
 
     def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
@@ -195,20 +194,13 @@ class SpacePlanner:
         self._plan_cleaner()
         logging.debug(self.spec)
 
-        to = time.time()
-
         self.manager = ConstraintsManager(self)
 
-        print('time constraint progr', time.time() - to)
-
-        to = time.time()
         self.solutions_collector = SolutionsCollector(self.spec, max_nb_solutions)
 
         self.solution_research()
 
         best_solutions = self.solutions_collector.results()
-
-        print('time scoring', time.time() - to)
 
         return best_solutions
 
@@ -230,7 +222,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    # logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -240,7 +232,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "026.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
