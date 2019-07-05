@@ -61,7 +61,7 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
     """
     space = _random_space(ind)
     if not space:
-        logging.info("Mutation: no space selected %s", ind)
+        logging.debug("Refiner: Mutation: no space selected %s", ind)
         return ind
 
     item = ind.fitness.cache.get("space_to_item", None)[space.id]
@@ -84,7 +84,10 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
             ind.modified_spaces |= {s.id for s in modified_spaces}
             break
     else:
-        logging.info("Refiner: No mutation occurred")
+        logging.debug("Refiner: Mutation: No mutation occurred")
+
+    if not ind.modified_spaces:
+        logging.debug("Refiner: Mutation: No mutation occurred")
 
     return ind
 
@@ -136,7 +139,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -199,7 +202,7 @@ def add_face(space: 'Space') -> List['Space']:
     """
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -209,7 +212,7 @@ def add_face(space: 'Space') -> List['Space']:
 
     # check we can actually remove the face
     if not other_space or not other_space.mutable:
-        logging.info("No other space %s", space)
+        logging.debug("Refiner: Mutation: No other space %s", space)
         return []
 
     if other_space.number_of_faces == 1:
@@ -224,8 +227,8 @@ def add_face(space: 'Space') -> List['Space']:
     if other_space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
-    logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
-                  other_space)
+    logging.debug("Refiner: Mutation: Adding face %s to space %s and removing it from space %s",
+                  face, space, other_space)
 
     other_space.remove_face(face)
     space.add_face(face)
@@ -244,7 +247,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -266,10 +269,10 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
             edges.remove(edge)
 
     if not edges:
-        logging.info("No more edges %s", space)
+        logging.debug("No more edges %s", space)
         return []
 
-    logging.debug("Mutation: Removing aligned edges : %s from space %s", edges, space)
+    logging.debug("refiner: Mutation: Removing aligned edges : %s from space %s", edges, space)
 
     faces_by_spaces = defaultdict(set)
     faces = set(list(e.face for e in edges))
@@ -282,7 +285,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         remaining_faces.add(edge.face)
         faces_by_spaces[other].add(edge.face)  # Note : a face can be linked to 2+ spaces
 
-    if not faces or space.corner_stone(*remaining_faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
+    if not faces or space.corner_stone(*remaining_faces):
         return []
 
     modified_spaces = [space]
@@ -322,7 +325,7 @@ def remove_face(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -330,7 +333,7 @@ def remove_face(space: 'Space') -> List['Space']:
     face = edge.face
     other_space = plan.get_space_of_edge(edge.pair)
     if not other_space:
-        logging.info("No other space %s", space)
+        logging.debug("Refiner: Mutation: No other space %s", space)
         return []
 
     if _has_needed_linear(edge, space):
@@ -342,8 +345,8 @@ def remove_face(space: 'Space') -> List['Space']:
     if space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
-    logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
-                  other_space)
+    logging.debug("Refiner: Mutation: Removing face %s of space %s and adding it to space %s", face,
+                  space, other_space)
 
     space.remove_face(face)
     other_space.add_face(face)
@@ -382,8 +385,15 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
+        # Note : enable to keep only one needed linear
         if linear and linear.category in needed_linears:
-            return True
+            for other_edge in space.exterior_edges:
+                other_linear = space.plan.get_linear_from_edge(other_edge)
+                if (other_linear and other_linear is not linear
+                        and other_linear.category in needed_linears):
+                    break
+            else:
+                return True
     return False
 
 
