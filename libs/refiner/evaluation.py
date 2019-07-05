@@ -271,6 +271,9 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
             elif circulation_max_width < min(box):
                 score[space.id] = ((min(box) - circulation_max_width) / circulation_max_width)
             continue
+        if min(box) == 0.:
+            logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
+            continue
         space_ratio = max(box)/min(box)
         ratio = ratios.get(space.category.name, ratios["default"])
         if space_ratio >= ratio:
