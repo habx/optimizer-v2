@@ -175,9 +175,9 @@ class Solution:
         self.spec = spec
         self.spec.plan.name = self.spec.plan.name + "_Solution_Id" + str(self._id)
         self.space_item: Dict['Space', 'Item'] = dict_space_item
-        self.space_planning_score:float = None
-        self.final_score:float = None
-        self.final_score_components:Dict[str, float] = None
+        self.space_planning_score: float = None
+        self.final_score: float = None
+        self.final_score_components: Dict[str, float] = None
         self.compute_cache()
 
     def __repr__(self):
