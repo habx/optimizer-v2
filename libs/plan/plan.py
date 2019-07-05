@@ -30,7 +30,7 @@ from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, 
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
-from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
+from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
     dot_product,
@@ -1222,7 +1222,7 @@ class Space(PlanComponent):
                 if det < 0:  # counter clockwise
                     if found_exterior_edge:
                         # self.plan.plot()
-                        raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
+                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self, self.plan)
                     self._edges_id = [edge.id] + self._edges_id
                     found_exterior_edge = True
                 else:  # clockwise
@@ -1233,7 +1233,7 @@ class Space(PlanComponent):
                     seen.append(sibling.pair)
 
         if not len(self._edges_id) or not found_exterior_edge:
-            raise ValueError("The space is badly shaped: {}".format(self))
+            raise SpaceShapeError("The space is badly shaped: {}".format(self))
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
                                boundary_edge: Optional['Edge'] = None):

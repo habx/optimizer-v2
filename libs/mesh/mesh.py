@@ -1940,7 +1940,8 @@ class Face(MeshComponent):
         except StopIteration:
             return False
 
-    def siblings(self, min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
+    def siblings(self,
+                 min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
         :param min_adjacency_length:

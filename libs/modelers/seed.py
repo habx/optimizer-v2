@@ -923,6 +923,7 @@ def divide_along_borders(seeder: 'Seeder'):
 
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
+    border_division("hole", SELECTORS["not_aligned_edges"])
     border_division("empty", SELECTORS["not_aligned_edges_border"])
 
     return []
@@ -1007,6 +1008,8 @@ if __name__ == '__main__':
             plan_name = '00' + str(plan_index)
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
+
+        #plan_name = "001"
 
         # to not run each time the grid generation
         try:
