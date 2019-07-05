@@ -128,7 +128,7 @@ class Corridor:
         final_mutable_spaces = [sp for sp in self.plan.spaces if
                                 sp.mutable and not sp.category.name is "circulation"]
 
-        #merging corridor spaces => gets smallest set of rectangular corridors
+        # merging corridor spaces to get the smallest set of rectangular corridors
         self._rectangular_merge()
 
         # space repair process : if some spaces have been cut by corridor growth
@@ -139,8 +139,27 @@ class Corridor:
             self.plan.mesh.watch()
 
     def _rectangular_merge(self):
-        corridors=[sp for sp in self.plan.spaces if sp.category is SPACE_CATEGORIES["circulation"]]
-
+        """
+        merges corridor spaces when the merge is a rectangle
+        purpose : ease the refiner process
+        :return:
+        """
+        corridors = [sp for sp in self.plan.spaces if
+                     sp.category is SPACE_CATEGORIES["circulation"]]
+        merge = True if corridors else False
+        while merge:
+            merge = False
+            for corridor in corridors:
+                adjacent_corridors = [adj for adj in corridor.adjacent_spaces() if adj in corridors]
+                for adjacent_corridor in adjacent_corridors:
+                    if corridor.number_of_corners(adjacent_corridor) == 4:
+                        corridor.merge(adjacent_corridor)
+                        merge = True
+                        break
+                if merge:
+                    corridors = [sp for sp in self.plan.spaces
+                                 if sp.category is SPACE_CATEGORIES["circulation"]]
+                    break
 
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
                        final_mutable_spaces: List['Space']):
