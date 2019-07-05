@@ -923,6 +923,7 @@ def divide_along_borders(seeder: 'Seeder'):
 
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
+    border_division("hole", SELECTORS["not_aligned_edges"])
     border_division("empty", SELECTORS["not_aligned_edges_border"])
 
     return []

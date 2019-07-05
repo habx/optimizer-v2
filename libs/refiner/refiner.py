@@ -55,6 +55,29 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 random.seed(0)
 
 
+def merge_similar_circulations(plan: 'Plan') -> None:
+    """
+    Merges two adjacent corridors
+    :param plan:
+    :return:
+    """
+    try_again = True
+    adjacency_ratio = 0.3
+
+    while try_again:
+        try_again = False
+        circulations = list(plan.get_spaces("circulation"))
+        for circulation in circulations:
+            min_perimeter = circulation.perimeter*adjacency_ratio
+            for other_circulation in circulations:
+                if circulation.adjacency_to(other_circulation) >= min_perimeter:
+                    circulation.merge(other_circulation)
+                    try_again = True
+                    break
+            if try_again:
+                break
+
+
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
     Merges two adjacent corridors
@@ -170,6 +193,7 @@ class Refiner:
         :param params:
         :return:
         """
+
         processes = params.get("processes", 1)
         hof = params.get("hof", 0)
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
@@ -185,8 +209,15 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = (multiprocessing.Pool(processes).imap
-                    if processes > 1 else lambda f, it, _: map(f, it))
+        pool = None
+        if processes > 1:
+            pool = multiprocessing.Pool(processes)
+            map_func = pool.imap
+        else:
+            def map_func(f, it, _):
+                """ simple map function"""
+                return map(f, it)
+
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -195,6 +226,12 @@ class Refiner:
 
         output = results if hof == 0 else _hof
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output, chunk_size)
+
+        # close the pool
+        if pool:
+            pool.close()
+            pool.join()
+
         return output
 
 
@@ -215,12 +252,17 @@ def mate_and_mutate(mate_func,
     """
     cxpb = params["cxpb"]
     _ind1, _ind2 = couple
+    new_ind_1, new_ind_2 = couple
     if random.random() <= cxpb:
-        mate_func(_ind1, _ind2)
-    mutate_func(_ind1)
-    mutate_func(_ind2)
+        new_ind_1, new_ind_2 = mate_func(_ind1, _ind2)
 
-    return _ind1, _ind2
+    if new_ind_1 is _ind1:
+        mutate_func(new_ind_1)
+
+    if new_ind_2 is _ind2:
+        mutate_func(new_ind_2)
+
+    return new_ind_1, new_ind_2
 
 
 def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
@@ -263,7 +305,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
                                                   mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate", crossover.best_spaces)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
     toolbox.register("select", nsga.select_nsga)
@@ -279,7 +321,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-15.0, -5.0, -50.0, -10.0, -50000.0,)
+    weights = (-15.0, -10.0, -50.0, -10.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -311,7 +353,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
                                                   mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.connected_differences)
+    toolbox.register("mate", crossover.best_spaces)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
     toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
@@ -417,12 +459,13 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
                         math.ceil(chunk_size/2)))
         offspring = [i for t in modified for i in t]
+        total_pop = pop + offspring
 
         # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
+        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, total_pop, chunk_size)
 
         # Select the next generation population
-        pop = toolbox.elite_select(pop + offspring, mu)
+        pop = toolbox.elite_select(total_pop, mu)
 
         # print best individual and check if we found a better solution
         best_ind = pop[0]
@@ -564,12 +607,12 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 1}
+        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "006"  # 049
+        plan_number = "050"  # 062 006 020 061
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=0)
+                                          solution_number=1)
 
         if plan:
             plan.name = "original_" + plan_number
