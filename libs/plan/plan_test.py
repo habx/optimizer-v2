@@ -1188,5 +1188,7 @@ def test_corner_stone_face_multiple_adjacencies():
     plan.empty_space.face.edge.next.pair.next.barycenter_cut()
     plan.empty_space.face.edge.previous.barycenter_cut()
     plan.update_from_mesh()
-    assert plan.empty_space.corner_stone(plan.mesh.faces[1], min_adjacency_length=600)
+    plan.plot()
+    assert plan.empty_space.corner_stone(*[plan.mesh.faces[1], plan.mesh.faces[1]],
+                                         min_adjacency_length=600)
 

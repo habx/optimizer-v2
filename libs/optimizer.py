@@ -11,12 +11,14 @@ import mimetypes
 import os
 
 from libs.inout import reader
+from libs.inout.plot import DEFAULT_PLOTS_OUTPUT_FOLDER
 from libs.inout.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
+from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 
 
@@ -34,6 +36,14 @@ class LocalContext:
             title: Optional[str] = None,
             mime: str = None
     ):
+        """
+        Adds a file to a local context
+        :param name:
+        :param ftype:
+        :param title:
+        :param mime:
+        :return:
+        """
         if not title:
             title = name
         self.files[name] = {
@@ -81,11 +91,8 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {
-            "ngen": 60,
-            "mu": 40,
-            "cxpb": 0.9
-        }
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                          "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
@@ -98,6 +105,7 @@ class ExecParams:
         self.do_refiner = params.get('do_refiner', False)
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
+        self.do_door = params.get('do_door', False)
 
 
 class Optimizer:
@@ -185,8 +193,8 @@ class Optimizer:
         GRIDS[params.grid_type].apply_to(plan)
         # if params.do_plot:
         #    plan.plot(name="grid")
-        # if params.save_ll_bp:
-        #    save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "grid", DEFAULT_PLOTS_OUTPUT_FOLDER)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -196,8 +204,8 @@ class Optimizer:
         SEEDERS[params.seeder_type].apply_to(plan)
         # if params.do_plot:
         #    plan.plot(name="seeder")
-        # if params.save_ll_bp:
-        #    save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
+        if params.save_ll_bp:
+            save_plan_as_json(plan.serialize(), "seeder", DEFAULT_PLOTS_OUTPUT_FOLDER)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -234,9 +242,9 @@ class Optimizer:
                         sol.plan, spec)
                     # if params.do_plot:
                     #    sol.plan.plot(name=f"corridor sol {i+1}")
-                    # if params.save_ll_bp:
-                    #    save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
-                    #                      libs.io.plot.output_path)
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
+                    DEFAULT_PLOTS_OUTPUT_FOLDER)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
@@ -246,18 +254,25 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params,
-                                                                      processes=1)
-                    # if params.do_plot:
-                    # sol.plan.plot(name=f"refiner sol {i+1}")
-                    # if params.save_ll_bp:
-                    #    save_plan_as_json (sol.plan.serialize(), f"refiner sol {i + 1}",
-                    #                      libs.io.plot.output_path)
+                                                                      params.refiner_params)
+
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
+
+        # placing doors
+        t0_door = time.process_time()
+        if params.do_door:
+            logging.info("Door")
+            if best_solutions and space_planner:
+                for sol in best_solutions:
+                    place_doors(sol.plan)
+                    if params.do_plot:
+                        door_plot(sol.plan)
+        elapsed_times["door"] = time.process_time() - t0_door
+        logging.info("Door placement achieved in %f", elapsed_times["door"])
 
         # output
         t0_output = time.process_time()
@@ -283,13 +298,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "027.json",
-            "027_setup0.json",
+
+            "032.json",
+            "032_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_corridor": True,
-                "do_refiner": False
+                "do_plot": True,
+                "do_refiner": True,
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))

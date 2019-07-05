@@ -5,11 +5,11 @@ Get a previously cached plan or compute it
 from typing import TYPE_CHECKING, Tuple, Optional
 import logging
 
-import libs.io.writer as writer
+import libs.inout.writer as writer
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
-import libs.io.reader as reader
+import libs.inout.reader as reader
 from libs.plan.plan import Plan
 from libs.modelers.corridor import Corridor
 

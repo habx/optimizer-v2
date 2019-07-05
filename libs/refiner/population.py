@@ -6,8 +6,8 @@ It is expected to take as argument a seed individual and a population length.
 It must return a list of individuals.
 """
 from typing import TYPE_CHECKING, List
-from libs.refiner.core import mutateFunc
-from libs.refiner.core import populateFunc
+from libs.refiner.core import MutateFunc
+from libs.refiner.core import PopulateFunc
 
 if TYPE_CHECKING:
     from libs.refiner.core import Individual
@@ -23,7 +23,7 @@ def clone(seed: 'Individual', length: int) -> List['Individual']:
     return [seed.clone() for _ in range(length)]
 
 
-def fc_mutate(mutation: mutateFunc) -> populateFunc:
+def fc_mutate(mutation: MutateFunc) -> PopulateFunc:
     """
     *Factory*
     Creates a population function by mutating the seed individual with the specified mutation

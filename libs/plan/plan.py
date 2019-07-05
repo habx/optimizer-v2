@@ -815,7 +815,7 @@ class Space(PlanComponent):
         :param other:
         :return:
         """
-        shared_edges = (e for e in self.edges for other_e in other.edges if e.pair is other_e)
+        shared_edges = (e for e in self.edges if other.has_edge(e.pair))
         return sum(map(lambda e: e.length, shared_edges))
 
     @property
@@ -1201,7 +1201,6 @@ class Space(PlanComponent):
             self._edges_id = []
             return
 
-        space_edges = []
         seen = []
         self._edges_id = []
         found_exterior_edge = False
@@ -1213,23 +1212,25 @@ class Space(PlanComponent):
                     seen.append(edge)
                     seen.append(edge.pair)
                     continue
-                if edge not in space_edges:
-                    # in order to determine which edge is the exterior one we have to
-                    # calculate its rotation order (ccw or ccw).
-                    # we use the curve orientation algorithm
-                    ref_edge = min(self.siblings(edge), key=lambda e: e.start.coords)
-                    previous_edge = self.previous_edge(ref_edge)
-                    det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
-                    if det < 0:  # counter clockwise
-                        if found_exterior_edge:
-                            self.plan.plot()
-                            raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
-                        self._edges_id = [edge.id] + self._edges_id
-                        found_exterior_edge = True
-                    else:  # clockwise
-                        self.add_edge(edge)
+                # in order to determine which edge is the exterior one we have to
+                # calculate its rotation order (ccw or ccw).
+                # we use the curve orientation algorithm
+                siblings = list(self.siblings(edge))
+                ref_edge = min(siblings, key=lambda e: e.start.coords)
+                previous_edge = self.previous_edge(ref_edge)
+                det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                if det < 0:  # counter clockwise
+                    if found_exterior_edge:
+                        # self.plan.plot()
+                        raise ValueError("Space: The space has been split ! %s | %s", self, self.plan)
+                    self._edges_id = [edge.id] + self._edges_id
+                    found_exterior_edge = True
+                else:  # clockwise
+                    self.add_edge(edge)
 
-                    space_edges = list(self.edges)
+                for sibling in siblings:
+                    seen.append(sibling)
+                    seen.append(sibling.pair)
 
         if not len(self._edges_id) or not found_exterior_edge:
             raise ValueError("The space is badly shaped: {}".format(self))
@@ -1325,7 +1326,10 @@ class Space(PlanComponent):
         :param min_adjacency_length
         :return:
         """
-        assert len(faces) >= 1, "Space: Corner Stone, you must provide at least one face"
+        # per convention if not faces are specified, we won't break the space
+        if not faces:
+            return False
+
         for f in faces:
             assert self.has_face(f), ("Space: Corner Stone, the faces "
                                       "provided must belong to the space: {}".format(f))
@@ -1333,7 +1337,7 @@ class Space(PlanComponent):
         remaining_faces = set(self.faces) - set(faces)
         if not bool(remaining_faces):
             return True
-        return Mesh.connected(list(remaining_faces), min_adjacency_length)
+        return not Mesh.connected(list(remaining_faces), min_adjacency_length)
 
     def merge(self, *spaces: 'Space') -> 'Space':
         """

@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Optional, List
 
 from shapely.geometry import LineString
 from typing import Sequence
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
+# import matplotlib.pyplot as plt
+# from matplotlib.patches import Polygon
 import numpy as np
 
 from libs.utils.custom_types import Vector2d, Coords2d
@@ -32,6 +32,9 @@ output_path = DEFAULT_PLOTS_OUTPUT_FOLDER
 
 if not os.path.exists(output_path):
     os.makedirs(output_path)
+
+plt = None
+Polygon = None
 
 
 def plot_save(save: bool = True, show: bool = False, name: Optional[str] = None):
