@@ -3041,14 +3041,16 @@ class Plan:
         :return:
         """
         _perimeter = 0.0
+        external_space_edges = [e for e in (s.exterior_edges for s in self.external_spaces)]
         for space in self.spaces:
-            for edge in space.edges:
-                if (edge.pair.face is None or
-                        edge.pair in list(space.edge
-                                          for space in self.spaces if
-                                          space.category.external is True)):
+            if space.external:
+                continue
+            for edge in space.exterior_edges:
+                if edge.pair in external_space_edges or not edge.pair.face:
                     _perimeter += edge.length
         return _perimeter
+
+
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
