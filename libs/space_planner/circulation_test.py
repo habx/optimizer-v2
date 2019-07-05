@@ -31,7 +31,7 @@ def test_circulation(input_file, input_setup):
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec, 3)
+    best_solutions = space_planner.apply_to(spec, 3,1)
 
     for solution in best_solutions:
         circulator = Circulator(plan=solution.spec.plan, spec=spec)
