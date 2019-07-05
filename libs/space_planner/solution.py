@@ -118,6 +118,17 @@ class SolutionsCollector:
 
         return best_sol_list
 
+    @staticmethod
+    def space_planning_multiproc(sol: 'Solution'):
+        """
+        wrap of space_planning_scoring function - mutliprocess purpose
+        :param sol:
+        :return:
+        """
+        score = space_planning_scoring(sol)
+        ind = sol.id
+        return score, ind
+
     def space_planner_best_results(self) -> List['Solution']:
         """
         Find best solutions of the list
@@ -132,9 +143,14 @@ class SolutionsCollector:
             logging.warning("Solution : 0 solutions")
             return []
 
+        # multiproc scoring
         list_solutions = list([solution for solution in self.solutions])
         pool = multiprocessing.Pool(self.processes)
-        list_scores = pool.map(space_planning_scoring, list_solutions)
+        score_results = pool.map(self.space_planning_multiproc, list_solutions)
+        # get back proper indices
+        list_score_non_sorted = [s[0] for s in score_results]
+        list_indices = [s[1] for s in score_results]
+        list_scores = [s for _, s in sorted(zip(list_indices, list_score_non_sorted))]
 
         # Choose the best solution :
         best_score = max(list_scores)
