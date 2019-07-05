@@ -20,7 +20,6 @@ from libs.utils.geometry import (
 )
 
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
-CorridorMerge = Callable[['Corridor'], None]
 
 EPSILON = 1
 SMALL_CORRIDOR_AREA = 5000
@@ -165,7 +164,7 @@ class Corridor:
                                       adj in corridors)
                 if not adjacent_corridors:
                     continue
-                    
+
                 # among adjacent corridors gets the one with maximal contact length
                 contact_length = 0
                 adjacent_corridor_selected = None
