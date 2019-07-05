@@ -14,17 +14,21 @@ if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
     from libs.plan.plan import Plan, Space
 
+# custom type: order
+# ex: (SPACE_CATEGORIES["bathroom"], "m", ("bathtub", "sink"), True) -> last bool is for PRM
+Order = Tuple[SpaceCategory, str, Tuple[str, ...], bool]
+
 
 class Garnisher:
     """
-    Instanciates and fit furniture in plan with rooms.
+    Instanciates and fits furniture in plan with rooms.
     """
 
-    def __init__(self, name: str, orders: Sequence[Tuple[SpaceCategory, str, bool]]):
+    def __init__(self, name: str, orders: Sequence[Order]):
         self.name = name
         self.orders = orders
 
-    def apply_to(self, plan: 'Plan'):
+    def apply_to(self, plan: 'Plan') -> Plan:
         """
         Modify the plan by applying the successive orders.
         :param plan:
@@ -36,27 +40,28 @@ class Garnisher:
             self._apply_order(plan, order)
         return plan
 
-    def _apply_order(self, plan: 'Plan', order: Tuple[SpaceCategory, str, bool]):
+    def _apply_order(self, plan: 'Plan', order: Order) -> None:
         """
         Apply an oder by updating plan list of furniture and fitting them in space
-        :param plan: plan to modify
-        :param order: (space category, furniture category, prm true/false)
+        :param plan:
+        :param
         :return:
         """
         for space in plan.spaces:
-            if space.category == order[0]:
-                furniture = Furniture(order[1], order[2])
+            if space.category == order[0] and space.variant :
+                furniture = Furniture()
                 plan.furniture_list.add(space, furniture)
                 self._fit(space, furniture)
 
-    def _fit(self, space: 'Space', furniture: 'Furniture'):
-        """
-        Adapt a furniture to fit in a space
-        :param space:
-        :param furniture:
-        :return:
-        """
-        furniture.ref_point = space.centroid()
+
+class FurnitureType:
+    def __init__(self,
+                 name: str,
+                 polygon: 'ListCoords2d',
+                 is_prm: bool):
+        self.name = name
+        self.polygon = polygon
+        self.is_prm = is_prm
 
 
 class FurnitureList:
@@ -72,20 +77,11 @@ class FurnitureList:
 
 
 class Furniture:
-    sizes = {
-        "bed": (140, 190)
-    }
-    prm_sizes = {
-        "bed": (320, 310)
-    }
-
     def __init__(self,
-                 category: str,
-                 prm: bool,
+                 category: FurnitureType,
                  ref_point: Optional['Coords2d'] = None,
                  ref_vect: Optional['Vector2d'] = None):
         self.category = category
-        self.prm = prm
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (1, 0)
 
@@ -110,20 +106,13 @@ class Furniture:
         return plot_polygon(ax, x, y, options, color, save)
 
 
-class FurnitureCategory:
-    def __init__(self,
-                 name: str,
-                 polygon: 'ListCoords2d',
-                 is_prm: bool):
-        self.name = name
-        self.polygon = polygon
-        self.is_prm = is_prm
-
+FURNITURE_CATEGORIES = {
+    "bed": (FurnitureType("bed", ((0, 0), (140, 0), (140, 190), (0, 190)), False),
+            FurnitureType("bed_prm_1", ((0, 0), (320, 0), (320, 310), (0, 310)), True),
+            FurnitureType("bed_prm_2", ((0, 0), (380, 0), (380, 280), (0, 280)), True)),
+    "bathtub": (FurnitureType("bathtub", ((0, 0), (140, 0), (140, 190), (0, 190)), True))
+}
 
 GARNISHERS = {
     "default": Garnisher("default", [(SPACE_CATEGORIES["bedroom"], "bed", True)])
-}
-
-FURNITURE_CATEGORIES = {
-    "bed": FurnitureCategory("bed", ((0,0),(140,0),(140,190),(0,190)), False)
 }
