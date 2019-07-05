@@ -18,6 +18,7 @@ from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
 from libs.plan.furniture import GARNISHERS
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
+from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 import libs.io.plot
 
@@ -52,10 +53,12 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str, float]
+                 elapsed_times: Dict[str, float],
+                 ref_plan_scoring: Optional[dict] = None
                  ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self.ref_plan_score = ref_plan_scoring
 
 
 class ExecParams:
@@ -83,11 +86,8 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {
-            "ngen": 60,
-            "mu": 40,
-            "cxpb": 0.9
-        }
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                          "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
@@ -102,6 +102,8 @@ class ExecParams:
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'bed')
+        self.do_door = params.get('do_door', False)
+        self.ref_plan_url = params.get('ref_plan_url', None)
 
 
 class Optimizer:
@@ -245,7 +247,7 @@ class Optimizer:
                     if params.do_plot:
                         sol.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(plan.serialize(), f"corridor sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
                                           libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
@@ -256,18 +258,29 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions and space_planner:
                 spec = space_planner.spec
-                for sol in best_solutions:
+                for i, sol in enumerate(best_solutions):
                     spec.plan = sol.plan
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params,
-                                                                      processes=2)
+                                                                      params.refiner_params)
                     if params.do_plot:
                         sol.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(plan.serialize(), f"refiner sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
                                           libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
+
+        # placing doors
+        t0_door = time.process_time()
+        if params.do_door:
+            logging.info("Door")
+            if best_solutions and space_planner:
+                for sol in best_solutions:
+                    place_doors(sol.plan)
+                    if params.do_plot:
+                        door_plot(sol.plan)
+        elapsed_times["door"] = time.process_time() - t0_door
+        logging.info("Door placement achieved in %f", elapsed_times["door"])
 
         # garnisher
         t0_garnisher = time.process_time()
@@ -300,6 +313,7 @@ class Optimizer:
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
+        # TODO: once scoring has been added, add the ref_plan_score to the solution
         return Response(solutions, elapsed_times)
 
 
@@ -311,12 +325,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "048.json",
-            "048_setup0.json",
+            "032.json",
+            "032_setup0.json",
             {
-                "grid_type": "001",
+                "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
+                "do_refiner": True,
+                "do_door": True
                 "do_garnisher": True
             }
         )

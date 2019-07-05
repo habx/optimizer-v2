@@ -829,7 +829,7 @@ def merge_enclosed_faces(seeder: 'Seeder', show: bool) -> List['Space']:
 
 def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']:
     """
-    Divides the space into two sub-spaces, cut performed along the line formed by line_edges
+    Divides the space into sub-spaces, cut performed along the line formed by line_edges
     :param space:
     :param line_edges:
     :return:
@@ -858,6 +858,40 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
                             added = True
             return list_side_face
 
+    def _groups_of_adjacent_faces(_faces: List['Face']) -> List[List['Face']]:
+        """
+        get lists of faces in _faces forming adjacent groups
+        :param _faces:
+        :return:
+        """
+        if not _faces:
+            return []
+        ref_face = _faces[0]
+        list_remaining = _faces[1:]
+        groups = [[ref_face]]
+        count = 0
+        while list_remaining:
+            adj = True
+            while adj:
+                adj = False
+                for f in list_remaining[:]:
+                    adjacent_f = [adj_f for adj_f in groups[count] if f.is_adjacent(adj_f)]
+                    if adjacent_f:
+                        groups[count].append(f)
+                        list_remaining.remove(f)
+                        adj = True
+                        break
+            if len(list_remaining) == 1:
+                groups.append([list_remaining[0]])
+                return groups
+            if list_remaining:
+                count += 1
+                ref_face = list_remaining[0]
+                list_remaining = list_remaining[1:]
+                groups.append([ref_face])
+
+        return groups
+
     if not line_edges:
         return []
 
@@ -865,17 +899,27 @@ def divide_along_line(space: 'Space', line_edges: List['Edge']) -> List['Space']
     if not list_side_faces:
         return []
 
-    other_space = Space(space.plan, space.floor,
-                        list_side_faces[0].edge,
-                        SPACE_CATEGORIES[space.category.name])
-    for face in list_side_faces:
-        if face in space.faces:
-            space.remove_face_id(face.id)
-            other_space.add_face_id(face.id)
+    groups_of_adjacent_faces = _groups_of_adjacent_faces(list_side_faces)
+    list_other_side_faces = [f for f in space.faces if not f in list_side_faces]
+    groups_of_adjacent_faces_other_side = _groups_of_adjacent_faces(list_other_side_faces)
 
-    other_space.set_edges()
+    groups_of_adjacent_faces += groups_of_adjacent_faces_other_side[1:]
+
+    other_spaces = []
+    for group in groups_of_adjacent_faces:
+        if not group:
+            continue
+        other_space = Space(space.plan, space.floor,
+                            group[0].edge,
+                            SPACE_CATEGORIES[space.category.name])
+        for face in group:
+            if face in space.faces:
+                space.remove_face_id(face.id)
+                other_space.add_face_id(face.id)
+        other_space.set_edges()
+        other_spaces.append(other_space)
     space.set_edges()
-    return [space, other_space]
+    return [space] + other_spaces
 
 
 def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
@@ -906,7 +950,6 @@ def line_from_edge(plan: 'Plan', edge_origin: 'Edge') -> List['Edge']:
 
     _get_contiguous_edges(contiguous_edges, edge_origin)
     _get_contiguous_edges(contiguous_edges, edge_origin.pair)
-
     return contiguous_edges
 
 
@@ -955,6 +998,7 @@ def divide_along_borders(seeder: 'Seeder', show: bool):
 
     border_division("seed", SELECTORS["not_aligned_edges"])
     border_division("loadBearingWall", SELECTORS["not_aligned_edges"])
+    border_division("hole", SELECTORS["not_aligned_edges"])
     border_division("empty", SELECTORS["not_aligned_edges_border"])
 
     return []
@@ -1047,7 +1091,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "004"
+        #plan_name = "001"
 
         # to not run each time the grid generation
         try:
@@ -1055,7 +1099,7 @@ if __name__ == '__main__':
             plan = Plan(plan_name).deserialize(new_serialized_data)
         except FileNotFoundError:
             plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS["001"].apply_to(plan)
+            GRIDS["002"].apply_to(plan)
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)

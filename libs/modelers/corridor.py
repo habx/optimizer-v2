@@ -111,7 +111,7 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
+        # self.circulator.plot()
 
         self._set_paths()
 
@@ -1101,5 +1101,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "052.json"
+    plan_name = "003.json"
     main(input_file=plan_name)
