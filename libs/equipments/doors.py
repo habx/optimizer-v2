@@ -10,7 +10,7 @@ from typing import List, Tuple
 from shapely import geometry
 
 from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES
-from libs.io.plot import plot_save
+from libs.inout.plot import plot_save
 
 from libs.utils.geometry import (
     parallel,
