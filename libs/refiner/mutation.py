@@ -296,7 +296,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
         #        has not already been given to another space. This is why we only retain
         #        the intersection of the identified faces set with the remaining faces of the space
         faces_id = set(map(lambda f: f.id,
-                           faces_by_spaces[other])).intersection(set(space._faces_id))
+                           faces_by_spaces[other])).intersection(space.faces_id)
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces

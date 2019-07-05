@@ -193,8 +193,6 @@ class Refiner:
         :param params:
         :return:
         """
-        # FIX that should probably be in corridor module
-        merge_similar_circulations(plan)
 
         processes = params.get("processes", 1)
         hof = params.get("hof", 0)
@@ -211,8 +209,15 @@ class Refiner:
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
         # to the forked processes
-        map_func = (multiprocessing.Pool(processes).imap
-                    if processes > 1 else lambda f, it, _: map(f, it))
+        pool = None
+        if processes > 1:
+            pool = multiprocessing.Pool(processes)
+            map_func = pool.imap
+        else:
+            def map_func(f, it, _):
+                """ simple map function"""
+                return map(f, it)
+
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
@@ -221,6 +226,12 @@ class Refiner:
 
         output = results if hof == 0 else _hof
         toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, output, chunk_size)
+
+        # close the pool
+        if pool:
+            pool.close()
+            pool.join()
+
         return output
 
 
@@ -601,9 +612,9 @@ if __name__ == '__main__':
         params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "061"  # 062 006 020 061
+        plan_number = "050"  # 062 006 020 061
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=2)
+                                          solution_number=1)
 
         if plan:
             plan.name = "original_" + plan_number
