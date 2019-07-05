@@ -610,7 +610,7 @@ if __name__ == '__main__':
         params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "050"  # 062 006 020 061
+        plan_number = "006"  # 062 006 020 061
         spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
                                           solution_number=1)
 
