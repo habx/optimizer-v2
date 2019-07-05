@@ -222,10 +222,15 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
+    excluded_spaces = ()
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
+        if space.category is SPACE_CATEGORIES["circulation"]:
+            box = space.bounding_box()
+            width = min(box)
+            score[space.id] = _score_space_area(width, 90.0, 110.0)
+            continue
         if space.id not in ind.modified_spaces:
             continue
         if space.category in excluded_spaces:
@@ -270,6 +275,9 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
                 score[space.id] = ((circulation_min_width - min(box))/circulation_min_width) * 10
             elif circulation_max_width < min(box):
                 score[space.id] = ((min(box) - circulation_max_width) / circulation_max_width)
+            continue
+        if min(box) == 0.:
+            logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
             continue
         space_ratio = max(box)/min(box)
         ratio = ratios.get(space.category.name, ratios["default"])

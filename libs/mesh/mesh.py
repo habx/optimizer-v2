@@ -8,7 +8,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
+from typing import Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
 import enum
 
 from shapely.geometry.polygon import Polygon
@@ -969,6 +969,7 @@ class Edge(MeshComponent):
             yield edge
             edge = edge.next
 
+    # noinspection PyUnreachableCode
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
@@ -979,12 +980,14 @@ class Edge(MeshComponent):
         yield self
         edge = self.previous
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
-            if edge in seen:
-                raise Exception('Infinite loop' +
-                                ' starting from edge:{0}'.format(self))
-            seen.append(edge)
+            if __debug__:
+                if edge in seen:
+                    raise Exception('Infinite loop' +
+                                    ' starting from edge:{0}'.format(self))
+                seen.append(edge)
             yield edge
             edge = edge.previous
 
@@ -1977,7 +1980,8 @@ class Face(MeshComponent):
         except StopIteration:
             return False
 
-    def siblings(self, min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
+    def siblings(self,
+                 min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
         :param min_adjacency_length:

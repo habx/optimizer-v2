@@ -33,7 +33,7 @@ from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
-from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError
+from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
     dot_product,
@@ -141,7 +141,7 @@ class Space(PlanComponent):
     • a ref to its parent plan
     """
 
-    __slots__ = '_edges_id', '_faces_id', '_cached_immutable_components'
+    __slots__ = '_edges_id', 'faces_id', '_cached_immutable_components'
 
     def __init__(self,
                  plan: 'Plan',
@@ -151,7 +151,7 @@ class Space(PlanComponent):
                  _id: Optional[int] = None):
         super().__init__(plan, floor, _id=_id)
         self._edges_id = [edge.id] if edge else []
-        self._faces_id = [edge.face.id] if edge and edge.face else []
+        self.faces_id = {edge.face.id} if edge and edge.face else set()
         self.category = category
         self._cached_immutable_components = []
 
@@ -164,7 +164,7 @@ class Space(PlanComponent):
             "id": self.id,
             "floor": str(self.floor.id),
             "edges": self._edges_id,
-            "faces": self._faces_id,
+            "faces": list(self.faces_id),
             "category": self.category.name
         }
 
@@ -177,7 +177,7 @@ class Space(PlanComponent):
         :return:
         """
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
-        self._faces_id = list(map(lambda x: int(x), value["faces"]))
+        self.faces_id = set(map(lambda x: int(x), value["faces"]))
         self.category = SPACE_CATEGORIES[value["category"]]
         return self
 
@@ -195,7 +195,7 @@ class Space(PlanComponent):
         """
         new_floor = plan.floors[self.floor.id]
         new_space = type(self)(plan, new_floor, category=self.category, _id=self.id)
-        new_space._faces_id = self._faces_id[:]
+        new_space.faces_id = self.faces_id.copy()
         new_space._edges_id = self._edges_id[:]
         return new_space
 
@@ -205,7 +205,7 @@ class Space(PlanComponent):
         :param other_space:
         :return:
         """
-        self._faces_id = other_space._faces_id[:]
+        self.faces_id = other_space.faces_id.copy()
         self._edges_id = other_space._edges_id[:]
         self.category = other_space.category
         self.floor = other_space.floor
@@ -247,7 +247,7 @@ class Space(PlanComponent):
         :param mesh_id:
         :return:
         """
-        return mesh_id == self.floor.mesh.id and face_id in self._faces_id
+        return mesh_id == self.floor.mesh.id and face_id in self.faces_id
 
     def has_edge(self, edge: 'Edge') -> bool:
         """
@@ -274,7 +274,7 @@ class Space(PlanComponent):
         The faces included in the Space. Returns an iterator.
         :return:
         """
-        return (self.mesh.get_face(face_id) for face_id in self._faces_id)
+        return (self.mesh.get_face(face_id) for face_id in self.faces_id)
 
     @property
     def number_of_faces(self) -> int:
@@ -282,7 +282,7 @@ class Space(PlanComponent):
         Returns the number of face of the space
         :return:
         """
-        return len(self._faces_id)
+        return len(self.faces_id)
 
     def add_face_id(self, *faces_id: int):
         """
@@ -291,8 +291,8 @@ class Space(PlanComponent):
         :return:
         """
         for face_id in faces_id:
-            if face_id not in self._faces_id:
-                self._faces_id.append(face_id)
+            if face_id not in self.faces_id:
+                self.faces_id.add(face_id)
 
     def remove_face_id(self, *faces_id: int):
         """
@@ -301,7 +301,7 @@ class Space(PlanComponent):
         :return:
         """
         for face_id in faces_id:
-            self._faces_id.remove(face_id)
+            self.faces_id.remove(face_id)
 
     @property
     def reference_edges(self) -> Generator['Edge', None, None]:
@@ -384,7 +384,8 @@ class Space(PlanComponent):
                                         "edge: {0} of space: {1}".format(edge, self))
 
         next_edge = edge.next
-        seen = []
+        if __debug__:
+            seen = []
         while not self.is_boundary(next_edge):
             if __debug__ and next_edge in seen:
                 raise Exception("The mesh is badly formed for space: %s", self)
@@ -394,6 +395,7 @@ class Space(PlanComponent):
 
         return next_edge
 
+    # noinspection PyUnreachableCode
     def previous_edge(self, edge: 'Edge') -> Edge:
         """
         Returns the previous boundary edge of the space
@@ -402,11 +404,13 @@ class Space(PlanComponent):
         """
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         previous_edge = edge.previous
-        seen = []
+        if __debug__:
+            seen = []
         while not self.is_boundary(previous_edge):
-            if previous_edge in seen:
-                raise Exception("The mesh is badly formed for space: %s", self)
-            seen.append(previous_edge)
+            if __debug__:
+                if previous_edge in seen:
+                    raise Exception("The mesh is badly formed for space: %s", self)
+                seen.append(previous_edge)
             previous_edge = previous_edge.pair.previous
 
         return previous_edge
@@ -527,6 +531,7 @@ class Space(PlanComponent):
                 temp_line.append(_edge)
         return temp_line
 
+    # noinspection PyUnreachableCode
     def siblings(self, edge: 'Edge') -> Generator[Edge, None, None]:
         """
         Returns the boundary edges linked to the specified edge
@@ -534,15 +539,18 @@ class Space(PlanComponent):
         :return:
         """
         yield edge
-        seen = [edge]
+        if __debug__:
+            seen = [edge]
         current_edge = self.next_edge(edge)
         while current_edge is not edge:
-            if current_edge in seen:
-                raise Exception("A reference edge is wrong for space %s at edge %s", self, edge)
+            assert current_edge not in seen, ("A reference edge is wrong for space {} at edge {}"
+                                              "".format(self, edge))
             yield current_edge
-            seen.append(current_edge)
+            if __debug__:
+                seen.append(current_edge)
             current_edge = self.next_edge(current_edge)
 
+    # noinspection PyUnreachableCode
     @property
     def edges(self) -> Generator[Edge, Edge, None]:
         """
@@ -550,12 +558,14 @@ class Space(PlanComponent):
         :return: an iterator
         """
         if self.edge:
-            seen = []
+            if __debug__:
+                seen = []
             for reference_edge in self.reference_edges:
                 for edge in self.siblings(reference_edge):
-                    if edge in seen:
-                        raise ValueError("The space reference edges are wrong: {}".format(self))
-                    seen.append(edge)
+                    if __debug__:
+                        if edge in seen:
+                            raise ValueError("The space reference edges are wrong: {}".format(self))
+                        seen.append(edge)
                     yield edge
 
     @property
@@ -1027,7 +1037,7 @@ class Space(PlanComponent):
         assert self.has_face(face), "Cannot remove a face not belonging to the space"
 
         # case 1 : the only face of the space
-        if len(self._faces_id) == 1:
+        if len(self.faces_id) == 1:
             self.remove_only_face(face)
             return [self]
 
@@ -1225,9 +1235,8 @@ class Space(PlanComponent):
                 det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
                 if det < 0:  # counter clockwise
                     if found_exterior_edge:
-                        self.plan.plot()
-                        raise ValueError("Space: The space has been split ! %s | %s", self,
-                                         self.plan)
+                        # self.plan.plot()
+                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self, self.plan)
                     self._edges_id = [edge.id] + self._edges_id
                     found_exterior_edge = True
                 else:  # clockwise
@@ -1238,7 +1247,7 @@ class Space(PlanComponent):
                     seen.append(sibling.pair)
 
         if not len(self._edges_id) or not found_exterior_edge:
-            raise ValueError("The space is badly shaped: {}".format(self))
+            raise SpaceShapeError("The space is badly shaped: {}".format(self))
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
                                boundary_edge: Optional['Edge'] = None):
@@ -1361,9 +1370,9 @@ class Space(PlanComponent):
         :param space:
         :return:
         """
-        self._faces_id += space._faces_id
+        self.faces_id |= space.faces_id
         self._edges_id += space._edges_id[1:]  # preserve the holes
-        space._faces_id = []
+        space.faces_id = set()
         space._edges_id = []
         space.remove()
         self.set_edges()
@@ -1596,11 +1605,6 @@ class Space(PlanComponent):
         if ((self.edge is None) + (self.face is None)) == 1:
             is_valid = False
             logging.error('Space: Error in space: only one of edge or face is None: %s', self.edge)
-
-        # check that they are not duplicates in the faces list id
-        if len(self._faces_id) != len(list(self._faces_id)):
-            logging.error("Space: Duplicate faces id in space %s", self)
-            is_valid = False
 
         # check that they are not duplicates in the edges list id
         if len(self._edges_id) != len(list(self._edges_id)):
@@ -2186,7 +2190,8 @@ class Floor:
         :param new_plan:
         :return:
         """
-        new_floor = type(self)(new_plan, self.mesh, self.level, self.meta, _id=self.id)
+        new_floor = new_plan.__class__.FloorType(new_plan, self.mesh, self.level,
+                                                 self.meta, _id=self.id)
         return new_floor
 
     def store_mesh_globally(self):
@@ -2215,6 +2220,7 @@ class Floor:
         :return:
         """
         if self.mesh:
+            logging.debug("Floor : Adding a watcher to the mesh")
             self.mesh.add_watcher(self.plan.watcher)
         else:
             logging.debug("Plan: trying to add a watcher from a floor without mesh %s", self)
@@ -2515,14 +2521,18 @@ class Plan:
         for floor in self.floors.values():
             floor.mesh.simplify()
 
-    def clone(self, name: str = "") -> 'Plan':
+    def clone(self, name: str = "", custom_class: Optional[type] = None) -> 'Plan':
         """
         Returns a copy of the plan
         :param name: the name of the cloned plan
+        :param custom_class: a custom class (subclassed from Plan)
         :return:
         """
         name = name or self.name
-        new_plan = Plan(name)
+        if custom_class:
+            new_plan = custom_class(Plan(name))
+        else:
+            new_plan = Plan(name)
         # clone floors, spaces and linears
         new_plan.floors = {floor.id: floor.clone(new_plan) for floor in self.floors.values()}
         new_plan.spaces = [space.clone(new_plan) for space in self.spaces]
