@@ -133,8 +133,11 @@ class TaskProcessor:
                 'solutions': executor_result.solutions,
                 'times': executor_result.elapsed_times,
                 'files': td.local_context.files,
+                # 'refPlanScore' is added when it exists
                 # ^- This is not supposed to be used by service-optimizer-v2
             },
         }
+        if executor_result.ref_plan_score is not None:
+            result['data']['refPlanScore'] = executor_result.ref_plan_score
 
         return result

@@ -7,6 +7,7 @@ Creates the following classes:
 TODO : fusion of the entrance for small apartment untreated
 
 """
+import multiprocessing
 from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Space
@@ -24,12 +25,13 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification', max_solutions: int = 3):
+    def __init__(self, spec: 'Specification', max_solutions: int = 3, processes: int = 8):
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
         self.architect_plans: List['Solution'] = []
         self.spec = spec
         self.max_results = max_solutions
+        self.processes = processes
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
@@ -91,17 +93,19 @@ class SolutionsCollector:
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
         distance_from_results = [dist_from_best_sol]
 
-        for i in range(self.max_results-1):
+        for i in range(self.max_results - 1):
             current_score = None
             index_current_sol = None
             for i_sol in range(len(self.solutions)):
                 current_distance_from_results = functools.reduce(operator.mul, [list_dist[i_sol]
-                                                         for list_dist in distance_from_results])
+                                                                                for list_dist in
+                                                                                distance_from_results])
                 if ((current_score is None and current_distance_from_results > 0)
                         or (current_score is not None
-                            and list_scores[i_sol]*current_distance_from_results > current_score)):
+                            and list_scores[
+                                i_sol] * current_distance_from_results > current_score)):
                     index_current_sol = i_sol
-                    current_score = list_scores[i_sol]*current_distance_from_results
+                    current_score = list_scores[i_sol] * current_distance_from_results
             if current_score:
                 best_sol_list.append(self.solutions[index_current_sol])
                 logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
@@ -128,10 +132,9 @@ class SolutionsCollector:
             logging.warning("Solution : 0 solutions")
             return []
 
-        list_scores = []
-        for solution in self.solutions:
-            solution.space_planning_score = space_planning_scoring(solution)
-            list_scores.append(solution.space_planning_score)
+        list_solutions = list([solution for solution in self.solutions])
+        pool = multiprocessing.Pool(self.processes)
+        list_scores = pool.map(space_planning_scoring, list_solutions)
 
         # Choose the best solution :
         best_score = max(list_scores)
@@ -219,22 +222,26 @@ class Solution:
         for space, item in self.space_item.items():
             if item not in other_solution.space_item.values():
                 continue
-            other_solution_space = [o_space for o_space, o_item in other_solution.space_item.items() if o_item == item][0]
+            other_solution_space = \
+                [o_space for o_space, o_item in other_solution.space_item.items() if
+                 o_item == item][0]
             if not space or not other_solution_space:
                 continue
             if item.category.name in window_list:
                 for comp in space.cached_immutable_components:
                     if (comp.category.name in ["window", "doorWindow"]
                             and (comp not in other_solution_space.cached_immutable_components)
-                            and [other_space for other_space in other_solution.spec.plan.get_spaces()
+                            and [other_space for other_space in
+                                 other_solution.spec.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
-                                     and other_space.category.name == space.category.name )] == []):
+                                     and other_space.category.name == space.category.name)] == []):
                         distance += 1
             elif item.category.name in duct_list:
                 for comp in space.cached_immutable_components:
                     if (comp.category.name == "duct"
                             and comp not in other_solution_space.cached_immutable_components
-                            and [other_space for other_space in other_solution.spec.plan.get_spaces()
+                            and [other_space for other_space in
+                                 other_solution.spec.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
                                      and other_space.category.name == space.category.name)] == []):
                         distance += 1

@@ -63,7 +63,7 @@ class SpacePlanner:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
+                        # opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                         size_max, item.opens_on, item.linked_to)
                         space_planner_spec.add_item(new_item)
@@ -177,7 +177,8 @@ class SpacePlanner:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
                     plan_solution, dict_space_item = self._rooms_building(plan_solution, sol)
-                    solution_spec = Specification('Solution'+str(i)+'Specification', plan_solution)
+                    solution_spec = Specification('Solution' + str(i) + 'Specification',
+                                                  plan_solution)
                     for current_item in self.spec.items:
                         if current_item not in dict_space_item.values():
                             # entrance case
@@ -200,11 +201,13 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List[
+        'Solution']:
         """
         Runs the space planner
         :param spec:
         :param max_nb_solutions
+        :param processes
         :return: SolutionsCollector
         """
         self._init_spec(spec)
@@ -213,7 +216,7 @@ class SpacePlanner:
 
         self.manager = ConstraintsManager(self)
 
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
 
         self.solution_research()
 
@@ -239,7 +242,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    #logging.getLogger().setLevel(logging.DEBUG)
+    # logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -249,7 +252,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "026.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
