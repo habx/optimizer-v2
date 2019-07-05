@@ -244,7 +244,7 @@ class Optimizer:
                     #    sol.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
                         save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
-                    DEFAULT_PLOTS_OUTPUT_FOLDER)
+                                          DEFAULT_PLOTS_OUTPUT_FOLDER)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
