@@ -242,9 +242,9 @@ class Optimizer:
                              growth_method=corridor_building_rule["growth_method"]).apply_to(
                         sol.plan, spec)
                     if params.do_plot:
-                        sol.plan.plot(name=f"corridor sol {i+1}")
+                        sol.plan.plot(name=f"corridor sol {i + 1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i + 1}",
                                           libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
@@ -260,9 +260,9 @@ class Optimizer:
                     sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
                                                                       params.refiner_params)
                     if params.do_plot:
-                        sol.plan.plot(name=f"refiner sol {i+1}")
+                        sol.plan.plot(name=f"refiner sol {i + 1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
+                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i + 1}",
                                           libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
@@ -307,8 +307,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "032.json",
-            "032_setup0.json",
+            "009.json",
+            "009_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
