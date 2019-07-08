@@ -80,7 +80,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
         if space["category"] == "empty":
             space["category"] = "border"
 
-    for i, room in enumerate(solution.plan.mutable_spaces()):
+    for i, room in enumerate(solution.spec.plan.mutable_spaces()):
         room_max_id += 1
         room_dict = {
             "area": room.area,
@@ -106,7 +106,8 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
-    apt_infos["score"] = solution.score
+    apt_infos["score"] = solution.final_score
+    apt_infos["score_components"] = solution.final_score_components
 
     return {"v2": output_data_v2}
 

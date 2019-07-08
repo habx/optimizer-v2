@@ -300,7 +300,7 @@ def create_plan_from_v2_data(v2_data: Dict, name: str) -> plan.Plan:
         # empty perimeter (per convention we create the floor with the first empty space)
         empty_space_data = next(space_data for space_data in v2_data["spaces"]
                                 if space_data["id"] in floor_data["elements"]
-                                and space_data["category"] == "empty")
+                                and (space_data["category"] == "empty" or space_data["category"] == "border"))
         perimeter = [vertices_by_id[vertex_id] for vertex_id in empty_space_data["geometry"]]
         my_plan.add_floor_from_boundary(perimeter, floor_level=floor_data["level"])
         floor = my_plan.floor_of_given_level(floor_data["level"])

@@ -76,8 +76,6 @@ def test_t1_bis():
                    ["living"])
     spec = Specification("simple_test", plan_t1_bis, [bathroom, circulation, living, bedroom])
 
-    print(spec)
-
     space_planner_t1_bis = SPACE_PLANNERS["standard_space_planner"]
     best_solutions = space_planner_t1_bis.apply_to(spec, 3)
     assert len(space_planner_t1_bis.solutions_collector.solutions) == 1

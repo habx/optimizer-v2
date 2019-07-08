@@ -9,7 +9,8 @@ import logging
 from typing import List, Tuple
 from shapely import geometry
 
-from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES
+from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES, \
+    LinearOrientation
 
 from libs.utils.geometry import (
     parallel,
@@ -400,9 +401,9 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         contact_line[0].start)) / end_edge.length
 
     if not 1 > end_split_coeff > 0:
-        end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
+        end_split_coeff = 0 * (end_split_coeff <= 0) + (end_split_coeff >= 1)
 
-    if end_split_coeff * end_edge.length <= 1 < len(door_edges):
+    if end_split_coeff * end_edge.length <= 1 and 1 < len(door_edges):
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -545,7 +546,9 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         return
 
     # set linear
-    door = Linear(space.plan, space.floor, door_edges[0], LINEAR_CATEGORIES["door"])
+    orientation = LinearOrientation.ALONG if start else LinearOrientation.OPPOSITE
+    door = Linear(plan=space.plan, floor=space.floor, edge=door_edges[0],
+                  category=LINEAR_CATEGORIES["door"], orientation=orientation)
 
     if len(door_edges) == 1:
         return
@@ -643,7 +646,6 @@ if __name__ == '__main__':
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
         corridor.apply_to(plan, spec=spec)
 
-        print("ENTER DOOR PROCESS")
         bool_place_single_door = False
         if bool_place_single_door:
             cat1 = "livingKitchen"
@@ -658,5 +660,5 @@ if __name__ == '__main__':
             place_doors(plan)
 
 
-    _plan_name = "032.json"
+    _plan_name = "055.json"
     main(input_file=_plan_name)

@@ -34,69 +34,6 @@ class SpacePlanner:
         output = "SpacePlanner" + self.name
         return output
 
-    def _init_spec(self, spec: 'Specification') -> None:
-        """
-        change reader specification :
-        living + kitchen : opensOn --> livingKitchen
-        area convergence
-        :return: None
-        """
-        space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
-        spec.plan.mesh.compute_cache()
-
-        # entrance
-        size_min = Size(area=2 * SQM)
-        size_max = Size(area=5 * SQM)
-        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
-        space_planner_spec.add_item(new_item)
-        living_kitchen = False
-
-        for item in spec.items:
-            if item.category.name == "circulation":
-                continue
-            elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
-                  (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-                space_planner_spec.add_item(item)
-            elif item.category.name == "living" and "kitchen" in item.opens_on:
-                kitchens = spec.category_items("kitchen")
-                for kitchen_item in kitchens:
-                    if "living" in kitchen_item.opens_on:
-                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
-                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
-                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, item.opens_on, item.linked_to)
-                        space_planner_spec.add_item(new_item)
-                        living_kitchen = True
-
-        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
-                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                              "circulation"]
-        space_planner_spec.init_id(category_name_list)
-
-        # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
-                                "misc"]
-        invariant_area = sum(item.required_area for item in space_planner_spec.items
-                             if item.category.name in invariant_categories)
-        coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
-            item.required_area for item in space_planner_spec.items if
-            item.category.name not in invariant_categories)))
-
-        for item in space_planner_spec.items:
-            if living_kitchen:
-                if "living" in item.opens_on:
-                    item.opens_on.remove("living")
-                    item.opens_on.append("livingKitchen")
-            if item.category.name not in invariant_categories:
-                item.min_size.area = round(item.min_size.area * coeff)
-                item.max_size.area = round(item.max_size.area * coeff)
-        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
-        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
-                                                      for item in space_planner_spec.items)))
-
-        self.spec = space_planner_spec
-
     def _plan_cleaner(self, min_area: float = 100) -> None:
         """
         Plan cleaner for little spaces
@@ -117,14 +54,15 @@ class SpacePlanner:
         :param: matrix_solution
         :return: built plan
         """
-        dict_items_spaces = {}
-        for i_item, item in enumerate(self.spec.items):
+        dict_space_item = {}
+        for i_item, item in enumerate(self.solutions_collector.spec_with_circulation.items):
             item_space = []
-            for j_space, space in enumerate(plan.mutable_spaces()):
-                if matrix_solution[i_item][j_space] == 1:
-                    space.category = item.category
-                    item_space.append(space)
-            dict_items_spaces[item] = item_space
+            if item.category.name != "circulation":
+                for j_space, space in enumerate(plan.mutable_spaces()):
+                    if matrix_solution[i_item][j_space] == 1:
+                        space.category = item.category
+                        item_space.append(space)
+                dict_space_item[item] = item_space
 
         # circulation case :
         for j_space, space in enumerate(plan.mutable_spaces()):
@@ -133,25 +71,26 @@ class SpacePlanner:
 
         # To know the space associated with the item
         dict_items_space = {}
-        for item in self.spec.items:
-            item_space = dict_items_spaces[item]
-            if len(item_space) > 1:
-                space_ini = item_space[0]
-                item_space.remove(item_space[0])
-                i = 0
-                iter_max = len(item_space) ** 2
-                while (len(item_space) > 0) and i < iter_max:
-                    i += 1
-                    for space in item_space:
-                        if space.adjacent_to(space_ini):
-                            item_space.remove(space)
-                            space_ini.merge(space)
-                            plan.remove_null_spaces()
-                            break
-                dict_items_space[item] = space_ini
-            else:
-                if item_space:
-                    dict_items_space[item] = item_space[0]
+        for item in self.solutions_collector.spec_with_circulation.items:
+            if item.category.name != "circulation":
+                item_space = dict_space_item[item]
+                if len(item_space) > 1:
+                    space_ini = item_space[0]
+                    item_space.remove(item_space[0])
+                    i = 0
+                    iter_max = len(item_space) ** 2
+                    while (len(item_space) > 0) and i < iter_max:
+                        i += 1
+                        for space in item_space:
+                            if space.adjacent_to(space_ini):
+                                item_space.remove(space)
+                                space_ini.merge(space)
+                                plan.remove_null_spaces()
+                                break
+                    dict_items_space[space_ini] = item
+                else:
+                    if item_space:
+                        dict_items_space[item_space[0]] = item
 
         # OPT-72: If we really want to enable it, it should be done through some execution context
         # parameters.
@@ -176,8 +115,23 @@ class SpacePlanner:
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
-                    plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
+                    plan_solution, dict_space_item = self._rooms_building(plan_solution, sol)
+                    solution_spec = Specification('Solution'+str(i)+'Specification', plan_solution)
+                    for current_item in self.spec.items:
+                        if current_item not in dict_space_item.values():
+                            # entrance case
+                            if current_item.category.name == "entrance":
+                                for space, item in dict_space_item.items():
+                                    if "frontDoor" in space.components_category_associated():
+                                        item.min_size.area += current_item.min_size.area
+                                        item.max_size.area += current_item.max_size.area
+
+                    for item in self.spec.items:
+                        if item in dict_space_item.values():
+                            solution_spec.add_item(item)
+
+                    solution_spec.plan.mesh.compute_cache()
+                    self.solutions_collector.add_solution(solution_spec, dict_space_item)
                     logging.debug(plan_solution)
 
 
@@ -190,19 +144,19 @@ class SpacePlanner:
         :param max_nb_solutions
         :return: SolutionsCollector
         """
-        self._init_spec(spec)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.spec = self.solutions_collector.spec_without_circulation
+        self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
 
-        self.solutions_collector = SolutionsCollector(self.spec, max_nb_solutions)
-
         self.solution_research()
 
-        best_solutions = self.solutions_collector.results()
+        self.solutions_collector.space_planner_best_results()
 
-        return best_solutions
+        return self.solutions_collector.best_solutions
 
 
 standard_space_planner = SpacePlanner("standard")
@@ -257,7 +211,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec, 5)
+        best_solutions = space_planner.apply_to(spec, 3)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -355,12 +309,13 @@ if __name__ == '__main__':
         logging.debug(best_solutions)
 
         # Output
-        for sol in best_solutions:
-            logging.debug(sol, sol.score)
-            for space in sol.plan.mutable_spaces():
-                logging.debug(space.category.name, " : ", space.cached_area())
-            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-            writer.save_json_solution(solution_dict, sol.id)
+        if best_solutions:
+            for sol in best_solutions:
+                logging.debug(sol, sol.space_planning_score)
+                for space in sol.spec.plan.mutable_spaces():
+                    logging.debug(space.category.name, " : ", space.cached_area())
+                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
+                writer.save_json_solution(solution_dict, sol.id)
 
         logging.debug("total time :", time.process_time() - t00)
 
