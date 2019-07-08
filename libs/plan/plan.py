@@ -22,6 +22,7 @@ from typing import (
 )
 import logging
 import uuid
+from enum import Enum
 
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString, LinearRing
@@ -60,7 +61,6 @@ class PlanComponent:
                  plan: 'Plan',
                  floor: 'Floor',
                  _id: Optional[int] = None):
-
         assert floor.id in plan.floors, "PlanComponent: The floor is not in the plan!"
 
         self.id = _id
@@ -1226,7 +1226,8 @@ class Space(PlanComponent):
                 if det < 0:  # counter clockwise
                     if found_exterior_edge:
                         # self.plan.plot()
-                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self, self.plan)
+                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                              self.plan)
                     self._edges_id = [edge.id] + self._edges_id
                     found_exterior_edge = True
                 else:  # clockwise
@@ -1948,6 +1949,17 @@ class Space(PlanComponent):
         return max_distance
 
 
+class LinearOrientation(Enum):
+    """
+    defines opening orientation of a linear
+    -along : opens along linear edge direction
+    -opposite : opens in the opposite direction
+    """
+    ALONG = "Along"
+    OPPOSITE = "Opposite"
+    NONE = None
+
+
 class Linear(PlanComponent):
     """
     Linear Class
@@ -1955,14 +1967,15 @@ class Linear(PlanComponent):
     of a space object
     """
 
-    __slots__ = '_edges_id'
+    __slots__ = '_edges_id', 'orientation'
 
     def __init__(self,
                  plan: 'Plan',
                  floor: 'Floor',
                  edge: Optional[Edge] = None,
                  category: Optional[LinearCategory] = None,
-                 _id: Optional[int] = None):
+                 _id: Optional[int] = None,
+                 orientation: LinearOrientation = LinearOrientation.NONE):
 
         if edge and not plan.is_space_boundary(edge):
             raise ValueError('cannot create a linear that is not on the boundary of a space')
@@ -1970,6 +1983,7 @@ class Linear(PlanComponent):
         super().__init__(plan, floor, _id)
         self.category = category
         self._edges_id = [edge.id] if edge else []
+        self.orientation = orientation
 
     def __repr__(self):
         return 'Linear: ' + self.category.__repr__() + ' - ' + str(id(self))
@@ -1983,7 +1997,8 @@ class Linear(PlanComponent):
             "id": self.id,
             "floor": str(self.floor.id),
             "edges": list(map(str, self._edges_id)),
-            "category": self.category.name
+            "category": self.category.name,
+            "orientation": str(self.orientation)
         }
 
         return output
@@ -1996,6 +2011,7 @@ class Linear(PlanComponent):
         """
         self._edges_id = list(map(lambda x: int(x), value["edges"]))
         self.category = LINEAR_CATEGORIES[value["category"]]
+        self.orientation = value["orientation"]
         return self
 
     def clone(self, plan: 'Plan') -> 'Linear':
@@ -2006,6 +2022,7 @@ class Linear(PlanComponent):
         new_floor = plan.floors[self.floor.id]
         new_linear = type(self)(plan, new_floor, category=self.category, _id=self.id)
         new_linear._edges_id = self._edges_id[:]
+        new_linear.orientation = self.orientation
         return new_linear
 
     @property
@@ -2038,7 +2055,7 @@ class Linear(PlanComponent):
 
     def remove_edge_id(self, edge_id: int):
         """
-        Adds the edge id
+        Removes the edge id
         :param edge_id:
         :return:
         """
@@ -3024,11 +3041,17 @@ class Plan:
         :return:
         """
         _perimeter = 0.0
+        external_spaces = (s for s in self.spaces if s.category.external)
+        external_space_edges = []
+        for s in external_spaces:
+            external_space_edges += [e for e in s.exterior_edges]
+        # external_space_edges = [e for e in
+        #                         (s.exterior_edges for s in self.spaces if s.category.external)]
         for space in self.spaces:
-            for edge in space.edges:
-                if (edge.pair.face is None or
-                    edge.pair in list(space.edge
-                                      for space in self.spaces if space.category.external is True)):
+            if space.category.external:
+                continue
+            for edge in space.exterior_edges:
+                if edge.pair in external_space_edges or not edge.pair.face:
                     _perimeter += edge.length
         return _perimeter
 
