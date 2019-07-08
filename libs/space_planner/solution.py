@@ -10,10 +10,15 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Space
+from libs.specification.size import Size
+from libs.plan.category import SPACE_CATEGORIES
 from libs.scoring.scoring import space_planning_scoring
 import logging
 import functools
 import operator
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from libs.space_planner.space_planner import SpacePlanner
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -25,11 +30,109 @@ class SolutionsCollector:
     """
 
     def __init__(self, spec: 'Specification', max_solutions: int = 3):
+        self._init_specifications(spec)
+        self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
         self.architect_plans: List['Solution'] = []
-        self.spec = spec
-        self.max_results = max_solutions
+
+    def _init_specifications(self, spec: 'Specification') -> None:
+        """
+        change reader specification :
+        living + kitchen : opensOn --> livingKitchen
+        area convergence
+        :return: None
+        """
+        print(spec)
+        spec_without_circulation = Specification('SpecificationWithoutCirculation', spec.plan)
+        spec.plan.mesh.compute_cache()
+        spec_with_circulation = Specification('SpecificationWithCirculation', spec.plan)
+        spec.plan.mesh.compute_cache()
+
+        # entrance
+        size_min = Size(area=2 * SQM)
+        size_max = Size(area=5 * SQM)
+        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
+        spec_without_circulation.add_item(new_item)
+        spec_with_circulation.add_item(new_item)
+        living_kitchen = False
+
+        for item in spec.items:
+            if item.category.name == "circulation":
+                if spec.typology > 2:
+                    size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
+                    size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
+                    new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
+                                    size_max)
+                    spec_with_circulation.add_item(new_item)
+            elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
+                  (item.category.name != "kitchen" or len(item.opens_on) == 0)):
+                spec_without_circulation.add_item(item)
+                spec_with_circulation.add_item(item)
+            elif item.category.name == "living" and "kitchen" in item.opens_on:
+                kitchens = spec.category_items("kitchen")
+                for kitchen_item in kitchens:
+                    if "living" in kitchen_item.opens_on:
+                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
+                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
+                        #opens_on = item.opens_on.remove("kitchen")
+                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
+                                        size_max, item.opens_on, item.linked_to)
+                        spec_without_circulation.add_item(new_item)
+                        spec_with_circulation.add_item(new_item)
+                        living_kitchen = True
+
+        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
+                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
+                              "circulation"]
+        spec_without_circulation.init_id(category_name_list)
+        spec_with_circulation.init_id(category_name_list)
+
+        # area
+        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
+                                "misc"]
+        invariant_area = sum(item.required_area for item in spec_without_circulation.items
+                             if item.category.name in invariant_categories)
+        coeff = (int(spec_without_circulation.plan.indoor_area - invariant_area) / int(sum(
+            item.required_area for item in spec_without_circulation.items if
+            item.category.name not in invariant_categories)))
+
+        for item in spec_without_circulation.items:
+            if living_kitchen:
+                if "living" in item.opens_on:
+                    item.opens_on.remove("living")
+                    item.opens_on.append("livingKitchen")
+            if item.category.name not in invariant_categories:
+                item.min_size.area = round(item.min_size.area * coeff)
+                item.max_size.area = round(item.max_size.area * coeff)
+        print(spec_without_circulation)
+        print("SP - PLAN AREA : %i", int(spec_without_circulation.plan.indoor_area))
+        print("SP - Setup AREA : %i", int(sum(item.required_area
+                                                      for item in spec_without_circulation.items)))
+
+        self.spec_without_circulation = spec_without_circulation
+
+        # area - with circulation
+        invariant_area = sum(item.required_area for item in spec_with_circulation.items
+                             if item.category.name in invariant_categories)
+        coeff = (int(spec_with_circulation.plan.indoor_area - invariant_area) / int(sum(
+            item.required_area for item in spec_with_circulation.items if
+            item.category.name not in invariant_categories)))
+
+        for item in spec_with_circulation.items:
+            if living_kitchen:
+                if "living" in item.opens_on:
+                    item.opens_on.remove("living")
+                    item.opens_on.append("livingKitchen")
+            if item.category.name not in invariant_categories:
+                item.min_size.area = round(item.min_size.area * coeff)
+                item.max_size.area = round(item.max_size.area * coeff)
+
+        self.spec_with_circulation =  spec_with_circulation
+        print(spec_with_circulation)
+        print("SP - PLAN AREA : %i", int(spec_with_circulation.plan.indoor_area))
+        print("SP - Setup AREA : %i", int(sum(item.required_area
+                                                      for item in spec_with_circulation.items)))
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
@@ -140,6 +243,42 @@ class SolutionsCollector:
                       best_score)
 
         self.best_solutions = self.compute_results(list_scores, index_best_sol)
+
+def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
+    circulation_spaces = [space for space in solution.spec.plan.mutable_spaces()
+                          if space.category.name == "circulation"]
+    circulation_item = [item for item in collector.spec_with_circulation.items if item.category.name == "circulation"]
+    new_dict = {}
+    if circulation_spaces:
+        spec = collector.spec_with_circulation
+        for space in solution.spec.plan.mutable_spaces():
+            if space.category.name == "circulation":
+                new_dict[space] = circulation_item[0]
+            else:
+                new_dict[space] = [item for item in collector.spec_with_circulation.items if
+                                   item.id == solution.space_item[space].id][0]
+    else:
+        spec = collector.spec_without_circulation
+        for space in solution.spec.plan.mutable_spaces():
+            new_dict[space] = [item for item in collector.spec_without_circulation.items if
+                                   item.id == solution.space_item[space].id][0]
+
+    for current_item in spec.items:
+        if current_item not in new_dict.values():
+            # entrance case
+            if current_item.category.name == "entrance":
+                for space, item in new_dict.items():
+                    if "frontDoor" in space.components_category_associated():
+                        item.min_size.area += current_item.min_size.area
+                        item.max_size.area += current_item.max_size.area
+
+    new_spec = Specification(solution.spec.name, solution.spec.plan)
+    for item in new_dict.values():
+        new_spec.add_item(item)
+
+    solution.space_item = new_dict
+    solution.spec = new_spec
+
 
 
 class Solution:

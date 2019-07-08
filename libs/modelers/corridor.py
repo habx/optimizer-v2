@@ -85,22 +85,17 @@ class Corridor:
         self.corner_data = {}
         self.grouped_faces = {}
 
-    def apply_to(self, solution: 'Solution', setup_spec: 'Specification', show: bool = False):
+    def apply_to(self, solution: 'Solution', space_planner_spec: 'Specification', show: bool = False):
         """
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan
         -refines the mesh around those paths
         -grows corridor spaces around those paths
         :param solution
-        :param setup_spec
+        :param solution_collector_spec
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
-        print("BEFORE CORRIDOR")
-        print(list(space.id for space in solution.spec.plan.spaces))
-        print(list(item.id for item in solution.space_item.keys()))
-        print(list(space.category for space in solution.spec.plan.spaces))
-        print(list(item.category for item in solution.space_item.keys()))
         self._clear()
         self.spec = solution.spec
         self.plan = solution.spec.plan
@@ -148,21 +143,6 @@ class Corridor:
 
         # reconstruct disappear
         self._reconstruct_item_dict(solution, dict_item)
-
-        # specification update
-        new_corridor = [space for space in solution.spec.plan.mutable_spaces() if space.category.name == "circulation"]
-        circulation_item = [item for item in setup_spec if item.category.name == "circulation"]
-        if new_corridor and circulation_item:
-            for space in new_corridor:
-                solution.space_item[space] = circulation_item[0]
-                solution.spec.add_item(circulation_item[0])
-
-        print("AFTER CORRIDOR")
-        print(list(space.id for space in solution.spec.plan.spaces))
-        print(list(item.id for item in solution.space_item.keys()))
-        print(list(space.category for space in solution.spec.plan.spaces))
-        print(list(item.category for item in solution.space_item.keys()))
-
 
     def _reconstruct_item_dict(self, solution: 'Solution', dict_item: 'Dict'):
         """

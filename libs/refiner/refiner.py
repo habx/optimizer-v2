@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
     from libs.plan.plan import Plan
+    from libs.space_planner.solution import Solution
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
@@ -145,7 +146,6 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
         if merged:
             break
 
-
 class Refiner:
     """
     Refiner Class.
@@ -178,7 +178,7 @@ class Refiner:
         merge_adjacent_circulation(output)
         merge_circulation_living(output)
         merge_circulation_entrance(output)
-        return output
+        solution.plan = output
 
     def run(self,
             solution: 'Solution',

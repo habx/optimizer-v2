@@ -20,6 +20,7 @@ from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 from libs.scoring.scoring import final_scoring, radar_chart
+from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
 import matplotlib.pyplot as plt
 
@@ -234,9 +235,18 @@ class Optimizer:
             logging.info("Corridor")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
+                    print("BEFORE CORRIDOR")
+                    print(sol.spec)
+                    print(list(sol.space_item.values()))
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol, space_planner.solutions_collector.spec)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
+                                                        space_planner.solutions_collector.spec_with_circulation)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
+                    print("AFTER CORRIDOR")
+                    print(sol.spec)
+                    print(list(sol.space_item.values()))
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
@@ -250,8 +260,9 @@ class Optimizer:
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions:
-                    sol.plan = REFINERS[params.refiner_type].apply_to(sol,
-                                                                      params.refiner_params)
+                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"refiner sol {i+1}")
                     if params.save_ll_bp:
@@ -282,6 +293,7 @@ class Optimizer:
                 sol.final_score_components = final_score_components
                 sol.spec.plan.plot()
             plt.close()
+
         # output
         t0_output = time.process_time()
         logging.info("Output")

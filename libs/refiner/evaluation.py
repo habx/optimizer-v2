@@ -59,6 +59,7 @@ def create_item_dict(_solution: 'Solution') -> Dict[int, Optional['Item']]:
     :return:
     """
     output = {}
+    print(_solution.space_item)
     for space, item in _solution.space_item.items():
         if item.category.name == "circulation":
             output[space.id] = None
