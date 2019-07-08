@@ -3,7 +3,6 @@ import math
 import os
 from typing import Dict
 
-import matplotlib.pyplot as plt
 import shapely as sp
 from shapely.geometry import Point, LineString
 

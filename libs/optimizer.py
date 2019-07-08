@@ -242,8 +242,7 @@ class Optimizer:
                 for i, sol in enumerate(best_solutions):
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
-                                                        space_planner.solutions_collector.spec_with_circulation)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
                     # if params.do_plot:
@@ -325,7 +324,7 @@ if __name__ == '__main__':
                 "seeder_type": "directional_seeder",
                 "do_plot": False,
                 "do_corridor": True,
-                "do_refiner":False,
+                "do_refiner":True,
                 "max_nb_solutions": 3,
                 "do_door": False,
                 "do_final_scoring": False
