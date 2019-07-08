@@ -31,7 +31,7 @@ from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, 
 from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
-from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
+from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d, FourCoords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
@@ -41,7 +41,8 @@ from libs.utils.geometry import (
     opposite_vector,
     ccw_angle,
     pseudo_equal,
-    unit_vector
+    unit_vector,
+    minimum_rotated_rectangle
 )
 
 if TYPE_CHECKING:
@@ -771,7 +772,7 @@ class Space(PlanComponent):
 
         return max_x - min_x, max_y - min_y
 
-    def minimum_rotated_rectangle(self) -> Optional[Tuple[Coords2d, Coords2d, Coords2d, Coords2d]]:
+    def minimum_rotated_rectangle(self) -> Optional[FourCoords2d]:
         """
         Returns the smallest minimum rotated rectangle
         We rely on shapely minimum_rotated_rectangle method
@@ -780,10 +781,7 @@ class Space(PlanComponent):
         if not self.edge:
             return None
 
-        output = self.as_sp.minimum_rotated_rectangle.exterior.coords[:]
-        output.pop()
-
-        return output
+        return minimum_rotated_rectangle(self.boundary_polygon())
 
     def distance_to(self, other: 'Space', kind: str = "max") -> float:
         """
