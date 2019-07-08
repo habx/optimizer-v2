@@ -8,11 +8,11 @@ TODO : we should structure this with a point class and a vector class
 from typing import Optional, Any, Sequence, Dict, Tuple, List
 import numpy as np
 import shapely as sp
-from shapely.geometry import Point, LineString, LinearRing
+from shapely.geometry import Point, LineString, LinearRing, Polygon
 from random import randint
 import math
 
-from libs.utils.custom_types import Vector2d, Coords2d, ListCoords2d
+from libs.utils.custom_types import Vector2d, Coords2d, ListCoords2d, FourCoords2d
 
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
@@ -404,3 +404,7 @@ def rotate(polygon: ListCoords2d, ref_point: Coords2d, angle: float) -> ListCoor
     return tuple([(math.cos(angle) * (x - ref_x) - math.sin(angle) * (y - ref_y) + ref_x,
                    math.sin(angle) * (x - ref_x) + math.cos(angle) * (y - ref_y) + ref_y)
                   for x, y in polygon])
+
+
+def minimum_rotated_rectangle(polygon: ListCoords2d) -> FourCoords2d:
+    return Polygon(polygon).minimum_rotated_rectangle.exterior.coords[:-1]
