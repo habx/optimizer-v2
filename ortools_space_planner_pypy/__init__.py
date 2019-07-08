@@ -110,6 +110,12 @@ def __le__IntExpr_int(self, v) -> "operations_research::IntExpr *":
 def __neg__IntExpr(self) -> "operations_research::IntExpr *":
     return self.solver().MakeOpposite.__overload__("operations_research::IntExpr*const")(self.solver(), self.Var())
 
+def __ne__IntExpr__int(self, v) -> "operations_research::IntExpr *":
+    if type(v) is int:
+        return self.solver().MakeNonEquality.__overload__("operations_research::IntExpr*const,int")(self.solver(),                                                                                     self, v)
+    else:
+        return self.solver().MakeNonEquality.__overload__(
+            "operations_research::IntExpr*const,operations_research::IntExpr*const")(self.solver(), self, v)
 
 def __eq__Constraint_int(self, v) -> "operations_research::Constraint *":
     return self.solver().MakeEquality.__overload__("operations_research::IntExpr*const,int")(self.solver(), self.Var(), v)
@@ -144,6 +150,7 @@ setattr(operations_research.IntExpr, "__sub__", __sub__IntExpr_int)
 setattr(operations_research.IntExpr, "__ge__", __ge__IntExpr_IntExpr)
 setattr(operations_research.IntExpr, "__le__", __le__IntExpr_int)
 setattr(operations_research.IntExpr, "__neg__", __neg__IntExpr)
+setattr(operations_research.IntExpr, "__ne__", __ne__IntExpr__int)
 setattr(operations_research.Constraint, "__mul__", __mul__)
 setattr(operations_research.Constraint, "__radd__", __radd__Constraint_IntExpr)
 setattr(operations_research.Constraint, "__rmul__", __rmul__int_Constraint)
