@@ -257,6 +257,7 @@ class Optimizer:
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions:
+                for i, sol in enumerate(best_solutions):
                     REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)

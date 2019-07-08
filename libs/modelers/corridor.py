@@ -163,10 +163,6 @@ class Corridor:
                 if space_f and space_f.category is not SPACE_CATEGORIES['circulation']:
                     solution.space_item[space_f] = item
                     break
-        circulation_spaces = [sp for sp in solution.spec.plan.spaces if
-                              sp.category is SPACE_CATEGORIES['circulation']]
-        # for circulation_space in circulation_spaces:
-        #    solution.space_item[circulation_space]=
 
     def _merge_corridors(self):
         """
