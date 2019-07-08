@@ -8,6 +8,7 @@ from functools import reduce
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Face, Edge, Vertex
+from libs.space_planner.solution import Solution
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
@@ -85,32 +86,36 @@ class Corridor:
         self.corner_data = {}
         self.grouped_faces = {}
 
-    def apply_to(self, plan: 'Plan', spec: 'Specification', show: bool = False):
+    def apply_to(self, solution: 'Solution', show: bool = False):
         """
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan
         -refines the mesh around those paths
         -grows corridor spaces around those paths
-        :param plan:
-        :param spec:
+        :param solution
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
         self._clear()
-        self.spec = spec
-        self.plan = plan
+        self.spec = solution.spec
+        self.plan = solution.spec.plan
 
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
                                   sp.mutable and not sp.category.name is "circulation"]
         # store groups of faces that belong to non mutable spaces, for repair purpose
         grouped_faces = {level: [] for level in self.plan.levels}
+        dict_item = {}
         for sp in initial_mutable_spaces:
-            grouped_faces[sp.floor.level].append([f for f in sp.faces])
+            sp_faces = [f for f in sp.faces]
+            grouped_faces[sp.floor.level].append(sp_faces)
+            item = [solution.space_item[s] for s in initial_mutable_spaces if s.id is sp.id][0]
+            dict_item[item] = sp_faces
         self.grouped_faces = grouped_faces
 
         # computes circulation paths and stores them
-        self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
+        self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
+                                     cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         # self.circulator.plot()
 
@@ -138,6 +143,30 @@ class Corridor:
         # linear repair
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
+
+        # reconstruct disappear
+        self._reconstruct_item_dict(solution, dict_item)
+
+    def _reconstruct_item_dict(self, solution: 'Solution', dict_item: 'Dict'):
+        """
+        some spaces may have disappeared in the corridor process
+        for further purposes, reconstruct solution.space_item
+        :param solution:
+        :param dict_item:
+        :return:
+        """
+        solution.space_item = {}
+        for item in dict_item:
+            group_faces_item = dict_item[item]
+            for f in group_faces_item:
+                space_f = self.plan.get_space_of_face(f)
+                if space_f and space_f.category is not SPACE_CATEGORIES['circulation']:
+                    solution.space_item[space_f] = item
+                    break
+        circulation_spaces = [sp for sp in solution.spec.plan.spaces if
+                              sp.category is SPACE_CATEGORIES['circulation']]
+        # for circulation_space in circulation_spaces:
+        #    solution.space_item[circulation_space]=
 
     def _merge_corridors(self):
         """
@@ -201,6 +230,7 @@ class Corridor:
                         break
                 if merge:
                     break
+
 
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
                        final_mutable_spaces: List['Space']):
@@ -1138,7 +1168,7 @@ if __name__ == '__main__':
 
             if best_solutions:
                 solution = best_solutions[0]
-                plan = solution.plan
+                plan = solution.spec.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
                 writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
