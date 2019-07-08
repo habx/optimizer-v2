@@ -2305,7 +2305,7 @@ class Plan:
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None,
-                 furnitures: Optional[Dict['Space',List[Furniture]]] = None):
+                 furnitures: Optional[Dict['Space',List['Furniture']]] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []

@@ -103,7 +103,7 @@ class ExecParams:
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_garnisher = params.get('do_garnisher', False)
-        self.garnisher_type = params.get('garnisher_type', 'bed')
+        self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', False)
         self.ref_plan_url = params.get('ref_plan_url', None)
         self.do_final_scoring = params.get('do_final_scoring', False)
@@ -288,12 +288,12 @@ class Optimizer:
         if params.do_garnisher:
             logging.info("Garnisher")
             if best_solutions and space_planner:
-                for i, sol in enumerate(best_solutions):
-                    GARNISHERS[params.garnisher_type].apply_to(sol.plan)
+                for i, sol in enumerate(best_solutions[0:1]):
+                    GARNISHERS[params.garnisher_type].apply_to(sol)
                     if params.do_plot:
-                        sol.plan.plot(name=f"garnisher sol {i+1}")
+                        sol.spec.plan.plot(name=f"garnisher sol {i+1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"garnisher sol {i+1}",
+                        save_plan_as_json(sol.spec.plan.serialize(), f"garnisher sol {i+1}",
                                           libs.io.plot.output_path)
         elapsed_times["garnisher"] = time.process_time() - t0_garnisher
         logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
@@ -337,16 +337,16 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "001.json",
-            "001_setup0.json",
+            "062.json",
+            "062_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_refiner": True,
-                "do_door": True,
+                "do_refiner": False,
+                "do_door": False,
                 "do_garnisher": True,
-                "do_corridor": True,
+                "do_corridor": False,
                 "max_nb_solutions": 3,
                 "do_final_scoring": True
             }
