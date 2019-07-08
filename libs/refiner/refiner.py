@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
     from libs.plan.plan import Plan
+    from libs.space_planner.solution import Solution
 
 # The type of an algorithm function
 algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFame']],
@@ -145,7 +146,6 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
         if merged:
             break
 
-
 class Refiner:
     """
     Refiner Class.
@@ -163,33 +163,29 @@ class Refiner:
         self._algorithm = algorithm
 
     def apply_to(self,
-                 plan: 'Plan',
-                 spec: 'Specification',
+                 solution: 'Solution',
                  params: dict) -> 'Individual':
         """
         Applies the refiner to the plan and returns the result.
-        :param plan:
-        :param spec:
+        :param solution:
         :param params: the parameters of the genetic algorithm (ex. cxpb, mupb etc.)
         :return:
         """
-        results = self.run(plan, spec, params)
+        results = self.run(solution, params)
         output = max(results, key=lambda i: i.fitness.wvalue)
 
         # clean unnecessary circulation
         merge_adjacent_circulation(output)
         merge_circulation_living(output)
         merge_circulation_entrance(output)
-        return output
+        solution.plan = output
 
     def run(self,
-            plan: 'Plan',
-            spec: 'Specification',
+            solution: 'Solution',
             params: dict) -> Union[List['core.Individual'], 'support.HallOfFame']:
         """
         Runs the algorithm and returns the results
-        :param plan:
-        :param spec:
+        :param solution:
         :param params:
         :return:
         """
@@ -200,11 +196,11 @@ class Refiner:
         chunk_size = math.ceil(params["mu"]/processes)
 
         # 1. create plan cache for performance reason
-        for floor in plan.floors.values():
+        for floor in solution.spec.plan.floors.values():
             floor.mesh.compute_cache()
 
-        plan.store_meshes_globally()  # needed for multiprocessing (must be donne after the caching)
-        toolbox = self._toolbox_factory(spec, params)
+        solution.spec.plan.store_meshes_globally()  # needed for multiprocessing (must be donne after the caching)
+        toolbox = self._toolbox_factory(solution, params)
 
         # NOTE : the pool must be created after the toolbox in order to
         # pass the global objects created when configuring the toolbox
@@ -221,7 +217,7 @@ class Refiner:
         toolbox.register("map", map_func)
 
         # 2. run the algorithm
-        initial_ind = toolbox.individual(plan)
+        initial_ind = toolbox.individual(solution.spec.plan)
         results = self._algorithm(toolbox, initial_ind, params, _hof)
 
         output = results if hof == 0 else _hof
@@ -265,10 +261,10 @@ def mate_and_mutate(mate_func,
     return new_ind_1, new_ind_2
 
 
-def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
+def fc_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     """
     Returns a toolbox
-    :param spec: The specification to follow
+    :param solution:
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
@@ -278,7 +274,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
 
     toolbox = core.Toolbox()
     toolbox.configure("fitness", "CustomFitness", weights)
-    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [
@@ -289,7 +285,7 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
         evaluation.score_connectivity,
         # evaluation.score_circulation_width
     ]
-    toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
+    toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
                                       mutation.Case.SMALL: 0.3,
@@ -314,10 +310,10 @@ def fc_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
     return toolbox
 
 
-def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox':
+def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     """
     Returns a toolbox for the space nsga algorithm
-    :param spec: The specification to follow
+    :param solution:
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
@@ -327,7 +323,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
 
     toolbox = core.Toolbox()
     toolbox.configure("fitness", "CustomFitness", weights)
-    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(spec)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
     # Note : order is very important as tuples are evaluated lexicographically in python
     scores_fc = [
@@ -337,7 +333,7 @@ def fc_space_nsga_toolbox(spec: 'Specification', params: dict) -> 'core.Toolbox'
         evaluation.score_bounding_box,
         evaluation.score_connectivity,
     ]
-    toolbox.register("evaluate", evaluation.compose, scores_fc, spec)
+    toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
                                       mutation.Case.SMALL: 0.3,
