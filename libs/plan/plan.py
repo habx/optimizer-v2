@@ -1236,7 +1236,8 @@ class Space(PlanComponent):
                 if det < 0:  # counter clockwise
                     if found_exterior_edge:
                         # self.plan.plot()
-                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self, self.plan)
+                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                              self.plan)
                     self._edges_id = [edge.id] + self._edges_id
                     found_exterior_edge = True
                 else:  # clockwise
@@ -3051,16 +3052,15 @@ class Plan:
         :return:
         """
         _perimeter = 0.0
-        external_space_edges = [e for e in (s.exterior_edges for s in self.external_spaces)]
+        external_space_edges = [e for e in
+                                (s.exterior_edges for s in self.spaces if s.category.external)]
         for space in self.spaces:
-            if space.external:
+            if space.category.external:
                 continue
             for edge in space.exterior_edges:
                 if edge.pair in external_space_edges or not edge.pair.face:
                     _perimeter += edge.length
         return _perimeter
-
-
 
     def insert_space_from_boundary(self,
                                    boundary: Sequence[Coords2d],
