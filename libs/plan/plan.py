@@ -2351,6 +2351,7 @@ class Plan:
         self.spaces = []
         self.linears = []
         self.floors = {}
+        self.furnitures = {}
 
     def is_similar(self, other: 'Plan') -> bool:
         """
