@@ -16,6 +16,7 @@ from libs.scoring.scoring import space_planning_scoring
 import logging
 import functools
 import operator
+import multiprocessing
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -26,12 +27,13 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification', max_solutions: int = 3):
+    def __init__(self, spec: 'Specification', max_solutions: int = 3, processes: int = 8):
         self._init_specifications(spec)
         self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
         self.architect_plans: List['Solution'] = []
+        self.processes = processes
 
     def _init_specifications(self, spec: 'Specification') -> None:
         """
