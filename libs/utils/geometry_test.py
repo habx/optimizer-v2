@@ -4,6 +4,7 @@ Test module for geometry
 """
 
 import libs.utils.geometry as geometry
+import math
 
 
 def test_rectangle():
@@ -78,3 +79,12 @@ def test_min_depth():
 
     assert geometry.min_section([(0, 0), (100, 0), (100, 100), (60, 100), (50, 20), (40, 100),
                                  (0, 100)]) == 20.0
+
+
+def test_rotate():
+    rect = ((1, 1), (5, 1), (5, 2), (1, 2))
+    rotated = ((1, 1), (1, 5), (0, 5), (0, 1))
+    computed = geometry.rotate(rect, rect[0], 90)
+    for i, point in enumerate(rotated):
+        assert math.isclose(point[0], computed[i][0], abs_tol=0.000001)
+        assert math.isclose(point[1], computed[i][1], abs_tol=0.000001)
