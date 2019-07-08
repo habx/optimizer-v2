@@ -47,7 +47,7 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import MeshModification
-    from libs.plan.furniture import FurnitureList, Furniture
+    from libs.plan.furniture import Furniture
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -1582,7 +1582,7 @@ class Space(PlanComponent):
             for edge in self.edges:
                 edge.plot_half_edge(ax, color=color, save=save)
 
-        if 'furniture' in options and self.plan.furniture_list is not None:
+        if 'furniture' in options:
             for furniture in self.furnitures():
                 ax = furniture.plot(ax, save=save, options=('fill', 'border', 'dash'))
 
@@ -1927,7 +1927,7 @@ class Space(PlanComponent):
         Returns furniture associated with space
         :return: ['Furniture']
         """
-        return self.plan.furniture_list.get(self)
+        return self.plan.furnitures.get(self, [])
 
     def centroid(self) -> Coords2d:
         """
@@ -2281,12 +2281,12 @@ class Plan:
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None,
-                 furniture_list: Optional['FurnitureList'] = None):
+                 furnitures: Optional[Dict['Space',List[Furniture]]] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
-        self.furniture_list = furniture_list
+        self.furnitures = furnitures or {}
         self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
 
