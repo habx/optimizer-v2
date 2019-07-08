@@ -86,7 +86,7 @@ class Corridor:
         self.corner_data = {}
         self.grouped_faces = {}
 
-    def apply_to(self, solution: 'Solution', space_planner_spec: 'Specification', show: bool = False):
+    def apply_to(self, solution: 'Solution', show: bool = False):
         """
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan

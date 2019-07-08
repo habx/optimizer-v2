@@ -54,10 +54,12 @@ class Response:
 
     def __init__(self,
                  solutions: List[dict],
-                 elapsed_times: Dict[str, float]
+                 elapsed_times: Dict[str, float],
+                 ref_plan_scoring: Optional[dict] = None
                  ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self.ref_plan_score = ref_plan_scoring
 
 
 class ExecParams:
@@ -100,6 +102,7 @@ class ExecParams:
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_door = params.get('do_door', False)
+        self.ref_plan_url = params.get('ref_plan_url', None)
         self.do_final_scoring = params.get('do_final_scoring', False)
 
 
@@ -304,6 +307,7 @@ class Optimizer:
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
+        # TODO: once scoring has been added, add the ref_plan_score to the solution
         return Response(solutions, elapsed_times)
 
 

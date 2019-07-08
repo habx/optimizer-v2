@@ -16,9 +16,6 @@ from libs.scoring.scoring import space_planning_scoring
 import logging
 import functools
 import operator
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from libs.space_planner.space_planner import SpacePlanner
 
 CORRIDOR_SIZE = 120
 SQM = 10000

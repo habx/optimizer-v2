@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Floor
-    from libs.space_planner.solution import Solution
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
