@@ -57,7 +57,7 @@ class SolutionsCollector:
 
         for item in spec.items:
             if item.category.name == "circulation":
-                if spec.typology > 2:
+                if spec.typology > 1:
                     size_min = Size(area=(max(0, (spec.typology - 2) * 3 * SQM - 1 * SQM)))
                     size_max = Size(area=(max(0, (spec.typology - 2) * 3 * SQM + 1 * SQM)))
                     new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
