@@ -402,9 +402,9 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         contact_line[0].start)) / end_edge.length
 
     if not 1 > end_split_coeff > 0:
-        end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
+        end_split_coeff = 0 * (end_split_coeff <= 0) + (end_split_coeff >= 1)
 
-    if end_split_coeff * end_edge.length <= 1 < len(door_edges):
+    if end_split_coeff * end_edge.length <= 1 and 1 < len(door_edges):
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -629,7 +629,6 @@ if __name__ == '__main__':
         import libs.io.writer as writer
         from libs.space_planner.space_planner import SPACE_PLANNERS
         from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
-        from libs.refiner.refiner import REFINERS
 
         folder = DEFAULT_PLANS_OUTPUT_FOLDER
 
@@ -657,22 +656,15 @@ if __name__ == '__main__':
             space_planner = SPACE_PLANNERS["standard_space_planner"]
             best_solutions = space_planner.apply_to(spec, 3)
 
-            spec = space_planner.spec
+            new_spec = space_planner.spec
 
-            refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
-                              "processes": 8}
-
-            do_refiner = True
-            if best_solutions and do_refiner:
+            if best_solutions:
                 solution = best_solutions[0]
-                spec.plan = solution.plan
-                solution.plan = REFINERS['space_nsga'].apply_to(solution.plan, spec,
-                                                                refiner_params)
                 plan = solution.plan
-                spec.plan = plan
+                new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(spec.serialize(), folder, spec_file_name + ".json")
-                return plan, spec
+                writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
+                return plan, new_spec
             else:
                 logging.info("No solution for this plan")
 
@@ -708,5 +700,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "009.json"
+    _plan_name = "055.json"
     main(input_file=_plan_name)
