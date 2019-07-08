@@ -162,7 +162,8 @@ class Corridor:
                     if current_contact_length > contact_length:
                         contact_length = current_contact_length
                         adjacent_corridor_selected = adjacent_corridor
-
+                if not adjacent_corridor_selected:
+                    continue
                 adjacent_corridor_selected.merge(small_corridor)
                 small_corridors.remove(small_corridor)
                 merge = True
