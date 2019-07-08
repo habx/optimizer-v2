@@ -968,6 +968,7 @@ class Edge(MeshComponent):
             yield edge
             edge = edge.next
 
+    # noinspection PyUnreachableCode
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
@@ -978,12 +979,14 @@ class Edge(MeshComponent):
         yield self
         edge = self.previous
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
-            if edge in seen:
-                raise Exception('Infinite loop' +
-                                ' starting from edge:{0}'.format(self))
-            seen.append(edge)
+            if __debug__:
+                if edge in seen:
+                    raise Exception('Infinite loop' +
+                                    ' starting from edge:{0}'.format(self))
+                seen.append(edge)
             yield edge
             edge = edge.previous
 

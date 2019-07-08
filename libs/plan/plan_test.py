@@ -212,12 +212,10 @@ def test_add_overlapping_face():
     plan = Plan()
     plan.add_floor_from_boundary(perimeter)
 
-    plan.empty_space.insert_face_from_boundary(hole)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_2)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_2)
     plan.empty_space.remove_face(face_to_remove)
 
     assert plan.check()
@@ -235,12 +233,10 @@ def test_add_border_overlapping_face():
     plan = Plan("test_add_border_overlapping_face")
     plan.add_floor_from_boundary(perimeter)
 
-    plan.empty_space.insert_face_from_boundary(hole)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_2)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_2)
     plan.empty_space.remove_face(face_to_remove)
 
     assert plan.check()
@@ -259,16 +255,13 @@ def test_add_face_touching_internal_edge():
     plan = Plan("add_face_touching_internal_edge")
     plan.add_floor_from_boundary(perimeter)
 
-    plan.empty_space.insert_face_from_boundary(hole)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_2)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_2)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_3)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_3)
     plan.empty_space.remove_face(face_to_remove)
 
     assert plan.check()
@@ -287,16 +280,13 @@ def test_add_two_face_touching_internal_edge_and_border():
     plan = Plan()
     plan.add_floor_from_boundary(perimeter)
 
-    plan.empty_space.insert_face_from_boundary(hole)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_2)
-    face_to_remove = list(plan.empty_space.faces)[0]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_2)
     plan.empty_space.remove_face(face_to_remove)
 
-    plan.empty_space.insert_face_from_boundary(hole_3)
-    face_to_remove = list(plan.empty_space.faces)[1]
+    face_to_remove = plan.empty_space.insert_face_from_boundary(hole_3)
     plan.empty_space.remove_face(face_to_remove)
 
     assert plan.check()
