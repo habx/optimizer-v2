@@ -2,7 +2,8 @@ from typing import (
     TYPE_CHECKING,
     Sequence,
     Tuple,
-    Optional
+    Optional,
+    Dict
 )
 from libs.utils.geometry import (ccw_angle,
                                  unit,
@@ -17,7 +18,6 @@ if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
     from libs.plan.plan import Space
     from libs.space_planner.solution import Solution
-    from libs.specification.specification import Item
 
 # custom type: order
 # ex: (SPACE_CATEGORIES["bathroom"], "m", ("bathtub", "sink"), True) -> last bool is for PRM
@@ -66,7 +66,9 @@ class Garnisher:
             fit_bed_in_bedroom(furniture, space)
 
 
-class FurnitureType:
+class FurnitureCategory:
+    BY_NAME: Dict[str, 'FurnitureCategory'] = {}
+
     def __init__(self,
                  name: str,
                  polygon: 'ListCoords2d',
@@ -74,14 +76,15 @@ class FurnitureType:
         self.name = name
         self.polygon = polygon
         self.is_prm = is_prm
+        FurnitureCategory.BY_NAME[name] = self
 
 
 class Furniture:
     def __init__(self,
-                 model: FurnitureType,
+                 category: Optional[FurnitureCategory] = None,
                  ref_point: Optional['Coords2d'] = None,
                  ref_vect: Optional['Vector2d'] = None):
-        self.model = model
+        self.category = category
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (0, 1)
 
@@ -107,7 +110,7 @@ class Furniture:
         """
         angle = ccw_angle((0, 1), self.ref_vect)
         trans_x, trans_y = self.ref_point
-        rotated = rotate(self.model.polygon, self.model.polygon[0], angle)
+        rotated = rotate(self.category.polygon, self.category.polygon[0], angle)
         translated = tuple([(x + trans_x, y + trans_y)
                             for x, y in rotated])
         return translated
@@ -125,12 +128,35 @@ class Furniture:
         y = [p[1] for p in footprint]
         return plot_polygon(ax, x, y, options, color, save)
 
+    def serialize(self) -> Dict:
+        """
+        Returns a serialized version of the furniture
+        :return:
+        """
+        output = {
+            "ref_point": list(self.ref_point),
+            "ref_vect": list(self.ref_vect),
+            "category": self.category.name
+        }
+
+        return output
+
+    def deserialize(self, value: Dict) -> 'Furniture':
+        """
+        Fills the feature with serialized data.
+        :return:
+        """
+        self.ref_point = tuple(value["ref_point"])
+        self.ref_vect= tuple(value["ref_vect"])
+        self.category = FurnitureCategory.BY_NAME[value["category"]]
+        return self
+
 
 FURNITURE_CATALOG = {
-    "bed": (FurnitureType("bed", ((0, 0), (140, 0), (140, 190), (0, 190)), False),
-            FurnitureType("bed_prm_1", ((0, 0), (320, 0), (320, 310), (0, 310)), True),
-            FurnitureType("bed_prm_2", ((0, 0), (380, 0), (380, 280), (0, 280)), True)),
-    "bathtub": (FurnitureType("bathtub", ((0, 0), (140, 0), (140, 190), (0, 190)), True))
+    "bed": (FurnitureCategory("bed", ((0, 0), (140, 0), (140, 190), (0, 190)), False),
+            FurnitureCategory("bed_prm_1", ((0, 0), (320, 0), (320, 310), (0, 310)), True),
+            FurnitureCategory("bed_prm_2", ((0, 0), (380, 0), (380, 280), (0, 280)), True)),
+    "bathtub": (FurnitureCategory("bathtub", ((0, 0), (140, 0), (140, 190), (0, 190)), True))
 }
 
 GARNISHERS = {

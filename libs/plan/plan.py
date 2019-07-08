@@ -2297,6 +2297,7 @@ class Plan:
     FloorType = Floor
     SpaceType = Space
     LinearType = Linear
+    FurnitureType = Furniture
 
     def __init__(self,
                  name: str = 'unnamed_plan',
@@ -2305,7 +2306,7 @@ class Plan:
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
                  linears: Optional[List['Linear']] = None,
-                 furnitures: Optional[Dict['Space',List['Furniture']]] = None):
+                 furnitures: Optional[Dict['Space', List['Furniture']]] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
@@ -2393,7 +2394,10 @@ class Plan:
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
-            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()]
+            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()],
+            "furnitures": {space.id: [furniture.serialize()
+                                      for furniture in furnitures]
+                           for space, furnitures in self.furnitures.items()}
         }
 
         return output
@@ -2425,6 +2429,12 @@ class Plan:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
+
+        # add furnitures
+        for space_id, furnitures in data["furnitures"]:
+            space = self.get_space_from_id(space_id)
+            self.furnitures[space] = [self.__class__.FurnitureType().deserialize(f)
+                                      for f in furnitures]
 
         self._reset_counter()
 
