@@ -898,7 +898,6 @@ if __name__ == '__main__':
         for input_file in input_blueprint_list:
             #input_file_setup = input_file[:-14] + "setup0.json"
             input_file_setup = input_file[:-5] + "_setup0.json"
-            print(input_file)
             plan = reader.create_plan_from_file(input_file)
 
             GRIDS['002'].apply_to(plan)

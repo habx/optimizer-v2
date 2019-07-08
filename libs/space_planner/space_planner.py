@@ -157,11 +157,6 @@ class SpacePlanner:
 
         self.solutions_collector.space_planner_best_results()
 
-        for sol in self.solutions_collector.best_solutions:
-            print("Runs the space planner")
-            print(sol.spec)
-            print(sol.space_item)
-
         return self.solutions_collector.best_solutions
 
 

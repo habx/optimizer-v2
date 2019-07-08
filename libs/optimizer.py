@@ -235,18 +235,12 @@ class Optimizer:
             logging.info("Corridor")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    print("BEFORE CORRIDOR")
-                    print(sol.spec)
-                    print(list(sol.space_item.values()))
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
                              growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
                                                         space_planner.solutions_collector.spec_with_circulation)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
-                    print("AFTER CORRIDOR")
-                    print(sol.spec)
-                    print(list(sol.space_item.values()))
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:

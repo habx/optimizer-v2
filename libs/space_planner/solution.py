@@ -43,7 +43,6 @@ class SolutionsCollector:
         area convergence
         :return: None
         """
-        print(spec)
         spec_without_circulation = Specification('SpecificationWithoutCirculation', spec.plan)
         spec.plan.mesh.compute_cache()
         spec_with_circulation = Specification('SpecificationWithCirculation', spec.plan)
@@ -105,10 +104,6 @@ class SolutionsCollector:
             if item.category.name not in invariant_categories:
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
-        print(spec_without_circulation)
-        print("SP - PLAN AREA : %i", int(spec_without_circulation.plan.indoor_area))
-        print("SP - Setup AREA : %i", int(sum(item.required_area
-                                                      for item in spec_without_circulation.items)))
 
         self.spec_without_circulation = spec_without_circulation
 
@@ -129,10 +124,6 @@ class SolutionsCollector:
                 item.max_size.area = round(item.max_size.area * coeff)
 
         self.spec_with_circulation =  spec_with_circulation
-        print(spec_with_circulation)
-        print("SP - PLAN AREA : %i", int(spec_with_circulation.plan.indoor_area))
-        print("SP - Setup AREA : %i", int(sum(item.required_area
-                                                      for item in spec_with_circulation.items)))
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
