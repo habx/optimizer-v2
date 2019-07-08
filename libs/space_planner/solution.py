@@ -282,8 +282,11 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                         item.max_size.area += current_item.max_size.area
 
     new_spec = Specification(solution.spec.name, solution.spec.plan)
+    item_list = []
     for item in new_dict.values():
-        new_spec.add_item(item)
+        if item not in item_list:
+            new_spec.add_item(item)
+            item_list.append(item)
 
     solution.space_item = new_dict
     solution.spec = new_spec
