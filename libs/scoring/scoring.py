@@ -43,11 +43,13 @@ def corner_scoring(solution: 'Solution') -> float:
         "laundry": 6,
         "entrance": 6,
         "circulation": 6,
+        "default": 6
     }
     corner_score = 0
     has_holes = 0
     for space, item in solution.space_item.items():
-        space_score = 100 - max(space.number_of_corners() - nbr_corner[item.category.name], 0) * 25
+        space_score = 100 - max(space.number_of_corners() -
+                                nbr_corner.get(item.category.name, nbr_corner["default"]), 0) * 25
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
@@ -297,6 +299,7 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         "laundry": 95,
         "entrance": 120,  # PRM
         "circulation": 100,  # non PRM
+        "default": None
     }
     max_length = {  # racine carrée de la surface min
         "bedroom": 300,
@@ -311,6 +314,7 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         "laundry": 150,
         "entrance": 220,
         "circulation": None,
+        "default": None
     }
 
     minimal_dimensions_score = 100
@@ -318,10 +322,10 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         space_minimal_dimensions_score = 100
         vector = space.directions[0]
         box = space.bounding_box(vector)
-        if ((max_length.get(item.category.name) and max(box) < max_length.get(
-                item.category.name)) or
-                (min_length.get(item.category.name) and min(box) < min_length.get(
-                    item.category.name))):
+        if ((max_length.get(item.category.name, max_length["default"]) and max(box) < max_length.get(
+                item.category.name, max_length["default"])) or
+                (min_length.get(item.category.name, min_length["default"]) and min(box) < min_length.get(
+                    item.category.name, min_length["default"]))):
             space_minimal_dimensions_score = 0
         if space_minimal_dimensions_score == 0:
             minimal_dimensions_score = max(minimal_dimensions_score - 25, 0)

@@ -93,7 +93,6 @@ class Corridor:
         -refines the mesh around those paths
         -grows corridor spaces around those paths
         :param solution
-        :param solution_collector_spec
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
