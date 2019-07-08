@@ -25,7 +25,7 @@ def test_space_planner(input_file, input_setup):
 
     plan = reader.create_plan_from_file(input_file)
 
-    GRIDS['001'].apply_to(plan)
+    GRIDS['002'].apply_to(plan)
     SEEDERS["directional_seeder"].apply_to(plan)
 
     spec = reader.create_specification_from_file(input_setup)
@@ -35,10 +35,10 @@ def test_space_planner(input_file, input_setup):
     best_solutions = space_planner.apply_to(spec, 3)
 
     if input_file == "009.json":
-        assert len(space_planner.solutions_collector.solutions) == 5
-        assert len(best_solutions) == 2
+        assert len(space_planner.solutions_collector.solutions) == 40
+        assert len(best_solutions) == 3
     elif input_file == "012.json":
-        assert len(space_planner.solutions_collector.solutions) == 153
+        assert len(space_planner.solutions_collector.solutions) == 279
         assert len(best_solutions) == 2
 
 
@@ -75,17 +75,15 @@ def test_duplex():
     plan.insert_linear((300, 0), (400, 0), LINEAR_CATEGORIES["window"], floor_2)
     plan.insert_linear((525, 150), (600, 150), LINEAR_CATEGORIES["startingStep"], floor_2)
 
-    GRIDS["optimal_grid"].apply_to(plan)
+    GRIDS["002"].apply_to(plan)
 
     plan.plot()
 
-    SEEDERS["simple_seeder"].apply_to(plan)
+    SEEDERS["directional_seeder"].apply_to(plan)
 
     plan.plot()
     spec = reader.create_specification_from_file("test_space_planner_duplex_setup.json")
     spec.plan = plan
 
     space_planner = SPACE_PLANNERS["standard_space_planner"]
-    best_solutions = space_planner.apply_to(spec, 3)
-
-
+    space_planner.apply_to(spec, 3)
