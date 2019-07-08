@@ -28,6 +28,9 @@ def test_solution_distance():
         size_max = Size(area=15000)
         new_item = Item(SPACE_CATEGORIES[cat], "m", size_min, size_max, [], [], [])
         spec.add_item(new_item)
+    plan = Plan("0")
+    plan.add_floor_from_boundary(boundaries, floor_level=0)
+    spec.plan = plan
     collector = SolutionsCollector(spec, 3)
 
     plan1 = Plan("1")

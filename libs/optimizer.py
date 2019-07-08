@@ -20,9 +20,9 @@ from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
 from libs.scoring.scoring import final_scoring, radar_chart
+from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
 import matplotlib.pyplot as plt
-
 
 class LocalContext:
     """Local execution context"""
@@ -89,12 +89,10 @@ class ExecParams:
 
         refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
                           "processes": 8}
-        space_planner_params = {"space_planner_type": "standard_space_planner", "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
-        # self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
-        self.space_planner_params = params.get('space_planner_params', space_planner_params)
+        self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
         self.do_plot = params.get('do_plot', False)
         self.save_ll_bp = params.get('save_ll_bp', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
@@ -104,8 +102,8 @@ class ExecParams:
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_door = params.get('do_door', False)
-        self.do_final_scoring = params.get('do_final_scoring', False)
         self.ref_plan_url = params.get('ref_plan_url', None)
+        self.do_final_scoring = params.get('do_final_scoring', False)
 
 
 class Optimizer:
@@ -228,9 +226,8 @@ class Optimizer:
         # space planner
         logging.info("Space planner")
         t0_space_planner = time.process_time()
-        space_planner = SPACE_PLANNERS[params.space_planner_params['space_planner_type']]
-        best_solutions = space_planner.apply_to(setup_spec, params.max_nb_solutions,
-                                                params.space_planner_params['processes'])
+        space_planner = SPACE_PLANNERS[params.space_planner_type]
+        best_solutions = space_planner.apply_to(setup_spec, params.max_nb_solutions)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
@@ -243,7 +240,10 @@ class Optimizer:
                 for i, sol in enumerate(best_solutions):
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
+                                                        space_planner.solutions_collector.spec_with_circulation)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"corridor sol {i+1}")
                     if params.save_ll_bp:
@@ -257,13 +257,14 @@ class Optimizer:
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions:
-                sol.plan = REFINERS[params.refiner_type].apply_to(sol,
-                                                                  params.refiner_params)
-                if params.do_plot:
-                    sol.spec.plan.plot(name=f"refiner sol {i+1}")
-                if params.save_ll_bp:
-                    save_plan_as_json(sol.spec.plan.serialize(), f"refiner sol {i+1}",
-                                      libs.io.plot.output_path)
+                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
+                    if params.do_plot:
+                        sol.spec.plan.plot(name=f"refiner sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.spec.plan.serialize(), f"refiner sol {i+1}",
+                                          libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 
@@ -289,6 +290,7 @@ class Optimizer:
                 sol.final_score_components = final_score_components
                 sol.spec.plan.plot()
             plt.close()
+
         # output
         t0_output = time.process_time()
         logging.info("Output")
@@ -324,10 +326,10 @@ if __name__ == '__main__':
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
                 "do_corridor": False,
-                "do_refiner": False,
+                "do_refiner":True,
                 "max_nb_solutions": 3,
-                "do_door": False,
-                "do_final_scoring": False
+                "do_door": True,
+                "do_final_scoring": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
