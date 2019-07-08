@@ -58,8 +58,8 @@ class SolutionsCollector:
         for item in spec.items:
             if item.category.name == "circulation":
                 if spec.typology > 2:
-                    size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
-                    size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
+                    size_min = Size(area=(max(0, (spec.typology - 2) * 3 * SQM - 1 * SQM)))
+                    size_max = Size(area=(max(0, (spec.typology - 2) * 3 * SQM + 1 * SQM)))
                     new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
                                     size_max)
                     spec_with_circulation.add_item(new_item)
@@ -73,7 +73,7 @@ class SolutionsCollector:
                     if "living" in kitchen_item.opens_on:
                         size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                         size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
+                        # opens_on = item.opens_on.remove("kitchen")
                         new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                         size_max, item.opens_on, item.linked_to)
                         spec_without_circulation.add_item(new_item)
@@ -122,7 +122,7 @@ class SolutionsCollector:
                 item.min_size.area = round(item.min_size.area * coeff)
                 item.max_size.area = round(item.max_size.area * coeff)
 
-        self.spec_with_circulation =  spec_with_circulation
+        self.spec_with_circulation = spec_with_circulation
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
@@ -184,17 +184,19 @@ class SolutionsCollector:
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
         distance_from_results = [dist_from_best_sol]
 
-        for i in range(self.max_results-1):
+        for i in range(self.max_results - 1):
             current_score = None
             index_current_sol = None
             for i_sol in range(len(self.solutions)):
                 current_distance_from_results = functools.reduce(operator.mul, [list_dist[i_sol]
-                                                         for list_dist in distance_from_results])
+                                                                                for list_dist in
+                                                                                distance_from_results])
                 if ((current_score is None and current_distance_from_results > 0)
                         or (current_score is not None
-                            and list_scores[i_sol]*current_distance_from_results > current_score)):
+                            and list_scores[
+                                i_sol] * current_distance_from_results > current_score)):
                     index_current_sol = i_sol
-                    current_score = list_scores[i_sol]*current_distance_from_results
+                    current_score = list_scores[i_sol] * current_distance_from_results
             if current_score:
                 best_sol_list.append(self.solutions[index_current_sol])
                 logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
@@ -249,10 +251,12 @@ class SolutionsCollector:
 
         self.best_solutions = self.compute_results(list_scores, index_best_sol)
 
+
 def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
     circulation_spaces = [space for space in solution.spec.plan.mutable_spaces()
                           if space.category.name == "circulation"]
-    circulation_item = [item for item in collector.spec_with_circulation.items if item.category.name == "circulation"]
+    circulation_item = [item for item in collector.spec_with_circulation.items if
+                        item.category.name == "circulation"]
     new_dict = {}
     if circulation_spaces:
         spec = collector.spec_with_circulation
@@ -266,7 +270,7 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
         spec = collector.spec_without_circulation
         for space in solution.spec.plan.mutable_spaces():
             new_dict[space] = [item for item in collector.spec_without_circulation.items if
-                                   item.id == solution.space_item[space].id][0]
+                               item.id == solution.space_item[space].id][0]
 
     for current_item in spec.items:
         if current_item not in new_dict.values():
@@ -283,7 +287,6 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
 
     solution.space_item = new_dict
     solution.spec = new_spec
-
 
 
 class Solution:
@@ -363,22 +366,25 @@ class Solution:
         for space, item in self.space_item.items():
             if item not in other_solution.space_item.values():
                 continue
-            other_solution_space = [o_space for o_space, o_item in other_solution.space_item.items() if o_item == item][0]
+            other_solution_space = \
+            [o_space for o_space, o_item in other_solution.space_item.items() if o_item == item][0]
             if not space or not other_solution_space:
                 continue
             if item.category.name in window_list:
                 for comp in space.cached_immutable_components:
                     if (comp.category.name in ["window", "doorWindow"]
                             and (comp not in other_solution_space.cached_immutable_components)
-                            and [other_space for other_space in other_solution.spec.plan.get_spaces()
+                            and [other_space for other_space in
+                                 other_solution.spec.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
-                                     and other_space.category.name == space.category.name )] == []):
+                                     and other_space.category.name == space.category.name)] == []):
                         distance += 1
             elif item.category.name in duct_list:
                 for comp in space.cached_immutable_components:
                     if (comp.category.name == "duct"
                             and comp not in other_solution_space.cached_immutable_components
-                            and [other_space for other_space in other_solution.spec.plan.get_spaces()
+                            and [other_space for other_space in
+                                 other_solution.spec.plan.get_spaces()
                                  if (comp in other_space.cached_immutable_components
                                      and other_space.category.name == space.category.name)] == []):
                         distance += 1
