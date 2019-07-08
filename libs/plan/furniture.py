@@ -4,7 +4,12 @@ from typing import (
     Tuple,
     Optional
 )
-from libs.utils.geometry import ccw_angle, unit, barycenter, rotate, minimum_rotated_rectangle
+from libs.utils.geometry import (ccw_angle,
+                                 unit,
+                                 barycenter,
+                                 rotate,
+                                 minimum_rotated_rectangle,
+                                 move_point)
 from libs.plan.category import SpaceCategory, SPACE_CATEGORIES
 from libs.io.plot import plot_polygon
 
@@ -35,7 +40,7 @@ class Garnisher:
         for order in self.orders:
             self._apply_order(solution, order)
 
-    def _apply_order(self, solution: Solution, order: Order) -> None:
+    def _apply_order(self, solution: 'Solution', order: Order) -> None:
         """
         Apply an order by updating plan list of furniture and fitting them in space
         :param plan:
@@ -44,18 +49,19 @@ class Garnisher:
         """
         category, variant, furniture_names, is_prm = order
         plan = solution.spec.plan
-        for space in plan.spaces:
-            item: Item = solution.space_item[space]
+        for space in plan.mutable_spaces():
+            item = solution.space_item[space]
             if item.category == category and item.variant == variant:
-                furnitures = [next(furniture
-                                   for furniture in FURNITURE_CATALOG[name]
-                                   if furniture.is_prm == is_prm)  # today only 1st one is picked
+                furnitures = [Furniture(next(furniture
+                                             for furniture in FURNITURE_CATALOG[name]
+                                             if furniture.is_prm == is_prm))
+                              # today only 1st one is picked
                               for name in furniture_names]
                 self._fit(space, furnitures)
                 for furniture in furnitures:
-                    plan.furnitures.set_default(space, []).append(furniture)
+                    plan.furnitures.setdefault(space, []).append(furniture)
 
-    def _fit(self, space: Space, furnitures: Sequence['Furniture']):
+    def _fit(self, space: 'Space', furnitures: Sequence['Furniture']):
         for furniture in furnitures:
             fit_bed_in_bedroom(furniture, space)
 
@@ -63,7 +69,7 @@ class Garnisher:
 class FurnitureType:
     def __init__(self,
                  name: str,
-                 polygon: ListCoords2d,
+                 polygon: 'ListCoords2d',
                  is_prm: bool):
         self.name = name
         self.polygon = polygon
@@ -79,13 +85,23 @@ class Furniture:
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (0, 1)
 
+    @property
+    def middle_point(self) -> 'Coords2d':
+        footprint = self.footprint()
+        return barycenter(footprint[0], footprint[1], 0.5)
+
+    @middle_point.setter
+    def middle_point(self, value: 'Coords2d'):
+        vect = self.ref_point[0] - self.middle_point[0], self.ref_point[1] - self.middle_point[1]
+        self.ref_point = move_point(value, vect)
+
     def bounding_box(self) -> 'FourCoords2d':
         """
         Rectangle shape of the furniture
         """
         return minimum_rotated_rectangle(self.footprint())
 
-    def footprint(self) -> ListCoords2d:
+    def footprint(self) -> 'ListCoords2d':
         """
         Real shape of the furniture, well oriented and located
         """
@@ -121,14 +137,14 @@ GARNISHERS = {
     "default": Garnisher("default", [
         (SPACE_CATEGORIES["bedroom"], "xs", ("bed",), False),
         (SPACE_CATEGORIES["bedroom"], "s", ("bed",), False),
-        (SPACE_CATEGORIES["bedroom"], "m", ("bed",), True),
+        (SPACE_CATEGORIES["bedroom"], "m", ("bed",), False),
         (SPACE_CATEGORIES["bedroom"], "l", ("bed",), True),
         (SPACE_CATEGORIES["bedroom"], "xl", ("bed",), True),
     ])
 }
 
 
-def fit_bed_in_bedroom(bed: Furniture, bedroom: Space):
+def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space'):
     """
     Move furniture to fit in space.
     :return:
@@ -137,16 +153,17 @@ def fit_bed_in_bedroom(bed: Furniture, bedroom: Space):
 
     aligned_edges = bedroom.aligned_siblings(bedroom.edge)
     initial_edge = aligned_edges[0]
-    end_edge = None
+    start_edge = None
 
-    while end_edge is not initial_edge:
+    while start_edge is not initial_edge:
         start_edge = aligned_edges[0]
         end_edge = aligned_edges[-1]
 
         length = start_edge.start.distance_to(end_edge.end)
         if length > longest_length:
             longest_length = length
-            bed.ref_point = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5)
             bed.ref_vect = start_edge.normal
+            bed.middle_point = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5)
 
         aligned_edges = bedroom.aligned_siblings(bedroom.next_edge(end_edge))
+        # start_edge = aligned_edges[0]
