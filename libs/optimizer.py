@@ -288,7 +288,7 @@ class Optimizer:
         if params.do_garnisher:
             logging.info("Garnisher")
             if best_solutions and space_planner:
-                for i, sol in enumerate(best_solutions[0:1]):
+                for i, sol in enumerate(best_solutions):
                     GARNISHERS[params.garnisher_type].apply_to(sol)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"garnisher sol {i+1}")
@@ -343,12 +343,13 @@ if __name__ == '__main__':
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_refiner": False,
-                "do_door": False,
+                "do_refiner": True,
+                "do_door": True,
                 "do_garnisher": True,
-                "do_corridor": False,
+                "do_corridor": True,
                 "max_nb_solutions": 3,
-                "do_final_scoring": True
+                "do_final_scoring": True,
+                "save_ll_bp": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
