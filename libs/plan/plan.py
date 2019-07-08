@@ -32,6 +32,7 @@ from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, 
 from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
+from libs.plan.furniture import Furniture
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d, FourCoords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
@@ -48,7 +49,6 @@ from libs.utils.geometry import (
 
 if TYPE_CHECKING:
     from libs.mesh.mesh import MeshModification
-    from libs.plan.furniture import Furniture
 
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 
@@ -2431,8 +2431,8 @@ class Plan:
             self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
 
         # add furnitures
-        for space_id, furnitures in data["furnitures"]:
-            space = self.get_space_from_id(space_id)
+        for space_id, furnitures in data["furnitures"].items():
+            space = self.get_space_from_id(int(space_id))
             self.furnitures[space] = [self.__class__.FurnitureType().deserialize(f)
                                       for f in furnitures]
 
