@@ -332,7 +332,7 @@ if __name__ == '__main__':
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
                 "do_refiner": True,
-                "do_door": True
+                "do_door": True,
                 "do_garnisher": True
             }
         )
