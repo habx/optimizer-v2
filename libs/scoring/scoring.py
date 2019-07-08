@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import shapely as sp
 from shapely.geometry import Point, LineString
 
-from libs.io.plot import plot_save
 from libs.plan.category import SPACE_CATEGORIES
 from libs.plan.plan import Plan, Face, Linear
 from libs.space_planner.circulation import Circulator, CostRules
@@ -699,7 +698,7 @@ def luminosity_plot(solution: 'Solution', face_luminosity: Dict['Face', int]):
             _ax.plot([face.as_sp.centroid.xy[0][0]], [face.as_sp.centroid.xy[1][0]], marker='*',
                      markersize=3, color="yellow")
 
-    plot_save(True, False)
+    #plot_save(True, False)
 
 
 def radar_chart(plan_score: float, score_components: Dict[str, float], solution_id: int,

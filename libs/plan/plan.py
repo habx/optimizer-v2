@@ -3020,8 +3020,7 @@ class Plan:
             if space.category.external:
                 continue
             for edge in space.exterior_edges:
-                if edge.pair in external_space_edges or
-                       not edge.pair.face:
+                if edge.pair in external_space_edges or not edge.pair.face:
                     _perimeter += edge.length
         return _perimeter
 
