@@ -21,8 +21,3 @@ requests
 # For tests and linting:
 pytest
 pylint==2.3.1
-
-# Needed for ortools
-cppyy==1.4.11
-cppyy-backend==1.8.4
-cppyy-cling==6.15.2.9
