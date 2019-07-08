@@ -89,10 +89,12 @@ class ExecParams:
 
         refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
                           "processes": 8}
+        space_planner_params = {"space_planner_type": "standard_space_planner", "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
         self.seeder_type = params.get('seeder_type', 'directional_seeder')
-        self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
+        # self.space_planner_type = params.get('space_planner_type', 'standard_space_planner')
+        self.space_planner_params = params.get('space_planner_params', space_planner_params)
         self.do_plot = params.get('do_plot', False)
         self.save_ll_bp = params.get('save_ll_bp', False)
         self.max_nb_solutions = params.get('max_nb_solutions', 3)
@@ -226,8 +228,9 @@ class Optimizer:
         # space planner
         logging.info("Space planner")
         t0_space_planner = time.process_time()
-        space_planner = SPACE_PLANNERS[params.space_planner_type]
-        best_solutions = space_planner.apply_to(setup_spec, params.max_nb_solutions)
+        space_planner = SPACE_PLANNERS[params.space_planner_params['space_planner_type']]
+        best_solutions = space_planner.apply_to(setup_spec, params.max_nb_solutions,
+                                                params.space_planner_params['processes'])
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
@@ -257,6 +260,7 @@ class Optimizer:
         if params.do_refiner:
             logging.info("Refiner")
             if best_solutions:
+                for i, sol in enumerate(best_solutions):
                     REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
@@ -319,17 +323,17 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "039.json",
-            "039_setup0.json",
+            "009.json",
+            "009_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
                 "do_corridor": False,
-                "do_refiner":True,
+                "do_refiner":False,
                 "max_nb_solutions": 3,
-                "do_door": True,
-                "do_final_scoring": True
+                "do_door": False,
+                "do_final_scoring": False
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
