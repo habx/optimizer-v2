@@ -3052,8 +3052,12 @@ class Plan:
         :return:
         """
         _perimeter = 0.0
-        external_space_edges = [e for e in
-                                (s.exterior_edges for s in self.spaces if s.category.external)]
+        external_spaces = (s for s in self.spaces if s.category.external)
+        external_space_edges = []
+        for s in external_spaces:
+            external_space_edges += [e for e in s.exterior_edges]
+        # external_space_edges = [e for e in
+        #                         (s.exterior_edges for s in self.spaces if s.category.external)]
         for space in self.spaces:
             if space.category.external:
                 continue
