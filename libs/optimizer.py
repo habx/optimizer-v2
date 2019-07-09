@@ -259,7 +259,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
+                    REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
@@ -291,7 +291,6 @@ class Optimizer:
                 sol.final_score = final_score
                 sol.final_score_components = final_score_components
                 sol.spec.plan.plot()
-            plt.close()
 
         # output
         t0_output = time.process_time()
@@ -317,14 +316,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "009.json",
-            "009_setup0.json",
+            "008.json",
+            "008_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": False,
                 "do_corridor": True,
-                "do_refiner":True,
+                "do_refiner": True,
                 "max_nb_solutions": 3,
                 "do_door": False,
                 "do_final_scoring": False
