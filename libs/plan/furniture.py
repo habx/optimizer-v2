@@ -12,10 +12,10 @@ from libs.utils.geometry import (ccw_angle,
                                  barycenter,
                                  rotate,
                                  minimum_rotated_rectangle,
-                                 move_point,
                                  polygons_collision,
                                  polygon_border_collision,
-                                 polygon_linestring_collision)
+                                 polygon_linestring_collision,
+                                 move_point)
 
 if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
@@ -53,7 +53,7 @@ class Garnisher:
                                   for name in furniture_names]
                     for furniture in furnitures:
                         # TODO: map functions to furnitures
-                        if fit_bed_in_bedroom(furniture, space):
+                        if fit_bed(furniture, space):
                             plan.furnitures.setdefault(space, []).append(furniture)
 
 
@@ -63,10 +63,18 @@ class FurnitureCategory:
     def __init__(self,
                  name: str,
                  polygon: 'ListCoords2d',
-                 is_prm: bool):
+                 is_prm: bool,
+                 required_space: 'ListCoords2d'):
+        """
+        :param name:
+        :param polygon: polygon of the furniture
+        :param is_prm: ok for a prm room
+        :param required_space: poltgon of the furniture + space around
+        """
         self.name = name
         self.polygon = polygon
         self.is_prm = is_prm
+        self.required_space = required_space
         FurnitureCategory.BY_NAME[name] = self
 
 
@@ -79,16 +87,6 @@ class Furniture:
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (0, 1)
 
-    @property
-    def middle_point(self) -> 'Coords2d':
-        footprint = self.footprint()
-        return barycenter(footprint[0], footprint[1], 0.5)
-
-    @middle_point.setter
-    def middle_point(self, value: 'Coords2d'):
-        vect = self.ref_point[0] - self.middle_point[0], self.ref_point[1] - self.middle_point[1]
-        self.ref_point = move_point(value, vect)
-
     def bounding_box(self) -> 'FourCoords2d':
         """
         Rectangle shape of the furniture
@@ -100,10 +98,22 @@ class Furniture:
         Real shape of the furniture, well oriented and located
         """
         angle = ccw_angle((0, 1), self.ref_vect)
-        trans_x, trans_y = self.ref_point
-        rotated = rotate(self.category.polygon, self.category.polygon[0], angle)
-        translated = tuple([(x + trans_x, y + trans_y)
-                            for x, y in rotated])
+        translation_vec = self.ref_point
+        rotated = rotate(self.category.polygon, (0, 0), angle)
+        translated = tuple([move_point(coord, translation_vec)
+                            for coord in rotated])
+        return translated
+
+    def required_space(self) -> 'ListCoords2d':
+        """
+        Shape of the furniture + space required around it to
+        :return:
+        """
+        angle = ccw_angle((0, 1), self.ref_vect)
+        translation_vec = self.ref_point
+        rotated = rotate(self.category.required_space, (0, 0), angle)
+        translated = tuple([move_point(coord, translation_vec)
+                            for coord in rotated])
         return translated
 
     def check_validity(self, space: 'Space') -> bool:
@@ -113,13 +123,14 @@ class Furniture:
         :return:
         """
         footprint = self.footprint()
+        required_space = self.required_space()
         # furniture collision
         for furniture in space.furnitures():
-            if furniture is not self and polygons_collision(furniture.footprint(), footprint):
+            if furniture is not self and polygons_collision(furniture.footprint(), required_space):
                 return False
         # border collision
         border = space.boundary_polygon()
-        if polygon_border_collision(footprint, border, 1):
+        if polygon_border_collision(required_space, border, 1):
             return False
         # window collision
         for component in space.immutable_components():
@@ -169,26 +180,42 @@ class Furniture:
 
 
 FURNITURE_CATALOG = {
-    "bed": (FurnitureCategory("bed", ((0, 0), (140, 0), (140, 190), (0, 190)), False),
-            FurnitureCategory("bed_prm_1", ((0, 0), (320, 0), (320, 310), (0, 310)), True),
-            FurnitureCategory("bed_prm_2", ((0, 0), (380, 0), (380, 280), (0, 280)), True)),
-    "bathtub": (FurnitureCategory("bathtub", ((0, 0), (140, 0), (140, 190), (0, 190)), True))
+    "single_bed": (FurnitureCategory("single_bed",
+                                     ((-45, 0), (45, 0), (45, 190), (-45, 190)),
+                                     False,
+                                     ((-45, 0), (45, 0), (45, 250), (-45, 250))),),
+    "double_bed": (FurnitureCategory("double_bed",
+                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                     False,
+                                     ((-130, 0), (130, 0), (130, 250), (-130, 250))),
+                   FurnitureCategory("double_bed_pmr_1",
+                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                     True,
+                                     ((-160, 0), (160, 0), (160, 310), (-160, 310))),
+                   FurnitureCategory("double_bed_pmr_2",
+                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                     True,
+                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)))),
+    "bathtub": (FurnitureCategory("bathtub",
+                                  ((-90, 0), (90, 0), (90, 80), (-90, 80)),
+                                  True,
+                                  ((-90, 0), (90, 0), (90, 80), (-90, 80))))
 }
 
 GARNISHERS = {
     "default": Garnisher("default", [
-        (SPACE_CATEGORIES["bedroom"], "xs", ("bed",), False),
-        (SPACE_CATEGORIES["bedroom"], "s", ("bed",), False),
-        (SPACE_CATEGORIES["bedroom"], "m", ("bed",), False),
-        (SPACE_CATEGORIES["bedroom"], "l", ("bed",), True),
-        (SPACE_CATEGORIES["bedroom"], "xl", ("bed",), True),
+        (SPACE_CATEGORIES["bedroom"], "xs", ("single_bed",), False),
+        (SPACE_CATEGORIES["bedroom"], "s", ("double_bed",), False),
+        (SPACE_CATEGORIES["bedroom"], "m", ("double_bed",), False),
+        (SPACE_CATEGORIES["bedroom"], "l", ("double_bed",), True),
+        (SPACE_CATEGORIES["bedroom"], "xl", ("double_bed",), True),
     ])
 }
 
 
-def fit_bed_in_bedroom(bed: Furniture, space: 'Space') -> bool:
+def fit_bed(bed: Furniture, space: 'Space') -> bool:
     """
-    Move furniture to fit in space.
+    Move furniture to fit in space, designed especially for bed.
     :return:
     """
     window_edges = [component.edge
@@ -212,41 +239,29 @@ def fit_bed_in_bedroom(bed: Furniture, space: 'Space') -> bool:
         perimeter_proportion = length / space_perimeter
 
         # score each line
+        no_window = True
         for edge in window_edges:
             if edge in aligned_edges:
-                # at least one window on the line: score only linked to line length
-                possibilities.append({
-                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
-                    "ref_vect": start_edge.normal,
-                    "score": perimeter_proportion * 100
-                })
-                possibilities.append({
-                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.3),
-                    "ref_vect": start_edge.normal,
-                    "score": perimeter_proportion * 100 - 1
-                })
-                possibilities.append({
-                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.7),
-                    "ref_vect": start_edge.normal,
-                    "score": perimeter_proportion * 100 - 1
-                })
+                # at least one window on the line
+                no_window = False
                 break
-        else:
-            # no window: score bonus
+        possibilities.append({
+            "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
+            "ref_vect": start_edge.normal,
+            "score": perimeter_proportion * 100 + no_window * 100
+        })
+        for i in range(1, 5):
             possibilities.append({
-                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
+                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
+                                        0.5 - (0.1 * i)),
                 "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 + 100
+                "score": perimeter_proportion * 100 - i + no_window * 100
             })
             possibilities.append({
-                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.3),
+                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
+                                        0.5 + (0.1 * i)),
                 "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - 1 + 100
-            })
-            possibilities.append({
-                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.7),
-                "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - 1 + 100
+                "score": perimeter_proportion * 100 - i + no_window * 100
             })
 
         # prepare next loop
@@ -259,7 +274,7 @@ def fit_bed_in_bedroom(bed: Furniture, space: 'Space') -> bool:
     # try all possibilites
     for possibility in possibilities:
         bed.ref_vect = possibility["ref_vect"]
-        bed.middle_point = possibility["middle_point"]
+        bed.ref_point = possibility["ref_point"]
         if bed.check_validity(space):
             return True
 
