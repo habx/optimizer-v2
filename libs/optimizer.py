@@ -240,8 +240,7 @@ class Optimizer:
                 for i, sol in enumerate(best_solutions):
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
-                                                        space_planner.solutions_collector.spec_with_circulation)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
