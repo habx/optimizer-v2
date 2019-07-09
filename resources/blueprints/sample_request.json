@@ -97,8 +97,8 @@
     },
     {
       "blueprint": "020.json",
-      "setup": "010_setup0.json",
-      "slug": "010_0"
+      "setup": "020_setup0.json",
+      "slug": "020_0"
     },
     {
       "blueprint": "021.json",
