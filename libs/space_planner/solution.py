@@ -55,7 +55,7 @@ class SolutionsCollector:
 
         for item in spec.items:
             if item.category.name == "circulation":
-                if spec.typology > 2:
+                if spec.typology > 1:
                     size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
                     size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
                     new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
@@ -261,8 +261,11 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                         item.max_size.area += current_item.max_size.area
 
     new_spec = Specification(solution.spec.name, solution.spec.plan)
+    item_list = []
     for item in new_dict.values():
-        new_spec.add_item(item)
+        if item not in item_list:
+            new_spec.add_item(item)
+            item_list.append(item)
 
     solution.space_item = new_dict
     solution.spec = new_spec

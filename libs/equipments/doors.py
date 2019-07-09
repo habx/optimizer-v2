@@ -402,9 +402,9 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         contact_line[0].start)) / end_edge.length
 
     if not 1 > end_split_coeff > 0:
-        end_split_coeff = 0 * (end_split_coeff < 0) + (end_split_coeff > 1)
+        end_split_coeff = 0 * (end_split_coeff <= 0) + (end_split_coeff >= 1)
 
-    if end_split_coeff * end_edge.length <= 1 < len(door_edges):
+    if end_split_coeff * end_edge.length <= 1 and 1 < len(door_edges):
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -700,5 +700,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "009.json"
+    _plan_name = "055.json"
     main(input_file=_plan_name)
