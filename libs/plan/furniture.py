@@ -175,21 +175,38 @@ def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space'):
     Move furniture to fit in space.
     :return:
     """
-    longest_length = 0
+    components = bedroom.immutable_components()
+    windows = [component
+               for component in components
+               if "indow" in component.category.name]
+    window_edges = [window.edge
+                    for window in windows]
 
     aligned_edges = bedroom.aligned_siblings(bedroom.edge)
     initial_edge = aligned_edges[0]
     start_edge = None
+    longest_length = 0
+    windows_lines = []
 
+    # try longest line without window
     while start_edge is not initial_edge:
         start_edge = aligned_edges[0]
         end_edge = aligned_edges[-1]
 
-        length = start_edge.start.distance_to(end_edge.end)
-        if length > longest_length:
-            longest_length = length
-            bed.ref_vect = start_edge.normal
-            bed.middle_point = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5)
+        # check for window
+        window_found = False
+        for edge in window_edges:
+            if edge in aligned_edges:
+                windows_lines.append((start_edge.start.coords, end_edge.end.coords))
+                window_found = True
+                break
+
+        if not window_found:
+            length = start_edge.start.distance_to(end_edge.end)
+            if not window_found and length > longest_length:
+                longest_length = length
+                bed.ref_vect = start_edge.normal
+                bed.middle_point = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5)
 
         aligned_edges = bedroom.aligned_siblings(bedroom.next_edge(end_edge))
-        # start_edge = aligned_edges[0]
+        start_edge = aligned_edges[0]
