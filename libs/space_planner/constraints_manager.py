@@ -488,6 +488,26 @@ class ConstraintsManager:
                         ct = self.and_(ct, adjacency_sum <= 1)
         self.solver.add_constraint(ct)
 
+        ct = None
+        for duct in duct_list:
+            adjacency_sum = 0
+            for item in self.sp.spec.items:
+                item_duct_adjacency = None
+                for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                    if duct in [component for component in space.immutable_components()]:
+                        if item_duct_adjacency is None:
+                            item_duct_adjacency = self.solver.positions[item.id, j_space]
+                        else:
+                            item_duct_adjacency = self.solver.solver.Max(
+                                self.solver.positions[item.id, j_space], item_duct_adjacency)
+                adjacency_sum += item_duct_adjacency
+            if ct is None:
+                ct = adjacency_sum <= 1
+            else:
+                ct = self.and_(ct, adjacency_sum <= 1)
+        self.solver.add_constraint(ct)
+
+
     def add_item_constraints(self) -> None:
         """
         add items constraints
