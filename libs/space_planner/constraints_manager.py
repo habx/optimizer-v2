@@ -249,24 +249,31 @@ class ConstraintsManager:
 
         self.space_and_perimeter_adjacency_length = []
         self._init_space_and_perimeter_adjacency_length()
+
         self.item_area = {}
         self._init_item_area()
         self.item_windows_area = {}
         self._init_item_windows_area()
+
         self.symmetry_breaker_memo = {}
+
         self.windows_length = {}
         self._init_windows_length()
+
         self.spaces_max_distance = []
         self.spaces_min_distance = []
         self._init_spaces_distance()
+
         self.space_graph = nx.Graph()
         self._init_spaces_graph()
         self.area_space_graph = nx.Graph()
         self._init_area_spaces_graph()
         self.centroid_space_graph = nx.Graph()
         self._init_centroid_spaces_graph()
+
         self.duct_next_to_entrance = []
         self._init_duct_next_to_entrance()
+
         self.toilet_entrance_proximity_constraint_first_pass = True
         self.externals_connection_constraint_first_pass = True
         self.large_windows_constraint_first_pass = True
@@ -463,6 +470,7 @@ class ConstraintsManager:
         item_type_list = ["toilet", "bathroom"]
         duct_list = [space for space in self.sp.spec.plan.spaces if
                      space.category.name == "duct"]
+        print("duct_list", duct_list)
         ct = None
         for item_type in item_type_list:
             list_item = [i_item for i_item in self.sp.spec.items if
@@ -488,23 +496,38 @@ class ConstraintsManager:
                         ct = self.and_(ct, adjacency_sum <= 1)
         self.solver.add_constraint(ct)
 
+        external_spaces = (s for s in self.sp.spec.plan.spaces if s.category.external)
+        external_space_edges = []
+        for s in external_spaces:
+            external_space_edges += [e for e in s.exterior_edges]
+        perimeter_duct_list = [duct for duct in duct_list if
+                     [edge for edge in duct.exterior_edges if (edge.pair in external_space_edges or
+                                                               not edge.pair.face)]]
+        print("perimeter_duct_list", perimeter_duct_list)
+        duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen"]
         ct = None
         for duct in duct_list:
+            if duct in perimeter_duct_list:
+                maximum = 2
+            else:
+                maximum = 3
             adjacency_sum = 0
             for item in self.sp.spec.items:
-                item_duct_adjacency = None
-                for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
-                    if duct in [component for component in space.immutable_components()]:
-                        if item_duct_adjacency is None:
-                            item_duct_adjacency = self.solver.positions[item.id, j_space]
-                        else:
-                            item_duct_adjacency = self.solver.solver.Max(
-                                self.solver.positions[item.id, j_space], item_duct_adjacency)
-                adjacency_sum += item_duct_adjacency
+                if item.category.name in duct_items:
+                    item_duct_adjacency = None
+                    for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+
+                            if duct in [component for component in space.immutable_components()]:
+                                if item_duct_adjacency is None:
+                                    item_duct_adjacency = self.solver.positions[item.id, j_space]
+                                else:
+                                    item_duct_adjacency = self.solver.solver.Max(
+                                        self.solver.positions[item.id, j_space], item_duct_adjacency)
+                    adjacency_sum += item_duct_adjacency
             if ct is None:
-                ct = adjacency_sum <= 2
+                ct = adjacency_sum <= maximum
             else:
-                ct = self.and_(ct, adjacency_sum <= 2)
+                ct = self.and_(ct, adjacency_sum <= maximum)
         self.solver.add_constraint(ct)
 
 
@@ -987,7 +1010,8 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
 
     return ct
 
-def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager',
+                                         item: Item) -> ortools.Constraint:
     """
     toilet entrance proximity constraint
     :param manager: 'ConstraintsManager'
@@ -1017,6 +1041,7 @@ def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
     """
     Large Windows constraint
+    large_windows_constraint_first_pass for multiple living / livingkitchen configurations
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
@@ -1269,6 +1294,7 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
     """
     externals connection constraint
+    externals_connection_constraint_first_pass for multiple living / livingkitchen configurations
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
