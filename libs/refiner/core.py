@@ -255,7 +255,8 @@ class Individual(Plan):
                             "will be overwritten. Consider deleting previous "
                             "creation of that class or rename it.".format(alias))
 
-        custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class})
+        custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class,
+                                                   "FloorType": UnwatchedFloor})
         globals()[alias] = custom_class  # needed for pickling
         return custom_class
 
@@ -301,13 +302,14 @@ class Individual(Plan):
 
         return ax
 
-    def clone(self, name: str = "") -> 'Individual':
+    def clone(self, name: str = "", custom_class: Optional[type] = None) -> 'Individual':
         """
         Creates a clone copy of *self*
         :param name:
+        :param custom_class:
         :return:
         """
-        new_plan = super().clone()
+        new_plan = super().clone(custom_class=type(self))
         new_ind = type(self)(new_plan)
         new_ind.fitness = copy.deepcopy(self.fitness)
         new_ind.modified_spaces = self.modified_spaces.copy()

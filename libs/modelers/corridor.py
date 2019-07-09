@@ -8,6 +8,7 @@ from functools import reduce
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Face, Edge, Vertex
+from libs.space_planner.solution import Solution
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.specification.specification import Specification
 from libs.plan.category import SPACE_CATEGORIES
@@ -22,6 +23,7 @@ from libs.utils.geometry import (
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
 
 EPSILON = 1
+SMALL_CORRIDOR_AREA = 5000
 
 
 # TODO LIST:
@@ -84,32 +86,36 @@ class Corridor:
         self.corner_data = {}
         self.grouped_faces = {}
 
-    def apply_to(self, plan: 'Plan', spec: 'Specification', show: bool = False):
+    def apply_to(self, solution: 'Solution', show: bool = False):
         """
         Runs the corridor
         -creates a circulator and determines circulation paths in the plan
         -refines the mesh around those paths
         -grows corridor spaces around those paths
-        :param plan:
-        :param spec:
+        :param solution
         :param show: whether to display a real-time visualization of the corridor
         :return:
         """
         self._clear()
-        self.spec = spec
-        self.plan = plan
+        self.spec = solution.spec
+        self.plan = solution.spec.plan
 
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
                                   sp.mutable and not sp.category.name is "circulation"]
         # store groups of faces that belong to non mutable spaces, for repair purpose
         grouped_faces = {level: [] for level in self.plan.levels}
+        dict_item = {}
         for sp in initial_mutable_spaces:
-            grouped_faces[sp.floor.level].append([f for f in sp.faces])
+            sp_faces = [f for f in sp.faces]
+            grouped_faces[sp.floor.level].append(sp_faces)
+            item = [solution.space_item[s] for s in initial_mutable_spaces if s.id is sp.id][0]
+            dict_item[item] = sp_faces
         self.grouped_faces = grouped_faces
 
         # computes circulation paths and stores them
-        self.circulator = Circulator(plan=plan, spec=spec, cost_rules=self.circulation_cost_rules)
+        self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
+                                     cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
         # self.circulator.plot()
 
@@ -128,12 +134,100 @@ class Corridor:
         final_mutable_spaces = [sp for sp in self.plan.spaces if
                                 sp.mutable and not sp.category.name is "circulation"]
 
+        # merging corridor spaces when needed
+        self._merge_corridors()
+
         # space repair process : if some spaces have been cut by corridor growth
         self._repair_spaces(initial_mutable_spaces, final_mutable_spaces)
 
         # linear repair
         if self.corridor_rules.layer_cut or self.corridor_rules.ortho_cut:
             self.plan.mesh.watch()
+
+        # reconstruct disappear
+        self._reconstruct_item_dict(solution, dict_item)
+
+    def _reconstruct_item_dict(self, solution: 'Solution', dict_item: 'Dict'):
+        """
+        some spaces may have disappeared in the corridor process
+        for further purposes, reconstruct solution.space_item
+        :param solution:
+        :param dict_item:
+        :return:
+        """
+        solution.space_item = {}
+        for item in dict_item:
+            group_faces_item = dict_item[item]
+            for f in group_faces_item:
+                space_f = self.plan.get_space_of_face(f)
+                if space_f and space_f.category is not SPACE_CATEGORIES['circulation']:
+                    solution.space_item[space_f] = item
+                    break
+
+    def _merge_corridors(self):
+        """
+        merges corridors spaces
+        :return:
+        """
+        self._rectangular_merge()
+        self._small_space_merge()
+
+    def _small_space_merge(self):
+        """
+        merges small corridor spaces with adjacent corridor space (if any) that has maximal contact
+        :return:
+        """
+        corridors = list(self.plan.get_spaces("circulation"))
+        small_corridors = [corridor for corridor in corridors
+                           if corridor.area < SMALL_CORRIDOR_AREA]
+
+        merge = True if small_corridors else False
+        while merge:
+            merge = False
+            for small_corridor in small_corridors:
+                adjacent_corridors = (adj for adj in small_corridor.adjacent_spaces() if
+                                      adj in corridors)
+                if not adjacent_corridors:
+                    continue
+
+                # among adjacent corridors gets the one with maximal contact length
+                contact_length = 0
+                adjacent_corridor_selected = None
+                for adjacent_corridor in adjacent_corridors:
+                    current_contact_length = adjacent_corridor.contact_length(small_corridor)
+                    if current_contact_length > contact_length:
+                        contact_length = current_contact_length
+                        adjacent_corridor_selected = adjacent_corridor
+                if not adjacent_corridor_selected:
+                    continue
+                adjacent_corridor_selected.merge(small_corridor)
+                small_corridors.remove(small_corridor)
+                merge = True
+                break
+
+    def _rectangular_merge(self):
+        """
+        merges corridor spaces when the merge is a rectangle
+        purpose : ease the refiner process
+        :return:
+        """
+
+        corridors = list(self.plan.get_spaces("circulation"))
+
+        merge = True if corridors else False
+        while merge:
+            merge = False
+            for corridor in corridors:
+                adjacent_corridors = (adj for adj in corridor.adjacent_spaces() if adj in corridors)
+                for adjacent_corridor in adjacent_corridors:
+                    if corridor.number_of_corners(adjacent_corridor) == 4:
+                        corridor.merge(adjacent_corridor)
+                        corridors.remove(adjacent_corridor)
+                        merge = True
+                        break
+                if merge:
+                    break
+
 
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
                        final_mutable_spaces: List['Space']):
@@ -424,7 +518,8 @@ class Corridor:
 
             line = []
             for line_edge in _line_forward(edge):
-                if _condition(line_edge) or _condition(line_edge.pair):
+                if ((_condition(line_edge) or _condition(line_edge.pair))
+                        and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
@@ -1069,8 +1164,8 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[1]
-                plan = solution.plan
+                solution = best_solutions[0]
+                plan = solution.spec.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
                 writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
@@ -1101,5 +1196,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "003.json"
+    plan_name = "050.json"
     main(input_file=plan_name)

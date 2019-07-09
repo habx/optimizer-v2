@@ -51,24 +51,18 @@ def compose(funcs: List[scoreFunc],
     return current_fitness
 
 
-def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
+def create_item_dict(_solution: 'Solution') -> Dict[int, Optional['Item']]:
     """
     Creates a 1-to-1 dict between spaces and items of the specification
-    :param _spec:
+    :param _solution:
     :return:
     """
     output = {}
-    spec_items = _spec.items[:]
-    for sp in _spec.plan.mutable_spaces():
-        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
-        # Note : corridors have no corresponding spec item
-        best_item = min(corresponding_items,
-                        key=lambda i: math.fabs(i.required_area - sp.cached_area()), default=None)
-        if sp.category is not SPACE_CATEGORIES["circulation"]:
-            assert best_item, "Score: Each space should have a corresponding item in the spec"
-        output[sp.id] = best_item
-        if best_item is not None:
-            spec_items.remove(best_item)
+    for space, item in _solution.space_item.items():
+        if item.category.name == "circulation":
+            output[space.id] = None
+        else:
+            output[space.id] = item
     return output
 
 
@@ -405,16 +399,16 @@ UTILITY Function
 """
 
 
-def check(ind: 'Individual', spec: 'Specification') -> None:
+def check(ind: 'Individual', solution: 'Solution') -> None:
     """
     Compares the plan area with the specification objectives
     :param ind:
-    :param spec:
+    :param solution:
     :return:
     """
     logging.info("Refiner: Checking Plan : %s", ind.name)
 
-    item_dict = create_item_dict(spec)
+    item_dict = create_item_dict(solution)
     for space in ind.mutable_spaces():
         if space.id not in item_dict:
             continue

@@ -115,7 +115,7 @@ def _compute_from_start(plan_name: str,
                          "retrieving solution n°%i", num_solutions - 1)
             solution_number = num_solutions - 1
         solution = best_solutions[solution_number]
-        plan = solution.plan
+        plan = solution.spec.plan
         new_spec.plan = plan
         if do_circulation:
             Corridor(corridor_rules=corridor_params).apply_to(plan)

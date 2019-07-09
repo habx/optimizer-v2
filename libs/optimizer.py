@@ -19,8 +19,10 @@ from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
+from libs.scoring.scoring import final_scoring, radar_chart
+from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
-
+import matplotlib.pyplot as plt
 
 class LocalContext:
     """Local execution context"""
@@ -101,6 +103,7 @@ class ExecParams:
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_door = params.get('do_door', False)
         self.ref_plan_url = params.get('ref_plan_url', None)
+        self.do_final_scoring = params.get('do_final_scoring', False)
 
 
 class Optimizer:
@@ -213,10 +216,10 @@ class Optimizer:
         # reading setup
         logging.info("Read setup")
         t0_setup = time.process_time()
-        spec = reader.create_specification_from_data(setup)
-        logging.debug(spec)
-        spec.plan = plan
-        spec.plan.remove_null_spaces()
+        setup_spec = reader.create_specification_from_data(setup)
+        logging.debug(setup_spec)
+        setup_spec.plan = plan
+        setup_spec.plan.remove_null_spaces()
         elapsed_times["setup"] = time.process_time() - t0_setup
         logging.info("Setup read in %f", elapsed_times["setup"])
 
@@ -224,7 +227,7 @@ class Optimizer:
         logging.info("Space planner")
         t0_space_planner = time.process_time()
         space_planner = SPACE_PLANNERS[params.space_planner_type]
-        best_solutions = space_planner.apply_to(spec, params.max_nb_solutions)
+        best_solutions = space_planner.apply_to(setup_spec, params.max_nb_solutions)
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
@@ -233,18 +236,17 @@ class Optimizer:
         t0_corridor = time.process_time()
         if params.do_corridor:
             logging.info("Corridor")
-            if best_solutions and space_planner:
-                spec = space_planner.spec
+            if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    spec.plan = sol.plan
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(
-                        sol.plan, spec)
+                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
-                        sol.plan.plot(name=f"corridor sol {i+1}")
+                        sol.spec.plan.plot(name=f"corridor sol {i + 1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"corridor sol {i+1}",
+                        save_plan_as_json(sol.spec.plan.serialize(), f"corridor sol {i + 1}",
                                           libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
@@ -253,16 +255,15 @@ class Optimizer:
         t0_refiner = time.process_time()
         if params.do_refiner:
             logging.info("Refiner")
-            if best_solutions and space_planner:
-                spec = space_planner.spec
+            if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    spec.plan = sol.plan
-                    sol.plan = REFINERS[params.refiner_type].apply_to(sol.plan, spec,
-                                                                      params.refiner_params)
+                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
+                    # specification update
+                    spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
-                        sol.plan.plot(name=f"refiner sol {i+1}")
+                        sol.spec.plan.plot(name=f"refiner sol {i + 1}")
                     if params.save_ll_bp:
-                        save_plan_as_json(sol.plan.serialize(), f"refiner sol {i+1}",
+                        save_plan_as_json(sol.spec.plan.serialize(), f"refiner sol {i + 1}",
                                           libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
@@ -271,13 +272,24 @@ class Optimizer:
         t0_door = time.process_time()
         if params.do_door:
             logging.info("Door")
-            if best_solutions and space_planner:
+            if best_solutions:
                 for sol in best_solutions:
-                    place_doors(sol.plan)
+                    place_doors(sol.spec.plan)
                     if params.do_plot:
-                        door_plot(sol.plan)
+                        door_plot(sol.spec.plan)
         elapsed_times["door"] = time.process_time() - t0_door
         logging.info("Door placement achieved in %f", elapsed_times["door"])
+
+        # scoring
+        if params.do_final_scoring and best_solutions:
+            for sol in best_solutions:
+                final_score, final_score_components = final_scoring(sol)
+                radar_chart(final_score, final_score_components, sol.id,
+                            sol.spec.plan.name + "_FinalScore")
+                sol.final_score = final_score
+                sol.final_score_components = final_score_components
+                sol.spec.plan.plot()
+            plt.close()
 
         # output
         t0_output = time.process_time()
@@ -307,14 +319,17 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "032.json",
-            "032_setup0.json",
+            "001.json",
+            "001_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_refiner": True,
-                "do_door": True
+                "do_corridor": True,
+                "do_refiner":True,
+                "max_nb_solutions": 3,
+                "do_door": True,
+                "do_final_scoring": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
