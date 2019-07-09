@@ -855,7 +855,7 @@ if __name__ == '__main__':
         best_solutions, space_planner = duplex()
 
         for solution in best_solutions:
-            circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
+            circulator = Circulator(plan=solution.spec.plan, spec=space_planner.spec)
             circulator.connect()
             circulator.plot()
 
