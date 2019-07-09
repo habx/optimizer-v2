@@ -5,14 +5,17 @@ from typing import (
     Optional,
     Dict
 )
+from libs.plan.category import SpaceCategory, SPACE_CATEGORIES, LinearCategory
+from libs.io.plot import plot_polygon
 from libs.utils.geometry import (ccw_angle,
                                  unit,
                                  barycenter,
                                  rotate,
                                  minimum_rotated_rectangle,
-                                 move_point)
-from libs.plan.category import SpaceCategory, SPACE_CATEGORIES
-from libs.io.plot import plot_polygon
+                                 move_point,
+                                 polygons_collision,
+                                 polygon_border_collision,
+                                 polygon_linestring_collision)
 
 if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
@@ -43,9 +46,6 @@ class Garnisher:
     def _apply_order(self, solution: 'Solution', order: Order) -> None:
         """
         Apply an order by updating plan list of furniture and fitting them in space
-        :param plan:
-        :param
-        :return:
         """
         category, variant, furniture_names, is_prm = order
         plan = solution.spec.plan
@@ -57,14 +57,10 @@ class Garnisher:
                                              if furniture.is_prm == is_prm))
                               # today only 1st one is picked
                               for name in furniture_names]
-                self._fit(space, furnitures)
                 for furniture in furnitures:
-                    plan.furnitures.setdefault(space, []).append(furniture)
-
-    def _fit(self, space: 'Space', furnitures: Sequence['Furniture']):
-        for furniture in furnitures:
-            fit_bed_in_bedroom(furniture, space)
-
+                    # TODO: map functions to funritures
+                    if fit_bed_in_bedroom(furniture, space):
+                        plan.furnitures.setdefault(space, []).append(furniture)
 
 class FurnitureCategory:
     BY_NAME: Dict[str, 'FurnitureCategory'] = {}
@@ -115,6 +111,31 @@ class Furniture:
                             for x, y in rotated])
         return translated
 
+    def check_validity(self, space: 'Space') -> bool:
+        """
+        Return True if current furniture position is valid with space
+        :param space:
+        :return:
+        """
+        footprint = self.footprint()
+        # furniture collision
+        for furniture in space.furnitures():
+            if furniture is not self and polygons_collision(furniture.footprint(), footprint):
+                return False
+        # border collision
+        border = space.boundary_polygon()
+        if polygon_border_collision(footprint, border, 1):
+            return False
+        # window collision
+        for component in space.immutable_components():
+            if isinstance(component.category, LinearCategory) and component.category.window_type:
+                window_line = [component.edge.start.coords]
+                window_line += [edge.end.coords for edge in component.edges]
+                if polygon_linestring_collision(footprint, window_line, -1):
+                    return False
+
+        return True
+
     def plot(self, ax=None,
              options=('fill', 'border'),
              save: Optional[bool] = None):
@@ -147,7 +168,7 @@ class Furniture:
         :return:
         """
         self.ref_point = tuple(value["ref_point"])
-        self.ref_vect= tuple(value["ref_vect"])
+        self.ref_vect = tuple(value["ref_vect"])
         self.category = FurnitureCategory.BY_NAME[value["category"]]
         return self
 
@@ -170,17 +191,16 @@ GARNISHERS = {
 }
 
 
-def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space'):
+def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space') -> bool:
     """
     Move furniture to fit in space.
     :return:
     """
     components = bedroom.immutable_components()
-    windows = [component
-               for component in components
-               if "indow" in component.category.name]
-    window_edges = [window.edge
-                    for window in windows]
+    window_edges = [component.edge
+                    for component in components
+                    if isinstance(component.category, LinearCategory)
+                    and component.category.window_type]
 
     aligned_edges = bedroom.aligned_siblings(bedroom.edge)
     initial_edge = aligned_edges[0]
@@ -210,3 +230,4 @@ def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space'):
 
         aligned_edges = bedroom.aligned_siblings(bedroom.next_edge(end_edge))
         start_edge = aligned_edges[0]
+    return bed.check_validity(bedroom)

@@ -397,6 +397,13 @@ def min_section(perimeter: List[Coords2d]) -> float:
 
 
 def rotate(polygon: ListCoords2d, ref_point: Coords2d, angle: float) -> ListCoords2d:
+    """
+    Return a rotated version of the polygon around a reference point
+    :param polygon:
+    :param ref_point:
+    :param angle: in degrees, ccw
+    :return:
+    """
     ref_x, ref_y = ref_point
     # convert to radians
     angle = angle * math.pi / 180
@@ -407,4 +414,46 @@ def rotate(polygon: ListCoords2d, ref_point: Coords2d, angle: float) -> ListCoor
 
 
 def minimum_rotated_rectangle(polygon: ListCoords2d) -> FourCoords2d:
+    """
+    Return the smallest bounding box of the polygon
+    :param polygon:
+    :return:
+    """
     return Polygon(polygon).minimum_rotated_rectangle.exterior.coords[:-1]
+
+
+def polygons_collision(poly_1: ListCoords2d,
+                       poly_2: ListCoords2d,
+                       tolerance:float=0) -> bool:
+    """
+    Return true if polygons are colliding, given the input tolerance
+    :param poly_1:
+    :param poly_2:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(poly_1).buffer(-tolerance).intersects(Polygon(poly_2))
+
+def polygon_border_collision(polygon: ListCoords2d,
+                             border: ListCoords2d,
+                             tolerance:float=0) -> bool:
+    """
+    Return true if polygon collides border, given the input tolerance
+    :param polygon:
+    :param border:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(polygon).buffer(-tolerance).intersects(LinearRing(border))
+
+def polygon_linestring_collision(polygon: ListCoords2d,
+                                 linestring: ListCoords2d,
+                                 tolerance:float=0) -> bool:
+    """
+    Return true if polygon collides linestring, given the input tolerance
+    :param polygon:
+    :param linestring:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(polygon).buffer(-tolerance).intersects(LineString(linestring))
