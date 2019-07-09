@@ -502,9 +502,9 @@ class ConstraintsManager:
                                 self.solver.positions[item.id, j_space], item_duct_adjacency)
                 adjacency_sum += item_duct_adjacency
             if ct is None:
-                ct = adjacency_sum <= 1
+                ct = adjacency_sum <= 2
             else:
-                ct = self.and_(ct, adjacency_sum <= 1)
+                ct = self.and_(ct, adjacency_sum <= 2)
         self.solver.add_constraint(ct)
 
 
