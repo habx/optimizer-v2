@@ -41,26 +41,21 @@ class Garnisher:
         Modify the solution plan by applying the successive orders.
         """
         for order in self.orders:
-            self._apply_order(solution, order)
+            category, variant, furniture_names, is_prm = order
+            plan = solution.spec.plan
+            for space in plan.mutable_spaces():
+                item = solution.space_item[space]
+                if item.category == category and item.variant == variant:
+                    furnitures = [Furniture(next(furniture
+                                                 for furniture in FURNITURE_CATALOG[name]
+                                                 if furniture.is_prm == is_prm))
+                                  # today only 1st one is picked
+                                  for name in furniture_names]
+                    for furniture in furnitures:
+                        # TODO: map functions to furnitures
+                        if fit_bed_in_bedroom(furniture, space):
+                            plan.furnitures.setdefault(space, []).append(furniture)
 
-    def _apply_order(self, solution: 'Solution', order: Order) -> None:
-        """
-        Apply an order by updating plan list of furniture and fitting them in space
-        """
-        category, variant, furniture_names, is_prm = order
-        plan = solution.spec.plan
-        for space in plan.mutable_spaces():
-            item = solution.space_item[space]
-            if item.category == category and item.variant == variant:
-                furnitures = [Furniture(next(furniture
-                                             for furniture in FURNITURE_CATALOG[name]
-                                             if furniture.is_prm == is_prm))
-                              # today only 1st one is picked
-                              for name in furniture_names]
-                for furniture in furnitures:
-                    # TODO: map functions to funritures
-                    if fit_bed_in_bedroom(furniture, space):
-                        plan.furnitures.setdefault(space, []).append(furniture)
 
 class FurnitureCategory:
     BY_NAME: Dict[str, 'FurnitureCategory'] = {}
@@ -191,43 +186,81 @@ GARNISHERS = {
 }
 
 
-def fit_bed_in_bedroom(bed: Furniture, bedroom: 'Space') -> bool:
+def fit_bed_in_bedroom(bed: Furniture, space: 'Space') -> bool:
     """
     Move furniture to fit in space.
     :return:
     """
-    components = bedroom.immutable_components()
     window_edges = [component.edge
-                    for component in components
+                    for component in space.immutable_components()
                     if isinstance(component.category, LinearCategory)
                     and component.category.window_type]
+    space_perimeter = space.perimeter
 
-    aligned_edges = bedroom.aligned_siblings(bedroom.edge)
+    # init loop
+    aligned_edges = space.aligned_siblings(space.edge)
     initial_edge = aligned_edges[0]
     start_edge = None
-    longest_length = 0
-    windows_lines = []
-
-    # try longest line without window
+    possibilities = []
+    # find all possibilities
     while start_edge is not initial_edge:
         start_edge = aligned_edges[0]
         end_edge = aligned_edges[-1]
 
-        # check for window
-        window_found = False
+        # compute perimeter percentage
+        length = start_edge.start.distance_to(end_edge.end)
+        perimeter_proportion = length / space_perimeter
+
+        # score each line
         for edge in window_edges:
             if edge in aligned_edges:
-                windows_lines.append((start_edge.start.coords, end_edge.end.coords))
-                window_found = True
+                # at least one window on the line: score only linked to line length
+                possibilities.append({
+                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
+                    "ref_vect": start_edge.normal,
+                    "score": perimeter_proportion * 100
+                })
+                possibilities.append({
+                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.3),
+                    "ref_vect": start_edge.normal,
+                    "score": perimeter_proportion * 100 - 1
+                })
+                possibilities.append({
+                    "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.7),
+                    "ref_vect": start_edge.normal,
+                    "score": perimeter_proportion * 100 - 1
+                })
                 break
+        else:
+            # no window: score bonus
+            possibilities.append({
+                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
+                "ref_vect": start_edge.normal,
+                "score": perimeter_proportion * 100 + 100
+            })
+            possibilities.append({
+                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.3),
+                "ref_vect": start_edge.normal,
+                "score": perimeter_proportion * 100 - 1 + 100
+            })
+            possibilities.append({
+                "middle_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.7),
+                "ref_vect": start_edge.normal,
+                "score": perimeter_proportion * 100 - 1 + 100
+            })
 
-        if not window_found:
-            length = start_edge.start.distance_to(end_edge.end)
-            if not window_found and length > longest_length:
-                longest_length = length
-                bed.ref_vect = start_edge.normal
-                bed.middle_point = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5)
-
-        aligned_edges = bedroom.aligned_siblings(bedroom.next_edge(end_edge))
+        # prepare next loop
+        aligned_edges = space.aligned_siblings(space.next_edge(end_edge))
         start_edge = aligned_edges[0]
-    return bed.check_validity(bedroom)
+
+    # sort possibilites
+    possibilities.sort(key=lambda p: p["score"], reverse=True)
+
+    # try all possibilites
+    for possibility in possibilities:
+        bed.ref_vect = possibility["ref_vect"]
+        bed.middle_point = possibility["middle_point"]
+        if bed.check_validity(space):
+            return True
+
+    return False
