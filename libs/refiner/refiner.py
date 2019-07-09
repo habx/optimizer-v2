@@ -41,7 +41,6 @@ from libs.refiner import (
     selection
 )
 
-
 if TYPE_CHECKING:
     from libs.specification.specification import Specification
     from libs.refiner.core import Individual
@@ -69,7 +68,7 @@ def merge_similar_circulations(plan: 'Plan') -> None:
         try_again = False
         circulations = list(plan.get_spaces("circulation"))
         for circulation in circulations:
-            min_perimeter = circulation.perimeter*adjacency_ratio
+            min_perimeter = circulation.perimeter * adjacency_ratio
             for other_circulation in circulations:
                 if circulation.adjacency_to(other_circulation) >= min_perimeter:
                     circulation.merge(other_circulation)
@@ -146,6 +145,7 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
         if merged:
             break
 
+
 class Refiner:
     """
     Refiner Class.
@@ -193,7 +193,7 @@ class Refiner:
         processes = params.get("processes", 1)
         hof = params.get("hof", 0)
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
-        chunk_size = math.ceil(params["mu"]/processes)
+        chunk_size = math.ceil(params["mu"] / processes)
 
         # 1. create plan cache for performance reason
         for floor in solution.spec.plan.floors.values():
@@ -207,7 +207,10 @@ class Refiner:
         # to the forked processes
         pool = None
         if processes > 1:
+            #multiprocessing.set_start_method('spawn')
+            #multiprocessing.get_context("spawn").Pool()
             pool = multiprocessing.Pool(processes)
+            #print("multiprocessing conteXT", multiprocessing.get_context())
             map_func = pool.imap
         else:
             def map_func(f, it, _):
@@ -393,7 +396,7 @@ def nsga_ga(toolbox: 'core.Toolbox',
 
         # note : list is needed because map lazy evaluates
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
-                                    math.ceil(chunk_size/2)))
+                                    math.ceil(chunk_size / 2)))
         offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
@@ -453,7 +456,7 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
 
         # note : list is needed because map lazy evaluates
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
-                        math.ceil(chunk_size/2)))
+                                    math.ceil(chunk_size / 2)))
         offspring = [i for t in modified for i in t]
         total_pop = pop + offspring
 
@@ -522,7 +525,7 @@ def naive_ga(toolbox: 'core.Toolbox',
 
         # note : list is needed because map lazy evaluates
         modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
-                                    math.ceil(chunk_size/2)))
+                                    math.ceil(chunk_size / 2)))
         offspring = [i for t in modified for i in t]
 
         # Evaluate the individuals with an invalid fitness
@@ -591,6 +594,7 @@ if __name__ == '__main__':
 
                 evaluation.check(improved_plan, spec)
 
+
     def apply():
         """
         Plan to check :
@@ -633,5 +637,6 @@ if __name__ == '__main__':
 
             evaluation.check(improved_plan, spec)
             save_plan_as_json(improved_plan.serialize(), "refiner")
+
 
     apply()
