@@ -146,10 +146,11 @@ class SpacePlanner:
         :param max_nb_solutions
         :return: SolutionsCollector
         """
+        print("SETUP AREA", int(sum(item.required_area for item in spec.items)))
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
         self.spec = self.solutions_collector.spec_without_circulation
-        print("space_planner")
-        print(self.spec)
+        print("SETUP SPACE PLANNER AREA", int(sum(item.required_area for item in self.spec.items)))
+        print("PLAN AREA", spec.plan.indoor_area)
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
