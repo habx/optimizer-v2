@@ -69,6 +69,25 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
 
     output_data_v2 = json.loads(json.dumps(input_data["v2"]))
 
+    # doors
+    for i, room in enumerate(solution.spec.plan.mutable_spaces()):
+        doors = [lin for lin in solution.spec.plan.linears if
+                 room.has_linear(lin) and lin.category.name is 'door']
+        if not doors:
+            continue
+        for door in doors:
+            door_edges = [e for e in door.edges]
+            door_start = door_edges[0].start
+            door_end = door_edges[-1].end
+            door_length = sum([e.length for e in door_edges])
+            linear_dict = {
+                "category": 'door',
+                "geometry": [door_start.id, door_end.id],
+                "length": door_length,
+                "orientation": str(door.orientation.value)
+            }
+            output_data_v2["linears"].append(linear_dict)
+
     points = output_data_v2["vertices"]
     spaces = output_data_v2["spaces"]
     floors = output_data_v2["floors"]

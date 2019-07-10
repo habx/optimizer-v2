@@ -441,8 +441,6 @@ grid_01 = Grid("GRID_001", [
     (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
 
 ])
-
-
 grid_02 = Grid("GRID_002", [
     # SECTIONS
     (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
@@ -503,14 +501,15 @@ grid_02 = Grid("GRID_002", [
     (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
     (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
     (SELECTOR_FACTORIES["small_angle_boundary"]([20.0]), MUTATIONS["remove_edge"], True),
-    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
     (SELECTORS["close_to_wall_finer"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
     (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
     (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
-    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False),
-
+    (SELECTORS["close_to_duct"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
 ])
+
+
 
 GRIDS = {
     "ortho_grid": ortho_grid,
@@ -538,7 +537,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("029.json")
+        plan = reader.create_plan_from_file("013.json")
         plan.check()
         start_time = time.time()
         new_plan = GRIDS["002"].apply_to(plan)

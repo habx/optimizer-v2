@@ -613,6 +613,37 @@ def close_to_windows(space: 'Space', *_) -> Generator['Edge', bool, None]:
                     yield edge
 
 
+def close_to_duct(space: 'Space', *_) -> Generator['Edge', bool, None]:
+    """
+    Returns the edges on a face that has an external edge
+    :param space:
+    :return:
+    """
+    min_distance = 20.0
+    plan = space.plan
+    for edge in space.edges:
+        if _is_duct(edge, plan):
+            for e in edge.siblings:
+                if e is edge:
+                    continue
+                if e.next is edge or edge.next is e:
+                    continue
+                max_distance = edge.max_distance(e, parallel=True)
+                if max_distance is not None and max_distance < min_distance:
+                    yield e
+
+
+def _is_duct(edge: 'Edge', plan: 'Plan') -> bool:
+    """
+    Returns True if the edge is on the wall
+    :param edge:
+    :return:
+    """
+    min_duct_length = 40.0
+    other = plan.get_space_of_edge(edge.pair)
+    return other and other.category is SPACE_CATEGORIES["duct"] and edge.length > min_duct_length
+
+
 def close_to_walls(space: 'Space', *_) -> Generator['Edge', bool, None]:
     """
     Returns the edges on a face that has an external edge
@@ -2423,7 +2454,8 @@ SELECTORS = {
                                                       close_to_corner_wall]),
     "previous_close_to_corner_wall": Selector(space_boundary,
                                               [edge_length(min_length=110.0),
-                                               space_previous_has(close_to_corner_wall)])
+                                               space_previous_has(close_to_corner_wall)]),
+    "close_to_duct": Selector(close_to_duct)
 }
 
 SELECTOR_FACTORIES = {
