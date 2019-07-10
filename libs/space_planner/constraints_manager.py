@@ -855,11 +855,11 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
                        / manager.sp.spec.plan.indoor_area)
 
     if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = min(max(25, plan_ratio + 20), 35)
+        param = min(max(25, plan_ratio + 15), 35)
     elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "wardrobe",
                                  "laundry"]
           or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
-        param = min(max(25, plan_ratio + 10), 32)
+        param = min(max(25, plan_ratio + 5), 32)
     elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
         param = 26
     elif item.category.name is "bedroom" and item.variant in ["xs"]:
