@@ -216,7 +216,7 @@ def same_half_plane(vector_1: Vector2d, vector_2: Vector2d) -> bool:
     return dot_product(vector_1, vector_2) >= 0
 
 
-def dot_product(vector_1: Vector2d, vector_2: Vector2d):
+def dot_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
     """
     Returns the dot product of the two vectors
     :param vector_1:

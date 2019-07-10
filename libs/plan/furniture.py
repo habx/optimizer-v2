@@ -5,7 +5,7 @@ from typing import (
     Optional,
     Dict
 )
-from libs.plan.category import SpaceCategory, SPACE_CATEGORIES, LinearCategory
+from libs.plan.category import SpaceCategory, SPACE_CATEGORIES, LinearCategory, LINEAR_CATEGORIES
 from libs.io.plot import plot_polygon
 from libs.utils.geometry import (ccw_angle,
                                  unit,
@@ -15,7 +15,8 @@ from libs.utils.geometry import (ccw_angle,
                                  polygons_collision,
                                  polygon_border_collision,
                                  polygon_linestring_collision,
-                                 move_point)
+                                 move_point,
+                                 rectangle)
 
 if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
@@ -141,6 +142,21 @@ class Furniture:
                 window_line += [edge.end.coords for edge in component.edges]
                 if polygon_linestring_collision(footprint, window_line, -1):
                     return False
+        # door collision
+        for linear in space.plan.linears:
+            if linear.category == LINEAR_CATEGORIES["door"]:
+                if linear.edge.space == space:
+                    # door opens in the space
+                    door_box = rectangle(linear.edge.start.coords, linear.edge.vector,
+                                         linear.length, linear.length)
+                    if polygons_collision(door_box, footprint, -1):
+                        return False
+                elif linear.edge.pair.space == space:
+                    # door touches the space
+                    door_line = [linear.edge.start.coords]
+                    door_line += [edge.end.coords for edge in linear.edges]
+                    if polygon_linestring_collision(footprint, door_line, -1):
+                        return False
 
         return True
 
@@ -212,11 +228,11 @@ GARNISHERS = {
         (SPACE_CATEGORIES["bedroom"], "m", ("double_bed",), False),
         (SPACE_CATEGORIES["bedroom"], "l", ("double_bed",), True),
         (SPACE_CATEGORIES["bedroom"], "xl", ("double_bed",), True),
-        (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
-        (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
-        (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
-        (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
-        (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
+        # (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
+        # (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
+        # (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
+        # (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
+        # (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
     ])
 }
 
