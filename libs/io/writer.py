@@ -109,6 +109,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
                 "y": door_end.y
             }
             points.append(end_door_point)
+            vertices_max_id += 1
 
     for space in spaces:
         if space["category"] == "empty":
