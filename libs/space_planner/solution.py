@@ -10,9 +10,7 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Space
-from libs.specification.size import Size
-from libs.plan.category import SPACE_CATEGORIES
-from libs.scoring.scoring import space_planning_scoring
+from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation
 import logging
 import functools
 import operator
@@ -31,7 +29,7 @@ class SolutionsCollector:
         self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
-        self.architect_plans: List['Solution'] = []
+        self.reference_plans: List['Solution'] = []
 
     def _init_specifications(self, spec: 'Specification') -> None:
         """
@@ -40,87 +38,13 @@ class SolutionsCollector:
         area convergence
         :return: None
         """
-        spec_without_circulation = Specification('SpecificationWithoutCirculation', spec.plan)
+        self.spec_without_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithoutCirculation', False)
         spec.plan.mesh.compute_cache()
-        spec_with_circulation = Specification('SpecificationWithCirculation', spec.plan)
+        self.spec_with_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithCirculation', True)
         spec.plan.mesh.compute_cache()
 
-        # entrance
-        size_min = Size(area=2 * SQM)
-        size_max = Size(area=5 * SQM)
-        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
-        spec_without_circulation.add_item(new_item)
-        spec_with_circulation.add_item(new_item)
-        living_kitchen = False
-
-        for item in spec.items:
-            if item.category.name == "circulation":
-                if spec.typology > 1:
-                    size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
-                    size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
-                    new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
-                                    size_max)
-                    spec_with_circulation.add_item(new_item)
-            elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
-                  (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-                spec_without_circulation.add_item(item)
-                spec_with_circulation.add_item(item)
-            elif item.category.name == "living" and "kitchen" in item.opens_on:
-                kitchens = spec.category_items("kitchen")
-                for kitchen_item in kitchens:
-                    if "living" in kitchen_item.opens_on:
-                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
-                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
-                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, item.opens_on, item.linked_to)
-                        spec_without_circulation.add_item(new_item)
-                        spec_with_circulation.add_item(new_item)
-                        living_kitchen = True
-
-        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
-                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                              "circulation"]
-        spec_without_circulation.init_id(category_name_list)
-        spec_with_circulation.init_id(category_name_list)
-
-        # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe", "circulation",
-                                "misc"]
-        invariant_area = sum(item.required_area for item in spec_without_circulation.items
-                             if item.category.name in invariant_categories)
-        coeff = (int(spec_without_circulation.plan.indoor_area - invariant_area) / int(sum(
-            item.required_area for item in spec_without_circulation.items if
-            item.category.name not in invariant_categories)))
-
-        for item in spec_without_circulation.items:
-            if living_kitchen:
-                if "living" in item.opens_on:
-                    item.opens_on.remove("living")
-                    item.opens_on.append("livingKitchen")
-            if item.category.name not in invariant_categories:
-                item.min_size.area = round(item.min_size.area * coeff)
-                item.max_size.area = round(item.max_size.area * coeff)
-
-        self.spec_without_circulation = spec_without_circulation
-
-        # area - with circulation
-        invariant_area = sum(item.required_area for item in spec_with_circulation.items
-                             if item.category.name in invariant_categories)
-        coeff = (int(spec_with_circulation.plan.indoor_area - invariant_area) / int(sum(
-            item.required_area for item in spec_with_circulation.items if
-            item.category.name not in invariant_categories)))
-
-        for item in spec_with_circulation.items:
-            if living_kitchen:
-                if "living" in item.opens_on:
-                    item.opens_on.remove("living")
-                    item.opens_on.append("livingKitchen")
-            if item.category.name not in invariant_categories:
-                item.min_size.area = round(item.min_size.area * coeff)
-                item.max_size.area = round(item.max_size.area * coeff)
-
-        self.spec_with_circulation =  spec_with_circulation
+        print(self.spec_without_circulation)
+        print(self.spec_with_circulation)
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
@@ -130,15 +54,6 @@ class SolutionsCollector:
         """
         sol = Solution(spec, dict_space_item, len(self.solutions))
         self.solutions.append(sol)
-
-    def add_plan(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
-        """
-        creates and add plan solution to the list
-        :param: plan
-        :return: None
-        """
-        archi_plan = Solution(self, spec, dict_space_item, len(self.architect_plans))
-        self.architect_plans.append(archi_plan)
 
     @property
     def solutions_distance_matrix(self) -> [float]:
