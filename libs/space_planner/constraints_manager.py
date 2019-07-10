@@ -465,12 +465,12 @@ class ConstraintsManager:
     def add_duct_constraints(self) -> None:
         """
         Each duct has to be associated with different type of item if it's possible
+        2
         :return: None
         """
         item_type_list = ["toilet", "bathroom"]
         duct_list = [space for space in self.sp.spec.plan.spaces if
                      space.category.name == "duct"]
-        print("duct_list", duct_list)
         ct = None
         for item_type in item_type_list:
             list_item = [i_item for i_item in self.sp.spec.items if
@@ -503,7 +503,6 @@ class ConstraintsManager:
         perimeter_duct_list = [duct for duct in duct_list if
                      [edge for edge in duct.exterior_edges if (edge.pair in external_space_edges or
                                                                not edge.pair.face)]]
-        print("perimeter_duct_list", perimeter_duct_list)
         duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen"]
         ct = None
         for duct in duct_list:
@@ -513,7 +512,7 @@ class ConstraintsManager:
                 maximum = 3
             adjacency_sum = 0
             for item in self.sp.spec.items:
-                if item.category.name in duct_items:
+                if True:
                     item_duct_adjacency = None
                     for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
 
