@@ -47,15 +47,16 @@ class Garnisher:
             for space in plan.mutable_spaces():
                 item = solution.space_item[space]
                 if item.category == category and item.variant == variant:
-                    furnitures = [Furniture(next(furniture
-                                                 for furniture in FURNITURE_CATALOG[name]
-                                                 if furniture.is_prm or not is_prm))
-                                  # today only 1st one is picked
-                                  for name in furniture_names]
-                    for furniture in furnitures:
-                        # TODO: map functions to furnitures
-                        if fit_bed(furniture, space):
-                            plan.furnitures.setdefault(space, []).append(furniture)
+                    # order is applied in space
+                    for name in furniture_names:
+                        possible_furnitures = [Furniture(category)
+                                               for category in FURNITURE_CATALOG[name]
+                                               if not is_prm or category.is_prm]
+                        for furniture in possible_furnitures:
+                            # TODO: map functions to furnitures
+                            if fit_bed(furniture, space):
+                                plan.furnitures.setdefault(space, []).append(furniture)
+                                break
 
 
 class FurnitureCategory:
@@ -199,10 +200,14 @@ class Furniture:
 
 
 FURNITURE_CATALOG = {
-    "single_bed": (FurnitureCategory("single_bed",
+    "single_bed": (FurnitureCategory("single_bed_1",
                                      ((-45, 0), (45, 0), (45, 190), (-45, 190)),
                                      False,
-                                     ((-45, 0), (45, 0), (45, 250), (-45, 250))),),
+                                     ((-105, 0), (45, 0), (45, 250), (-105, 250))),
+                   FurnitureCategory("single_bed_1",
+                                     ((-45, 0), (45, 0), (45, 190), (-45, 190)),
+                                     False,
+                                     ((-45, 0), (105, 0), (105, 250), (-45, 250))),),
     "double_bed": (FurnitureCategory("double_bed",
                                      ((-70, 0), (70, 0), (70, 190), (-70, 190)),
                                      False,
