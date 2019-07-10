@@ -81,6 +81,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             door_end = door_edges[-1].end
             door_length = sum([e.length for e in door_edges])
             linear_dict = {
+                "id": door.id,
                 "category": 'door',
                 "geometry": [door_start.id, door_end.id],
                 "length": door_length,
