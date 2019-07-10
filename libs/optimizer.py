@@ -25,6 +25,7 @@ from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
 import matplotlib.pyplot as plt
 
+
 class LocalContext:
     """Local execution context"""
 
@@ -244,7 +245,7 @@ class Optimizer:
                     corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
                     Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
                              growth_method=corridor_building_rule["growth_method"]).apply_to(sol,
-                                                        space_planner.solutions_collector.spec_with_circulation)
+                                                                                             space_planner.solutions_collector.spec_with_circulation)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
@@ -261,7 +262,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
+                    REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
@@ -296,7 +297,7 @@ class Optimizer:
                     if params.save_ll_bp:
                         save_plan_as_json(sol.spec.plan.serialize(), f"garnisher sol {i+1}",
                                           libs.io.plot.output_path)
-                    sol.spec.plan.plot(name=f"Garnisher {name} {i+1}")
+                    sol.spec.plan.plot(name=f"Garnisher {name} {i+1} doors")
         elapsed_times["garnisher"] = time.process_time() - t0_garnisher
         logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
 
@@ -337,7 +338,42 @@ if __name__ == '__main__':
     """
     logging.getLogger().setLevel(logging.INFO)
     executor = Optimizer()
-    names = ('018',)
+    names = (
+        '031',
+        '033',
+        '013',
+        '043',
+        '018',
+        '015',
+        '047',
+        '048',
+        '009',
+        '039',
+        '053',
+        '055',
+        '058',
+        '036',
+        '019',
+        '060',
+        '062',
+        '011',
+        '003',
+        '045',
+        '012',
+        '017',
+        '004',
+        '054',
+        '037',
+        '046',
+        '021',
+        '035',
+        '001',
+        '026',
+        '024',
+        '034',
+        '028',
+        '059',
+    )
     for name in names:
         response = executor.run_from_file_names(
             f"{name}.json",
@@ -347,6 +383,7 @@ if __name__ == '__main__':
                 "do_garnisher": True,
                 "do_refiner": False,
                 "do_corridor": True,
+                "do_door": True,
                 "max_nb_solutions": 3,
                 "refiner_params": {"ngen": 80,
                                    "mu": 80,

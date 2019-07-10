@@ -127,6 +127,7 @@ class Furniture:
         """
         footprint = self.footprint()
         required_space = self.required_space()
+        space_edges = [e for e in space.edges]
         # furniture collision
         for furniture in space.furnitures():
             if furniture is not self and polygons_collision(furniture.footprint(), required_space):
@@ -145,13 +146,13 @@ class Furniture:
         # door collision
         for linear in space.plan.linears:
             if linear.category == LINEAR_CATEGORIES["door"]:
-                if linear.edge.space == space:
+                if linear.edge in space_edges:
                     # door opens in the space
                     door_box = rectangle(linear.edge.start.coords, linear.edge.vector,
                                          linear.length, linear.length)
                     if polygons_collision(door_box, footprint, -1):
                         return False
-                elif linear.edge.pair.space == space:
+                elif linear.edge.pair in space_edges:
                     # door touches the space
                     door_line = [linear.edge.start.coords]
                     door_line += [edge.end.coords for edge in linear.edges]
