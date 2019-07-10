@@ -43,9 +43,6 @@ class SolutionsCollector:
         self.spec_with_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithCirculation', True)
         spec.plan.mesh.compute_cache()
 
-        print(self.spec_without_circulation)
-        print(self.spec_with_circulation)
-
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
         creates and add plan solution to the list

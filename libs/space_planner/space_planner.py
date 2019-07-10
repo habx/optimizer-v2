@@ -148,6 +148,8 @@ class SpacePlanner:
         """
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
         self.spec = self.solutions_collector.spec_without_circulation
+        print("space_planner")
+        print(self.spec)
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)

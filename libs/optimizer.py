@@ -19,10 +19,11 @@ from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
-from libs.scoring.scoring import final_scoring, radar_chart
+from libs.scoring.scoring import final_scoring, radar_chart, reference_plan_scoring
 from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
 import matplotlib.pyplot as plt
+import urllib, json
 
 class LocalContext:
     """Local execution context"""
@@ -55,11 +56,13 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 ref_plan_scoring: Optional[dict] = None
+                 ref_plan_score:float,
+                 ref_plan_score_components: Optional[dict] = None
                  ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
-        self.ref_plan_score = ref_plan_scoring
+        self.ref_plan_score = ref_plan_score
+        self.ref_plan_score_components = ref_plan_score_components
 
 
 class ExecParams:
@@ -281,15 +284,24 @@ class Optimizer:
         logging.info("Door placement achieved in %f", elapsed_times["door"])
 
         # scoring
-        if params.do_final_scoring and best_solutions:
-            for sol in best_solutions:
-                final_score, final_score_components = final_scoring(sol)
-                radar_chart(final_score, final_score_components, sol.id,
-                            sol.spec.plan.name + "_FinalScore")
-                sol.final_score = final_score
-                sol.final_score_components = final_score_components
-                sol.spec.plan.plot()
-            plt.close()
+        ref_final_score = None
+        ref_final_score_components = None
+        if params.do_final_scoring :
+            if params.ref_plan_url is not None:
+                with urllib.request.urlopen(params.ref_plan_url) as url:
+                    data = json.loads(url.read().decode())
+                    ref_plan = reader.create_plan_from_data(data)
+                    ref_final_score, ref_final_score_components = reference_plan_scoring(setup_spec, ref_plan)
+
+            if best_solutions:
+                for sol in best_solutions:
+                    final_score, final_score_components = final_scoring(sol)
+                    radar_chart(final_score, final_score_components, sol.id,
+                                sol.spec.plan.name + "_FinalScore")
+                    sol.final_score = final_score
+                    sol.final_score_components = final_score_components
+                    sol.spec.plan.plot()
+                plt.close()
 
         # output
         t0_output = time.process_time()
@@ -308,7 +320,7 @@ class Optimizer:
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
         # TODO: once scoring has been added, add the ref_plan_score to the solution
-        return Response(solutions, elapsed_times)
+        return Response(solutions, elapsed_times, ref_final_score, ref_final_score_components)
 
 
 if __name__ == '__main__':
@@ -325,10 +337,10 @@ if __name__ == '__main__':
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_corridor": True,
-                "do_refiner":True,
+                "do_corridor": False,
+                "do_refiner":False,
                 "max_nb_solutions": 3,
-                "do_door": True,
+                "do_door": False,
                 "do_final_scoring": True
             }
         )
