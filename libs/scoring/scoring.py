@@ -774,17 +774,22 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
             spec_items.remove(best_item)
     return output
 
-
 def reference_plan_scoring(setup_spec:'Specification', reference_plan:'Plan') -> [float]:
     """
     Reference plan scoring
     compilation of different scores
-    :param solution
+    :param setup_spec
+    :param reference_plan
     :return: score : float
     :return: score_components = [float]
     """
     reference_plan.remove_null_spaces()
-    ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan)
+    if [space for space in reference_plan.spaces() if space.category.name == "circulation"]:
+        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
+                                                True)
+    else:
+        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
+                                                False)
     ref_plan_spec.plan = reference_plan
     ref_space_item = create_item_dict(ref_plan_spec, reference_plan)
     reference_plan.plot()
