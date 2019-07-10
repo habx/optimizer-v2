@@ -187,9 +187,6 @@ class Optimizer:
         t0_total = time.process_time()
         t0_total_real = time.time()
 
-        if params.ref_plan_url is not None:
-            logging.warning(params.ref_plan_url)
-
         # reading lot
         logging.info("Read lot")
         t0_reader = time.process_time()
