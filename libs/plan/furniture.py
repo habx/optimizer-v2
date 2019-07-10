@@ -48,7 +48,7 @@ class Garnisher:
                 if item.category == category and item.variant == variant:
                     furnitures = [Furniture(next(furniture
                                                  for furniture in FURNITURE_CATALOG[name]
-                                                 if furniture.is_prm == is_prm))
+                                                 if furniture.is_prm or not is_prm))
                                   # today only 1st one is picked
                                   for name in furniture_names]
                     for furniture in furnitures:
@@ -64,7 +64,8 @@ class FurnitureCategory:
                  name: str,
                  polygon: 'ListCoords2d',
                  is_prm: bool,
-                 required_space: 'ListCoords2d'):
+                 required_space: 'ListCoords2d',
+                 color: str = 'black'):
         """
         :param name:
         :param polygon: polygon of the furniture
@@ -75,6 +76,7 @@ class FurnitureCategory:
         self.polygon = polygon
         self.is_prm = is_prm
         self.required_space = required_space
+        self.color = color
         FurnitureCategory.BY_NAME[name] = self
 
 
@@ -149,7 +151,7 @@ class Furniture:
         Plots the face
         :return:
         """
-        color = "black"
+        color = self.category.color
         footprint = self.footprint()
         x = [p[0] for p in footprint]
         y = [p[1] for p in footprint]
@@ -199,7 +201,8 @@ FURNITURE_CATALOG = {
     "bathtub": (FurnitureCategory("bathtub",
                                   ((-90, 0), (90, 0), (90, 80), (-90, 80)),
                                   True,
-                                  ((-90, 0), (90, 0), (90, 80), (-90, 80))))
+                                  ((-90, 0), (90, 0), (90, 80), (-90, 80)),
+                                  color='blue'),)
 }
 
 GARNISHERS = {
@@ -209,6 +212,11 @@ GARNISHERS = {
         (SPACE_CATEGORIES["bedroom"], "m", ("double_bed",), False),
         (SPACE_CATEGORIES["bedroom"], "l", ("double_bed",), True),
         (SPACE_CATEGORIES["bedroom"], "xl", ("double_bed",), True),
+        (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
     ])
 }
 

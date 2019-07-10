@@ -296,6 +296,7 @@ class Optimizer:
                     if params.save_ll_bp:
                         save_plan_as_json(sol.spec.plan.serialize(), f"garnisher sol {i+1}",
                                           libs.io.plot.output_path)
+                    sol.spec.plan.plot(name=f"Garnisher {name} {i+1}")
         elapsed_times["garnisher"] = time.process_time() - t0_garnisher
         logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
 
@@ -331,30 +332,29 @@ class Optimizer:
 
 
 if __name__ == '__main__':
-    def main():
-        """
-        Useful simple main
-        """
-        logging.getLogger().setLevel(logging.INFO)
-        executor = Optimizer()
+    """
+    Useful simple main
+    """
+    logging.getLogger().setLevel(logging.INFO)
+    executor = Optimizer()
+    names = ('018',)
+    for name in names:
         response = executor.run_from_file_names(
-            "062.json",
-            "062_setup0.json",
+            f"{name}.json",
+            f"{name}_setup0.json",
             {
-                "grid_type": "002",
-                "seeder_type": "directional_seeder",
-                "do_plot": True,
-                "do_refiner": True,
-                "do_door": True,
+                "do_plot": False,
                 "do_garnisher": True,
+                "do_refiner": False,
                 "do_corridor": True,
                 "max_nb_solutions": 3,
-                "do_final_scoring": True,
-                "save_ll_bp": True
+                "refiner_params": {"ngen": 80,
+                                   "mu": 80,
+                                   "cxpb": 0.9,
+                                   "max_tries": 10,
+                                   "elite": 0.1,
+                                   "processes": 1}
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
         logging.info("Nb solutions: %i", len(response.solutions))
-
-
-    main()
