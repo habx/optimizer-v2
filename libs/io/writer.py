@@ -69,7 +69,14 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
 
     output_data_v2 = json.loads(json.dumps(input_data["v2"]))
 
-    # doors
+    points = output_data_v2["vertices"]
+    spaces = output_data_v2["spaces"]
+    floors = output_data_v2["floors"]
+    apt_infos = output_data_v2["aptInfos"]
+    vertices_max_id = 0
+    room_max_id = 0
+
+    # doors : add linear and related points
     for i, room in enumerate(solution.spec.plan.mutable_spaces()):
         doors = [lin for lin in solution.spec.plan.linears if
                  room.has_linear(lin) and lin.category.name is 'door']
@@ -83,18 +90,24 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             linear_dict = {
                 "id": door.id,
                 "category": 'door',
-                "geometry": [door_start.id, door_end.id],
+                "geometry": [vertices_max_id, vertices_max_id + 1],
                 "length": door_length,
                 "orientation": str(door.orientation.value)
             }
             output_data_v2["linears"].append(linear_dict)
-
-    points = output_data_v2["vertices"]
-    spaces = output_data_v2["spaces"]
-    floors = output_data_v2["floors"]
-    apt_infos = output_data_v2["aptInfos"]
-    vertices_max_id = 0
-    room_max_id = 0
+            start_door_point = {
+                "id": int("50" + str(vertices_max_id)),
+                "x": door_start.x,
+                "y": door_start.y
+            }
+            points.append(start_door_point)
+            vertices_max_id += 1
+            end_door_point = {
+                "id": int("50" + str(vertices_max_id)),
+                "x": door_end.x,
+                "y": door_end.y
+            }
+            points.append(end_door_point)
 
     for space in spaces:
         if space["category"] == "empty":
@@ -109,6 +122,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             "id": int("70" + str(room_max_id))}
 
         for i_ref, ref_edge in enumerate(room.reference_edges):
+            # double loop for holes management
             room_dict["geometry"].append([])
             for edge in room.siblings(ref_edge):
                 vertices_max_id += 1
