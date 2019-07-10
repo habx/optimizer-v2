@@ -90,7 +90,8 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             linear_dict = {
                 "id": door.id,
                 "category": 'door',
-                "geometry": [vertices_max_id, vertices_max_id + 1],
+                "geometry": [int("50" + str(vertices_max_id)),
+                             int("50" + str(vertices_max_id + 1))],
                 "length": door_length,
                 "orientation": str(door.orientation.value)
             }
