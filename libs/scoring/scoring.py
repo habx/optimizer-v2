@@ -15,7 +15,7 @@ from libs.space_planner.constraints_manager import WINDOW_ROOMS
 from libs.specification.size import Size
 from libs.specification.specification import Specification, Item
 from typing import TYPE_CHECKING
-from copy import copy
+from copy import deepcopy
 
 if TYPE_CHECKING:
     from libs.space_planner.solution import Solution
@@ -58,7 +58,7 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
                 continue
         elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
               (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-            new_item = copy(item)
+            new_item = deepcopy(item)
             new_spec.add_item(new_item)
         elif item.category.name == "living" and "kitchen" in item.opens_on:
             kitchens = spec.category_items("kitchen")
@@ -128,7 +128,7 @@ def corner_scoring(solution: 'Solution') -> float:
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
-    corner_score = round(corner_score / len(solution.space_item), 2) - has_holes * 25
+    corner_score = max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0)
     logging.debug("Corner score : %f", corner_score)
     return corner_score
 
@@ -787,7 +787,7 @@ def reference_plan_scoring(setup_spec:'Specification', reference_plan:'Plan') ->
     :return: score_components = [float]
     """
     reference_plan.remove_null_spaces()
-    if [space for space in reference_plan.spaces() if space.category.name == "circulation"]:
+    if [space for space in reference_plan.spaces if space.category.name == "circulation"]:
         ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
                                                 True)
     else:
