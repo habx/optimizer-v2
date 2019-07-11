@@ -457,3 +457,46 @@ def polygon_linestring_collision(polygon: ListCoords2d,
     :return:
     """
     return Polygon(polygon).buffer(-tolerance).intersects(LineString(linestring))
+
+def circle_line_intersection(line_start: Coords2d,
+                             line_stop: Coords2d,
+                             circle_center: Coords2d,
+                             radius: float) -> bool:
+    """
+    Return True if circle intersects line
+    :param line_start:
+    :param line_stop:
+    :param circle_center:
+    :param radius:
+    :return:
+    """
+    a_x, a_y = line_start
+    b_x, b_y = line_stop
+    c_x, c_y = circle_center
+    # compute line length and vec
+    line_length = ((b_x - a_x) ** 2 + (b_y - a_y) ** 2) ** 0.5
+    vec_x = (b_x - a_x) / line_length
+    vec_y = (b_y - a_y) / line_length
+    # project c on a-b (compute distance a-c')
+    dist = (c_x - a_x) * vec_x + (c_y - a_y) * vec_y
+    # compute c-c' distance and compare with radius
+    return ((c_x - (a_x + dist * vec_x)) ** 2 + (c_y - (a_y + dist * vec_y)) ** 2) ** 0.5 <= radius
+
+def bottleneck(polygon: ListCoords2d, tolerance: float) -> bool:
+    """
+    Return True if polygon contains a bottleneck tighter than the input tolerence.
+    :param polygon:
+    :param tolerance:
+    :return:
+    """
+
+    lines = [((polygon[i-1][0], polygon[i-1][1]), (polygon[i][0], polygon[i][1]))
+             for i in range(len(polygon))]
+    for coord in polygon:
+        intersections = [circle_line_intersection(line[0], line[1], coord, tolerance)
+                         for line in lines]
+        if len([0
+                for i, intersection in enumerate(intersections)
+                if intersection and (not intersections[i - 1])]) > 1:
+            return True
+    return False
