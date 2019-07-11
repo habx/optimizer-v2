@@ -146,11 +146,9 @@ class SpacePlanner:
         :param max_nb_solutions
         :return: SolutionsCollector
         """
-        print("SETUP AREA", int(sum(item.required_area for item in spec.items)))
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
         self.spec = self.solutions_collector.spec_without_circulation
-        print("SETUP SPACE PLANNER AREA", int(sum(item.required_area for item in self.spec.items)))
-        print("PLAN AREA", spec.plan.indoor_area)
+
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
@@ -160,6 +158,8 @@ class SpacePlanner:
         self.solution_research()
 
         self.solutions_collector.space_planner_best_results()
+        print("SETUP SPACE PLANNER AREA", int(sum(item.required_area for item in self.spec.items)))
+        print("PLAN AREA", self.spec.plan.indoor_area)
 
         return self.solutions_collector.best_solutions
 
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "026.json"
+        input_file = "013.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)

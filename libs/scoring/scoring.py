@@ -15,13 +15,13 @@ from libs.space_planner.constraints_manager import WINDOW_ROOMS
 from libs.specification.size import Size
 from libs.specification.specification import Specification, Item
 from typing import TYPE_CHECKING
+from copy import copy
 
 if TYPE_CHECKING:
     from libs.space_planner.solution import Solution
 
 SQM = 10000
 CORRIDOR_SIZE = 120
-
 
 def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str, with_circulation: bool) -> 'Specification':
     """
@@ -37,6 +37,7 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
     :return: 'Specification'
     """
     new_spec = Specification(spec_name, plan)
+    new_spec.plan.mesh.compute_cache()
 
     # entrance
     size_min = Size(area=2 * SQM)
@@ -45,7 +46,6 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
     new_spec.add_item(new_item)
 
     living_kitchen = False
-
     for item in spec.items:
         if item.category.name == "circulation":
             if spec.typology > 1 and with_circulation:
@@ -54,16 +54,19 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
                 new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
                                 size_max)
                 new_spec.add_item(new_item)
+            else:
+                continue
         elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
               (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-            new_spec.add_item(item)
+            new_item = copy(item)
+            new_spec.add_item(new_item)
         elif item.category.name == "living" and "kitchen" in item.opens_on:
             kitchens = spec.category_items("kitchen")
             for kitchen_item in kitchens:
                 if "living" in kitchen_item.opens_on:
                     size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                     size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                    # opens_on = item.opens_on.remove("kitchen")
+                    #opens_on = item.opens_on.remove("kitchen")
                     new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                     size_max, item.opens_on, item.linked_to)
                     new_spec.add_item(new_item)

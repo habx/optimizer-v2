@@ -38,10 +38,10 @@ class SolutionsCollector:
         area convergence
         :return: None
         """
-        self.spec_without_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithoutCirculation', False)
-        spec.plan.mesh.compute_cache()
         self.spec_with_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithCirculation', True)
-        spec.plan.mesh.compute_cache()
+        self.spec_with_circulation.plan.mesh.compute_cache()
+        self.spec_without_circulation = initial_spec_adaptation(spec, spec.plan, 'SpecificationWithoutCirculation', False)
+        self.spec_without_circulation.plan.mesh.compute_cache()
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
