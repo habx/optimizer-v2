@@ -114,7 +114,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             for floor in floors:
                 if floor["level"] == door.floor.level:
                     floor["elements"].append(int("90" + str(door_max_id)))
-                    door_max_id = +1
+                    door_max_id += 1
                     break
 
     for space in spaces:
