@@ -769,10 +769,12 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
     output = {}
     spec_items = spec.items[:]
     for space in plan.mutable_spaces():
-        corresponding_items = list(filter(lambda i: i.category is space.category, spec_items))
+        corresponding_items = []
+        for item in spec_items:
+            if item.category.name == space.category.name:
+                corresponding_items.append(item)
         # Note : corridors have no corresponding spec item
-        best_item = min(corresponding_items, key=lambda i:
-        math.fabs(i.required_area - space.cached_area()), default=None)
+        best_item = min(corresponding_items, key=lambda i: math.fabs(i.required_area - space.cached_area()), default=None)
         if space.category is not SPACE_CATEGORIES["circulation"]:
             assert best_item, "Score: Each space should have a corresponding item in the spec"
         output[space] = best_item
@@ -865,6 +867,7 @@ if __name__ == '__main__':
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
     from libs.space_planner.space_planner import SPACE_PLANNERS
+    from libs.space_planner.solution import reference_plan_solution
 
     def scoring_test():
         """
@@ -893,11 +896,11 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        input_blueprint_list = ["032.json"]
+        input_blueprint_list = ["vernouillet_A108_blueprint.json"]
 
         for input_file in input_blueprint_list:
-            #input_file_setup = input_file[:-14] + "setup0.json"
-            input_file_setup = input_file[:-5] + "_setup0.json"
+            input_file_setup = input_file[:-14] + "setup.json"
+            #input_file_setup = input_file[:-5] + "_setup0.json"
             plan = reader.create_plan_from_file(input_file)
 
             GRIDS['002'].apply_to(plan)
@@ -915,22 +918,13 @@ if __name__ == '__main__':
             print("best_solutions", best_solutions)
 
             # architect plan
-            # architect_input_plan = input_file[:-14] + "plan.json"
-            # architect_plan = reader.create_plan_from_file(architect_input_plan)
-            # architect_plan.remove_null_spaces()
-            # architect_plan.plot()
-            # architect_plan_spec = spec_adaptation(input_spec, architect_plan)
-            # architect_plan_spec.plan = architect_plan
-            # architect_space_item = create_item_dict(architect_plan_spec, architect_plan)
-            # space_planner.solutions_collector.add_plan(architect_plan_spec, architect_space_item)
-            # architect_plan.plot()
-            # architect_final_score, architect_final_score_components = final_scoring(
-            #     space_planner.solutions_collector.architect_plans[0])
-            # print(architect_final_score_components)
-            # radar_chart(architect_final_score,
-            #             architect_final_score_components,
-            #             000, plan.name + "Archi_FinalScore")
-            # plt.close()
+            architect_input_plan = input_file[:-14] + "plan.json"
+            architect_plan = reader.create_plan_from_file(architect_input_plan)
+            architect_plan.remove_null_spaces()
+            architect_plan.plot()
+            ref_plan = reader.create_plan_from_data(architect_input_plan)
+            ref_solution = reference_plan_solution(ref_plan, input_spec)
+            ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
             for sol in best_solutions:
                 final_score, final_score_components = final_scoring(sol)

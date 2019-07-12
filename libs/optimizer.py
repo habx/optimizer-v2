@@ -291,6 +291,7 @@ class Optimizer:
                 with urllib.request.urlopen(params.ref_plan_url) as url:
                     data = json.loads(url.read().decode())
                     ref_plan = reader.create_plan_from_data(data)
+                    ref_plan.plot()
                     ref_solution = reference_plan_solution(ref_plan, setup_spec)
                     ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
@@ -330,8 +331,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "001.json",
-            "001_setup0.json",
+            "vernouillet_A108_blueprint.json",
+            "vernouillet_A108_setup.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
@@ -340,7 +341,8 @@ if __name__ == '__main__':
                 "do_refiner":False,
                 "max_nb_solutions": 3,
                 "do_door": False,
-                "do_final_scoring": True
+                "do_final_scoring": True,
+                "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH019_plan.json"
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
