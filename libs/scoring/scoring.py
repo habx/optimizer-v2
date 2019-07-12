@@ -15,7 +15,6 @@ from libs.space_planner.constraints_manager import WINDOW_ROOMS
 from libs.specification.size import Size
 from libs.specification.specification import Specification, Item
 from typing import TYPE_CHECKING
-from copy import deepcopy
 
 if TYPE_CHECKING:
     from libs.space_planner.solution import Solution
@@ -58,8 +57,7 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
                 continue
         elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
               (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-            new_item = deepcopy(item)
-            new_spec.add_item(new_item)
+            new_spec.add_item(item)
         elif item.category.name == "living" and "kitchen" in item.opens_on:
             kitchens = spec.category_items("kitchen")
             for kitchen_item in kitchens:
@@ -770,7 +768,6 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
     """
     output = {}
     spec_items = spec.items[:]
-    print()
     for space in plan.mutable_spaces():
         corresponding_items = []
         for item in spec_items:
@@ -912,13 +909,8 @@ if __name__ == '__main__':
             input_spec = reader.create_specification_from_file(input_file_setup)
             input_spec.plan = plan
             input_spec.plan.remove_null_spaces()
-            print("PLAN AREA : %i", int(plan.indoor_area))
-            print("Setup AREA : %i",
-                  int(sum(item.required_area for item in input_spec.items)))
-            print("input_spec :", input_spec)
             space_planner = SPACE_PLANNERS["standard_space_planner"]
             best_solutions = space_planner.apply_to(input_spec, 3)
-            print("best_solutions", best_solutions)
 
             # architect plan
             architect_input_plan = input_file[:-14] + "plan.json"
@@ -937,8 +929,6 @@ if __name__ == '__main__':
                 if space_planner.solutions_collector.architect_plans:
                     dist_to_architect_plan = sol.distance(
                         space_planner.solutions_collector.architect_plans[0])
-                    print("Solution : ", sol.id, " - Distance to architect plan : ",
-                          dist_to_architect_plan)
             plt.close()
 
 

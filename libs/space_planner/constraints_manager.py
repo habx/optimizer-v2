@@ -19,7 +19,6 @@ from libs.plan.category import LinearCategory
 import networkx as nx
 import time
 import logging
-from copy import deepcopy
 
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
@@ -233,7 +232,7 @@ class ConstraintsManager:
 
     def __init__(self, sp: 'SpacePlanner', name: str = ''):
         self.name = name
-        self.sp = deepcopy(sp)
+        self.sp = sp
 
         self.spaces_adjacency_matrix = []
         self._init_spaces_adjacency()

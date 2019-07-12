@@ -35,10 +35,10 @@ def test_space_planner(input_file, input_setup):
     best_solutions = space_planner.apply_to(spec, 3)
 
     if input_file == "009.json":
-        assert len(space_planner.solutions_collector.solutions) == 63
+        assert len(space_planner.solutions_collector.solutions) == 69
         assert len(best_solutions) == 3
     elif input_file == "012.json":
-        assert len(space_planner.solutions_collector.solutions) == 130
+        assert len(space_planner.solutions_collector.solutions) == 81
         assert len(best_solutions) == 2
 
 
