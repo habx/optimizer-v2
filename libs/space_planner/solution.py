@@ -268,7 +268,9 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                                    item.id == solution.space_item[space].id][0]
     else:
         spec = collector.spec_without_circulation
+        print('items id', list(item.id for item in collector.spec_without_circulation.items))
         for space in solution.spec.plan.mutable_spaces():
+            print("solution.space_item[space].id", solution.space_item[space].id)
             new_dict[space] = [item for item in collector.spec_without_circulation.items if
                                item.id == solution.space_item[space].id][0]
 
@@ -370,7 +372,8 @@ class Solution:
             if item not in other_solution.space_item.values():
                 continue
             other_solution_space = \
-            [o_space for o_space, o_item in other_solution.space_item.items() if o_item == item][0]
+                [o_space for o_space, o_item in other_solution.space_item.items() if
+                 o_item == item][0]
             if not space or not other_solution_space:
                 continue
             if item.category.name in window_list:
