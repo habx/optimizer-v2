@@ -21,7 +21,7 @@ import config
 import habx_logger
 
 logging.root = habx_logger.HabxLogger(config.from_file())
-#logging.setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.INFO)
 
 # OPT-120: Only to make sure libpath won't be removed
 libpath.add_local_libs()
