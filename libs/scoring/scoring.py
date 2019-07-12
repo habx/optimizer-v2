@@ -733,11 +733,12 @@ def space_planning_scoring(solution: 'Solution') -> float:
 
     return solution_score
 
-def final_scoring(solution: 'Solution') -> [float]:
+def final_scoring(solution: 'Solution', do_plot:bool = False) -> [float]:
     """
     Final scoring
     compilation of different scores
     :param solution
+    :param do_plot
     :return: score : float
     :return: score_components = [float]
     """
@@ -750,8 +751,9 @@ def final_scoring(solution: 'Solution') -> [float]:
     score_components["minimal_dimensions"] = minimal_dimensions_scoring(solution)
     plan_score = sum(score_components.values()) / len(score_components)
 
-    radar_chart(plan_score, score_components, solution.id,
-                solution.spec.plan.name + "_FinalScore")
+    if do_plot:
+        radar_chart(plan_score, score_components, solution.id,
+                    solution.spec.plan.name + "_FinalScore")
 
     return plan_score, score_components
 
@@ -768,6 +770,7 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
     """
     output = {}
     spec_items = spec.items[:]
+    print()
     for space in plan.mutable_spaces():
         corresponding_items = []
         for item in spec_items:
@@ -896,7 +899,7 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        input_blueprint_list = ["vernouillet_A108_blueprint.json"]
+        input_blueprint_list = ["grenoble-cambridge_222_blueprint.json"]
 
         for input_file in input_blueprint_list:
             input_file_setup = input_file[:-14] + "setup.json"

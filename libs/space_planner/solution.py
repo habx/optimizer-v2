@@ -29,7 +29,6 @@ class SolutionsCollector:
         self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
-        self.reference_plans: 'Solution' = None
 
     def _init_specifications(self, spec: 'Specification') -> None:
         """
@@ -56,15 +55,6 @@ class SolutionsCollector:
         """
         sol = Solution(spec, dict_space_item, len(self.solutions))
         self.solutions.append(sol)
-
-    def add_plan(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
-        """
-        creates and add plan solution to the list
-        :param: plan
-        :return: None
-        """
-        archi_plan = Solution(self, spec, dict_space_item, 10000)
-        self.reference_plans = archi_plan
 
     @property
     def solutions_distance_matrix(self) -> [float]:

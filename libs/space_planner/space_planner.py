@@ -157,8 +157,6 @@ class SpacePlanner:
         self.solution_research()
 
         self.solutions_collector.space_planner_best_results()
-        print("SETUP SPACE PLANNER AREA", int(sum(item.required_area for item in self.spec.items)))
-        print("PLAN AREA", self.spec.plan.indoor_area)
 
         return self.solutions_collector.best_solutions
 
