@@ -75,6 +75,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
     apt_infos = output_data_v2["aptInfos"]
     vertices_max_id = 0
     room_max_id = 0
+    door_max_id = 0
 
     # doors : add linear and related points
     for i, room in enumerate(solution.spec.plan.mutable_spaces()):
@@ -88,7 +89,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             door_end = door_edges[-1].end
             door_length = sum([e.length for e in door_edges])
             linear_dict = {
-                "id": door.id,
+                "id": int("90" + str(door_max_id)),
                 "category": 'door',
                 "geometry": [int("50" + str(vertices_max_id)),
                              int("50" + str(vertices_max_id + 1))],
@@ -110,6 +111,11 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             }
             points.append(end_door_point)
             vertices_max_id += 1
+            for floor in floors:
+                if floor["level"] == door.floor.level:
+                    floor["elements"].append(int("90" + str(door_max_id)))
+                    door_max_id += 1
+                    break
 
     for space in spaces:
         if space["category"] == "empty":
