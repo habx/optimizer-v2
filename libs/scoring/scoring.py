@@ -750,6 +750,9 @@ def final_scoring(solution: 'Solution') -> [float]:
     score_components["minimal_dimensions"] = minimal_dimensions_scoring(solution)
     plan_score = sum(score_components.values()) / len(score_components)
 
+    radar_chart(plan_score, score_components, solution.id,
+                solution.spec.plan.name + "_FinalScore")
+
     return plan_score, score_components
 
 """
@@ -777,33 +780,6 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
             spec_items.remove(best_item)
     return output
 
-def reference_plan_scoring(setup_spec:'Specification', reference_plan:'Plan') -> [float]:
-    """
-    Reference plan scoring
-    compilation of different scores
-    :param setup_spec
-    :param reference_plan
-    :return: score : float
-    :return: score_components = [float]
-    """
-    reference_plan.remove_null_spaces()
-    if [space for space in reference_plan.spaces if space.category.name == "circulation"]:
-        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
-                                                True)
-    else:
-        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
-                                                False)
-    ref_plan_spec.plan = reference_plan
-    ref_space_item = create_item_dict(ref_plan_spec, reference_plan)
-    reference_plan.plot()
-    reference_solution = Solution(ref_plan_spec, ref_space_item)
-    ref_final_score, ref_final_score_components = final_scoring(reference_solution)
-    radar_chart(ref_final_score,
-                ref_final_score_components,
-                000, reference_plan.name + "Archi_FinalScore")
-    plt.close()
-
-    return ref_final_score, ref_final_score_components
 
 """
 Scoring plot tools

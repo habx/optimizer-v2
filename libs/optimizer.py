@@ -19,8 +19,8 @@ from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
 from libs.version import VERSION as OPTIMIZER_VERSION
-from libs.scoring.scoring import final_scoring, radar_chart, reference_plan_scoring
-from libs.space_planner.solution import spec_adaptation
+from libs.scoring.scoring import final_scoring
+from libs.space_planner.solution import spec_adaptation, reference_plan_solution
 import libs.io.plot
 import matplotlib.pyplot as plt
 import urllib, json
@@ -291,13 +291,12 @@ class Optimizer:
                 with urllib.request.urlopen(params.ref_plan_url) as url:
                     data = json.loads(url.read().decode())
                     ref_plan = reader.create_plan_from_data(data)
-                    ref_final_score, ref_final_score_components = reference_plan_scoring(setup_spec, ref_plan)
+                    ref_solution = reference_plan_solution(ref_plan, setup_spec)
+                    ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
             if best_solutions:
                 for sol in best_solutions:
                     final_score, final_score_components = final_scoring(sol)
-                    radar_chart(final_score, final_score_components, sol.id,
-                                sol.spec.plan.name + "_FinalScore")
                     sol.final_score = final_score
                     sol.final_score_components = final_score_components
                     sol.spec.plan.plot()

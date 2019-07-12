@@ -9,7 +9,6 @@ and a customer input setup
 import logging
 from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
-from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager

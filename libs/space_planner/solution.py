@@ -10,7 +10,7 @@ TODO : fusion of the entrance for small apartment untreated
 from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.plan.plan import Space
-from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation
+from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation, create_item_dict
 import logging
 import functools
 import operator
@@ -29,7 +29,7 @@ class SolutionsCollector:
         self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
-        self.reference_plans: List['Solution'] = []
+        self.reference_plans: 'Solution' = None
 
     def _init_specifications(self, spec: 'Specification') -> None:
         """
@@ -56,6 +56,15 @@ class SolutionsCollector:
         """
         sol = Solution(spec, dict_space_item, len(self.solutions))
         self.solutions.append(sol)
+
+    def add_plan(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
+        """
+        creates and add plan solution to the list
+        :param: plan
+        :return: None
+        """
+        archi_plan = Solution(self, spec, dict_space_item, 10000)
+        self.reference_plans = archi_plan
 
     @property
     def solutions_distance_matrix(self) -> [float]:
@@ -286,3 +295,23 @@ class Solution:
                                      and other_space.category.name == space.category.name)] == []):
                         distance += 1
         return distance
+
+def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') -> Solution:
+    """
+    reference plan solution building
+    :param reference_plan: Solution
+    :param setup_spec: Specification
+    :return: Solution
+    """
+    reference_plan.remove_null_spaces()
+    if [space for space in reference_plan.spaces if space.category.name == "circulation"]:
+        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
+                                                True)
+    else:
+        ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
+                                                False)
+    ref_plan_spec.plan = reference_plan
+    ref_space_item = create_item_dict(ref_plan_spec, reference_plan)
+    reference_plan.plot()
+
+    return Solution(ref_plan_spec, ref_space_item)
