@@ -7,8 +7,9 @@ and a customer input setup
 
 """
 import logging
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
+from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
@@ -97,64 +98,6 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
-    # def _parallel_rooms_building(items: List['Item'], plan: 'Plan', matrix_solution) -> (
-    #        'Plan', Dict['Item', 'Space']):
-    @staticmethod
-    def _parallel_rooms_building(tup=Tuple):
-        """
-        Builds the rooms requested in the specification from the matrix and seed spaces.
-        :param: plan
-        :param: matrix_solution
-        :return: built plan
-        """
-
-        items = tup[0]
-        plan = tup[1]
-        matrix_solution = tup[2]
-
-        print('items id in fun', list(item.id for item in items))
-
-        dict_space_item = {}
-        for i_item, item in enumerate(items):
-            item_space = []
-            if item.category.name != "circulation":
-                for j_space, space in enumerate(plan.mutable_spaces()):
-                    if matrix_solution[i_item][j_space] == 1:
-                        space.category = item.category
-                        item_space.append(space)
-                dict_space_item[item] = item_space
-
-        # circulation case :
-        for j_space, space in enumerate(plan.mutable_spaces()):
-            if space.category.name == "seed":
-                space.category = SPACE_CATEGORIES["circulation"]
-
-        # To know the space associated with the item
-        dict_items_space = {}
-        for item in items:
-            if item.category.name != "circulation":
-                item_space = dict_space_item[item]
-                if len(item_space) > 1:
-                    space_ini = item_space[0]
-                    item_space.remove(item_space[0])
-                    i = 0
-                    iter_max = len(item_space) ** 2
-                    while (len(item_space) > 0) and i < iter_max:
-                        i += 1
-                        for space in item_space:
-                            if space.adjacent_to(space_ini):
-                                item_space.remove(space)
-                                space_ini.merge(space)
-                                plan.remove_null_spaces()
-                                break
-                    dict_items_space[space_ini] = item
-                else:
-                    if item_space:
-                        dict_items_space[item_space[0]] = item
-
-        return plan, dict_items_space
-
-
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
@@ -163,56 +106,17 @@ class SpacePlanner:
 
         self.manager.solver.solve()
 
-        import time
-        import multiprocessing
-
         if len(self.manager.solver.solutions) == 0:
             logging.warning(
                 "SpacePlanner : solution_research : Plan without space planning solution")
         else:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
-
             if len(self.manager.solver.solutions) > 0:
-                self.spec.plan.mesh.compute_cache()
-
-                # parallel rooms building
-                # pool = multiprocessing.Pool(self.solutions_collector.processes)
-                pool = multiprocessing.Pool(1)
-                list_plans = []
-                list_sol = []
-                list_items = []
-                items = self.solutions_collector.spec_with_circulation.items
-                for sol in self.manager.solver.solutions:
-                    list_items.append(items)
-                    list_plans.append(self.spec.plan.clone())
-                    list_sol.append(sol)
-
-                zipped = zip(list_items, list_plans, list_sol)
-
-                print('items id BEFORE', list(item.id for item in items))
-
-                to = time.time()
-                parall = True
-                # parallel eval
-                if parall:
-                    all_res = pool.map(self._parallel_rooms_building, zipped)
-                else:
-                    all_res = []
-                    for z in zipped:
-                        all_res.append(self._parallel_rooms_building(z))
-
-                t_parall = time.time() - to
-                print("T PARALL", t_parall)
-
-                # for i, sol in enumerate(self.manager.solver.solutions):
-                for i, res in enumerate(all_res):
-                    plan_solution = res[0]
-                    dict_space_item = res[1]
-
-                    solution_spec = Specification('Solution' + str(i) + 'Specification',
-                                                  plan_solution)
-
+                for i, sol in enumerate(self.manager.solver.solutions):
+                    plan_solution = self.spec.plan.clone()
+                    plan_solution, dict_space_item = self._rooms_building(plan_solution, sol)
+                    solution_spec = Specification('Solution'+str(i)+'Specification', plan_solution)
                     for current_item in self.spec.items:
                         if current_item not in dict_space_item.values():
                             # entrance case
@@ -223,12 +127,10 @@ class SpacePlanner:
                                         item.max_size.area += current_item.max_size.area
 
                     for item in self.spec.items:
-                        print("current item", item)
                         if item in dict_space_item.values():
-                            print("added item", item)
                             solution_spec.add_item(item)
 
-                    # solution_spec.plan.mesh.compute_cache()
+                    solution_spec.plan.mesh.compute_cache()
                     self.solutions_collector.add_solution(solution_spec, dict_space_item)
                     logging.debug(plan_solution)
 
@@ -237,16 +139,14 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List[
-        'Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
         """
         Runs the space planner
         :param spec:
         :param max_nb_solutions
-        :param processes
         :return: SolutionsCollector
         """
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
         self.spec = self.solutions_collector.spec_without_circulation
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
@@ -278,7 +178,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index",
                         default=0)
-    # logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -288,7 +188,7 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
         input_file = "026.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
@@ -314,7 +214,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec, 3, 1)
+        best_solutions = space_planner.apply_to(spec, 3)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
@@ -352,4 +252,80 @@ if __name__ == '__main__':
         logging.debug("total time :", time.process_time() - t00)
 
 
+    def space_planning_nico():
+        """
+        Test
+        :return:
+        """
+        input_file = "001.json"
+        t00 = time.process_time()
+        plan = reader.create_plan_from_file(input_file)
+        logging.info("input_file %s", input_file)
+        # print("input_file", input_file, " - area : ", plan.indoor_area)
+        logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
+
+        plan_name = None
+        if plan_index < 10:
+            plan_name = '00' + str(plan_index)
+        elif 10 <= plan_index < 100:
+            plan_name = '0' + str(plan_index)
+
+        # plan_name = '007'
+
+        try:
+            new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
+            plan = Plan(plan_name).deserialize(new_serialized_data)
+        except FileNotFoundError:
+            plan = reader.create_plan_from_file(plan_name + ".json")
+            GRIDS["optimal_finer_grid"].apply_to(plan)
+            SEEDERS["directional_seeder"].apply_to(plan)
+            writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
+
+        plan.remove_null_spaces()
+        plan.plot()
+
+        input_file_setup = plan_name + "_setup0.json"
+        spec = reader.create_specification_from_file(input_file_setup)
+        logging.debug(spec)
+        spec.plan = plan
+        spec.plan.remove_null_spaces()
+
+        logging.debug("number of mutables spaces, %i",
+                      len([space for space in spec.plan.spaces if space.mutable]))
+
+        t0 = time.process_time()
+        space_planner = SPACE_PLANNERS["standard_space_planner"]
+        best_solutions = space_planner.apply_to(spec, 3)
+        logging.debug(space_planner.spec)
+        logging.debug("space_planner time : %f", time.process_time() - t0)
+        # surfaces control
+        logging.debug("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        logging.debug("Setup AREA : %i",
+                      int(sum(item.required_area for item in space_planner.spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
+                                                     for item in space_planner.spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
+                                                     for item in space_planner.spec.items)))
+        plan_ratio = round(space_planner.spec.plan.indoor_perimeter
+                           ** 2 / space_planner.spec.plan.indoor_area)
+        logging.debug("PLAN Ratio : %i", plan_ratio)
+        logging.debug("solution_research time : ", time.process_time() - t0)
+        logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
+        logging.debug("solution_research time: %f", time.process_time() - t0)
+        logging.debug(best_solutions)
+
+        # Output
+        if best_solutions:
+            for sol in best_solutions:
+                sol.spec.plan.plot()
+                logging.debug(sol, sol.space_planning_score)
+                for space in sol.spec.plan.mutable_spaces():
+                    logging.debug(space.category.name, " : ", space.cached_area())
+                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
+                writer.save_json_solution(solution_dict, sol.id)
+
+        logging.debug("total time :", time.process_time() - t00)
+
+
     space_planning()
+    # space_planning_nico()
