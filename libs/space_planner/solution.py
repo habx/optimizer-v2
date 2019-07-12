@@ -314,4 +314,4 @@ def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') 
     ref_space_item = create_item_dict(ref_plan_spec, reference_plan)
     reference_plan.plot()
 
-    return Solution(ref_plan_spec, ref_space_item)
+    return Solution(ref_plan_spec, ref_space_item, 99999)
