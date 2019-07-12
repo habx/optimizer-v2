@@ -112,6 +112,8 @@ class SpacePlanner:
         plan = tup[1]
         matrix_solution = tup[2]
 
+        print('items id in fun', list(item.id for item in items))
+
         dict_space_item = {}
         for i_item, item in enumerate(items):
             item_space = []
@@ -152,6 +154,7 @@ class SpacePlanner:
 
         return plan, dict_items_space
 
+
     def solution_research(self, show=False) -> Optional[List['Solution']]:
         """
         Looks for all possible solutions then find the three best solutions
@@ -179,7 +182,7 @@ class SpacePlanner:
                 list_plans = []
                 list_sol = []
                 list_items = []
-                items = self.solutions_collector.spec_without_circulation.items
+                items = self.solutions_collector.spec_with_circulation.items
                 for sol in self.manager.solver.solutions:
                     list_items.append(items)
                     list_plans.append(self.spec.plan.clone())
@@ -187,11 +190,10 @@ class SpacePlanner:
 
                 zipped = zip(list_items, list_plans, list_sol)
 
-                print('items id BEOFRE', list(
-                    item.id for item in items))
+                print('items id BEFORE', list(item.id for item in items))
 
                 to = time.time()
-                parall = False
+                parall = True
                 # parallel eval
                 if parall:
                     all_res = pool.map(self._parallel_rooms_building, zipped)
@@ -208,8 +210,6 @@ class SpacePlanner:
                     plan_solution = res[0]
                     dict_space_item = res[1]
 
-                    print("dict_space_item", i, dict_space_item)
-
                     solution_spec = Specification('Solution' + str(i) + 'Specification',
                                                   plan_solution)
 
@@ -223,7 +223,9 @@ class SpacePlanner:
                                         item.max_size.area += current_item.max_size.area
 
                     for item in self.spec.items:
+                        print("current item", item)
                         if item in dict_space_item.values():
+                            print("added item", item)
                             solution_spec.add_item(item)
 
                     # solution_spec.plan.mesh.compute_cache()
