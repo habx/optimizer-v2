@@ -2,7 +2,6 @@ import os
 import json
 
 DEFAULT_CONF_PATH = 'config/config.default.json'
-DEFAULT_BUILDFILE_PATH = 'build.json'
 
 def from_file():
     env = os.environ.get('HABX_ENV')
@@ -23,15 +22,5 @@ def from_file():
         with open(env_conf_path, 'r') as f:
             env_conf = json.load(f)
 
-    # Add buildfile info to conf
-    env_conf['build'] = load_build_info()
-
     # merge both
     return {**default_conf, **env_conf}
-
-def load_build_info():
-    buildfile = {}
-    if os.path.isfile(DEFAULT_BUILDFILE_PATH):
-        with open(DEFAULT_BUILDFILE_PATH, 'r') as f:
-            buildfile = json.load(f)
-    return buildfile
