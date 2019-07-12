@@ -88,3 +88,9 @@ def test_rotate():
     for i, point in enumerate(rotated):
         assert math.isclose(point[0], computed[i][0], abs_tol=0.000001)
         assert math.isclose(point[1], computed[i][1], abs_tol=0.000001)
+
+
+def test_bottleneck():
+    poly = ((0,0),(10,0),(10,2),(5,2),(0,2))
+    assert geometry.bottleneck(poly, 3)
+    assert not geometry.bottleneck(poly, 1)
