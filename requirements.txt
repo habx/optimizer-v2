@@ -8,7 +8,7 @@ networkx==2.3
 # WARNING: This should not be shared externally. We're using a token because fetching private
 #          dependencies using the SSH key prior to building the container is a lot more difficult,
 #          mostly because protobuf install doesn't respect the virtualenv.
-git+https://habxtech:5750d9564b8972c1b432f689142084304278420f@github.com/habx/lib-py-logger.git@v1.2.0#egg=habx_logger==v1.2.0
+git+https://habxtech:5750d9564b8972c1b432f689142084304278420f@github.com/habx/lib-py-logger.git@v1.3.0#egg=habx_logger==v1.3.0
 
 # For code analysis:
 pprofile
