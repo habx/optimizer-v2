@@ -7,6 +7,7 @@ Describes the specifications of the different spaces
 from libs.plan.category import SpaceCategory
 from libs.plan.plan import Plan
 from libs.specification.size import Size
+from libs.plan.category import SPACE_CATEGORIES
 
 from typing import List, Optional, Dict
 
@@ -29,6 +30,17 @@ class Specification:
             output += str(item.id) + ' • ' + item.__repr__() + '\n'
 
         return output
+
+    def get_item_from_id(self, _id: int):
+        """
+        Returns
+        :param _id:
+        :return:
+        """
+        for item in self.items:
+            if item.id == _id:
+                return item
+        raise ValueError("Specification: Item not found for id %i", _id)
 
     def init_id(self, category_name_list: Optional[List[str]] = None) -> None:
         """
@@ -96,7 +108,23 @@ class Specification:
         Serialize the specification
         :return:
         """
-        return {"rooms": [i.serialize() for i in self.items]}
+        output = {"rooms": [i.serialize() for i in self.items],
+                  "name": self.name}
+        return output
+
+    @classmethod
+    def deserialize(cls, data: Dict) -> 'Specification':
+        """
+        Returns a specification object
+        :param data:
+        :return:
+        """
+        specification = cls()
+        specification.name = data["name"]
+        for item in data["rooms"]:
+            new_item = Item.deserialize(item)
+            specification.add_item(new_item)
+        return specification
 
 
 class Item:
@@ -158,3 +186,26 @@ class Item:
         }
 
         return output
+
+    @classmethod
+    def deserialize(cls, data: Dict) -> 'Item':
+        """
+        Creates an Item instance from a dictionary
+        :param data:
+        :return:
+        """
+        _category = data["type"]
+        if _category not in SPACE_CATEGORIES:
+            raise ValueError(
+                "Space type not present in space categories: {0}".format(_category))
+        required_area = data["requiredArea"]
+        size_min = Size(area=required_area["min"])
+        size_max = Size(area=required_area["max"])
+        variant = data.get("variant", "m")
+        opens_on = data.get("opensOn", [])
+        linked_to = data.get("linkedTo", [])
+        tags = data.get("tags", [])
+        item = cls(SPACE_CATEGORIES[_category], variant, size_min, size_max, opens_on,
+                   linked_to, tags)
+
+        return item
