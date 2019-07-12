@@ -189,7 +189,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "026.json"
+        input_file = "france-confort_A3E0H01.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -203,7 +203,7 @@ if __name__ == '__main__':
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
         # print(list(space.cached_area() for space in plan.mutable_spaces()))
 
-        input_file_setup = input_file[:-5] + "_setup0.json"
+        input_file_setup = input_file[:-5] + "_setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan

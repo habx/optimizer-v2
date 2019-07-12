@@ -494,24 +494,44 @@ class ConstraintsManager:
         :return: None
         """
         for item in self.sp.spec.items:
-            for constraint in GENERAL_ITEMS_CONSTRAINTS["all"]:
-                self.add_item_constraint(item, constraint[0], **constraint[1])
-            for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
-                self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology <= 2:
-                for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
+            if False: # apartment
+                for constraint in GENERAL_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 3:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                if self.sp.spec.typology <= 2:
+                    for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
+                    for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.typology >= 3:
+                    for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                    for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.plan.floor_count > 1:
+                    for constraint in DUPLEX_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+            elif True: # house
+                for constraint in HOUSE_GENERAL_ITEMS_CONSTRAINTS["all"]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-                for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                for constraint in HOUSE_GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.plan.floor_count > 1:
-                for constraint in DUPLEX_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.typology <= 2:
+                    for constraint in HOUSE_T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
+                    for constraint in HOUSE_T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.typology >= 3:
+                    for constraint in HOUSE_T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                    for constraint in HOUSE_T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
+                if self.sp.spec.plan.floor_count > 1:
+                    for constraint in HOUSE_DUPLEX_CONSTRAINTS.get(item.category.name, []):
+                        self.add_item_constraint(item, constraint[0], **constraint[1])
 
     def add_item_constraint(self, item: Item, constraint_func: Callable, **kwargs) -> None:
         """
@@ -592,6 +612,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
+
         ct = manager.item_area[item.id] <= max_area
 
     elif min_max == "min":
@@ -854,18 +875,28 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
-    if item.category.name in ["living", "dining", "livingKitchen"]:
-        param = min(max(25, plan_ratio + 20), 35)
-    elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "wardrobe",
-                                 "laundry"]
-          or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
-        param = min(max(25, plan_ratio + 10), 32)
-    elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
-        param = 26
-    elif item.category.name is "bedroom" and item.variant in ["xs"]:
-        param = 22
-    else:
-        param = 22 # toilet / entrance
+    if False:
+        if item.category.name in ["living", "dining", "livingKitchen"]:
+            param = min(max(25, plan_ratio + 20), 35)
+        elif (item.category.name in ["bathroom", "study", "misc", "kitchen", "entrance", "wardrobe",
+                                     "laundry"]
+              or (item.category.name is "bedroom" and item.variant in ["l", "xl"])):
+            param = min(max(25, plan_ratio + 10), 32)
+        elif item.category.name is "bedroom" and item.variant in ["s", "m"]:
+            param = 26
+        elif item.category.name is "bedroom" and item.variant in ["xs"]:
+            param = 22
+        else:
+            param = 22 # toilet / entrance
+    elif True:
+        if item.category.name in ["living", "dining", "livingKitchen"]:
+            param = 35
+        elif item.category.name in ["bathroom", "study", "misc", "kitchen"]:
+            param = 25
+        elif item.category.name is "bedroom":
+            param = 22
+        else:
+            param = 22  # toilet / entrance
 
     if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
@@ -1606,6 +1637,181 @@ T3_MORE_ITEMS_CONSTRAINTS = {
 }
 
 DUPLEX_CONSTRAINTS = {
+    "toilet": [
+        [multiplex_toilet_repartition_constraint, {}],
+    ],
+    "bathroom": [
+        [multiplex_bathroom_repartition_constraint, {}],
+    ],
+
+}
+HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
+    "all": [
+        [inside_adjacency_constraint, {}],
+        [graph_constraint, {}],
+        [area_graph_constraint, {}],
+        [distance_constraint, {}],
+        [shape_constraint, {}],
+        [windows_constraint, {}],
+        [symmetry_breaker_constraint, {}]
+    ],
+    "entrance": [
+        [area_constraint, {"min_max": "max"}]
+    ],
+    "toilet": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+        [toilet_entrance_proximity_constraint, {}],
+        [non_isolated_item_constraint, {}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "bathroom": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [item_max_distance_constraint, {"item_categories": ["bedroom", "study"], "max_distance": 200}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+    ],
+    "living": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}]
+    ],
+    "livingKitchen": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+    ],
+    "dining": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": ["kitchen", "livingKitchen"], "adj": True, "addition_rule": "Or"}]
+    ],
+    "kitchen": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
+    ],
+    "bedroom": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
+    ],
+    "study": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [opens_on_constraint, {"length": 220}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
+    ],
+    "wardrobe": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}]
+    ],
+    "misc": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}]
+    ],
+    "laundry": [
+        [item_attribution_constraint, {}],
+        [area_constraint, {"min_max": "min"}],
+        [area_constraint, {"min_max": "max"}],
+        [components_adjacency_constraint,
+         {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+        [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
+                                           "addition_rule": "And"}],
+    ]
+}
+
+HOUSE_T1_T2_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [optional_entrance_constraint,{}],
+    ]
+}
+
+HOUSE_T2_MORE_ITEMS_CONSTRAINTS = {
+    "livingKitchen": [
+    ]
+}
+
+HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+        [conditional_entrance_constraint, {}],
+        [min_perimeter_length, {}],
+    ],
+    "toilet": [
+        [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
+    ],
+    "bathroom": [
+        [item_adjacency_constraint,
+         {"item_categories": ["bedroom"], "adj": True, "addition_rule": "Or"}],
+    ],
+    "living": [
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}],
+        [min_perimeter_length, {}],
+    ],
+    "livingKitchen": [
+        [externals_connection_constraint, {}],
+        [large_windows_constraint, {}],
+        [min_perimeter_length, {}],
+    ],
+    "bedroom": [
+        [min_perimeter_length, {}],
+    ],
+    "study": [
+        [min_perimeter_length, {}],
+    ],
+    "dining": [
+        [min_perimeter_length, {}],
+    ],
+    "kitchen": [
+        [min_perimeter_length, {}],
+    ],
+    "laundry": [
+        [non_isolated_item_constraint, {}],
+    ]
+}
+
+HOUSE_DUPLEX_CONSTRAINTS = {
     "toilet": [
         [multiplex_toilet_repartition_constraint, {}],
     ],
