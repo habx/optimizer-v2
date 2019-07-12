@@ -139,14 +139,16 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List[
+        'Solution']:
         """
         Runs the space planner
         :param spec:
         :param max_nb_solutions
+        :param processes
         :return: SolutionsCollector
         """
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
         self.spec = self.solutions_collector.spec_without_circulation
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
@@ -214,7 +216,7 @@ if __name__ == '__main__':
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec, 3)
+        best_solutions = space_planner.apply_to(spec, 3, 1)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
