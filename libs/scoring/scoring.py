@@ -649,11 +649,22 @@ def space_planning_scoring(solution: 'Solution') -> float:
     :param solution
     :return: score : float
     """
-    solution_score = (area_scoring(solution)
-                      + position_scoring(solution)
-                      + corner_scoring(solution)
-                      + night_and_day_scoring(solution)) / 4
-    solution_score = (solution_score + entrance_bonus(solution))
+    if False:
+        solution_score = (area_scoring(solution)
+                          + position_scoring(solution)
+                          + corner_scoring(solution)
+                          + night_and_day_scoring(solution)) / 4
+        solution_score = (solution_score + entrance_bonus(solution))
+    elif True :
+        solution_score = (area_scoring(solution)
+                          + position_scoring(solution)
+                          + something_inside_scoring(solution)
+                          + corner_scoring(solution)
+                          + night_and_day_scoring(solution)) / 5
+        solution_score = (solution_score + good_size_bonus(solution)
+                          + windows_good_distribution_bonus(solution)
+                          + entrance_bonus(solution)
+                          - circulation_penalty(solution))
     logging.debug("Solution %i: Final score : %f", solution.id, solution_score)
 
     return solution_score

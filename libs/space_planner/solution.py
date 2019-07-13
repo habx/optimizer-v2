@@ -16,6 +16,7 @@ from libs.scoring.scoring import space_planning_scoring
 import logging
 import functools
 import operator
+import multiprocessing
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -26,12 +27,13 @@ class SolutionsCollector:
     Solutions Collector class
     """
 
-    def __init__(self, spec: 'Specification', max_solutions: int = 3):
+    def __init__(self, spec: 'Specification', max_solutions: int = 3, processes: int = 8):
         self._init_specifications(spec)
         self.max_results = max_solutions
         self.solutions: List['Solution'] = []
         self.best_solutions: List['Solution'] = []
         self.architect_plans: List['Solution'] = []
+        self.processes = processes
 
     def _init_specifications(self, spec: 'Specification') -> None:
         """
@@ -205,6 +207,17 @@ class SolutionsCollector:
 
         return best_sol_list
 
+    @staticmethod
+    def space_planning_multiproc(sol: 'Solution'):
+        """
+        wrap of space_planning_scoring function - mutliprocess purpose
+        :param sol:
+        :return:
+        """
+        score = space_planning_scoring(sol)
+        ind = sol.id
+        return score, ind
+
     def space_planner_best_results(self) -> List['Solution']:
         """
         Find best solutions of the list
@@ -219,10 +232,14 @@ class SolutionsCollector:
             logging.warning("Solution : 0 solutions")
             return []
 
-        list_scores = []
-        for solution in self.solutions:
-            solution.space_planning_score = space_planning_scoring(solution)
-            list_scores.append(solution.space_planning_score)
+        # multiproc scoring
+        list_solutions = list([solution for solution in self.solutions])
+        pool = multiprocessing.Pool(self.processes)
+        score_results = pool.map(self.space_planning_multiproc, list_solutions)
+        # get back proper indices
+        list_score_non_sorted = [s[0] for s in score_results]
+        list_indices = [s[1] for s in score_results]
+        list_scores = [s for _, s in sorted(zip(list_indices, list_score_non_sorted))]
 
         # Choose the best solution :
         best_score = max(list_scores)

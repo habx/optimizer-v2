@@ -139,14 +139,16 @@ class SpacePlanner:
 
         return []
 
-    def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
+    def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List[
+        'Solution']:
         """
         Runs the space planner
         :param spec:
         :param max_nb_solutions
+        :param processes
         :return: SolutionsCollector
         """
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
         self.spec = self.solutions_collector.spec_without_circulation
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
@@ -192,34 +194,36 @@ if __name__ == '__main__':
         input_file = "france-confort_A3E0H01.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
-        logging.info("input_file %s", input_file)
-        # print("input_file", input_file, " - area : ", plan.indoor_area)
+        # logging.info("input_file %s", input_file)
+        print("input_file", input_file, " - area : ", plan.indoor_area)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['002'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
+        print("SEEDER")
+        print(plan)
 
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
         # print(list(space.cached_area() for space in plan.mutable_spaces()))
 
-        input_file_setup = input_file[:-5] + "_setup.json"
+        input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
         logging.debug(spec)
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
-        logging.debug("number of mutables spaces, %i",
+        print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
 
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec, 3)
-        logging.debug(space_planner.spec)
+        best_solutions = space_planner.apply_to(spec, 3, 4)
+        print(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
-        logging.debug("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
-        logging.debug("Setup AREA : %i",
+        print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        print("Setup AREA : %i",
                       int(sum(item.required_area for item in space_planner.spec.items)))
         logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
                                                      for item in space_planner.spec.items)))
@@ -227,14 +231,16 @@ if __name__ == '__main__':
                                                      for item in space_planner.spec.items)))
         plan_ratio = round(space_planner.spec.plan.indoor_perimeter
                            ** 2 / space_planner.spec.plan.indoor_area)
-        logging.debug("PLAN Ratio : %i", plan_ratio)
-        logging.debug("space_planner time : ", time.process_time() - t0)
+        print("PLAN Ratio : %i", plan_ratio)
+        print("space_planner time : ", time.process_time() - t0)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
         # Output
         if best_solutions:
+            print("number of solutions : ",
+                  len(best_solutions))
             for sol in best_solutions:
                 sol.spec.plan.plot()
                 logging.debug(sol, sol.space_planning_score)
@@ -249,7 +255,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
         #         sol.plan.plot()
 
-        logging.debug("total time :", time.process_time() - t00)
+        print("total time :", time.process_time() - t00)
 
 
     def space_planning_nico():
