@@ -103,8 +103,6 @@ class SpacePlanner:
                 # entrance case
                 if current_item.category.name == "entrance":
                     for space, item in space_item.items():
-                        print(space)
-                        print(item)
                         if "frontDoor" in space.components_category_associated():
                             item.min_size.area += current_item.min_size.area
                             item.max_size.area += current_item.max_size.area
@@ -125,8 +123,6 @@ class SpacePlanner:
 
         self.manager.solver.solve()
 
-        print(self.spec)
-
         if len(self.manager.solver.solutions) == 0:
             logging.warning(
                 "SpacePlanner : solution_research : Plan without space planning solution")
@@ -137,15 +133,11 @@ class SpacePlanner:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
                     solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
-                    print(solution_spec)
-                    print(dict_space_item)
                     self.solutions_collector.add_solution(solution_spec, dict_space_item)
                     logging.debug(solution_spec.plan)
 
                     if show:
                         plan_solution.plot()
-        print("solution_research Setup spec_without_circulation : %i",
-                      int(sum(item.required_area for item in self.spec.items)))
 
     def apply_to(self, spec: 'Specification', max_nb_solutions: int, processes: int) -> List[
         'Solution']:
@@ -158,8 +150,6 @@ class SpacePlanner:
         """
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
         self.spec = self.solutions_collector.spec_without_circulation
-        print("Setup spec_without_circulation : %i",
-                      int(sum(item.required_area for item in self.spec.items)))
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
@@ -210,13 +200,6 @@ if __name__ == '__main__':
         GRIDS['002'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
         print("SEEDER")
-        print(list(plan.spaces))
-        for space in plan.spaces:
-            print("etage", space.floor.id)
-            print(space.components_category_associated())
-            print("")
-        print(plan.linears)
-
         plan.plot()
         # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
         # print(list(space.cached_area() for space in plan.mutable_spaces()))

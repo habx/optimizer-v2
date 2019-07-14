@@ -1714,8 +1714,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         #[distance_constraint, {}],
-        #[shape_constraint, {}],
-        #[windows_constraint, {}],
+        [shape_constraint, {}],
+        [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
@@ -1742,7 +1742,7 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
-         {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
+         {"category": ["doorWindow"], "adj": False, "addition_rule": "And"}],
     ],
     "living": [
         [item_attribution_constraint, {}],
