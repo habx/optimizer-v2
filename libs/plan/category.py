@@ -23,7 +23,7 @@ CATEGORIES_COLORS = {
     'toilet': 'cornflowerblue',
     'bathroom': 'lightskyblue',
     'circulation': 'lightgray',
-    'entrance': 'grey',
+    'entrance': 'red',
     'wardrobe': 'pink',
     'laundry': 'lightsteelblue',
     'study': 'darkseagreen',

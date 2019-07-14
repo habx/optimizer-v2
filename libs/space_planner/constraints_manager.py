@@ -49,7 +49,7 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
-SEARCH_SOLUTIONS_LIMIT = 1000
+SEARCH_SOLUTIONS_LIMIT = 10
 
 
 class ConstraintSolver:
@@ -1065,7 +1065,24 @@ def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager',
             ct = or_no_space_constraint(manager, i_item, ct)
     return ct
 
+def toilet_entrance_adjacency_constraint(manager: 'ConstraintsManager',
+                                         item: Item) -> ortools.Constraint:
+    """
+    toilet entrance adjacency constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = None
+    if (not manager.sp.spec.plan.has_multiple_floors and
+            manager.toilet_entrance_proximity_constraint_first_pass):
+        ct = item_adjacency_constraint(manager, item, ["entrance"], True)
 
+    manager.toilet_entrance_proximity_constraint_first_pass = False
+    for i_item in manager.sp.spec.items:
+        if i_item.category.name == "entrance":
+            ct = or_no_space_constraint(manager, i_item, ct)
+    return ct
 
 def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
@@ -1424,6 +1441,7 @@ def min_perimeter_length(manager: 'ConstraintsManager',
         adjacency_sum = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * manager.space_and_perimeter_adjacency_length[j]
                                                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         ct = (adjacency_sum >= min_length[item.category.name])
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
@@ -1526,7 +1544,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        #[components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
@@ -1540,7 +1558,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        #[components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [item_max_distance_constraint, {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
@@ -1621,7 +1639,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        #[components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [components_adjacency_constraint,
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
@@ -1637,7 +1655,7 @@ T1_T2_ITEMS_CONSTRAINTS = {
 
 T2_MORE_ITEMS_CONSTRAINTS = {
     "livingKitchen": [
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        #[components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [max_distance_window_duct_constraint, {"max_distance": 700}]
     ]
 }
@@ -1701,7 +1719,7 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [area_constraint, {"min_max": "max"}]
+        #[area_constraint, {"min_max": "max"}]
     ],
     "toilet": [
         [item_attribution_constraint, {}],
@@ -1711,7 +1729,7 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
-        [toilet_entrance_proximity_constraint, {}],
+        [toilet_entrance_adjacency_constraint, {}],
         [non_isolated_item_constraint, {}],
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
@@ -1821,8 +1839,9 @@ HOUSE_T2_MORE_ITEMS_CONSTRAINTS = {
 
 HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
     "entrance": [
-        [conditional_entrance_constraint, {}],
-        [min_perimeter_length, {}],
+        #[conditional_entrance_constraint, {}],
+        #[optional_entrance_constraint,{}],
+        #[min_perimeter_length, {}],
     ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
@@ -1843,6 +1862,8 @@ HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [min_perimeter_length, {}],
+        [item_adjacency_constraint,
+        {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "study": [
         [min_perimeter_length, {}],
@@ -1860,10 +1881,10 @@ HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
 
 HOUSE_DUPLEX_CONSTRAINTS = {
     "toilet": [
-        [multiplex_toilet_repartition_constraint, {}],
+        #[multiplex_toilet_repartition_constraint, {}],
     ],
     "bathroom": [
-        [multiplex_bathroom_repartition_constraint, {}],
+        #[multiplex_bathroom_repartition_constraint, {}],
     ],
 
 }
