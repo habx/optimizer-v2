@@ -24,6 +24,7 @@ from libs.space_planner.solution import spec_adaptation
 import libs.io.plot
 import matplotlib.pyplot as plt
 
+
 class LocalContext:
     """Local execution context"""
 
