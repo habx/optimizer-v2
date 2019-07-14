@@ -1713,13 +1713,13 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
-        [distance_constraint, {}],
-        [shape_constraint, {}],
-        [windows_constraint, {}],
+        #[distance_constraint, {}],
+        #[shape_constraint, {}],
+        #[windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        #[area_constraint, {"min_max": "max"}]
+        [area_constraint, {"min_max": "max"}]
     ],
     "toilet": [
         [item_attribution_constraint, {}],
@@ -1839,9 +1839,8 @@ HOUSE_T2_MORE_ITEMS_CONSTRAINTS = {
 
 HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
     "entrance": [
-        #[conditional_entrance_constraint, {}],
-        #[optional_entrance_constraint,{}],
-        #[min_perimeter_length, {}],
+        [optional_entrance_constraint,{}],
+        [min_perimeter_length, {}],
     ],
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],

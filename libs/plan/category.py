@@ -34,8 +34,8 @@ CATEGORIES_COLORS = {
     'loggia': 'silver',
     'wintergarden': 'gainsboro',
     'startingStep': 'r',
-    'hole': 'lightblue',
-    'stairsObstacle': 'brown'
+    'hole': 'grey',
+    'stairsObstacle': 'grey'
 }
 
 

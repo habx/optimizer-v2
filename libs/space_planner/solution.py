@@ -43,11 +43,18 @@ class SolutionsCollector:
         self.spec_with_circulation = initial_spec_adaptation(spec, spec.plan,
                                                              'SpecificationWithCirculation', True)
         self.spec_with_circulation.plan.mesh.compute_cache()
+        print("PLAN AREA : %i", int(self.spec_with_circulation.plan.indoor_area))
+        mutable_spaces_area = sum([space.cached_area() for space in self.spec_with_circulation.plan.mutable_spaces()])
+        print("mutable spaces area", mutable_spaces_area)
+        print("Setup spec_with_circulation : %i",
+                      int(sum(item.required_area for item in self.spec_with_circulation.items)))
 
         self.spec_without_circulation= initial_spec_adaptation(spec, spec.plan,
                                                                'SpecificationWithoutCirculation',
                                                                False)
         self.spec_without_circulation .plan.mesh.compute_cache()
+        print("Setup spec_without_circulation : %i",
+                      int(sum(item.required_area for item in self.spec_without_circulation.items)))
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """

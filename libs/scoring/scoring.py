@@ -80,7 +80,8 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
                             "misc"]
     invariant_area = sum(item.required_area for item in new_spec.items
                          if item.category.name in invariant_categories)
-    coeff = (int(new_spec.plan.indoor_area - invariant_area) / int(sum(
+    mutable_spaces_area = sum([space.cached_area() for space in new_spec.plan.mutable_spaces()])
+    coeff = (int(mutable_spaces_area - invariant_area) / int(sum(
         item.required_area for item in new_spec.items if
         item.category.name not in invariant_categories)))
 
