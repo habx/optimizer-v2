@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Floor
+    from libs.space_planner.solution import Solution
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
@@ -58,11 +59,11 @@ def create_item_dict(_solution: 'Solution') -> Dict[int, Optional['Item']]:
     :return:
     """
     output = {}
-    for space, item in _solution.space_item.items():
-        if item.category.name == "circulation":
+    for space in _solution.spec.plan.mutable_spaces():
+        if space.category == SPACE_CATEGORIES["circulation"]:
             output[space.id] = None
         else:
-            output[space.id] = item
+            output[space.id] = _solution.space_item[space]
     return output
 
 

@@ -25,6 +25,7 @@ import libs.io.plot
 import matplotlib.pyplot as plt
 import urllib, json
 
+
 class LocalContext:
     """Local execution context"""
 
