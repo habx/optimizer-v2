@@ -9,7 +9,6 @@ and a customer input setup
 import logging
 from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
-from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
@@ -150,6 +149,7 @@ class SpacePlanner:
         """
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
         self.spec = self.solutions_collector.spec_without_circulation
+
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)

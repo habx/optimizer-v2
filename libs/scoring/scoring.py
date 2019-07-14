@@ -5,11 +5,11 @@ from typing import Dict
 
 import matplotlib.pyplot as plt
 import shapely as sp
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point
 
 from libs.io.plot import plot_save
 from libs.plan.category import SPACE_CATEGORIES
-from libs.plan.plan import Plan, Face, Linear
+from libs.plan.plan import Plan, Face
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 from libs.specification.size import Size
@@ -21,6 +21,79 @@ if TYPE_CHECKING:
 
 SQM = 10000
 CORRIDOR_SIZE = 120
+
+def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str, with_circulation: bool) -> 'Specification':
+    """
+    change reader specification :
+    adding entrance
+    readjustment of circulation area
+    living + kitchen : opensOn --> livingKitchen
+    area convergence
+    :param spec : setup specification
+    :param plan
+    :param spec_name
+    :param with_circulation bool
+    :return: 'Specification'
+    """
+    new_spec = Specification(spec_name, plan)
+    new_spec.plan.mesh.compute_cache()
+
+    # entrance
+    size_min = Size(area=2 * SQM)
+    size_max = Size(area=5 * SQM)
+    new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
+    new_spec.add_item(new_item)
+
+    living_kitchen = False
+    for item in spec.items:
+        if item.category.name == "circulation":
+            if spec.typology > 1 and with_circulation:
+                size_min = Size(area=(max(0, (spec.typology - 2) * 3 * SQM - 1 * SQM)))
+                size_max = Size(area=(max(0, (spec.typology - 2) * 3 * SQM + 1 * SQM)))
+                new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
+                                size_max)
+                new_spec.add_item(new_item)
+            else:
+                continue
+        elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
+              (item.category.name != "kitchen" or len(item.opens_on) == 0)):
+            new_spec.add_item(item)
+        elif item.category.name == "living" and "kitchen" in item.opens_on:
+            kitchens = spec.category_items("kitchen")
+            for kitchen_item in kitchens:
+                if "living" in kitchen_item.opens_on:
+                    size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
+                    size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
+                    #opens_on = item.opens_on.remove("kitchen")
+                    new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
+                                    size_max, item.opens_on, item.linked_to)
+                    new_spec.add_item(new_item)
+                    living_kitchen = True
+
+    category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
+                          "living", "livingKitchen", "dining", "bedroom", "study", "misc",
+                          "circulation"]
+    new_spec.init_id(category_name_list)
+
+    # area
+    invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation",
+                            "misc"]
+    invariant_area = sum(item.required_area for item in new_spec.items
+                         if item.category.name in invariant_categories)
+    coeff = (int(new_spec.plan.indoor_area - invariant_area) / int(sum(
+        item.required_area for item in new_spec.items if
+        item.category.name not in invariant_categories)))
+
+    for item in new_spec.items:
+        if living_kitchen:
+            if "living" in item.opens_on:
+                item.opens_on.remove("living")
+                item.opens_on.append("livingKitchen")
+        if item.category.name not in invariant_categories:
+            item.min_size.area = round(item.min_size.area * coeff)
+            item.max_size.area = round(item.max_size.area * coeff)
+
+    return new_spec
 
 """
 Scoring functions
@@ -53,7 +126,7 @@ def corner_scoring(solution: 'Solution') -> float:
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
-    corner_score = round(corner_score / len(solution.space_item), 2) - has_holes * 25
+    corner_score = max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0)
     logging.debug("Corner score : %f", corner_score)
     return corner_score
 
@@ -669,11 +742,12 @@ def space_planning_scoring(solution: 'Solution') -> float:
 
     return solution_score
 
-def final_scoring(solution: 'Solution') -> [float]:
+def final_scoring(solution: 'Solution', do_plot:bool = False) -> [float]:
     """
     Final scoring
     compilation of different scores
     :param solution
+    :param do_plot
     :return: score : float
     :return: score_components = [float]
     """
@@ -686,7 +760,39 @@ def final_scoring(solution: 'Solution') -> [float]:
     score_components["minimal_dimensions"] = minimal_dimensions_scoring(solution)
     plan_score = sum(score_components.values()) / len(score_components)
 
+    if do_plot:
+        radar_chart(plan_score, score_components, solution.id,
+                    solution.spec.plan.name + "_FinalScore")
+
     return plan_score, score_components
+
+"""
+Reference plans scoring
+"""
+
+def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item']:
+    """
+    Creates a 1-to-1 dict between spaces and items of the specification
+    :param spec
+    :param plan
+    :return:
+    """
+    output = {}
+    spec_items = spec.items[:]
+    for space in plan.mutable_spaces():
+        corresponding_items = []
+        for item in spec_items:
+            if item.category.name == space.category.name:
+                corresponding_items.append(item)
+        # Note : corridors have no corresponding spec item
+        best_item = min(corresponding_items, key=lambda i: math.fabs(i.required_area - space.cached_area()), default=None)
+        if space.category is not SPACE_CATEGORIES["circulation"]:
+            assert best_item, "Score: Each space should have a corresponding item in the spec"
+        output[space] = best_item
+        if best_item is not None and space.category is not SPACE_CATEGORIES["circulation"]:
+            spec_items.remove(best_item)
+    return output
+
 
 """
 Scoring plot tools
@@ -772,114 +878,7 @@ if __name__ == '__main__':
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
     from libs.space_planner.space_planner import SPACE_PLANNERS
-    from libs.io.writer import save_plan_as_json
-
-
-    def spec_adaptation(spec: 'Specification', archi_plan: 'Plan') -> 'Specification':
-        """
-        change reader specification :
-        adding entrance
-        readjustment of circulation area
-        living + kitchen : opensOn --> livingKitchen
-        area convergence
-        :param spec
-        :param archi_plan
-        :return: 'Specification'
-        """
-        scoring_spec = Specification('Scoring_Specification', archi_plan)
-
-        # entrance
-        size_min = Size(area=2 * SQM)
-        size_max = Size(area=5 * SQM)
-        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
-        scoring_spec.add_item(new_item)
-        living_kitchen = False
-
-        for item in spec.items:
-            if item.category.name == "circulation":
-                if spec.typology > 2:
-                    size_min = Size(area=(max(0, (spec.typology - 2) * 3 * SQM - 1 * SQM)))
-                    size_max = Size(area=(max(0, (spec.typology - 2) * 3 * SQM + 1 * SQM)))
-                    new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
-                                    size_max)
-                    scoring_spec.add_item(new_item)
-            elif ((item.category.name != "living" or "kitchen" not in item.opens_on) and
-                  (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-                scoring_spec.add_item(item)
-            elif item.category.name == "living" and "kitchen" in item.opens_on:
-                kitchens = spec.category_items("kitchen")
-                for kitchen_item in kitchens:
-                    if "living" in kitchen_item.opens_on:
-                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
-                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        # opens_on = item.opens_on.remove("kitchen")
-                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, item.opens_on, item.linked_to)
-                        scoring_spec.add_item(new_item)
-                        living_kitchen = True
-
-        # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe"]
-        # invariant_categories = ["entrance"]
-
-        # area - without circulation
-        # invariant_area = sum(item.required_area for item in space_planner_spec.items
-        #                      if item.category.name in invariant_categories)
-        # circulation_area = sum(item.required_area for item in space_planner_spec.items
-        #                      if item.category.name == 'circulation')
-        # coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
-        #     item.required_area for item in space_planner_spec.items if
-        #     (item.category.name not in invariant_categories
-        #      and item.category.name != 'circulation'))))
-        #
-        # for item in space_planner_spec.items:
-        #     if (item.category.name not in invariant_categories
-        #             and item.category.name != 'circulation'):
-        #         item.min_size.area = round(item.min_size.area * coeff)
-        #         item.max_size.area = round(item.max_size.area * coeff)
-        # area - with circulation
-        invariant_area = sum(item.required_area for item in scoring_spec.items
-                             if item.category.name in invariant_categories)
-        coeff = (int(scoring_spec.plan.indoor_area - invariant_area) / int(sum(
-            item.required_area for item in scoring_spec.items if
-            item.category.name not in invariant_categories)))
-
-        for item in scoring_spec.items:
-            if living_kitchen:
-                if "living" in item.opens_on:
-                    item.opens_on.remove("living")
-                    item.opens_on.append("livingKitchen")
-            if item.category.name not in invariant_categories:
-                item.min_size.area = round(item.min_size.area * coeff)
-                item.max_size.area = round(item.max_size.area * coeff)
-
-        logging.debug("Scoring - PLAN AREA %f ", int(scoring_spec.plan.indoor_area))
-        logging.debug("Scoring - Setup AREA %f", int(sum(item.required_area
-                                                        for item in scoring_spec.items)))
-        logging.debug("Scoring - Initial Setup AREA %f", int(sum(item.required_area
-                                                                for item in spec.items)))
-        return scoring_spec
-
-    def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item']:
-        """
-        Creates a 1-to-1 dict between spaces and items of the specification
-        :param spec
-        :param plan
-        :return:
-        """
-        output = {}
-        spec_items = spec.items[:]
-        for space in plan.mutable_spaces():
-            corresponding_items = list(filter(lambda i: i.category is space.category, spec_items))
-            # Note : corridors have no corresponding spec item
-            best_item = min(corresponding_items, key=lambda i:
-            math.fabs(i.required_area - space.cached_area()), default=None)
-            if space.category is not SPACE_CATEGORIES["circulation"]:
-                assert best_item, "Score: Each space should have a corresponding item in the spec"
-            output[space] = best_item
-            if best_item is not None and space.category is not SPACE_CATEGORIES["circulation"]:
-                spec_items.remove(best_item)
-        return output
+    from libs.space_planner.solution import reference_plan_solution
 
     def scoring_test():
         """
@@ -908,11 +907,11 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        input_blueprint_list = ["032.json"]
+        input_blueprint_list = ["grenoble-cambridge_222_blueprint.json"]
 
         for input_file in input_blueprint_list:
-            #input_file_setup = input_file[:-14] + "setup0.json"
-            input_file_setup = input_file[:-5] + "_setup0.json"
+            input_file_setup = input_file[:-14] + "setup.json"
+            #input_file_setup = input_file[:-5] + "_setup0.json"
             plan = reader.create_plan_from_file(input_file)
 
             GRIDS['002'].apply_to(plan)
@@ -921,31 +920,17 @@ if __name__ == '__main__':
             input_spec = reader.create_specification_from_file(input_file_setup)
             input_spec.plan = plan
             input_spec.plan.remove_null_spaces()
-            print("PLAN AREA : %i", int(plan.indoor_area))
-            print("Setup AREA : %i",
-                  int(sum(item.required_area for item in input_spec.items)))
-            print("input_spec :", input_spec)
             space_planner = SPACE_PLANNERS["standard_space_planner"]
             best_solutions = space_planner.apply_to(input_spec, 3)
-            print("best_solutions", best_solutions)
 
             # architect plan
-            # architect_input_plan = input_file[:-14] + "plan.json"
-            # architect_plan = reader.create_plan_from_file(architect_input_plan)
-            # architect_plan.remove_null_spaces()
-            # architect_plan.plot()
-            # architect_plan_spec = spec_adaptation(input_spec, architect_plan)
-            # architect_plan_spec.plan = architect_plan
-            # architect_space_item = create_item_dict(architect_plan_spec, architect_plan)
-            # space_planner.solutions_collector.add_plan(architect_plan_spec, architect_space_item)
-            # architect_plan.plot()
-            # architect_final_score, architect_final_score_components = final_scoring(
-            #     space_planner.solutions_collector.architect_plans[0])
-            # print(architect_final_score_components)
-            # radar_chart(architect_final_score,
-            #             architect_final_score_components,
-            #             000, plan.name + "Archi_FinalScore")
-            # plt.close()
+            architect_input_plan = input_file[:-14] + "plan.json"
+            architect_plan = reader.create_plan_from_file(architect_input_plan)
+            architect_plan.remove_null_spaces()
+            architect_plan.plot()
+            ref_plan = reader.create_plan_from_data(architect_input_plan)
+            ref_solution = reference_plan_solution(ref_plan, input_spec)
+            ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
             for sol in best_solutions:
                 final_score, final_score_components = final_scoring(sol)
@@ -955,8 +940,6 @@ if __name__ == '__main__':
                 if space_planner.solutions_collector.architect_plans:
                     dist_to_architect_plan = sol.distance(
                         space_planner.solutions_collector.architect_plans[0])
-                    print("Solution : ", sol.id, " - Distance to architect plan : ",
-                          dist_to_architect_plan)
             plt.close()
 
 
