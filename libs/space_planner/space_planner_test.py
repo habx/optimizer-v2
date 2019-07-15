@@ -36,10 +36,10 @@ def test_space_planner(input_file, input_setup):
 
     if input_file == "009.json":
         assert len(space_planner.solutions_collector.solutions) == 69
-        assert len(best_solutions) == 3
-    elif input_file == "012.json":
-        assert len(space_planner.solutions_collector.solutions) == 97
         assert len(best_solutions) == 2
+    elif input_file == "012.json":
+        assert len(space_planner.solutions_collector.solutions) == 95
+        assert len(best_solutions) == 1
 
 
 def test_duplex():
