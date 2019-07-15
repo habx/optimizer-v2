@@ -2,21 +2,24 @@ from typing import (
     TYPE_CHECKING,
     Sequence,
     Tuple,
+    Dict,
     Optional,
-    Dict
-)
+    Callable)
+from libs.plan.fitting import (fit_along_walls,
+                               fit_in_corners,
+                               fit_in_center)
 from libs.plan.category import SpaceCategory, SPACE_CATEGORIES, LinearCategory, LINEAR_CATEGORIES
 from libs.io.plot import plot_polygon
 from libs.utils.geometry import (ccw_angle,
                                  unit,
-                                 barycenter,
                                  rotate,
                                  minimum_rotated_rectangle,
                                  polygons_collision,
                                  polygon_border_collision,
                                  polygon_linestring_collision,
                                  move_point,
-                                 rectangle)
+                                 rectangle,
+                                 centroid)
 
 if TYPE_CHECKING:
     from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
@@ -49,13 +52,17 @@ class Garnisher:
                 if item.category == category and item.variant == variant:
                     # order is applied in space
                     for name in furniture_names:
+                        placed = False
                         possible_furnitures = [Furniture(category)
                                                for category in FURNITURE_CATALOG[name]
                                                if not is_prm or category.is_prm]
                         for furniture in possible_furnitures:
-                            # TODO: map functions to furnitures
-                            if fit_bed(furniture, space):
-                                plan.furnitures.setdefault(space, []).append(furniture)
+                            for func in furniture.category.fitting:
+                                if func(furniture, space):
+                                    placed = True
+                                    plan.furnitures.setdefault(space, []).append(furniture)
+                                    break
+                            if placed:
                                 break
 
 
@@ -67,19 +74,25 @@ class FurnitureCategory:
                  polygon: 'ListCoords2d',
                  is_prm: bool,
                  required_space: 'ListCoords2d',
+                 fitting: [Callable],
                  color: str = 'black'):
         """
         :param name:
-        :param polygon: polygon of the furniture
-        :param is_prm: ok for a prm room
-        :param required_space: poltgon of the furniture + space around
+        :param polygon: polygon of the furniture: ref point at 0,0: all ys should be > 0, shape
+        should be symmetric along y axis
+        :param is_prm: is ok for a prm room
+        :param required_space: polygon of the furniture + space around
+        :param fitting: functions used to fit it, starting with the most appropriate ones
+        :param color: color to show it
         """
         self.name = name
         self.polygon = polygon
         self.is_prm = is_prm
         self.required_space = required_space
+        self.fitting = fitting
         self.color = color
         FurnitureCategory.BY_NAME[name] = self
+        self.vect_to_centroid = centroid(polygon)
 
 
 class Furniture:
@@ -203,28 +216,73 @@ FURNITURE_CATALOG = {
     "single_bed": (FurnitureCategory("single_bed_1",
                                      ((-45, 0), (45, 0), (45, 190), (-45, 190)),
                                      False,
-                                     ((-105, 0), (45, 0), (45, 250), (-105, 250))),
+                                     ((-105, 0), (45, 0), (45, 250), (-105, 250)),
+                                     [fit_along_walls, fit_in_corners, fit_in_center]),
                    FurnitureCategory("single_bed_1",
                                      ((-45, 0), (45, 0), (45, 190), (-45, 190)),
                                      False,
-                                     ((-45, 0), (105, 0), (105, 250), (-45, 250))),),
+                                     ((-45, 0), (105, 0), (105, 250), (-45, 250)),
+                                     [fit_along_walls, fit_in_corners, fit_in_center]),),
     "double_bed": (FurnitureCategory("double_bed",
                                      ((-70, 0), (70, 0), (70, 190), (-70, 190)),
                                      False,
-                                     ((-130, 0), (130, 0), (130, 250), (-130, 250))),
+                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)),
+                                     [fit_along_walls, fit_in_corners, fit_in_center]),
                    FurnitureCategory("double_bed_pmr_1",
                                      ((-70, 0), (70, 0), (70, 190), (-70, 190)),
                                      True,
-                                     ((-160, 0), (160, 0), (160, 310), (-160, 310))),
+                                     ((-160, 0), (160, 0), (160, 310), (-160, 310)),
+                                     [fit_along_walls, fit_in_corners, fit_in_center]),
                    FurnitureCategory("double_bed_pmr_2",
                                      ((-70, 0), (70, 0), (70, 190), (-70, 190)),
                                      True,
-                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)))),
+                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)),
+                                     [fit_along_walls, fit_in_corners, fit_in_center])),
     "bathtub": (FurnitureCategory("bathtub",
                                   ((-90, 0), (90, 0), (90, 80), (-90, 80)),
                                   True,
                                   ((-90, 0), (90, 0), (90, 80), (-90, 80)),
-                                  color='blue'),)
+                                  [fit_in_corners, fit_along_walls, fit_in_center],
+                                  color='blue'),),
+    "toilet_seat": (FurnitureCategory("toilet_seat",
+                                      ((-28, 0), (28, 0), (28, 32), (27.46, 37.46), (24.7, 45.2),
+                                       (19.8, 51.8), (13.2, 56.7), (5.46, 59.46), (-2.7, 59.9),
+                                       (-10.7, 57.9), (-17.8, 53.7), (-23.3, 47.5), (-26.8, 40.1),
+                                       (-28, 32)),
+                                      True,
+                                      ((-45, 0), (45, 0), (45, 130), (-45, 130)),
+                                      [fit_in_corners, fit_along_walls, fit_in_center],
+                                      color='blue'),),
+    "table": (FurnitureCategory("table",
+                                ((100.0, 100.0),
+                                 (86.60254037844389, 50.00000000000004),
+                                 (50.000000000000085, 13.39745962155618),
+                                 (1.3934999695075554e-13, 0.0),
+                                 (-49.99999999999983, 13.397459621556024),
+                                 (-86.60254037844373, 49.99999999999978),
+                                 (-100.0, 99.99999999999967),
+                                 (-86.60254037844406, 149.99999999999966),
+                                 (-50.00000000000034, 186.60254037844368),
+                                 (-4.624589118372728e-13, 200.0),
+                                 (49.999999999999545, 186.60254037844413),
+                                 (86.60254037844356, 150.0000000000005),
+                                 (100.0, 100.0)),
+                                True,
+                                ((100.0, 100.0),
+                                 (86.60254037844389, 50.00000000000004),
+                                 (50.000000000000085, 13.39745962155618),
+                                 (1.3934999695075554e-13, 0.0),
+                                 (-49.99999999999983, 13.397459621556024),
+                                 (-86.60254037844373, 49.99999999999978),
+                                 (-100.0, 99.99999999999967),
+                                 (-86.60254037844406, 149.99999999999966),
+                                 (-50.00000000000034, 186.60254037844368),
+                                 (-4.624589118372728e-13, 200.0),
+                                 (49.999999999999545, 186.60254037844413),
+                                 (86.60254037844356, 150.0000000000005),
+                                 (100.0, 100.0)),
+                                [fit_in_center, fit_along_walls, fit_in_corners],
+                                color='brown'),)
 }
 
 GARNISHERS = {
@@ -234,78 +292,30 @@ GARNISHERS = {
         (SPACE_CATEGORIES["bedroom"], "m", ("double_bed",), False),
         (SPACE_CATEGORIES["bedroom"], "l", ("double_bed",), True),
         (SPACE_CATEGORIES["bedroom"], "xl", ("double_bed",), True),
-        # (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
-        # (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
-        # (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
-        # (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
-        # (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
+
+        (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
+        (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
+
+        (SPACE_CATEGORIES["toilet"], "xs", ("toilet_seat",), False),
+        (SPACE_CATEGORIES["toilet"], "s", ("toilet_seat",), False),
+        (SPACE_CATEGORIES["toilet"], "m", ("toilet_seat",), False),
+        (SPACE_CATEGORIES["toilet"], "l", ("toilet_seat",), False),
+        (SPACE_CATEGORIES["toilet"], "xl", ("toilet_seat",), False),
+
+        (SPACE_CATEGORIES["livingKitchen"], "xs", ("table",), False),
+        (SPACE_CATEGORIES["livingKitchen"], "s", ("table",), False),
+        (SPACE_CATEGORIES["livingKitchen"], "m", ("table",), False),
+        (SPACE_CATEGORIES["livingKitchen"], "l", ("table",), False),
+        (SPACE_CATEGORIES["livingKitchen"], "xl", ("table",), False),
+
+        (SPACE_CATEGORIES["living"], "xs", ("table",), False),
+        (SPACE_CATEGORIES["living"], "s", ("table",), False),
+        (SPACE_CATEGORIES["living"], "m", ("table",), False),
+        (SPACE_CATEGORIES["living"], "l", ("table",), False),
+        (SPACE_CATEGORIES["living"], "xl", ("table",), False),
+
     ])
 }
-
-
-def fit_bed(bed: Furniture, space: 'Space') -> bool:
-    """
-    Move furniture to fit in space, designed especially for bed.
-    :return:
-    """
-    window_edges = [component.edge
-                    for component in space.immutable_components()
-                    if isinstance(component.category, LinearCategory)
-                    and component.category.window_type]
-    space_perimeter = space.perimeter
-
-    # init loop
-    aligned_edges = space.aligned_siblings(space.edge)
-    initial_edge = aligned_edges[0]
-    start_edge = None
-    possibilities = []
-    # find all possibilities
-    while start_edge is not initial_edge:
-        start_edge = aligned_edges[0]
-        end_edge = aligned_edges[-1]
-
-        # compute perimeter percentage
-        length = start_edge.start.distance_to(end_edge.end)
-        perimeter_proportion = length / space_perimeter
-
-        # score each line
-        no_window = True
-        for edge in window_edges:
-            if edge in aligned_edges:
-                # at least one window on the line
-                no_window = False
-                break
-        possibilities.append({
-            "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
-            "ref_vect": start_edge.normal,
-            "score": perimeter_proportion * 100 + no_window * 100
-        })
-        for i in range(1, 5):
-            possibilities.append({
-                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
-                                        0.5 - (0.1 * i)),
-                "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - i + no_window * 100
-            })
-            possibilities.append({
-                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
-                                        0.5 + (0.1 * i)),
-                "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - i + no_window * 100
-            })
-
-        # prepare next loop
-        aligned_edges = space.aligned_siblings(space.next_edge(end_edge))
-        start_edge = aligned_edges[0]
-
-    # sort possibilites
-    possibilities.sort(key=lambda p: p["score"], reverse=True)
-
-    # try all possibilites
-    for possibility in possibilities:
-        bed.ref_vect = possibility["ref_vect"]
-        bed.ref_point = possibility["ref_point"]
-        if bed.check_validity(space):
-            return True
-
-    return False
