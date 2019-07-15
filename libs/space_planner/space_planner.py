@@ -9,7 +9,6 @@ and a customer input setup
 import logging
 from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
-from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
@@ -148,6 +147,7 @@ class SpacePlanner:
         """
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
         self.spec = self.solutions_collector.spec_without_circulation
+
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "026.json"
+        input_file = "013.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
