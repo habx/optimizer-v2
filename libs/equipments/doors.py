@@ -160,6 +160,7 @@ def place_doors(plan: 'Plan'):
         """
         place necessary doors on _space border
         :param _space:
+        :param _door_graph:
         :return:
         """
 
@@ -178,6 +179,7 @@ def place_doors(plan: 'Plan'):
 
         for opening_space in list_opening_spaces:
             if not _door_graph.node_connected(_space.id):
+                #places a door only if _space does not open on another space already
                 _door_graph.add_edge(opening_space.id, _space.id)
                 place_door_between_two_spaces(_space, opening_space)
 
@@ -185,6 +187,7 @@ def place_doors(plan: 'Plan'):
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area)
 
+    #graph containin infos on doors set
     door_graph = GraphNx()
     for mutable_space in mutable_spaces:
         door_graph.add_node(mutable_space.id)
