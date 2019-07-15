@@ -178,8 +178,8 @@ def place_doors(plan: 'Plan'):
             list_opening_spaces = space_selection_rules["default_non_circulation"](_space)
 
         for opening_space in list_opening_spaces:
-            if not _door_graph.node_connected(_space.id):
-                #places a door only if _space does not open on another space already
+            if not _door_graph.has_path(_space.id, opening_space.id):
+                # places a door only if _space has not been connected already
                 _door_graph.add_edge(opening_space.id, _space.id)
                 place_door_between_two_spaces(_space, opening_space)
 
@@ -187,7 +187,7 @@ def place_doors(plan: 'Plan'):
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area)
 
-    #graph containin infos on doors set
+    # graph containin infos on doors set
     door_graph = GraphNx()
     for mutable_space in mutable_spaces:
         door_graph.add_node(mutable_space.id)
