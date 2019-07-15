@@ -1393,6 +1393,7 @@ def min_perimeter_length(manager: 'ConstraintsManager',
         adjacency_sum = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * manager.space_and_perimeter_adjacency_length[j]
                                                   for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         ct = (adjacency_sum >= min_length[item.category.name])
+    ct = or_no_space_constraint(manager, item, ct)
     return ct
 
 def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
