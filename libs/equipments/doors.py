@@ -71,11 +71,15 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
 
     entrances = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['entrance']]
+    if entrances and space.category.circulation:
+        return entrances
     if entrances:
         return [entrances[0]]
 
     corridors = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['circulation']]
+    if corridors and space.category.circulation:
+        return corridors
     if corridors:
         return [corridors[0]]
 
