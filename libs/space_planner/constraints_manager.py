@@ -49,7 +49,7 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
-SEARCH_SOLUTIONS_LIMIT = 10
+SEARCH_SOLUTIONS_LIMIT = 1000
 
 
 class ConstraintSolver:
@@ -1713,7 +1713,7 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [inside_adjacency_constraint, {}],
         [graph_constraint, {}],
         [area_graph_constraint, {}],
-        #[distance_constraint, {}],
+        [distance_constraint, {}],
         [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
