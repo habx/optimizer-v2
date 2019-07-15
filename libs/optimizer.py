@@ -337,18 +337,18 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "paris-mon18_A1604_blueprint.json",
-            "paris-mon18_A1604_setup.json",
+            "france-confort_A1E0H01.json",
+            "france-confort_A1E0H01_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_corridor": False,
-                "do_refiner":False,
+                "do_corridor": True,
+                "do_refiner":True,
                 "max_nb_solutions": 3,
-                "do_door": False,
+                "do_door": True,
                 "do_final_scoring": True,
-                "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
+                #"ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
