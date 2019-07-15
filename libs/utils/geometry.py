@@ -172,6 +172,14 @@ def barycenter(point_1: Coords2d, point_2: Coords2d, coeff: float) -> Coords2d:
     return x_coord, y_coord
 
 
+def centroid(polygon: ListCoords2d) -> Coords2d:
+    """
+    Returns the centroid of polygon
+    :param polygon:
+    :return:
+    """
+    return Polygon(polygon).centroid.coords[0]
+
 def previous(item: Any, list_items: Sequence) -> Any:
     """
     Returns the previous item in a list
@@ -424,7 +432,7 @@ def minimum_rotated_rectangle(polygon: ListCoords2d) -> FourCoords2d:
 
 def polygons_collision(poly_1: ListCoords2d,
                        poly_2: ListCoords2d,
-                       tolerance:float=0) -> bool:
+                       tolerance: float = 0) -> bool:
     """
     Return true if polygons are colliding, given the input tolerance
     :param poly_1:
@@ -434,9 +442,10 @@ def polygons_collision(poly_1: ListCoords2d,
     """
     return Polygon(poly_1).buffer(-tolerance).intersects(Polygon(poly_2))
 
+
 def polygon_border_collision(polygon: ListCoords2d,
                              border: ListCoords2d,
-                             tolerance:float=0) -> bool:
+                             tolerance: float = 0) -> bool:
     """
     Return true if polygon collides border, given the input tolerance
     :param polygon:
@@ -446,9 +455,10 @@ def polygon_border_collision(polygon: ListCoords2d,
     """
     return Polygon(polygon).buffer(-tolerance).intersects(LinearRing(border))
 
+
 def polygon_linestring_collision(polygon: ListCoords2d,
                                  linestring: ListCoords2d,
-                                 tolerance:float=0) -> bool:
+                                 tolerance: float = 0) -> bool:
     """
     Return true if polygon collides linestring, given the input tolerance
     :param polygon:
@@ -457,6 +467,7 @@ def polygon_linestring_collision(polygon: ListCoords2d,
     :return:
     """
     return Polygon(polygon).buffer(-tolerance).intersects(LineString(linestring))
+
 
 def circle_line_intersection(line_start: Coords2d,
                              line_stop: Coords2d,
@@ -482,6 +493,7 @@ def circle_line_intersection(line_start: Coords2d,
     # compute c-c' distance and compare with radius
     return ((c_x - (a_x + dist * vec_x)) ** 2 + (c_y - (a_y + dist * vec_y)) ** 2) ** 0.5 <= radius
 
+
 def bottleneck(polygon: ListCoords2d, tolerance: float) -> bool:
     """
     Return True if polygon contains a bottleneck tighter than the input tolerence.
@@ -490,7 +502,7 @@ def bottleneck(polygon: ListCoords2d, tolerance: float) -> bool:
     :return:
     """
 
-    lines = [((polygon[i-1][0], polygon[i-1][1]), (polygon[i][0], polygon[i][1]))
+    lines = [((polygon[i - 1][0], polygon[i - 1][1]), (polygon[i][0], polygon[i][1]))
              for i in range(len(polygon))]
     for coord in polygon:
         intersections = [circle_line_intersection(line[0], line[1], coord, tolerance)
@@ -500,3 +512,11 @@ def bottleneck(polygon: ListCoords2d, tolerance: float) -> bool:
                 if intersection and (not intersections[i - 1])]) > 1:
             return True
     return False
+
+
+def distance_point_border(point: Coords2d, border: ListCoords2d) -> float:
+    return Point(point).distance(LinearRing(border))
+
+
+def is_inside(point: Coords2d, polygon: ListCoords2d) -> bool:
+    return Polygon(polygon).contains(Point(point))
