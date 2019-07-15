@@ -12,6 +12,7 @@ from shapely import geometry
 from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES, \
     LinearOrientation
 from libs.io.plot import plot_save
+from libs.utils.graph import GraphNx
 
 from libs.utils.geometry import (
     parallel,
@@ -71,12 +72,12 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
     entrances = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['entrance']]
     if entrances:
-        return entrances
+        return [entrances[0]]
 
     corridors = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['circulation']]
     if corridors:
-        return corridors
+        return [corridors[0]]
 
     return [adjacent_circulation_spaces[0]]
 
@@ -155,7 +156,7 @@ def place_doors(plan: 'Plan'):
     :return:
     """
 
-    def _open_space(_space: 'Space'):
+    def _open_space(_space: 'Space', _door_graph: 'GraphNx'):
         """
         place necessary doors on _space border
         :param _space:
@@ -176,14 +177,20 @@ def place_doors(plan: 'Plan'):
             list_opening_spaces = space_selection_rules["default_non_circulation"](_space)
 
         for opening_space in list_opening_spaces:
-            place_door_between_two_spaces(_space, opening_space)
+            if not _door_graph.node_connected(_space.id):
+                _door_graph.add_edge(opening_space.id, _space.id)
+                place_door_between_two_spaces(_space, opening_space)
 
     # treat mutable spaces in ascending area order - smallest spaces are are the most constrained
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area)
 
+    door_graph = GraphNx()
     for mutable_space in mutable_spaces:
-        _open_space(mutable_space)
+        door_graph.add_node(mutable_space.id)
+
+    for mutable_space in mutable_spaces:
+        _open_space(mutable_space, door_graph)
 
 
 ###############################################
