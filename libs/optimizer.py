@@ -297,7 +297,6 @@ class Optimizer:
                     if params.save_ll_bp:
                         save_plan_as_json(sol.spec.plan.serialize(), f"garnisher sol {i+1}",
                                           libs.io.plot.output_path)
-                    sol.spec.plan.plot(name=f"Garnisher {name} {i+1} doors")
         elapsed_times["garnisher"] = time.process_time() - t0_garnisher
         logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
 
@@ -333,65 +332,29 @@ class Optimizer:
 
 
 if __name__ == '__main__':
-    """
-    Useful simple main
-    """
-    logging.getLogger().setLevel(logging.INFO)
-    executor = Optimizer()
-    names = (
-        '031',
-        '033',
-        '013',
-        '043',
-        '018',
-        '015',
-        '047',
-        '048',
-        '009',
-        '039',
-        '053',
-        '055',
-        '058',
-        '036',
-        '019',
-        '060',
-        '062',
-        '011',
-        '003',
-        '045',
-        '012',
-        '017',
-        '004',
-        '054',
-        '037',
-        '046',
-        '021',
-        '035',
-        '001',
-        '026',
-        '024',
-        '034',
-        '028',
-        '059',
-    )
-    for name in names:
+    def main():
+        """
+        Useful simple main
+        """
+        logging.getLogger().setLevel(logging.INFO)
+        executor = Optimizer()
         response = executor.run_from_file_names(
-            f"{name}.json",
-            f"{name}_setup0.json",
+            "paris-mon18_A1604_blueprint.json",
+            "paris-mon18_A1604_setup.json",
             {
-                "do_plot": False,
-                "do_garnisher": True,
-                "do_refiner": False,
-                "do_corridor": True,
-                "do_door": True,
+                "grid_type": "002",
+                "seeder_type": "directional_seeder",
+                "do_plot": True,
+                "do_corridor": False,
+                "do_refiner":False,
                 "max_nb_solutions": 3,
-                "refiner_params": {"ngen": 80,
-                                   "mu": 80,
-                                   "cxpb": 0.9,
-                                   "max_tries": 10,
-                                   "elite": 0.1,
-                                   "processes": 1}
+                "do_door": False,
+                "do_final_scoring": True,
+                "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
         logging.info("Nb solutions: %i", len(response.solutions))
+
+
+    main()
