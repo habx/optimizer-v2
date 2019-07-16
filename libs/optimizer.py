@@ -339,8 +339,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "france-confort_A1E0H01.json",
-            "france-confort_A1E0H01_setup0.json",
+            "france-confort_A4E0H01.json",
+            "france-confort_A4E0H01_setup2.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
