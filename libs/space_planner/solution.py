@@ -204,7 +204,7 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
             if space.category.name == "circulation" and circulation_item:
                 solution.spec.add_item(circulation_item)
                 solution.space_item[space] = circulation_item
-            else:
+            elif space.category.name == "circulation":
                 size_min = Size(area=0)
                 size_max = Size(area=0)
                 new_item = Item(SPACE_CATEGORIES["circulation"], "m", size_min,
