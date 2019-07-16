@@ -261,9 +261,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
-                    # specification update
-                    spec_adaptation(sol, space_planner.solutions_collector)
+                    REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"refiner sol {i + 1}")
                     if params.save_ll_bp:
@@ -340,10 +338,10 @@ if __name__ == '__main__':
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_corridor": False,
-                "do_refiner":False,
+                "do_corridor": True,
+                "do_refiner":True,
                 "max_nb_solutions": 3,
-                "do_door": False,
+                "do_door": True,
                 "do_final_scoring": True,
                 "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
