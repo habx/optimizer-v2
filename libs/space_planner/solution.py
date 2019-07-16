@@ -384,42 +384,42 @@ class Solution:
                         distance += 1
         return distance
 
-    def distance(self, other_solution: 'Solution') -> float:
-        """
-        Distance with an other solution
-        the distance is calculated from the groups of rooms day and night
-        the inversion of two rooms within the same group gives a zero distance
-        :return: distance : float
-        """
-        # Day group
-        day_list = ["livingKitchen", "living", "kitchen", "dining"]
-        # Night group
-        night_list = ["bedroom", "bathroom", "toilet", "laundry", "wardrobe", "study", "misc"]
-
-        difference_area = 0
-        mesh_area = 0
-        for floor in self.spec.plan.floors.values():
-            for face in floor.mesh.faces:
-                space = self.spec.plan.get_space_of_face(face)
-                # Note: sometimes a few faces of the mesh will no be assigned to a space
-                if not space:
-                    logging.warning("Solution: A face of the mesh "
-                                    "has no assigned space: %s - floor: %s", face, floor)
-                    continue
-                if space.category.mutable:
-                    mesh_area += face.cached_area
-                    other_space = other_solution.spec.plan.get_space_of_face(face)
-                    if ((space.category.name in day_list and
-                         other_space.category.name not in day_list) or
-                            (space.category.name in night_list and
-                             other_space.category.name not in night_list)):
-                        difference_area += face.cached_area
-
-        if difference_area < 18 * SQM:
-            distance = 0
-        else:
-            distance = difference_area * 100 / mesh_area
-        return distance
+    # def distance(self, other_solution: 'Solution') -> float:
+    #     """
+    #     Distance with an other solution
+    #     the distance is calculated from the groups of rooms day and night
+    #     the inversion of two rooms within the same group gives a zero distance
+    #     :return: distance : float
+    #     """
+    #     # Day group
+    #     day_list = ["livingKitchen", "living", "kitchen", "dining"]
+    #     # Night group
+    #     night_list = ["bedroom", "bathroom", "toilet", "laundry", "wardrobe", "study", "misc"]
+    #
+    #     difference_area = 0
+    #     mesh_area = 0
+    #     for floor in self.spec.plan.floors.values():
+    #         for face in floor.mesh.faces:
+    #             space = self.spec.plan.get_space_of_face(face)
+    #             # Note: sometimes a few faces of the mesh will no be assigned to a space
+    #             if not space:
+    #                 logging.warning("Solution: A face of the mesh "
+    #                                 "has no assigned space: %s - floor: %s", face, floor)
+    #                 continue
+    #             if space.category.mutable:
+    #                 mesh_area += face.cached_area
+    #                 other_space = other_solution.spec.plan.get_space_of_face(face)
+    #                 if ((space.category.name in day_list and
+    #                      other_space.category.name not in day_list) or
+    #                         (space.category.name in night_list and
+    #                          other_space.category.name not in night_list)):
+    #                     difference_area += face.cached_area
+    #
+    #     if difference_area < 18 * SQM:
+    #         distance = 0
+    #     else:
+    #         distance = difference_area * 100 / mesh_area
+    #     return distance
 
 def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') -> Solution:
     """
