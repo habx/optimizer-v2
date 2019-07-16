@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
     from libs.plan.plan import Space, Floor
+    from libs.space_planner.solution import Solution
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
@@ -33,30 +34,36 @@ def compose(funcs: List[scoreFunc],
     :param ind:
     :return:
     """
-    mutable_spaces_id = {space.id for space in spec.plan.mutable_spaces()}
-    output = {k: tuple(d.get(k, None) for d in (f(spec, ind) for f in funcs))
-              for k in mutable_spaces_id}
-    return output
+    current_fitness = ind.fitness.sp_values
+    scores = [f(spec, ind) for f in funcs]
+    spaces_id = [s.id for s in ind.mutable_spaces()]
+    n_scores = len(funcs)
+
+    for space_id in spaces_id:
+        new_space_fitness = [None] * n_scores
+        for i in range(n_scores):
+            if space_id in scores[i]:
+                new_space_fitness[i] = scores[i][space_id]
+            else:
+                new_space_fitness[i] = current_fitness[space_id][i]
+        current_fitness[space_id] = tuple(new_space_fitness)
+
+    ind.modified_spaces = set()  # reset the set of the modified spaces
+    return current_fitness
 
 
-def create_item_dict(_spec: 'Specification') -> Dict[int, Optional['Item']]:
+def create_item_dict(_solution: 'Solution') -> Dict[int, Optional['Item']]:
     """
     Creates a 1-to-1 dict between spaces and items of the specification
-    :param _spec:
+    :param _solution:
     :return:
     """
     output = {}
-    spec_items = _spec.items[:]
-    for sp in _spec.plan.mutable_spaces():
-        corresponding_items = list(filter(lambda i: i.category is sp.category, spec_items))
-        # Note : corridors have no corresponding spec item
-        best_item = min(corresponding_items,
-                        key=lambda i: math.fabs(i.required_area - sp.cached_area()), default=None)
-        if sp.category is not SPACE_CATEGORIES["circulation"]:
-            assert best_item, "Score: Each space should have a corresponding item in the spec"
-        output[sp.id] = best_item
-        if best_item is not None:
-            spec_items.remove(best_item)
+    for space in _solution.spec.plan.mutable_spaces():
+        if space.category == SPACE_CATEGORIES["circulation"]:
+            output[space.id] = None
+        else:
+            output[space.id] = _solution.space_item[space]
     return output
 
 
@@ -69,10 +76,11 @@ def _score_space_area(space_area: float, min_area: float, max_area: float) -> fl
     :return:
     """
     sp_score = 0
-    if space_area < min_area:
-        sp_score = (((min_area - space_area) / min_area) ** 2) * 100
-    elif space_area > max_area:
-        sp_score = (((space_area - max_area) / max_area) ** 2) * 100
+    if min_area != 0 and space_area < min_area:
+        # note: worse to be smaller
+        sp_score = (((min_area - space_area) / min_area) ** 2) * 100 * 3.0
+    elif max_area != 0 and space_area > max_area:
+        sp_score = (((space_area - max_area) / max_area) ** 2) * 100.0
     return sp_score
 
 
@@ -103,9 +111,7 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         if space.id not in ind.modified_spaces:
             continue
         if space.category is SPACE_CATEGORIES["circulation"]:
-            # area_score[space.id] = _score_space_area(space.cached_area(),
-            # min_circulation_size, min_circulation_size) / 10.0
-            area_score[space.id] = 0
+            area_score[space.id] = 0.0
             continue
         item = space_to_item[space.id]
         space_area = space.cached_area()
@@ -134,7 +140,7 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
             score[space.id] = 0.0
             continue
         # score[space.id] = number_of_corners(space)
-        score[space.id] = space.number_of_corners() - 4.0
+        score[space.id] = max(space.number_of_corners() - 4.0, 0)
         if space.has_holes:
             score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
     return score
@@ -211,10 +217,15 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     :param ind:
     :return:
     """
-    excluded_spaces = (SPACE_CATEGORIES["circulation"],)
+    excluded_spaces = ()
     score = {}
     min_aspect_ratio = 16
     for space in ind.mutable_spaces():
+        if space.category is SPACE_CATEGORIES["circulation"]:
+            box = space.bounding_box()
+            width = min(box)
+            score[space.id] = _score_space_area(width, 90.0, 110.0)
+            continue
         if space.id not in ind.modified_spaces:
             continue
         if space.category in excluded_spaces:
@@ -259,6 +270,9 @@ def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, 
                 score[space.id] = ((circulation_min_width - min(box))/circulation_min_width) * 10
             elif circulation_max_width < min(box):
                 score[space.id] = ((min(box) - circulation_max_width) / circulation_max_width)
+            continue
+        if min(box) == 0.:
+            logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
             continue
         space_ratio = max(box)/min(box)
         ratio = ratios.get(space.category.name, ratios["default"])
@@ -363,13 +377,13 @@ def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, 
     )
 
     for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
         if not space.edge:
             score[space.id] = 0.0
             continue
         if space.category not in circulation_categories:
             score[space.id] = 0.0
-            continue
-        if space.id not in ind.modified_spaces:
             continue
         polygon = space.boundary_polygon()
         width = min_section(polygon)
@@ -386,16 +400,16 @@ UTILITY Function
 """
 
 
-def check(ind: 'Individual', spec: 'Specification') -> None:
+def check(ind: 'Individual', solution: 'Solution') -> None:
     """
     Compares the plan area with the specification objectives
     :param ind:
-    :param spec:
+    :param solution:
     :return:
     """
     logging.info("Refiner: Checking Plan : %s", ind.name)
 
-    item_dict = create_item_dict(spec)
+    item_dict = create_item_dict(solution)
     for space in ind.mutable_spaces():
         if space.id not in item_dict:
             continue

@@ -8,7 +8,7 @@ import math
 import logging
 import uuid
 from operator import attrgetter, itemgetter
-from typing import Optional, Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
+from typing import Tuple, List, Sequence, Generator, Callable, Dict, Union, Optional
 import enum
 
 from shapely.geometry.polygon import Polygon
@@ -969,6 +969,7 @@ class Edge(MeshComponent):
             yield edge
             edge = edge.next
 
+    # noinspection PyUnreachableCode
     @property
     def reverse_siblings(self) -> Generator['Edge', 'Edge', None]:
         """
@@ -979,12 +980,14 @@ class Edge(MeshComponent):
         yield self
         edge = self.previous
         # in order to detect infinite loop we stored each yielded edge
-        seen = []
+        if __debug__:
+            seen = []
         while edge is not self:
-            if edge in seen:
-                raise Exception('Infinite loop' +
-                                ' starting from edge:{0}'.format(self))
-            seen.append(edge)
+            if __debug__:
+                if edge in seen:
+                    raise Exception('Infinite loop' +
+                                    ' starting from edge:{0}'.format(self))
+                seen.append(edge)
             yield edge
             edge = edge.previous
 
@@ -1977,7 +1980,8 @@ class Face(MeshComponent):
         except StopIteration:
             return False
 
-    def siblings(self, min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
+    def siblings(self,
+                 min_adjacency_length: Optional[float] = None) -> Generator['Face', 'Edge', None]:
         """
         Returns all adjacent faces and itself
         :param min_adjacency_length:
@@ -1990,10 +1994,12 @@ class Face(MeshComponent):
             for edge in self.edges:
                 if (edge.pair.face is not None and edge.pair.face not in seen
                         and edge.length >= min_adjacency_length):
+                    seen.append(edge.pair.face)
                     yield edge.pair.face
         else:
             for edge in self.edges:
                 if edge.pair.face is not None and edge.pair.face not in seen:
+                    seen.append(edge.pair.face)
                     yield edge.pair.face
 
     def is_adjacent(self, other: 'Face') -> bool:
@@ -3586,6 +3592,7 @@ class Mesh:
             return True
 
         current = faces[0]
+        faces = set(faces)
         parent = {current: None}
         while current:
             for f in current.siblings(min_adjacency_length):
@@ -3600,4 +3607,4 @@ class Mesh:
             else:
                 current = parent[current]
 
-        return len(parent) < len(faces)
+        return len(parent) == len(faces)

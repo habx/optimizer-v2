@@ -10,6 +10,7 @@ CATEGORIES_COLORS = {
     'loadBearingWall': 'k',
     'window': '#FFCB19',
     'doorWindow': '#FFCB19',
+    'door': 'green',
     'frontDoor': 'r',
     'empty': 'b',
     'space': 'b',

@@ -9,12 +9,12 @@ and a customer input setup
 import logging
 from typing import List, Optional, Dict
 from libs.specification.specification import Specification, Item
-from libs.specification.size import Size
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
 from libs.space_planner.constraints_manager import ConstraintsManager
 from libs.plan.category import SPACE_CATEGORIES
 import libs.io.writer as writer
+from copy import deepcopy
 
 SQM = 10000
 
@@ -34,93 +34,6 @@ class SpacePlanner:
         output = "SpacePlanner" + self.name
         return output
 
-    def _init_spec(self, spec: 'Specification') -> None:
-        """
-        change reader specification :
-        living + kitchen : opensOn --> livingKitchen
-        area convergence
-        :return: None
-        """
-        space_planner_spec = Specification('SpacePlannerSpecification', spec.plan)
-        spec.plan.mesh.compute_cache()
-
-        # entrance
-        size_min = Size(area=2 * SQM)
-        size_max = Size(area=5 * SQM)
-        new_item = Item(SPACE_CATEGORIES["entrance"], "s", size_min, size_max)
-        space_planner_spec.add_item(new_item)
-        living_kitchen = False
-
-        for item in spec.items:
-            if item.category.name == "circulation":
-                if spec.typology > 2:
-                    size_min = Size(area=(max(0,(spec.typology - 2)*3*SQM - 1*SQM)))
-                    size_max = Size(area=(max(0,(spec.typology - 2)*3*SQM + 1*SQM)))
-                    new_item = Item(SPACE_CATEGORIES["circulation"], item.variant, size_min,
-                                    size_max)
-                    space_planner_spec.add_item(new_item)
-            elif((item.category.name != "living" or "kitchen" not in item.opens_on) and
-                    (item.category.name != "kitchen" or len(item.opens_on) == 0)):
-                space_planner_spec.add_item(item)
-            elif item.category.name == "living" and "kitchen" in item.opens_on:
-                kitchens = spec.category_items("kitchen")
-                for kitchen_item in kitchens:
-                    if "living" in kitchen_item.opens_on:
-                        size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
-                        size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                        #opens_on = item.opens_on.remove("kitchen")
-                        new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
-                                        size_max, item.opens_on, item.linked_to)
-                        space_planner_spec.add_item(new_item)
-                        living_kitchen = True
-
-        category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
-                              "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                              "circulation"]
-        space_planner_spec.init_id(category_name_list)
-
-        # area
-        invariant_categories = ["entrance", "wc", "bathroom", "laundry", "wardrobe"]
-        #invariant_categories = ["entrance"]
-
-        # area - without circulation
-        # invariant_area = sum(item.required_area for item in space_planner_spec.items
-        #                      if item.category.name in invariant_categories)
-        # circulation_area = sum(item.required_area for item in space_planner_spec.items
-        #                      if item.category.name == 'circulation')
-        # coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
-        #     item.required_area for item in space_planner_spec.items if
-        #     (item.category.name not in invariant_categories
-        #      and item.category.name != 'circulation'))))
-        #
-        # for item in space_planner_spec.items:
-        #     if (item.category.name not in invariant_categories
-        #             and item.category.name != 'circulation'):
-        #         item.min_size.area = round(item.min_size.area * coeff)
-        #         item.max_size.area = round(item.max_size.area * coeff)
-
-        # area - with circulation
-        invariant_area = sum(item.required_area for item in space_planner_spec.items
-                             if item.category.name in invariant_categories)
-        coeff = (int(space_planner_spec.plan.indoor_area - invariant_area) / int(sum(
-            item.required_area for item in space_planner_spec.items if
-            item.category.name not in invariant_categories)))
-
-        for item in space_planner_spec.items:
-            if living_kitchen:
-                if "living" in item.opens_on:
-                    item.opens_on.remove("living")
-                    item.opens_on.append("livingKitchen")
-            if item.category.name not in invariant_categories:
-                item.min_size.area = round(item.min_size.area * coeff)
-                item.max_size.area = round(item.max_size.area * coeff)
-
-        logging.debug("SP - PLAN AREA : %i", int(space_planner_spec.plan.indoor_area))
-        logging.debug("SP - Setup AREA : %i", int(sum(item.required_area
-                                                      for item in space_planner_spec.items)))
-
-        self.spec = space_planner_spec
-
     def _plan_cleaner(self, min_area: float = 100) -> None:
         """
         Plan cleaner for little spaces
@@ -134,50 +47,75 @@ class SpacePlanner:
             if space.cached_area() < min_area:
                 self.spec.plan.remove(space)
 
-    def _rooms_building(self, plan: 'Plan', matrix_solution) -> ('Plan', Dict['Item', 'Space']):
+    def _rooms_building(self, plan: 'Plan',i: int, matrix_solution) -> ('Plan', Dict['Item', 'Space']):
         """
         Builds the rooms requested in the specification from the matrix and seed spaces.
         :param: plan
         :param: matrix_solution
         :return: built plan
         """
-        dict_items_spaces = {}
-        for i_item, item in enumerate(self.spec.items):
+        new_spec = deepcopy(self.solutions_collector.spec_with_circulation)
+        dict_space_item = {}
+        for i_item, item in enumerate(new_spec.items):
             item_space = []
-            for j_space, space in enumerate(plan.mutable_spaces()):
-                if matrix_solution[i_item][j_space] == 1:
-                    space.category = item.category
-                    item_space.append(space)
-            dict_items_spaces[item] = item_space
+            if item.category.name != "circulation":
+                for j_space, space in enumerate(plan.mutable_spaces()):
+                    if matrix_solution[i_item][j_space] == 1:
+                        space.category = item.category
+                        item_space.append(space)
+                dict_space_item[item] = item_space
 
-        dict_items_space = {}
-        for item in self.spec.items:
-            item_space = dict_items_spaces[item]
-            if len(item_space) > 1:
-                space_ini = item_space[0]
-                item_space.remove(item_space[0])
-                i = 0
-                iter_max = len(item_space) ** 2
-                while (len(item_space) > 0) and i < iter_max:
-                    i += 1
-                    for space in item_space:
-                        if space.adjacent_to(space_ini):
-                            item_space.remove(space)
-                            space_ini.merge(space)
-                            plan.remove_null_spaces()
-                            break
-                dict_items_space[item] = space_ini
-            else:
-                if item_space:
-                    dict_items_space[item] = item_space[0]
+        # circulation case :
+        for j_space, space in enumerate(plan.mutable_spaces()):
+            if space.category.name == "seed":
+                space.category = SPACE_CATEGORIES["circulation"]
+
+        # To know the space associated with the item
+        space_item = {}
+        for item in new_spec.items:
+            if item.category.name != "circulation":
+                item_space = dict_space_item[item]
+                if len(item_space) > 1:
+                    space_ini = item_space[0]
+                    item_space.remove(item_space[0])
+                    i = 0
+                    iter_max = len(item_space) ** 2
+                    while (len(item_space) > 0) and i < iter_max:
+                        i += 1
+                        for space in item_space:
+                            if space.adjacent_to(space_ini):
+                                item_space.remove(space)
+                                space_ini.merge(space)
+                                plan.remove_null_spaces()
+                                break
+                    space_item[space_ini] = item
+                elif len(item_space) == 1:
+                    if item_space:
+                        space_item[item_space[0]] = item
 
         # OPT-72: If we really want to enable it, it should be done through some execution context
         # parameters.
         # assert plan.check()
 
-        return plan, dict_items_space
+        solution_spec = Specification('Solution' + str(i) + 'Specification', plan)
+        for current_item in new_spec.items:
+            if current_item not in space_item.values():
+                # entrance case
+                if current_item.category.name == "entrance":
+                    for space, item in space_item.items():
+                        if "frontDoor" in space.components_category_associated():
+                            item.min_size.area += current_item.min_size.area
+                            item.max_size.area += current_item.max_size.area
 
-    def solution_research(self, show=False) -> Optional[List['Solution']]:
+        for item in new_spec.items:
+            if item in space_item.values():
+                solution_spec.add_item(item)
+
+        solution_spec.plan.mesh.compute_cache()
+
+        return solution_spec, space_item
+
+    def solution_research(self, show=False):
         """
         Looks for all possible solutions then find the three best solutions
         :return: None
@@ -194,14 +132,12 @@ class SpacePlanner:
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     plan_solution = self.spec.plan.clone()
-                    plan_solution, dict_items_spaces = self._rooms_building(plan_solution, sol)
-                    self.solutions_collector.add_solution(plan_solution, dict_items_spaces)
-                    logging.debug(plan_solution)
+                    solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
+                    self.solutions_collector.add_solution(solution_spec, dict_space_item)
+                    logging.debug(solution_spec.plan)
                     #plan_solution.plot()
                     if show:
                         plan_solution.plot()
-
-        return []
 
     def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
         """
@@ -210,19 +146,20 @@ class SpacePlanner:
         :param max_nb_solutions
         :return: SolutionsCollector
         """
-        self._init_spec(spec)
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.spec = self.solutions_collector.spec_without_circulation
+
+        self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
 
         self.manager = ConstraintsManager(self)
 
-        self.solutions_collector = SolutionsCollector(self.spec, max_nb_solutions)
-
         self.solution_research()
 
-        best_solutions = self.solutions_collector.results()
+        self.solutions_collector.space_planner_best_results()
 
-        return best_solutions
+        return self.solutions_collector.best_solutions
 
 
 standard_space_planner = SpacePlanner("standard")
@@ -253,7 +190,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "001.json"
+        input_file = "061.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
@@ -262,7 +199,7 @@ if __name__ == '__main__':
         plan.plot()
         print(plan)
 
-        GRIDS['001'].apply_to(plan)
+        GRIDS['002'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
         print("SEEDER")
         print(plan)
@@ -278,25 +215,27 @@ if __name__ == '__main__':
 
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
-
+        print("mutables spaces area",
+              sum([space.area for space in spec.plan.spaces if space.mutable]))
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
         #print(spec)
-        best_solutions = space_planner.apply_to(spec, 5)
+        best_solutions = space_planner.apply_to(spec, 3)
         #print(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
-        # print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
-        # print("Setup AREA : %i", int(sum(item.required_area for item in space_planner.spec.items)))
-        # logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
-        #                                              for item in space_planner.spec.items)))
-        # logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
-        #                                              for item in space_planner.spec.items)))
-        # plan_ratio = round(space_planner.spec.plan.indoor_perimeter
-        #                    ** 2 / space_planner.spec.plan.indoor_area)
-        # print("PLAN Ratio : %i", plan_ratio)
-        print("space_planner time : ", time.process_time() - t0)
-        print("number of constraint prog solutions : ", len(space_planner.solutions_collector.solutions))
+        print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        print("Setup AREA : %i",
+                      int(sum(item.required_area for item in space_planner.spec.items)))
+        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
+                                                     for item in space_planner.spec.items)))
+        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
+                                                     for item in space_planner.spec.items)))
+        plan_ratio = round(space_planner.spec.plan.indoor_perimeter
+                           ** 2 / space_planner.spec.plan.indoor_area)
+        logging.debug("PLAN Ratio : %i", plan_ratio)
+        logging.debug("space_planner time : ", time.process_time() - t0)
+        logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
         logging.debug(best_solutions)
 
@@ -305,9 +244,9 @@ if __name__ == '__main__':
             print("number of solutions : ",
                   len(best_solutions))
             for sol in best_solutions:
-                sol.plan.plot()
-                logging.debug(sol, sol.score)
-                for space in sol.plan.mutable_spaces():
+                sol.spec.plan.plot()
+                logging.debug(sol, sol.space_planning_score)
+                for space in sol.spec.plan.mutable_spaces():
                     logging.debug(space.category.name, " : ", space.cached_area())
                 solution_dict = writer.generate_output_dict_from_file(input_file, sol)
                 writer.save_json_solution(solution_dict, sol.id)
@@ -315,8 +254,8 @@ if __name__ == '__main__':
         # shuffle
         # if best_solutions:
         #     for sol in best_solutions:
-        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-        #         sol.plan.plot()
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.spec.plan, show=True)
+        #         sol.spec.plan.plot()
 
         # logging.info("total time : %f", time.process_time() - t00)
         print("total time :", time.process_time() - t00)
@@ -385,13 +324,14 @@ if __name__ == '__main__':
         logging.debug(best_solutions)
 
         # Output
-        for sol in best_solutions:
-            sol.plan.plot()
-            logging.debug(sol, sol.score)
-            for space in sol.plan.mutable_spaces():
-                logging.debug(space.category.name, " : ", space.cached_area())
-            solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-            writer.save_json_solution(solution_dict, sol.id)
+        if best_solutions:
+            for sol in best_solutions:
+                sol.spec.plan.plot()
+                logging.debug(sol, sol.space_planning_score)
+                for space in sol.spec.plan.mutable_spaces():
+                    logging.debug(space.category.name, " : ", space.cached_area())
+                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
+                writer.save_json_solution(solution_dict, sol.id)
 
         logging.debug("total time :", time.process_time() - t00)
 

@@ -1,0 +1,315 @@
+{
+  "samples": [
+    {
+      "blueprint": "001.json",
+      "setup": "001_setup0.json",
+      "slug": "001_0"
+    },
+    {
+      "blueprint": "002.json",
+      "setup": "002_setup0.json",
+      "slug": "002_0"
+    },
+    {
+      "blueprint": "003.json",
+      "setup": "003_setup0.json",
+      "slug": "003_0"
+    },
+    {
+      "blueprint": "004.json",
+      "setup": "004_setup0.json",
+      "slug": "004_0"
+    },
+    {
+      "blueprint": "005.json",
+      "setup": "005_setup0.json",
+      "slug": "005_0"
+    },
+    {
+      "blueprint": "006.json",
+      "setup": "006_setup0.json",
+      "slug": "006_0"
+    },
+    {
+      "blueprint": "007.json",
+      "setup": "007_setup0.json",
+      "slug": "007_0"
+    },
+    {
+      "blueprint": "008.json",
+      "setup": "008_setup0.json",
+      "slug": "008_0"
+    },
+    {
+      "blueprint": "009.json",
+      "setup": "009_setup0.json",
+      "slug": "009_0"
+    },
+    {
+      "blueprint": "010.json",
+      "setup": "010_setup0.json",
+      "slug": "010_0"
+    }, 
+    {
+      "blueprint": "011.json",
+      "setup": "011_setup0.json",
+      "slug": "011_0"
+    },
+    {
+      "blueprint": "012.json",
+      "setup": "012_setup0.json",
+      "slug": "012_0"
+    },
+    {
+      "blueprint": "013.json",
+      "setup": "013_setup0.json",
+      "slug": "013_0"
+    },
+    {
+      "blueprint": "014.json",
+      "setup": "014_setup0.json",
+      "slug": "014_0"
+    },
+    {
+      "blueprint": "015.json",
+      "setup": "015_setup0.json",
+      "slug": "015_0"
+    },
+    {
+      "blueprint": "016.json",
+      "setup": "016_setup0.json",
+      "slug": "016_0"
+    },
+    {
+      "blueprint": "017.json",
+      "setup": "017_setup0.json",
+      "slug": "017_0"
+    },
+    {
+      "blueprint": "018.json",
+      "setup": "018_setup0.json",
+      "slug": "018_0"
+    },
+    {
+      "blueprint": "019.json",
+      "setup": "019_setup0.json",
+      "slug": "019_0"
+    },
+    {
+      "blueprint": "020.json",
+      "setup": "020_setup0.json",
+      "slug": "020_0"
+    },
+    {
+      "blueprint": "021.json",
+      "setup": "021_setup0.json",
+      "slug": "021_0"
+    },
+    {
+      "blueprint": "022.json",
+      "setup": "022_setup0.json",
+      "slug": "022_0"
+    },
+    {
+      "blueprint": "023.json",
+      "setup": "023_setup0.json",
+      "slug": "023_0"
+    },
+    {
+      "blueprint": "024.json",
+      "setup": "024_setup0.json",
+      "slug": "024_0"
+    },
+    {
+      "blueprint": "025.json",
+      "setup": "025_setup0.json",
+      "slug": "025_0"
+    },
+    {
+      "blueprint": "026.json",
+      "setup": "026_setup0.json",
+      "slug": "026_0"
+    },
+    {
+      "blueprint": "027.json",
+      "setup": "027_setup0.json",
+      "slug": "027_0"
+    },
+    {
+      "blueprint": "028.json",
+      "setup": "028_setup0.json",
+      "slug": "028_0"
+    },
+    {
+      "blueprint": "029.json",
+      "setup": "029_setup0.json",
+      "slug": "029_0"
+    },
+    {
+      "blueprint": "030.json",
+      "setup": "030_setup0.json",
+      "slug": "030_0"
+    },
+    {
+      "blueprint": "031.json",
+      "setup": "031_setup0.json",
+      "slug": "031_0"
+    },
+    {
+      "blueprint": "032.json",
+      "setup": "032_setup0.json",
+      "slug": "032_0"
+    },
+    {
+      "blueprint": "033.json",
+      "setup": "033_setup0.json",
+      "slug": "033_0"
+    },
+    {
+      "blueprint": "034.json",
+      "setup": "034_setup0.json",
+      "slug": "034_0"
+    },
+    {
+      "blueprint": "035.json",
+      "setup": "035_setup0.json",
+      "slug": "035_0"
+    },
+    {
+      "blueprint": "036.json",
+      "setup": "036_setup0.json",
+      "slug": "036_0"
+    },
+    {
+      "blueprint": "037.json",
+      "setup": "037_setup0.json",
+      "slug": "037_0"
+    },
+    {
+      "blueprint": "038.json",
+      "setup": "038_setup0.json",
+      "slug": "038_0"
+    },
+    {
+      "blueprint": "039.json",
+      "setup": "039_setup0.json",
+      "slug": "039_0"
+    },
+    {
+      "blueprint": "040.json",
+      "setup": "040_setup0.json",
+      "slug": "040_0"
+    },
+    {
+      "blueprint": "041.json",
+      "setup": "041_setup0.json",
+      "slug": "041_0"
+    },
+    {
+      "blueprint": "042.json",
+      "setup": "042_setup0.json",
+      "slug": "042_0"
+    },
+    {
+      "blueprint": "043.json",
+      "setup": "043_setup0.json",
+      "slug": "043_0"
+    },
+    {
+      "blueprint": "044.json",
+      "setup": "044_setup0.json",
+      "slug": "044_0"
+    },
+    {
+      "blueprint": "045.json",
+      "setup": "045_setup0.json",
+      "slug": "045_0"
+    },
+    {
+      "blueprint": "046.json",
+      "setup": "046_setup0.json",
+      "slug": "046_0"
+    },
+    {
+      "blueprint": "047.json",
+      "setup": "047_setup0.json",
+      "slug": "047_0"
+    },
+    {
+      "blueprint": "048.json",
+      "setup": "048_setup0.json",
+      "slug": "048_0"
+    },
+    {
+      "blueprint": "049.json",
+      "setup": "049_setup0.json",
+      "slug": "049_0"
+    },
+    {
+      "blueprint": "050.json",
+      "setup": "050_setup0.json",
+      "slug": "050_0"
+    },
+    {
+      "blueprint": "051.json",
+      "setup": "051_setup0.json",
+      "slug": "051_0"
+    },
+    {
+      "blueprint": "052.json",
+      "setup": "052_setup0.json",
+      "slug": "052_0"
+    },
+    {
+      "blueprint": "053.json",
+      "setup": "053_setup0.json",
+      "slug": "053_0"
+    },
+    {
+      "blueprint": "054.json",
+      "setup": "054_setup0.json",
+      "slug": "054_0"
+    },
+    {
+      "blueprint": "055.json",
+      "setup": "055_setup0.json",
+      "slug": "055_0"
+    },
+    {
+      "blueprint": "056.json",
+      "setup": "056_setup0.json",
+      "slug": "056_0"
+    },
+    {
+      "blueprint": "057.json",
+      "setup": "057_setup0.json",
+      "slug": "057_0"
+    },
+    {
+      "blueprint": "058.json",
+      "setup": "058_setup0.json",
+      "slug": "058_0"
+    },
+    {
+      "blueprint": "059.json",
+      "setup": "059_setup0.json",
+      "slug": "059_0"
+    },
+    {
+      "blueprint": "060.json",
+      "setup": "060_setup0.json",
+      "slug": "060_0"
+    },
+    {
+      "blueprint": "061.json",
+      "setup": "061_setup0.json",
+      "slug": "061_0"
+    },
+    {
+      "blueprint": "062.json",
+      "setup": "062_setup0.json",
+      "slug": "062_0"
+    }
+    ],
+  "slug": "full_request"
+}

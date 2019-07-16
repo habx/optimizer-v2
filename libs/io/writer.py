@@ -33,13 +33,18 @@ def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None
         json.dump(data, fp, sort_keys=True, indent=2)
 
 
-def save_plan_as_json(data: Dict, file_name: Optional[str] = None):
+def save_plan_as_json(data: Dict,
+                      file_name: Optional[str] = None,
+                      output_folder: Optional[str] = None):
     """
     Saves the serialized plan as a json
     :param data: the serialized data
     :param file_name: the name of the file (without the extension)
     """
-    save_as_json(data, reader.DEFAULT_PLANS_OUTPUT_FOLDER, file_name)
+    output_folder = output_folder or reader.DEFAULT_PLANS_OUTPUT_FOLDER
+    if file_name is not None and file_name[-5:] != ".json":
+        file_name += ".json"
+    save_as_json(data, output_folder, file_name)
 
 
 def save_mesh_as_json(data: Dict, name: Optional[str] = None):
@@ -70,12 +75,53 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
     apt_infos = output_data_v2["aptInfos"]
     vertices_max_id = 0
     room_max_id = 0
+    door_max_id = 0
+
+    # doors : add linear and related points
+    for i, room in enumerate(solution.spec.plan.mutable_spaces()):
+        doors = [lin for lin in solution.spec.plan.linears if
+                 room.has_linear(lin) and lin.category.name is 'door']
+        if not doors:
+            continue
+        for door in doors:
+            door_edges = [e for e in door.edges]
+            door_start = door_edges[0].start
+            door_end = door_edges[-1].end
+            door_length = sum([e.length for e in door_edges])
+            linear_dict = {
+                "id": int("90" + str(door_max_id)),
+                "category": 'door',
+                "geometry": [int("50" + str(vertices_max_id)),
+                             int("50" + str(vertices_max_id + 1))],
+                "length": door_length,
+                "orientation": str(door.orientation.value)
+            }
+            output_data_v2["linears"].append(linear_dict)
+            start_door_point = {
+                "id": int("50" + str(vertices_max_id)),
+                "x": door_start.x,
+                "y": door_start.y
+            }
+            points.append(start_door_point)
+            vertices_max_id += 1
+            end_door_point = {
+                "id": int("50" + str(vertices_max_id)),
+                "x": door_end.x,
+                "y": door_end.y
+            }
+            points.append(end_door_point)
+            vertices_max_id += 1
+            for floor in floors:
+                if floor["level"] == door.floor.level:
+                    floor["elements"].append(int("90" + str(door_max_id)))
+                    door_max_id += 1
+                    break
 
     for space in spaces:
         if space["category"] == "empty":
             space["category"] = "border"
 
-    for i, room in enumerate(solution.plan.mutable_spaces()):
+    for i, room in enumerate(solution.spec.plan.mutable_spaces()):
         room_max_id += 1
         room_dict = {
             "area": room.area,
@@ -84,6 +130,7 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             "id": int("70" + str(room_max_id))}
 
         for i_ref, ref_edge in enumerate(room.reference_edges):
+            # double loop for holes management
             room_dict["geometry"].append([])
             for edge in room.siblings(ref_edge):
                 vertices_max_id += 1
@@ -101,7 +148,8 @@ def generate_output_dict(input_data: dict, solution: Solution) -> dict:
             if floor["level"] == room.floor.level:
                 floor["elements"].append(int("70" + str(room_max_id)))
 
-    apt_infos["score"] = solution.score
+    apt_infos["score"] = solution.final_score
+    apt_infos["score_components"] = solution.final_score_components
 
     return {"v2": output_data_v2}
 

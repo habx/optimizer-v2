@@ -2,7 +2,7 @@
 Cache Module
 Get a previously cached plan or compute it
 """
-from typing import TYPE_CHECKING, Tuple, Optional
+from typing import Optional
 import logging
 
 import libs.io.writer as writer
@@ -10,20 +10,17 @@ from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 import libs.io.reader as reader
-from libs.plan.plan import Plan
-from libs.modelers.corridor import Corridor
-
-if TYPE_CHECKING:
-    from libs.specification.specification import Specification
+from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
+from libs.space_planner.solution import Solution
 
 
-def get_plan(plan_name: str = "001",
-             spec_name: str = "0",
-             solution_number: int = 0,
-             grid: str = "optimal_grid",
-             seeder: str = "simple_seeder",
-             do_circulation: bool = False,
-             max_nb_solutions: int = 3) -> Tuple['Specification', Optional['Plan']]:
+def get_solution(plan_name: str = "001",
+                 spec_name: str = "0",
+                 solution_number: int = 0,
+                 grid: str = "optimal_grid",
+                 seeder: str = "simple_seeder",
+                 do_circulation: bool = False,
+                 max_nb_solutions: int = 3) -> 'Solution':
     """
     Returns a specification and the corresponding solution plan
     :param plan_name: The name of the file of the plan blueprint source
@@ -37,42 +34,37 @@ def get_plan(plan_name: str = "001",
     """
 
     spec_file_name = plan_name + "_setup" + spec_name + ".json"
-    plan_file_name = (plan_name + "_solution_" + str(solution_number)
-                      + "_" + grid + "_" + seeder +
-                      ("_circulation" if do_circulation else "") + ".json")
+    solution_file_name = (plan_name + "_solution_" + str(solution_number)
+                          + "_" + grid + "_" + seeder +
+                          ("_circulation" if do_circulation else "") + ".json")
     try:
-        return _retrieve_from_cache(plan_file_name, spec_file_name)
+        return _retrieve_solution_from_cache(solution_file_name)
 
     except FileNotFoundError:
 
-        return _compute_from_start(plan_name, spec_file_name,
-                                   solution_number, grid, seeder, do_circulation, max_nb_solutions)
+        return _compute_solution_from_start(plan_name, spec_file_name,
+                                            solution_number, grid, seeder, do_circulation,
+                                            max_nb_solutions)
 
 
-def _retrieve_from_cache(plan_file_name: str,
-                         spec_file_name: str) -> Tuple['Specification', 'Plan']:
+def _retrieve_solution_from_cache(solution_file_name: str) -> 'Solution':
     """
     Retrieves a specification and a plan instances from cached serialized data
-    :param plan_file_name:
-    :param spec_file_name:
+    :param solution_file_name:
     :return:
     """
-    plan_name = plan_file_name[0:len(plan_file_name)-6]
-    new_serialized_data = reader.get_plan_from_json(plan_file_name)
-    plan = Plan(plan_name).deserialize(new_serialized_data)
-    spec_dict = reader.get_json_from_file(spec_file_name, reader.DEFAULT_PLANS_OUTPUT_FOLDER)
-    spec = reader.create_specification_from_data(spec_dict, "new")
-    spec.plan = plan
-    return spec, plan
+    new_serialized_data = reader.get_plan_from_json(solution_file_name)
+    solution = Solution.deserialize(new_serialized_data)
+    return solution
 
 
-def _compute_from_start(plan_name: str,
-                        spec_file_name: str,
-                        solution_number: int,
-                        grid: str,
-                        seeder: str,
-                        do_circulation: bool,
-                        max_nb_solutions: int) -> Tuple['Specification', Optional['Plan']]:
+def _compute_solution_from_start(plan_name: str,
+                                 spec_file_name: str,
+                                 solution_number: int,
+                                 grid: str,
+                                 seeder: str,
+                                 do_circulation: bool,
+                                 max_nb_solutions: int) -> Optional['Solution']:
     """
     Computes the plan and the spec file directly from the input json
     :param plan_name:
@@ -83,19 +75,11 @@ def _compute_from_start(plan_name: str,
     :param do_circulation:
     :return:
     """
-    corridor_params = {
-        "layer_width": 25,
-        "nb_layer": 5,
-        "recursive_cut_length": 400,
-        "width": 100,
-        "penetration_length": 90,
-        "layer_cut": False
-    }
+    corridor_building_rule = CORRIDOR_BUILDING_RULES["no_cut"]
 
-    folder = reader.DEFAULT_PLANS_OUTPUT_FOLDER
-    plan_file_name = (plan_name + "_solution_" + str(solution_number)
-                      + "_" + grid + "_" + seeder +
-                      ("_circulation" if do_circulation else "") + ".json")
+    solution_file_name = (plan_name + "_solution_" + str(solution_number)
+                          + "_" + grid + "_" + seeder +
+                          ("_circulation" if do_circulation else "") + ".json")
 
     plan = reader.create_plan_from_file(plan_name + ".json")
     spec = reader.create_specification_from_file(spec_file_name)
@@ -105,7 +89,6 @@ def _compute_from_start(plan_name: str,
     spec.plan = plan
     space_planner = SPACE_PLANNERS["standard_space_planner"]
     best_solutions = space_planner.apply_to(spec, max_nb_solutions)
-    new_spec = space_planner.spec
 
     if best_solutions:
         # make sure the solution number is correct
@@ -115,16 +98,14 @@ def _compute_from_start(plan_name: str,
                          "retrieving solution n°%i", num_solutions - 1)
             solution_number = num_solutions - 1
         solution = best_solutions[solution_number]
-        plan = solution.plan
-        new_spec.plan = plan
         if do_circulation:
-            Corridor(corridor_rules=corridor_params).apply_to(plan)
-        writer.save_plan_as_json(plan.serialize(), plan_file_name)
-        writer.save_as_json(new_spec.serialize(), folder, spec_file_name)
-        return new_spec, plan
+            Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
+                     growth_method=corridor_building_rule["growth_method"]).apply_to(solution)
+        writer.save_plan_as_json(solution.serialize(), solution_file_name)
+        return solution
     else:
         logging.info("No solution for this plan")
-        return spec, None
+        return None
 
 
-__all__ = ('get_plan',)
+__all__ = ('get_solution',)

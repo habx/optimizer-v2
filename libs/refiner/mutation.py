@@ -61,7 +61,7 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
     """
     space = _random_space(ind)
     if not space:
-        logging.info("Mutation: no space selected %s", ind)
+        logging.debug("Refiner: Mutation: no space selected %s", ind)
         return ind
 
     item = ind.fitness.cache.get("space_to_item", None)[space.id]
@@ -84,7 +84,10 @@ def composite(mutations_pbx: MutationTuple, ind: 'Individual') -> 'Individual':
             ind.modified_spaces |= {s.id for s in modified_spaces}
             break
     else:
-        logging.info("Refiner: No mutation occurred")
+        logging.debug("Refiner: Mutation: No mutation occurred")
+
+    if not ind.modified_spaces:
+        logging.debug("Refiner: Mutation: No mutation occurred")
 
     return ind
 
@@ -136,26 +139,24 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
-    # retrieve all the aligned edges
+    # retrieve all the aligned edges pairs and their space
     spaces_and_edges = map(lambda _e: (space.plan.get_space_of_edge(_e.pair), _e.pair),
                            space.aligned_siblings(edge, max_angle))
     # group edges by spaces
     edges_by_spaces = defaultdict(set)
     for other, _edge in spaces_and_edges:
-        if other is None:
+        if other is None or not other.mutable:
             continue
         edges_by_spaces[other].add(_edge)
 
     modified_spaces = [space]
     for other in edges_by_spaces:
-        if not other.mutable:
-            continue
 
         # remove all edges that have a needed linear for the space
         for e in edges_by_spaces[other].copy():
@@ -168,6 +169,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
                 edges_by_spaces[other].remove(e)
 
         if not edges_by_spaces[other]:
+            logging.debug("Refiner: Mutation: No more edges for space %s", other)
             continue
 
         # check if we are breaking the space if we remove the faces
@@ -175,6 +177,9 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
         faces = set(e.face for e in edges_by_spaces[other])
         if other.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
             continue
+
+        logging.debug("Mutation: Adding aligned edges %s to space %s from % s",
+                      edges_by_spaces[other], space, other)
 
         faces_id = [f.id for f in faces]
         space.add_face_id(*faces_id)
@@ -197,7 +202,7 @@ def add_face(space: 'Space') -> List['Space']:
     """
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -207,7 +212,7 @@ def add_face(space: 'Space') -> List['Space']:
 
     # check we can actually remove the face
     if not other_space or not other_space.mutable:
-        logging.info("No other space %s", space)
+        logging.debug("Refiner: Mutation: No other space %s", space)
         return []
 
     if other_space.number_of_faces == 1:
@@ -222,12 +227,12 @@ def add_face(space: 'Space') -> List['Space']:
     if other_space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
-    logging.debug("Mutation: Adding face %s to space %s and removing it from space %s", face, space,
-                  other_space)
+    logging.debug("Refiner: Mutation: Adding face %s to space %s and removing it from space %s",
+                  face, space, other_space)
 
-    created_spaces = other_space.remove_face(face)
+    other_space.remove_face(face)
     space.add_face(face)
-    return [space] + list(created_spaces)
+    return [space, other_space]
 
 
 def remove_aligned_faces(space: 'Space') -> List['Space']:
@@ -242,7 +247,7 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -264,37 +269,34 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
             edges.remove(edge)
 
     if not edges:
-        logging.info("No more edges %s", space)
+        logging.debug("No more edges %s", space)
         return []
 
-    logging.debug("Removing aligned edges : %s from space %s", edges, space)
+    logging.debug("refiner: Mutation: Removing aligned edges : %s from space %s", edges, space)
 
-    modified_spaces = [space]
     faces_by_spaces = defaultdict(set)
     faces = set(list(e.face for e in edges))
+    remaining_faces = set()
 
     for edge in edges:
         other = plan.get_space_of_edge(edge.pair)
         if other is None or not other.mutable and edge.face in faces:
-            faces.remove(edge.face)
             continue
-        # NOTE : we must add back a face that was removed because one of its edge was not adjacent
-        # to a mutable space but has another edge that is adjacent
-        if edge.face not in faces:
-            faces.add(edge.face)
+        remaining_faces.add(edge.face)
+        faces_by_spaces[other].add(edge.face)  # Note : a face can be linked to 2+ spaces
 
-        faces_by_spaces[other].add(edge.face)
-
-    if not faces or space.corner_stone(*faces, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
+    if not faces or space.corner_stone(*remaining_faces):
         return []
 
+    modified_spaces = [space]
     for other in faces_by_spaces:
         if not other.mutable:
             continue
         # Note : a face can be adjacent to multiple other spaces. We must check that the face
         #        has not already been given to another space. This is why we only retain
         #        the intersection of the identified faces set with the remaining faces of the space
-        faces_id = set(map(lambda f: f.id, faces_by_spaces[other])) & set(space._faces_id)
+        faces_id = set(map(lambda f: f.id,
+                           faces_by_spaces[other])).intersection(space.faces_id)
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces
@@ -323,7 +325,7 @@ def remove_face(space: 'Space') -> List['Space']:
 
     mutable_edges = _mutable_edges(space)
     if not mutable_edges:
-        logging.info("No mutable edges %s", space)
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
         return []
     edge = random.choice(mutable_edges)
 
@@ -331,7 +333,7 @@ def remove_face(space: 'Space') -> List['Space']:
     face = edge.face
     other_space = plan.get_space_of_edge(edge.pair)
     if not other_space:
-        logging.info("No other space %s", space)
+        logging.debug("Refiner: Mutation: No other space %s", space)
         return []
 
     if _has_needed_linear(edge, space):
@@ -343,13 +345,13 @@ def remove_face(space: 'Space') -> List['Space']:
     if space.corner_stone(face, min_adjacency_length=MIN_ADJACENCY_EDGE_LENGTH):
         return []
 
-    logging.debug("Mutation: Removing face %s of space %s and adding it to space %s", face, space,
-                  other_space)
+    logging.debug("Refiner: Mutation: Removing face %s of space %s and adding it to space %s", face,
+                  space, other_space)
 
-    created_spaces = space.remove_face(face)
+    space.remove_face(face)
     other_space.add_face(face)
 
-    return [other_space] + list(created_spaces)
+    return [other_space, space]
 
 
 """
@@ -361,6 +363,7 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     TODO : number of linears (example : living or bedroom if small windows)
+    TODO : for duplex add starting step linear to circulation
     :param edge:
     :param space:
     :return:
@@ -383,8 +386,15 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
 
     for _edge in edge.face.edges:
         linear = space.plan.get_linear_from_edge(_edge)
+        # Note : enable to keep only one needed linear
         if linear and linear.category in needed_linears:
-            return True
+            for other_edge in space.exterior_edges:
+                other_linear = space.plan.get_linear_from_edge(other_edge)
+                if (other_linear and other_linear is not linear
+                        and other_linear.category in needed_linears):
+                    break
+            else:
+                return True
     return False
 
 

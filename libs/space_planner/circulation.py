@@ -29,6 +29,7 @@ DirectionsDict = Dict[int, Dict['Edge', float]]
 ScoreArea = Optional[Callable[[float, float, float], float]]
 
 CORRIDOR_WIDTH = 90
+PENALTY = 1000
 
 
 class PathInfo:
@@ -547,6 +548,7 @@ class Circulator:
             computes the area of each space amputated when a corridor of the path grows on it
             TODO : we should also check the depth of the space to ensure we will not split
                    the space in half by creating the corridor
+            adds penalty if the growth would separate a duct from a water room that needs it
             :param area_space:
             :param path_line:
             :param pair:
@@ -554,13 +556,32 @@ class Circulator:
             :param _score_function
             :return:
             """
+
+            def _needs_duct(_sp: 'Space'):
+                """
+                checks if space needs a duct
+                :param _sp:
+                :return:
+                """
+                if list(needed_space for needed_space in _sp.category.needed_spaces if
+                        needed_space.name == 'duct'):
+                    return True
+                return False
+
+            spaces_requiring_ducts = [s for s in self.plan.spaces if s.mutable and _needs_duct(s)]
+
             score = 0
-
             path_line_selected = [e.pair for e in path_line] if pair else path_line
-
             for e in path_line_selected:
                 sp = self.plan.get_space_of_edge(e)
                 area_space[sp] -= e.length * CORRIDOR_WIDTH
+                if sp in spaces_requiring_ducts:
+                    sp_duct_edges_after_growth = [d_e for d_e in sp.edges if
+                                                  d_e.pair in self.plan.category_edges('duct')
+                                                  and d_e not in e.face.edges]
+                    if not sp_duct_edges_after_growth:
+                        # water room separated from its only duct
+                        score += PENALTY
 
             for sp in area_space:
                 item = (space_item_dict[sp.id] if space_item_dict
@@ -834,7 +855,7 @@ if __name__ == '__main__':
         best_solutions, space_planner = duplex()
 
         for solution in best_solutions:
-            circulator = Circulator(plan=solution.plan, spec=space_planner.spec)
+            circulator = Circulator(plan=solution.spec.plan, spec=space_planner.spec)
             circulator.connect()
             circulator.plot()
 

@@ -255,7 +255,8 @@ class Individual(Plan):
                             "will be overwritten. Consider deleting previous "
                             "creation of that class or rename it.".format(alias))
 
-        custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class})
+        custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class,
+                                                   "FloorType": UnwatchedFloor})
         globals()[alias] = custom_class  # needed for pickling
         return custom_class
 
@@ -301,13 +302,14 @@ class Individual(Plan):
 
         return ax
 
-    def clone(self, name: str = "") -> 'Individual':
+    def clone(self, name: str = "", custom_class: Optional[type] = None) -> 'Individual':
         """
         Creates a clone copy of *self*
         :param name:
+        :param custom_class:
         :return:
         """
-        new_plan = super().clone()
+        new_plan = super().clone(custom_class=type(self))
         new_ind = type(self)(new_plan)
         new_ind.fitness = copy.deepcopy(self.fitness)
         new_ind.modified_spaces = self.modified_spaces.copy()
@@ -343,14 +345,14 @@ class Individual(Plan):
         return self.clone()
 
 
-cloneFunc = Callable[['Individual'], 'Individual']
-mapFunc = Callable[[Callable[[Any], Any], Iterator[Any]], Iterator[Any]]
-selectFunc = Callable[[List['Individual'], int], List['Individual']]
-mateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
-evaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
-mutateFunc = Callable[['Individual'], 'Individual']
-populateFunc = Callable[[Optional['Individual'], int], List['Individual']]
-mateMutateFunc = Callable[[Tuple['Individual', 'Individual']], Tuple['Individual', 'Individual']]
+CloneFunc = Callable[['Individual'], 'Individual']
+MapFunc = Callable[[Callable[[Any], Any], Iterator[Any], int], Iterator[Any]]
+SelectFunc = Callable[[List['Individual'], int], List['Individual']]
+MateFunc = Callable[['Individual', 'Individual'], Tuple['Individual', 'Individual']]
+EvaluateFunc = Callable[['Individual'], Dict[int, Tuple[float, ...]]]
+MutateFunc = Callable[['Individual'], 'Individual']
+PopulateFunc = Callable[[Optional['Individual'], int], List['Individual']]
+MateMutateFunc = Callable[[Tuple['Individual', 'Individual']], Tuple['Individual', 'Individual']]
 
 
 def _standard_clone(i: Individual) -> Individual:
@@ -385,15 +387,15 @@ class Toolbox:
 
     def __init__(self):
         # operators
-        self.clone: cloneFunc = _standard_clone
-        self.map: mapFunc = map
-        self.mate:  Optional[mateFunc] = None
-        self.select: Optional[selectFunc] = None
-        self.elite_select: Optional[selectFunc] = None
-        self.evaluate: Optional[evaluateFunc] = None
-        self.mutate: Optional[mutateFunc] = None
-        self.populate: Optional[populateFunc] = None
-        self.mate_and_mutate: Optional[mateMutateFunc] = None
+        self.clone: CloneFunc = _standard_clone
+        self.map: MapFunc = lambda f, p, _: map(f, p)
+        self.mate:  Optional[MateFunc] = None
+        self.select: Optional[SelectFunc] = None
+        self.elite_select: Optional[SelectFunc] = None
+        self.evaluate: Optional[EvaluateFunc] = None
+        self.mutate: Optional[MutateFunc] = None
+        self.populate: Optional[PopulateFunc] = None
+        self.mate_and_mutate: Optional[MateMutateFunc] = None
 
         # base class
         self.individual: Optional[Type['Individual']] = None
@@ -450,9 +452,10 @@ class Toolbox:
         delattr(self, alias)
 
     @staticmethod
-    def evaluate_pop(map_func: mapFunc,
-                     eval_func: evaluateFunc,
-                     pop: Sequence['Individual']) -> None:
+    def evaluate_pop(map_func: MapFunc,
+                     eval_func: EvaluateFunc,
+                     pop: Sequence['Individual'],
+                     chunk_size: int) -> None:
         """
         Evaluates the fitness of a specified population. Note: the method has to be made static
         for multiprocessing purposes.
@@ -460,9 +463,10 @@ class Toolbox:
         :param eval_func: an evaluation function (NOTE: we cannot refer to self.evaluate for
                multiprocessing concerns)
         :param pop: a list of individuals
+        :param chunk_size: size of chunks for ma processes
         :return:
         """
-        fitnesses = map_func(eval_func, pop)
+        fitnesses = map_func(eval_func, pop, chunk_size)
         for ind, fit in zip(pop, fitnesses):
             ind.fitness.update(fit)
             ind.modified_spaces = set()
