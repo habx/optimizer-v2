@@ -303,45 +303,6 @@ class Solution:
 
         return rooms_list
 
-    # def distance(self, other_solution: 'Solution') -> float:
-    #     """
-    #     Distance with an other solution
-    #     the distance is calculated from difference of fixed items distribution
-    #     the inversion of two rooms within the same group gives a zero distance
-    #     :return: distance : float
-    #     """
-    #     window_list = ["livingKitchen", "living", "kitchen", "dining", "bedroom", "study", "misc"]
-    #     duct_list = ["bathroom", "toilet", "laundry", "wardrobe"]
-    #
-    #     distance = 0
-    #     if len(self.space_item) != len(other_solution.space_item):
-    #         distance += 1
-    #     for space, item in self.space_item.items():
-    #         if item not in other_solution.space_item.values():
-    #             continue
-    #         other_solution_space = [o_space for o_space, o_item in other_solution.space_item.items()
-    #                                 if o_item == item][0]
-    #         if not space or not other_solution_space:
-    #             continue
-    #         if item.category.name in window_list:
-    #             for comp in space.cached_immutable_components:
-    #                 if (comp.category.name in ["window", "doorWindow"]
-    #                         and (comp not in other_solution_space.cached_immutable_components)
-    #                         and [other_space for other_space
-    #                              in other_solution.spec.plan.get_spaces()
-    #                              if (comp in other_space.cached_immutable_components
-    #                                  and other_space.category.name == space.category.name)] == []):
-    #                     distance += 1
-    #         elif item.category.name in duct_list:
-    #             for comp in space.cached_immutable_components:
-    #                 if (comp.category.name == "duct"
-    #                         and comp not in other_solution_space.cached_immutable_components
-    #                         and [other_space for other_space
-    #                              in other_solution.spec.plan.get_spaces()
-    #                              if (comp in other_space.cached_immutable_components
-    #                                  and other_space.category.name == space.category.name)] == []):
-    #                     distance += 1
-    #     return distance
     def distance(self, other_solution: 'Solution') -> float:
         """
         Distance with an other solution
