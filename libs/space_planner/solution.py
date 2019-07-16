@@ -173,6 +173,7 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
         for space in solution.spec.plan.mutable_spaces():
             if space.category.name == "circulation":
                 solution.spec.add_item(circulation_item)
+                solution.space_item[space] = circulation_item
 
     # area
     invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
