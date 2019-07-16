@@ -335,17 +335,17 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "france-confort_A4E0H01.json",
-            "france-confort_A4E0H01_setup2.json",
+            "france-confort_A1E0H01.json",
+            "france-confort_A1E0H01_setup3.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
                 "do_corridor": True,
-                "do_refiner":True,
-                "max_nb_solutions": 3,
-                "do_door": True,
-                "do_final_scoring": True,
+                #"do_refiner":True,
+                "max_nb_solutions": 5,
+                #"do_door": True,
+                #"do_final_scoring": True,
                 #"ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
         )

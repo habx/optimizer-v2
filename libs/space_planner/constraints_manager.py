@@ -32,6 +32,8 @@ DAY_ROOMS = ["living", "livingKitchen", "dining", "kitchen", "cellar", "study"]
 PRIVATE_ROOMS = ["bedroom", "study", "bathroom", "laundry", "wardrobe", "entrance", "circulation",
                  "toilet"]
 
+DUCT_ROOMS = ["bathroom", "laundry", "toilet", "kitchen", "livingKitchen"]
+
 WINDOW_CATEGORY = ["window", "doorWindow"]
 
 BIG_VARIANTS = ["m", "l", "xl"]
@@ -326,6 +328,21 @@ class ConstraintsManager:
                         area += (self.solver.positions[item.id, j]
                                    * int(round(component.length * 200)))
             self.item_windows_area[item.id] = area
+
+    def _init_windows_length(self) -> None:
+        """
+        Initialize the length of each window
+        :return:
+        """
+        for item in self.sp.spec.items:
+            length = 0
+            for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+                for component in space.immutable_components():
+                    if (component.category.name == "window"
+                            or component.category.name == "doorWindow"):
+                        length += (self.solver.positions[item.id, j]
+                                   * int(round(component.length / 10)))
+            self.windows_length[item.id] = length
 
     def _init_windows_length(self) -> None:
         """
@@ -1733,6 +1750,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
         [non_isolated_item_constraint, {}],
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": DUCT_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "bathroom": [
         [item_attribution_constraint, {}],
@@ -1743,6 +1762,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
          {"category": ["doorWindow"], "adj": False, "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": DUCT_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "living": [
         [item_attribution_constraint, {}],
@@ -1759,6 +1780,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": True, "addition_rule": "Or"}],
         [item_adjacency_constraint,
          {"item_categories": ("kitchen", "dining"), "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": DUCT_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "dining": [
         [item_attribution_constraint, {}],
@@ -1780,6 +1803,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
         [item_adjacency_constraint,
          {"item_categories": ("living", "dining"), "adj": True, "addition_rule": "Or"}],
+        [item_adjacency_constraint,
+         {"item_categories": DUCT_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "bedroom": [
         [item_attribution_constraint, {}],
@@ -1823,6 +1848,8 @@ HOUSE_GENERAL_ITEMS_CONSTRAINTS = {
          {"category": WINDOW_CATEGORY, "adj": False, "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
+        [item_adjacency_constraint,
+         {"item_categories": DUCT_ROOMS, "adj": True, "addition_rule": "Or"}],
     ]
 }
 
@@ -1880,10 +1907,10 @@ HOUSE_T3_MORE_ITEMS_CONSTRAINTS = {
 
 HOUSE_DUPLEX_CONSTRAINTS = {
     "toilet": [
-        #[multiplex_toilet_repartition_constraint, {}],
+        [multiplex_toilet_repartition_constraint, {}],
     ],
     "bathroom": [
-        #[multiplex_bathroom_repartition_constraint, {}],
+        [multiplex_bathroom_repartition_constraint, {}],
     ],
 
 }
