@@ -261,9 +261,7 @@ class Optimizer:
             logging.info("Refiner")
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
-                    REFINERS[params.refiner_type].apply_to(sol,params.refiner_params)
-                    # specification update
-                    spec_adaptation(sol, space_planner.solutions_collector)
+                    REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"refiner sol {i + 1}")
                     if params.save_ll_bp:

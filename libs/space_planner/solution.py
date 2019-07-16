@@ -15,6 +15,7 @@ from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation
 import logging
 import functools
 import operator
+from copy import deepcopy
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -165,41 +166,28 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
     """
     circulation_spaces = [space for space in solution.spec.plan.mutable_spaces()
                           if space.category.name == "circulation"]
-    circulation_item = [item for item in collector.spec_with_circulation.items
-                        if item.category.name == "circulation"]
-    new_dict = {}
+    circulation_item = deepcopy([item for item in collector.spec_with_circulation.items
+                             if item.category.name == "circulation"][0])
+
     if circulation_spaces:
-        spec = collector.spec_with_circulation
         for space in solution.spec.plan.mutable_spaces():
             if space.category.name == "circulation":
-                new_dict[space] = circulation_item[0]
-            else:
-                new_dict[space] = [item for item in collector.spec_with_circulation.items if
-                                   item.id == solution.space_item[space].id][0]
-    else:
-        spec = collector.spec_without_circulation
-        for space in solution.spec.plan.mutable_spaces():
-            new_dict[space] = [item for item in collector.spec_without_circulation.items if
-                               item.id == solution.space_item[space].id][0]
+                solution.spec.add_item(circulation_item)
 
-    for current_item in spec.items:
-        if current_item not in new_dict.values():
-            # entrance case
-            if current_item.category.name == "entrance":
-                for space, item in new_dict.items():
-                    if "frontDoor" in space.components_category_associated():
-                        item.min_size.area += current_item.min_size.area
-                        item.max_size.area += current_item.max_size.area
+    # area
+    invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
+                            "misc"]
+    invariant_area = sum(item.required_area for item in solution.spec.items
+                         if item.category.name in invariant_categories)
+    mutable_spaces_area = sum([space.cached_area() for space in solution.spec.plan.mutable_spaces()])
+    coeff = (int(mutable_spaces_area - invariant_area) / int(sum(
+        item.required_area for item in solution.spec.items if
+        item.category.name not in invariant_categories)))
 
-    new_spec = Specification(solution.spec.name, solution.spec.plan)
-    item_list = []
-    for item in new_dict.values():
-        if item not in item_list:
-            new_spec.add_item(item)
-            item_list.append(item)
-
-    solution.space_item = new_dict
-    solution.spec = new_spec
+    for item in solution.spec.items:
+        if item.category.name not in invariant_categories:
+            item.min_size.area = round(item.min_size.area * coeff)
+            item.max_size.area = round(item.max_size.area * coeff)
 
 
 class Solution:
