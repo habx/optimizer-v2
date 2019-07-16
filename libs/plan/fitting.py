@@ -128,7 +128,7 @@ if __name__ == '__main__':
     from libs.equipments.doors import place_doors
     from libs.space_planner.solution import spec_adaptation
 
-    BLACKLIST = ("005.json", "022.json", "023.json", "057.json", "006.json", "007.json", "008.json")
+    BLACKLIST = ()
 
     def compute_or_load_plan(input_file: str = "001.json") -> Tuple['Plan', 'Specification']:
         """
@@ -183,7 +183,6 @@ if __name__ == '__main__':
                 return plan, solution.spec
             else:
                 logging.info("No solution for this plan")
-                return None, None
         else:
             plan = Plan(input_file[:-5]).deserialize(new_serialized_data)
             spec_dict = reader.get_json_from_file(spec_file_name + ".json",
