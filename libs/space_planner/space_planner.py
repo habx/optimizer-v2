@@ -212,7 +212,8 @@ if __name__ == '__main__':
 
         print("number of mutables spaces, %i",
                       len([space for space in spec.plan.spaces if space.mutable]))
-
+        print("mutables spaces area",
+              sum([space.area for space in spec.plan.spaces if space.mutable]))
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
         best_solutions = space_planner.apply_to(spec, 3, 4)
