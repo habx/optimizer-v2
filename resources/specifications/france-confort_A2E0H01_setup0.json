@@ -1,0 +1,128 @@
+{
+  "rooms": [
+    {
+      "tags": [],
+      "type": "bathroom",
+      "opensOn": [],
+      "variant": "m",
+      "requiredArea": {
+        "max": 90000,
+        "min": 50000
+      }
+    },
+    {
+      "tags": [],
+      "type": "bathroom",
+      "opensOn": [],
+      "variant": "xs",
+      "requiredArea": {
+        "max": 50000,
+        "min": 10000
+      }
+    },
+    {
+      "tags": [],
+      "type": "bedroom",
+      "opensOn": [],
+      "variant": "m",
+      "requiredArea": {
+        "max": 150000,
+        "min": 110000
+      }
+    },
+    {
+      "tags": [],
+      "type": "bedroom",
+      "opensOn": [],
+      "variant": "m",
+      "requiredArea": {
+        "max": 150000,
+        "min": 110000
+      }
+    },
+    {
+      "tags": [],
+      "type": "bedroom",
+      "opensOn": [],
+      "variant": "s",
+      "requiredArea": {
+        "max": 130000,
+        "min": 90000
+      }
+    },
+    {
+      "tags": [],
+      "type": "bedroom",
+      "opensOn": [],
+      "variant": "s",
+      "requiredArea": {
+        "max": 130000,
+        "min": 90000
+      }
+    },
+    {
+      "tags": [],
+      "type": "circulation",
+      "opensOn": [],
+      "variant": "",
+      "requiredArea": {
+        "max": 130000,
+        "min": 110000
+      }
+    },
+    {
+      "tags": [],
+      "type": "kitchen",
+      "opensOn": [
+        "living"
+      ],
+      "variant": "s",
+      "requiredArea": {
+        "max": 90000,
+        "min": 50000
+      }
+    },
+    {
+      "tags": [],
+      "type": "laundry",
+      "opensOn": [],
+      "variant": "s",
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      }
+    },
+    {
+      "tags": [],
+      "type": "living",
+      "opensOn": [
+        "kitchen"
+      ],
+      "variant": "l",
+      "requiredArea": {
+        "max": 270000,
+        "min": 230000
+      }
+    },
+    {
+      "tags": [],
+      "type": "toilet",
+      "opensOn": [],
+      "variant": "s",
+      "requiredArea": {
+        "max": 30000,
+        "min": 10000
+      }
+    },
+    {
+      "tags": [],
+      "type": "toilet",
+      "opensOn": [],
+      "variant": "s",
+      "requiredArea": {
+        "max": 30000,
+        "min": 10000
+      }
+    }
+  ]
+}
