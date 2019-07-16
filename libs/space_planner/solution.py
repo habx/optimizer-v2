@@ -8,10 +8,12 @@ TODO : fusion of the entrance for small apartment untreated
 
 """
 from typing import List, Dict, Optional
-from libs.specification.specification import Specification, Item
 from libs.plan.plan import Space
 from libs.plan.plan import Plan
 from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation, create_item_dict
+from libs.specification.size import Size
+from libs.specification.specification import Specification, Item
+from libs.plan.category import SPACE_CATEGORIES
 import logging
 import functools
 import operator
@@ -203,7 +205,11 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                 solution.spec.add_item(circulation_item)
                 solution.space_item[space] = circulation_item
             else:
-                solution.space_item[space] = None
+                size_min = Size(area=0)
+                size_max = Size(area=0)
+                new_item = Item(SPACE_CATEGORIES["circulation"], "m", size_min,
+                                size_max)
+                solution.space_item[space] = new_item
 
     # area
     invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
