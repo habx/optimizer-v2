@@ -20,7 +20,8 @@ from libs.worker.mq import Exchanger
 import config
 import habx_logger
 
-logger = habx_logger.HabxLogger(config.from_file())
+logging.root = habx_logger.HabxLogger(config.from_file())
+logging.getLogger().setLevel(logging.INFO)
 
 # OPT-120: Only to make sure libpath won't be removed
 libpath.add_local_libs()
@@ -29,7 +30,7 @@ libpath.add_local_libs()
 def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
     """Make it run. Once called it never stops."""
 
-    logger.info(f'Optimizer V2 Worker ({Executor.VERSION})')
+    logging.info(f'Optimizer V2 Worker ({Executor.VERSION})')
     # We need to both consume and produce
     exchanger.prepare(consumer=True, producer=True)
 

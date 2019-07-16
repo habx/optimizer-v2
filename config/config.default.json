@@ -3,6 +3,12 @@
     "scalyr": {
         "enable": true
     },
+    "console": {
+          "enable": true,
+          "options": {
+                "level": "info"
+          }
+    },
     "sentry": {
         "enable": true,
         "options": {

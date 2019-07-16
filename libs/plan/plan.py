@@ -1970,8 +1970,8 @@ class LinearOrientation(Enum):
     -along : opens along linear edge direction
     -opposite : opens in the opposite direction
     """
-    ALONG = "Along"
-    OPPOSITE = "Opposite"
+    ALONG = "along"
+    OPPOSITE = "opposite"
     NONE = None
 
 

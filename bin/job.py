@@ -19,7 +19,8 @@ from libs.worker.mq import Exchanger
 import config
 import habx_logger
 
-logger = habx_logger.HabxLogger(config.from_file())
+logging.root = habx_logger.HabxLogger(config.from_file())
+logging.getLogger().setLevel(logging.INFO)
 
 # OPT-120: Only to make sure libpath won't be removed
 libpath.add_local_libs()
@@ -48,7 +49,6 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 def process_task(config: Config, td: TaskDefinition):
     processor = TaskProcessor(config)
     processor.prepare()
-    logging.getLogger().setLevel(logging.INFO)
     result = processor.process_task(td)
 
     exchanger = Exchanger(config)

@@ -43,7 +43,6 @@ from libs.refiner import (
 
 
 if TYPE_CHECKING:
-    from libs.specification.specification import Specification
     from libs.refiner.core import Individual
     from libs.plan.plan import Plan
     from libs.space_planner.solution import Solution
@@ -146,6 +145,7 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
         if merged:
             break
 
+
 class Refiner:
     """
     Refiner Class.
@@ -157,7 +157,7 @@ class Refiner:
     """
 
     def __init__(self,
-                 fc_toolbox: Callable[['Specification', dict], 'core.Toolbox'],
+                 fc_toolbox: Callable[['Solution', dict], 'core.Toolbox'],
                  algorithm: algorithmFunc):
         self._toolbox_factory = fc_toolbox
         self._algorithm = algorithm
@@ -178,7 +178,8 @@ class Refiner:
         merge_adjacent_circulation(output)
         merge_circulation_living(output)
         merge_circulation_entrance(output)
-        solution.spec.plan = output
+        solution.plan = output
+        return output
 
     def run(self,
             solution: 'Solution',
@@ -199,7 +200,8 @@ class Refiner:
         for floor in solution.spec.plan.floors.values():
             floor.mesh.compute_cache()
 
-        solution.spec.plan.store_meshes_globally()  # needed for multiprocessing (must be donne after the caching)
+        solution.spec.plan.store_meshes_globally()
+        # needed for multiprocessing (must be donne after the caching)
         toolbox = self._toolbox_factory(solution, params)
 
         # NOTE : the pool must be created after the toolbox in order to
@@ -551,49 +553,6 @@ REFINERS = {
 
 if __name__ == '__main__':
 
-    def run():
-        """
-        Plan to check :
-        • 049 / 050 / 027
-        :return:
-        """
-        import tools.cache
-        import time
-
-        from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
-
-        params = {"ngen": 60, "mu": 64, "cxpb": 0.5, "processes": 8, "hof": 10}
-
-        logging.getLogger().setLevel(logging.DEBUG)
-        plan_number = "013"  # 004 # 032
-        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=1)
-
-        if plan:
-            plan.name = "original_" + plan_number
-            plan.remove_null_spaces()
-            plan.plot()
-
-            Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
-                     growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
-                     ).apply_to(plan, spec)
-
-            plan.name = "Corridor_" + plan_number
-            plan.plot()
-            # run genetic algorithm
-            start = time.time()
-            improved_plans = REFINERS["space_nsga"].run(plan, spec, params)
-            end = time.time()
-            for improved_plan in improved_plans:
-                improved_plan.name = "Refined_" + plan_number
-                improved_plan.plot()
-                # analyse found solutions
-                logging.info("Time elapsed: {}".format(end - start))
-                logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
-                                                               improved_plan.fitness.values))
-
-                evaluation.check(improved_plan, spec)
-
     def apply():
         """
         Plan to check :
@@ -608,24 +567,24 @@ if __name__ == '__main__':
         params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "050"  # 062 006 020 061
-        spec, plan = tools.cache.get_plan(plan_number, grid="002", seeder="directional_seeder",
-                                          solution_number=1)
+        plan_number = "049"  # 062 006 020 061
+        solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
+                                            solution_number=1)
 
-        if plan:
+        if solution:
+            plan = solution.spec.plan
             plan.name = "original_" + plan_number
-            plan.remove_null_spaces()
             plan.plot()
 
             Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                      growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
-                     ).apply_to(plan, spec)
+                     ).apply_to(solution)
 
             plan.name = "Corridor_" + plan_number
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["space_nsga"].apply_to(plan, spec, params)
+            improved_plan = REFINERS["space_nsga"].apply_to(solution, params)
             end = time.time()
 
             # display solution
@@ -636,6 +595,6 @@ if __name__ == '__main__':
             logging.info("Solution found : {} - {}".format(improved_plan.fitness.wvalue,
                                                            improved_plan.fitness.values))
 
-            evaluation.check(improved_plan, spec)
+            evaluation.check(improved_plan, solution)
 
     apply()
