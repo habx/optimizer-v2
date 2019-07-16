@@ -178,7 +178,7 @@ class Refiner:
         merge_adjacent_circulation(output)
         merge_circulation_living(output)
         merge_circulation_entrance(output)
-        solution.plan = output
+        solution.spec.plan = output
         return output
 
     def run(self,

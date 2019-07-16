@@ -76,10 +76,10 @@ def _score_space_area(space_area: float, min_area: float, max_area: float) -> fl
     :return:
     """
     sp_score = 0
-    if space_area < min_area:
+    if min_area != 0 and space_area < min_area:
         # note: worse to be smaller
         sp_score = (((min_area - space_area) / min_area) ** 2) * 100 * 3.0
-    elif space_area > max_area:
+    elif max_area != 0 and space_area > max_area:
         sp_score = (((space_area - max_area) / max_area) ** 2) * 100.0
     return sp_score
 
