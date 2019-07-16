@@ -292,11 +292,13 @@ class Solution:
         distance = 0
         if len(self.space_item) != len(other_solution.space_item):
             distance += 1
+        other_solution_item_name = [item.category.name for item in other_solution.space_item.values()]
         for space, item in self.space_item.items():
-            if item not in other_solution.space_item.values():
+            if item.category.name not in other_solution_item_name:
                 continue
             other_solution_space = [o_space for o_space, o_item in other_solution.space_item.items()
-                                    if o_item == item][0]
+                                    if (o_item.category.name == item.category.name
+                                        and o_item.variant == item.variant)][0]
             if not space or not other_solution_space:
                 continue
             if item.category.name in window_list:
