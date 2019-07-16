@@ -147,7 +147,7 @@ class SpacePlanner:
         :return: SolutionsCollector
         """
         self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
-        self.spec = self.solutions_collector.spec_without_circulation
+        self.spec = self.solutions_collector.spec_with_circulation
 
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
