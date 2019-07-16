@@ -72,6 +72,7 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
     entrances = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['entrance']]
     if entrances and space.category.circulation:
+        # if several entrances, space can be opened on all the adjacent entrances
         return entrances
     if entrances:
         return [entrances[0]]
@@ -79,6 +80,8 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
     corridors = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['circulation']]
     if corridors and space.category.circulation:
+        # if space is a a  ciruclation space adjacent to several corridors, a door is
+        # set on every corridors
         return corridors
     if corridors:
         return [corridors[0]]
@@ -183,7 +186,7 @@ def place_doors(plan: 'Plan'):
 
         for opening_space in list_opening_spaces:
             if not _door_graph.has_path(_space.id, opening_space.id):
-                # places a door only if _space has not been connected already
+                # places a door only if _space has not been connected already to opening_space
                 _door_graph.add_edge(opening_space.id, _space.id)
                 place_door_between_two_spaces(_space, opening_space)
 
