@@ -62,7 +62,8 @@
                 ],
                 "id": 201,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 250
             },
             {
                 "category": "doorWindow",
@@ -75,7 +76,8 @@
                 ],
                 "id": 202,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 250
             },
             {
                 "category": "window",
@@ -88,7 +90,8 @@
                 ],
                 "id": 203,
                 "length": 63.9260000000002,
-                "sillHeight": 1144.8999999999999
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "doorWindow",
@@ -101,7 +104,8 @@
                 ],
                 "id": 204,
                 "length": 142.03399999999965,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 250
             },
             {
                 "category": "doorWindow",
@@ -114,7 +118,8 @@
                 ],
                 "id": 205,
                 "length": 204.0550000000003,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "doorWindow",
@@ -127,7 +132,8 @@
                 ],
                 "id": 206,
                 "length": 142.03399999999965,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 250
             },
             {
                 "category": "frontDoor",
@@ -156,7 +162,8 @@
                 ],
                 "id": 209,
                 "length": 124.04199999999983,
-                "sillHeight": 794.8999999999996
+                "sillHeight": 85,
+                "height": 130
             },
             {
                 "category": "window",
@@ -167,7 +174,8 @@
                 ],
                 "id": 2010,
                 "length": 124.04199999999983,
-                "sillHeight": 794.8999999999996
+                "sillHeight": 85,
+                "height": 130
             },
             {
                 "category": "window",
@@ -178,7 +186,8 @@
                 ],
                 "id": 2011,
                 "length": 63.9260000000002,
-                "sillHeight": 1144.8999999999996
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "window",
@@ -189,7 +198,8 @@
                 ],
                 "id": 2012,
                 "length": 123.825,
-                "sillHeight": 794.8999999999996
+                "sillHeight": 85,
+                "height": 130
             },
             {
                 "category": "window",
@@ -200,7 +210,8 @@
                 ],
                 "id": 2013,
                 "length": 63.9260000000002,
-                "sillHeight": 1144.8999999999996
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "window",
@@ -211,7 +222,8 @@
                 ],
                 "id": 2014,
                 "length": 63.9260000000002,
-                "sillHeight": 1144.8999999999996
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "startingStep",

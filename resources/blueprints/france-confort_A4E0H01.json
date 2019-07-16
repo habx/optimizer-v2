@@ -48,7 +48,8 @@
                 ],
                 "id": 201,
                 "length": 63.92600000000002,
-                "sillHeight": 1144.8999999999999
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "window",
@@ -61,7 +62,8 @@
                 ],
                 "id": 202,
                 "length": 63.92600000000002,
-                "sillHeight": 1144.8999999999999
+                "sillHeight": 120,
+                "height": 95
             },
             {
                 "category": "window",
@@ -74,7 +76,8 @@
                 ],
                 "id": 203,
                 "length": 63.925999999999476,
-                "sillHeight": 1144.8999999999999
+                "sillHeight": 120,
+                "height": 105
             },
             {
                 "category": "doorWindow",
@@ -87,7 +90,8 @@
                 ],
                 "id": 204,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "window",
@@ -100,7 +104,8 @@
                 ],
                 "id": 205,
                 "length": 124.04199999999983,
-                "sillHeight": 794.9
+                "sillHeight": 85,
+                "height": 130
             },
             {
                 "category": "window",
@@ -113,7 +118,8 @@
                 ],
                 "id": 206,
                 "length": 124.04199999999983,
-                "sillHeight": 794.9
+                "sillHeight": 85,
+                "height": 130
             },
             {
                 "category": "doorWindow",
@@ -126,7 +132,8 @@
                 ],
                 "id": 207,
                 "length": 300.0,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "doorWindow",
@@ -139,7 +146,8 @@
                 ],
                 "id": 208,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "doorWindow",
@@ -152,7 +160,8 @@
                 ],
                 "id": 209,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "doorWindow",
@@ -165,7 +174,8 @@
                 ],
                 "id": 2010,
                 "length": 124.04199999999983,
-                "sillHeight": 0
+                "sillHeight": 0,
+                "height": 215
             },
             {
                 "category": "frontDoor",

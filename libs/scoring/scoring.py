@@ -192,8 +192,11 @@ def area_scoring(solution: 'Solution') -> float:
                 item_area_score = 100
             # overflow
             else:
-                item_area_score = max(100 - (abs(item.required_area - space.cached_area()) * 200 /
-                                             item.required_area), 0)
+                if item.required_area != 0:
+                    item_area_score = max(100 - (abs(item.required_area - space.cached_area()) * 200 /
+                                                 item.required_area), 0)
+                else:
+                    item_area_score = 0
                 if space.category.name == "toilet":
                     if space.cached_area() < 12000:
                         area_penalty += 5
@@ -246,6 +249,7 @@ def position_scoring(solution: 'Solution') -> float:
                 item.category.name == "entrance"]
     circulation_spaces = [space for space, item in solution.space_item.items() if
                           item.category.circulation]
+    print(nbr_room_position_score)
     for space, item in solution.space_item.items():
         memo = 0
         item_position_score = None
