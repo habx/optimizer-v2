@@ -194,7 +194,7 @@ def place_doors(plan: 'Plan'):
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area)
 
-    # graph containin infos on doors set
+    # graph containin infos on positionned doors
     door_graph = GraphNx()
     for mutable_space in mutable_spaces:
         door_graph.add_node(mutable_space.id)
