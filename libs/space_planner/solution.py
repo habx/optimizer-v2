@@ -192,11 +192,18 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                           if space.category.name == "circulation"]
 
     if circulation_spaces:
-        circulation_item = deepcopy([item for item in collector.spec_with_circulation.items
-                                     if item.category.name == "circulation"][0])
+        circulation_item = [item for item in collector.spec_with_circulation.items
+                                     if item.category.name == "circulation"]
+        if circulation_item:
+            circulation_item = deepcopy(circulation_item[0])
+        else:
+            circulation_item = None
         for space in solution.spec.plan.mutable_spaces():
-            if space.category.name == "circulation":
+            if space.category.name == "circulation" and circulation_item:
                 solution.spec.add_item(circulation_item)
+                solution.space_item[space] = circulation_item
+            else:
+                solution.space_item[space] = None
 
     # area
     invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
