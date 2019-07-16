@@ -166,10 +166,10 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
     """
     circulation_spaces = [space for space in solution.spec.plan.mutable_spaces()
                           if space.category.name == "circulation"]
-    circulation_item = deepcopy([item for item in collector.spec_with_circulation.items
-                             if item.category.name == "circulation"][0])
 
     if circulation_spaces:
+        circulation_item = deepcopy([item for item in collector.spec_with_circulation.items
+                                     if item.category.name == "circulation"][0])
         for space in solution.spec.plan.mutable_spaces():
             if space.category.name == "circulation":
                 solution.spec.add_item(circulation_item)
