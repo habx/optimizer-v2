@@ -250,6 +250,10 @@ class Optimizer:
                              growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
                     # specification update
                     spec_adaptation(sol, space_planner.solutions_collector)
+                    print(sol.id)
+                    print(sol.spec)
+                    print(list(sol.spec.plan.mutable_spaces()))
+                    print(sol.space_item)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"corridor sol {i + 1}")
                     if params.save_ll_bp:
