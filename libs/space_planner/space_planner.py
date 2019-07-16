@@ -249,8 +249,8 @@ if __name__ == '__main__':
         # shuffle
         # if best_solutions:
         #     for sol in best_solutions:
-        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.plan, show=True)
-        #         sol.plan.plot()
+        #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.spec.plan, show=True)
+        #         sol.spec.plan.plot()
 
         print("total time :", time.process_time() - t00)
 
