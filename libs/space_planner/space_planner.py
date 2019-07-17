@@ -148,8 +148,9 @@ class SpacePlanner:
         :param processes
         :return: SolutionsCollector
         """
-        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions, processes=processes)
-        self.spec = self.solutions_collector.spec_without_circulation
+        self.solutions_collector = SolutionsCollector(spec, max_nb_solutions)
+        self.spec = self.solutions_collector.spec_with_circulation
+
         self.spec.plan.mesh.compute_cache()
         self._plan_cleaner()
         logging.debug(self.spec)
@@ -190,7 +191,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "france-confort_A1E0H01.json"
+        input_file = "france-confort_A4E0H01.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         # logging.info("input_file %s", input_file)
