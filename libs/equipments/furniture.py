@@ -4,25 +4,24 @@ from typing import (
     Tuple,
     Dict,
     Optional,
-    Callable)
-from libs.plan.fitting import (fit_along_walls,
-                               fit_in_corners,
-                               fit_in_center)
+    Callable,
+    List)
+from libs.equipments.fitting import (fit_along_walls,
+                                     fit_in_corners,
+                                     fit_in_center)
 from libs.plan.category import SpaceCategory, SPACE_CATEGORIES, LinearCategory, LINEAR_CATEGORIES
 from libs.io.plot import plot_polygon
 from libs.utils.geometry import (ccw_angle,
                                  unit,
                                  rotate,
-                                 minimum_rotated_rectangle,
                                  polygons_collision,
                                  polygon_border_collision,
                                  polygon_linestring_collision,
                                  move_point,
-                                 rectangle,
-                                 centroid)
+                                 rectangle)
 
 if TYPE_CHECKING:
-    from libs.utils.custom_types import FourCoords2d, Vector2d, Coords2d, ListCoords2d
+    from libs.utils.custom_types import Vector2d, Coords2d, ListCoords2d
     from libs.plan.plan import Space
     from libs.space_planner.solution import Solution
 
@@ -54,7 +53,7 @@ class Garnisher:
                     for name in furniture_names:
                         placed = False
                         possible_furnitures = [Furniture(category)
-                                               for category in FURNITURE_CATALOG[name]
+                                               for category in FurnitureCategory.CATALOG[name]
                                                if not is_prm or category.is_prm]
                         for furniture in possible_furnitures:
                             for func in furniture.category.fitting:
@@ -67,35 +66,70 @@ class Garnisher:
 
 
 class FurnitureCategory:
-    BY_NAME: Dict[str, 'FurnitureCategory'] = {}
+    """
+    Furniture categories should be all instanciated once at runetime. Then, each furniture is
+    associated with its category, allowing to know its attributes that are independant from its
+    position.
+      <--- width --->
+     +---------------+  ^
+     |               |  |
+     |               |  | height
+     |               |  |           ^
+     |               |  |           | ref_vect (0,1)
+     +-------+-------+  v
+          ref_point
+            (0,0)
+
+    Define the category shape so that the point at (0,0) is at bottom center , it will be used as
+    ref point for the furnitures.
+
+    """
+    CATALOG: Dict[str, List['FurnitureCategory']] = {}
 
     def __init__(self,
                  name: str,
+                 subname: str,
                  polygon: 'ListCoords2d',
                  is_prm: bool,
                  required_space: 'ListCoords2d',
                  fitting: [Callable],
                  color: str = 'black'):
         """
-        :param name:
-        :param polygon: polygon of the furniture: ref point at 0,0: all ys should be > 0, shape
-        should be symmetric along y axis
+        :param name: general category name
+        :subname: unique name
+        :param polygon: polygon of the furniture
         :param is_prm: is ok for a prm room
         :param required_space: polygon of the furniture + space around
         :param fitting: functions used to fit it, starting with the most appropriate ones
         :param color: color to show it
         """
+        # check
+        xs, ys = zip(*polygon)
+        min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
+        assert min_y >= 0, "Polygon should only have positive y coordinates"
+        assert min_y == 0, "Polygon should lie on x axis"
+        assert min_x - 1 <= -max_x <= min_x + 1, "Polygon should be (almost) symmetric"
+        # defined attributes
         self.name = name
+        self.subname = subname
         self.polygon = polygon
         self.is_prm = is_prm
         self.required_space = required_space
         self.fitting = fitting
         self.color = color
-        FurnitureCategory.BY_NAME[name] = self
-        self.vect_to_centroid = centroid(polygon)
+        # computed attributes
+        self.width = max_x - min_x
+        self.height = max_y
+        # store in catalog
+        FurnitureCategory.CATALOG.setdefault(name, []).append(self)
 
 
 class Furniture:
+    """
+    A particular furniture, associated with a space of a plan and located in it.
+    Bound toa FurnitureCategory.
+    """
+
     def __init__(self,
                  category: Optional[FurnitureCategory] = None,
                  ref_point: Optional['Coords2d'] = None,
@@ -103,12 +137,6 @@ class Furniture:
         self.category = category
         self.ref_point = ref_point if ref_point is not None else (0, 0)
         self.ref_vect = unit(ref_vect) if ref_vect is not None else (0, 1)
-
-    def bounding_box(self) -> 'FourCoords2d':
-        """
-        Rectangle shape of the furniture
-        """
-        return minimum_rotated_rectangle(self.footprint())
 
     def footprint(self) -> 'ListCoords2d':
         """
@@ -196,7 +224,7 @@ class Furniture:
         output = {
             "ref_point": list(self.ref_point),
             "ref_vect": list(self.ref_vect),
-            "category": self.category.name
+            "category": (self.category.name, self.category.subname)
         }
 
         return output
@@ -208,82 +236,73 @@ class Furniture:
         """
         self.ref_point = tuple(value["ref_point"])
         self.ref_vect = tuple(value["ref_vect"])
-        self.category = FurnitureCategory.BY_NAME[value["category"]]
+        self.category = next(category
+                             for category in FurnitureCategory.CATALOG[value["category"][0]]
+                             if category.subname == value["category"][1])
         return self
 
 
-FURNITURE_CATALOG = {
-    "single_bed": (FurnitureCategory("single_bed_1",
-                                     ((-45, 0), (45, 0), (45, 190), (-45, 190)),
-                                     False,
-                                     ((-105, 0), (45, 0), (45, 250), (-105, 250)),
-                                     [fit_along_walls, fit_in_corners, fit_in_center]),
-                   FurnitureCategory("single_bed_1",
-                                     ((-45, 0), (45, 0), (45, 190), (-45, 190)),
-                                     False,
-                                     ((-45, 0), (105, 0), (105, 250), (-45, 250)),
-                                     [fit_along_walls, fit_in_corners, fit_in_center]),),
-    "double_bed": (FurnitureCategory("double_bed",
-                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
-                                     False,
-                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)),
-                                     [fit_along_walls, fit_in_corners, fit_in_center]),
-                   FurnitureCategory("double_bed_pmr_1",
-                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
-                                     True,
-                                     ((-160, 0), (160, 0), (160, 310), (-160, 310)),
-                                     [fit_along_walls, fit_in_corners, fit_in_center]),
-                   FurnitureCategory("double_bed_pmr_2",
-                                     ((-70, 0), (70, 0), (70, 190), (-70, 190)),
-                                     True,
-                                     ((-130, 0), (130, 0), (130, 250), (-130, 250)),
-                                     [fit_along_walls, fit_in_corners, fit_in_center])),
-    "bathtub": (FurnitureCategory("bathtub",
-                                  ((-90, 0), (90, 0), (90, 80), (-90, 80)),
-                                  True,
-                                  ((-90, 0), (90, 0), (90, 80), (-90, 80)),
-                                  [fit_in_corners, fit_along_walls, fit_in_center],
-                                  color='blue'),),
-    "toilet_seat": (FurnitureCategory("toilet_seat",
-                                      ((-28, 0), (28, 0), (28, 32), (27.46, 37.46), (24.7, 45.2),
-                                       (19.8, 51.8), (13.2, 56.7), (5.46, 59.46), (-2.7, 59.9),
-                                       (-10.7, 57.9), (-17.8, 53.7), (-23.3, 47.5), (-26.8, 40.1),
-                                       (-28, 32)),
-                                      True,
-                                      ((-45, 0), (45, 0), (45, 130), (-45, 130)),
-                                      [fit_in_corners, fit_along_walls, fit_in_center],
-                                      color='blue'),),
-    "table": (FurnitureCategory("table",
-                                ((100.0, 100.0),
-                                 (86.60254037844389, 50.00000000000004),
-                                 (50.000000000000085, 13.39745962155618),
-                                 (1.3934999695075554e-13, 0.0),
-                                 (-49.99999999999983, 13.397459621556024),
-                                 (-86.60254037844373, 49.99999999999978),
-                                 (-100.0, 99.99999999999967),
-                                 (-86.60254037844406, 149.99999999999966),
-                                 (-50.00000000000034, 186.60254037844368),
-                                 (-4.624589118372728e-13, 200.0),
-                                 (49.999999999999545, 186.60254037844413),
-                                 (86.60254037844356, 150.0000000000005),
-                                 (100.0, 100.0)),
-                                True,
-                                ((100.0, 100.0),
-                                 (86.60254037844389, 50.00000000000004),
-                                 (50.000000000000085, 13.39745962155618),
-                                 (1.3934999695075554e-13, 0.0),
-                                 (-49.99999999999983, 13.397459621556024),
-                                 (-86.60254037844373, 49.99999999999978),
-                                 (-100.0, 99.99999999999967),
-                                 (-86.60254037844406, 149.99999999999966),
-                                 (-50.00000000000034, 186.60254037844368),
-                                 (-4.624589118372728e-13, 200.0),
-                                 (49.999999999999545, 186.60254037844413),
-                                 (86.60254037844356, 150.0000000000005),
-                                 (100.0, 100.0)),
-                                [fit_in_center, fit_along_walls, fit_in_corners],
-                                color='brown'),)
-}
+FURITURE_CATEGORIES = (FurnitureCategory("single_bed",
+                                         "single_bed_1",
+                                         ((-45, 0), (45, 0), (45, 190), (-45, 190)),
+                                         False,
+                                         ((-105, 0), (45, 0), (45, 250), (-105, 250)),
+                                         [fit_in_corners, fit_along_walls]),
+                       FurnitureCategory("single_bed",
+                                         "single_bed_1",
+                                         ((-45, 0), (45, 0), (45, 190), (-45, 190)),
+                                         False,
+                                         ((-45, 0), (105, 0), (105, 250), (-45, 250)),
+                                         [fit_in_corners, fit_along_walls]),
+                       FurnitureCategory("double_bed",
+                                         "double_bed",
+                                         ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                         False,
+                                         ((-130, 0), (130, 0), (130, 250), (-130, 250)),
+                                         [fit_along_walls, fit_in_corners]),
+                       FurnitureCategory("double_bed",
+                                         "double_bed_pmr_1",
+                                         ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                         True,
+                                         ((-160, 0), (160, 0), (160, 310), (-160, 310)),
+                                         [fit_along_walls, fit_in_corners]),
+                       FurnitureCategory("double_bed",
+                                         "double_bed_pmr_2",
+                                         ((-70, 0), (70, 0), (70, 190), (-70, 190)),
+                                         True,
+                                         ((-130, 0), (130, 0), (130, 250), (-130, 250)),
+                                         [fit_along_walls, fit_in_corners]),
+                       FurnitureCategory("bathtub",
+                                         "bathtub",
+                                         ((-90, 0), (90, 0), (90, 80), (-90, 80)),
+                                         True,
+                                         ((-90, 0), (90, 0), (90, 80), (-90, 80)),
+                                         [fit_in_corners, fit_along_walls, fit_in_center],
+                                         color='blue'),
+                       FurnitureCategory("toilet_seat",
+                                         "toilet_seat",
+                                         ((-28, 0), (28, 0), (28, 32), (27.46, 37.46), (24.7, 45.2),
+                                          (19.8, 51.8), (13.2, 56.7), (5.46, 59.46), (-2.7, 59.9),
+                                          (-10.7, 57.9), (-17.8, 53.7), (-23.3, 47.5),
+                                          (-26.8, 40.1), (-28, 32)),
+                                         True,
+                                         ((-45, 0), (45, 0), (45, 130), (-45, 130)),
+                                         [fit_in_corners, fit_along_walls, fit_in_center],
+                                         color='blue'),
+                       FurnitureCategory("shower",
+                                         "shower",
+                                         ((-45, 0), (45, 0), (45, 90), (-45, 90)),
+                                         True,
+                                         ((-45, 0), (45, 0), (45, 90), (-45, 90)),
+                                         [fit_in_corners, fit_along_walls, fit_in_center],
+                                         color='blue'),
+                       FurnitureCategory("table",
+                                         "table",
+                                         ((-70, 0), (70, 0), (70, 80), (-70, 80)),
+                                         True,
+                                         ((-130, -60), (130, -60), (130, 140), (-130, 140)),
+                                         [fit_in_center, fit_along_walls, fit_in_corners],
+                                         color='brown'))
 
 GARNISHERS = {
     "default": Garnisher("default", [
@@ -293,11 +312,13 @@ GARNISHERS = {
         (SPACE_CATEGORIES["bedroom"], "l", ("double_bed",), True),
         (SPACE_CATEGORIES["bedroom"], "xl", ("double_bed",), True),
 
-        (SPACE_CATEGORIES["bathroom"], "xs", ("bathtub",), False),
-        (SPACE_CATEGORIES["bathroom"], "s", ("bathtub",), False),
         (SPACE_CATEGORIES["bathroom"], "m", ("bathtub",), False),
         (SPACE_CATEGORIES["bathroom"], "l", ("bathtub",), False),
         (SPACE_CATEGORIES["bathroom"], "xl", ("bathtub",), False),
+
+        (SPACE_CATEGORIES["bathroom"], "xs", ("shower",), False),
+        (SPACE_CATEGORIES["bathroom"], "s", ("shower",), False),
+        (SPACE_CATEGORIES["bathroom"], "xl", ("shower",), False),
 
         (SPACE_CATEGORIES["toilet"], "xs", ("toilet_seat",), False),
         (SPACE_CATEGORIES["toilet"], "s", ("toilet_seat",), False),
