@@ -677,7 +677,7 @@ if __name__ == '__main__':
 
             if best_solutions:
                 solution = best_solutions[0]
-                plan = solution.plan
+                plan = solution.spec.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
                 writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
