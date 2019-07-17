@@ -32,7 +32,7 @@ from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, 
 from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
-from libs.plan.furniture import Furniture
+from libs.equipments.furniture import Furniture
 from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d, FourCoords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
