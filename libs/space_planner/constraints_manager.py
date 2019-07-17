@@ -512,7 +512,7 @@ class ConstraintsManager:
                 maximum = 3
             adjacency_sum = 0
             for item in self.sp.spec.items:
-                if item.name in duct_items:
+                if item.category.name in duct_items:
                     item_duct_adjacency = None
                     for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
 
