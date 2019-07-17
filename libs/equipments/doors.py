@@ -397,7 +397,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         """
         vect_1 = (_point[0] - _edge.start.coords[0], _point[1] - _edge.start.coords[1])
         vect_2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
-        return dot_product(vect_1, vect_2) <= 0
+        return dot_product(vect_1, vect_2) <= EPSILON
 
     if not start:
         contact_line = [e.pair for e in contact_line]
