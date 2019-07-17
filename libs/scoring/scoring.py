@@ -77,7 +77,7 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
 
     # area
     invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation",
-                            "misc"]
+                            "misc", "bedroom", "study"]
     invariant_area = sum(item.required_area for item in new_spec.items
                          if item.category.name in invariant_categories)
     mutable_spaces_area = sum([space.cached_area() for space in new_spec.plan.mutable_spaces()])

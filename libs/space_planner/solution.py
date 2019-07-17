@@ -188,8 +188,8 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
                 solution.space_item[space] = new_item
 
     # area
-    invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
-                            "misc"]
+    invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation",
+                            "misc", "bedroom", "study"]
     invariant_area = sum(item.required_area for item in solution.spec.items
                          if item.category.name in invariant_categories)
     mutable_spaces_area = sum([space.cached_area() for space in solution.spec.plan.mutable_spaces()])
