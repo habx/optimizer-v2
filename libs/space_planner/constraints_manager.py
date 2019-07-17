@@ -503,7 +503,7 @@ class ConstraintsManager:
         perimeter_duct_list = [duct for duct in duct_list if
                      [edge for edge in duct.exterior_edges if (edge.pair in external_space_edges or
                                                                not edge.pair.face)]]
-        duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen"]
+        duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen", "laundry"]
         ct = None
         for duct in duct_list:
             if duct in perimeter_duct_list:
@@ -512,7 +512,7 @@ class ConstraintsManager:
                 maximum = 3
             adjacency_sum = 0
             for item in self.sp.spec.items:
-                if True:
+                if item.name in duct_items:
                     item_duct_adjacency = None
                     for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
 
