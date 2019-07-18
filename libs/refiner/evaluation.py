@@ -190,7 +190,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     :return:
     """
     ratios = {
-        SPACE_CATEGORIES["circulation"]: 5.0,
+        SPACE_CATEGORIES["circulation"]: 350.0,
         SPACE_CATEGORIES["livingKitchen"]: 0.5,
         SPACE_CATEGORIES["living"]: 0.5,
         "default": 1.0
@@ -205,7 +205,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
         box = space.bounding_box()
         box_area = box[0] * box[1]
         area = space.cached_area()
-        space_score = ((area - box_area) / area)**2 * 100.0
+        space_score = ((area - box_area) / 10000)**2 * 100.0
         score[space.id] = space_score * ratios.get(space.category, ratios["default"])
 
     return score
