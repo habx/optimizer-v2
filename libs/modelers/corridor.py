@@ -228,7 +228,6 @@ class Corridor:
                 if merge:
                     break
 
-
     def _repair_spaces(self, initial_mutable_spaces: List['Space'],
                        final_mutable_spaces: List['Space']):
         """
@@ -260,7 +259,7 @@ class Corridor:
                 # in which case we proceed to repair
                 l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
                     list(sp.faces)) and not sp.category.name == "circulation"]
-                if not l or len(l) > 1:  # a space has been split by corridor propagation
+                if len(l) > 1:  # a space has been split by corridor propagation
                     repair_space = l[0]
                     repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
                     while len(list(repair_space.faces)) != len(repair_faces):
@@ -534,8 +533,7 @@ class Corridor:
                 space_corner = self.plan.get_space_of_edge(corner_edge)
                 if not space_corner or not corridor_space:
                     continue
-                if not space_corner.category.name == "circulation" and len(
-                        list(space_corner.faces)) < 2:  # do not remove the space
+                if not space_corner.category.name == "circulation":# and len(list(space_corner.faces)) < 2:  # do not remove the space
                     continue
                 if list([e for e in space_corner.edges if
                          e.pair.face and corridor_space.has_face(e.pair.face)]):
@@ -693,6 +691,19 @@ class Corridor:
                 next_layer = False
         return dist, layer_edges
 
+    def _space_totally_overlapped(self, level: int, face: 'Face') -> bool:
+        # checks if the space that contained _face before corridor propagation
+        # will be completely overlapped by corridors if _face is removed from it
+        for group_face in self.grouped_faces[level]:
+            if face in group_face:
+                for f in group_face:
+                    if f is face:
+                        continue
+                    if not self.plan.get_space_of_face(f).category.name == "circulation":
+                        # not all faces of group_face are in corridors
+                        return False
+        return True
+
     def add_corridor_portion(self, edge: 'Edge', width: float, corridor_space: 'Space',
                              show: bool = False):
         """
@@ -705,18 +716,18 @@ class Corridor:
         :return:
         """
 
-        def _space_totally_overlapped(_level: int, _face: 'Face') -> bool:
-            # checks if the space that contained _face before corridor propagation
-            # will be completely overlapped by corridors if _face is removed from it
-            for group_face in self.grouped_faces[_level]:
-                if _face in group_face:
-                    for f in group_face:
-                        if f is _face:
-                            continue
-                        if not self.plan.get_space_of_face(f).category.name == "circulation":
-                            # not all faces of group_face are in corridors
-                            return False
-            return True
+        # def _space_totally_overlapped(_level: int, _face: 'Face') -> bool:
+        #     # checks if the space that contained _face before corridor propagation
+        #     # will be completely overlapped by corridors if _face is removed from it
+        #     for group_face in self.grouped_faces[_level]:
+        #         if _face in group_face:
+        #             for f in group_face:
+        #                 if f is _face:
+        #                     continue
+        #                 if not self.plan.get_space_of_face(f).category.name == "circulation":
+        #                     # not all faces of group_face are in corridors
+        #                     return False
+        #     return True
 
         layer_edges = self.get_parallel_layers_edges(edge, width)[1]
 
@@ -728,7 +739,7 @@ class Corridor:
                 # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
                 # we authorize sp_1 or sp2 to be overlapped by a corridor, but not both
                 if len(list(sp.faces)) == 1:
-                    if _space_totally_overlapped(sp.floor.level, sp.face):
+                    if self._space_totally_overlapped(sp.floor.level, sp.face):
                         break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
