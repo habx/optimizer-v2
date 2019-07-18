@@ -195,6 +195,19 @@ class Optimizer:
         elapsed_times["reader"] = time.process_time() - t0_reader
         logging.info("Lot read in %f", elapsed_times["reader"])
 
+        # reading setup
+        logging.info("Read setup")
+        t0_setup = time.process_time()
+        setup_spec = reader.create_specification_from_data(setup)
+        logging.debug(setup_spec)
+        setup_spec.plan = plan
+        setup_spec.plan.remove_null_spaces()
+        area_matching = setup_spec.area_checker()
+        elapsed_times["setup"] = time.process_time() - t0_setup
+        logging.info("Setup read in %f", elapsed_times["setup"])
+        if not area_matching:
+            return Response(None, elapsed_times, None, None)
+
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
@@ -216,16 +229,6 @@ class Optimizer:
             save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
-
-        # reading setup
-        logging.info("Read setup")
-        t0_setup = time.process_time()
-        setup_spec = reader.create_specification_from_data(setup)
-        logging.debug(setup_spec)
-        setup_spec.plan = plan
-        setup_spec.plan.remove_null_spaces()
-        elapsed_times["setup"] = time.process_time() - t0_setup
-        logging.info("Setup read in %f", elapsed_times["setup"])
 
         # space planner
         logging.info("Space planner")
