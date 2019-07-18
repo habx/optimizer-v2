@@ -1,12 +1,9 @@
-import logging
 from typing import Optional, Tuple, Dict, List, Type, Callable
 from enum import Enum
 
 import matplotlib.pyplot as plt
 from functools import reduce
 
-from libs.modelers.grid import GRIDS
-from libs.modelers.seed import SEEDERS
 from libs.plan.plan import Plan, Space, Face, Edge, Vertex
 from libs.space_planner.solution import Solution
 from libs.space_planner.circulation import Circulator, CostRules
@@ -35,6 +32,7 @@ class CorridorRules:
                  nb_layer: int = 2,
                  layer_cut: bool = False,
                  ortho_cut: bool = False,
+                 objective_width: float = 100,
                  width: float = 110,
                  penetration_length: float = 90,
                  penetration: bool = False,
@@ -45,6 +43,7 @@ class CorridorRules:
         self.layer_cut = layer_cut  # whether to cut layers along the circulation path or not
         self.ortho_cut = ortho_cut  # whether to the mesh orthogonally to end and start path,
         # used to get penetration with precise length
+        self.objective_width = objective_width  # maximum width of the corridor
         self.width = width  # maximum width of the corridor
         self.penetration_length = penetration_length  # maximum penetration length, when needed
         self.penetration = penetration  # whether penetration is accounted for or not
@@ -117,7 +116,7 @@ class Corridor:
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
+        self.circulator.plot()
 
         self._set_paths()
 
@@ -533,7 +532,7 @@ class Corridor:
                 space_corner = self.plan.get_space_of_edge(corner_edge)
                 if not space_corner or not corridor_space:
                     continue
-                if not space_corner.category.name == "circulation":# and len(list(space_corner.faces)) < 2:  # do not remove the space
+                if not space_corner.category.name == "circulation":  # and len(list(space_corner.faces)) < 2:  # do not remove the space
                     continue
                 if list([e for e in space_corner.edges if
                          e.pair.face and corridor_space.has_face(e.pair.face)]):
@@ -704,13 +703,13 @@ class Corridor:
                         return False
         return True
 
-    def add_corridor_portion(self, edge: 'Edge', width: float, corridor_space: 'Space',
+    def add_corridor_portion(self, edge: 'Edge', max_width: float, corridor_space: 'Space',
                              show: bool = False):
         """
         Builds a corridor space : starts with edge face and iteratively adds faces
         in normal direction to edge until the corridor space width reaches the objective
         :param edge:
-        :param width:
+        :param max_width:
         :param corridor_space:
         :param show:
         :return:
@@ -729,7 +728,9 @@ class Corridor:
         #                     return False
         #     return True
 
-        layer_edges = self.get_parallel_layers_edges(edge, width)[1]
+        layer_edges = self.get_parallel_layers_edges(edge, self.corridor_rules.objective_width)[1]
+        if not layer_edges:
+            layer_edges = self.get_parallel_layers_edges(edge, max_width)[1]
 
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
@@ -1099,7 +1100,7 @@ def straight_path_growth(corridor: 'Corridor', edge_line: List['Edge'],
 
 # corridor rules
 no_cut_rules = CorridorRules(penetration=True, layer_cut=False, ortho_cut=False, merging=False,
-                             width=130, penetration_length=130)
+                             objective_width=100, width=140, penetration_length=130)
 coarse_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, merging=True)
 fine_cut_rules = CorridorRules(penetration=True, layer_cut=True, ortho_cut=True, nb_layer=5,
                                layer_width=25,
@@ -1122,6 +1123,7 @@ CORRIDOR_BUILDING_RULES = {
 
 if __name__ == '__main__':
     import argparse
+    import tools.cache
 
     # logging.getLogger().setLevel(logging.DEBUG)
 
@@ -1139,73 +1141,23 @@ if __name__ == '__main__':
         plan_name = '0' + str(plan_index) + ".json"
 
 
-    def get_plan(input_file: str = "001.json") -> Tuple['Plan', 'Specification']:
-
-        import libs.io.reader as reader
-        import libs.io.writer as writer
-        from libs.space_planner.space_planner import SPACE_PLANNERS
-        from libs.io.reader import DEFAULT_PLANS_OUTPUT_FOLDER
-
-        folder = DEFAULT_PLANS_OUTPUT_FOLDER
-
-        spec_file_name = input_file[:-5] + "_setup0"
-        plan_file_name = input_file
-
-        try:
-            new_serialized_data = reader.get_plan_from_json(input_file)
-            plan = Plan(input_file[:-5]).deserialize(new_serialized_data)
-            spec_dict = reader.get_json_from_file(spec_file_name + ".json",
-                                                  folder)
-            spec = reader.create_specification_from_data(spec_dict, "new")
-            spec.plan = plan
-            return plan, spec
-
-        except FileNotFoundError:
-            plan = reader.create_plan_from_file(input_file)
-            spec = reader.create_specification_from_file(input_file[:-5] + "_setup0" + ".json")
-
-            GRIDS["002"].apply_to(plan)
-            # GRIDS['optimal_finer_grid'].apply_to(plan)
-            SEEDERS["directional_seeder"].apply_to(plan)
-            spec.plan = plan
-
-            space_planner = SPACE_PLANNERS["standard_space_planner"]
-            best_solutions = space_planner.apply_to(spec, 3)
-
-            new_spec = space_planner.spec
-
-            if best_solutions:
-                solution = best_solutions[0]
-                plan = solution.spec.plan
-                new_spec.plan = plan
-                writer.save_plan_as_json(plan.serialize(), plan_file_name)
-                writer.save_as_json(new_spec.serialize(), folder, spec_file_name + ".json")
-                return plan, new_spec
-            else:
-                logging.info("No solution for this plan")
-
-
-    def main(input_file: str):
-
-        # TODO : à reprendre
-        # * 61 : wrong corridor shape
-
-        out = get_plan(input_file)
-        plan = out[0]
-        spec = out[1]
-        plan.name = input_file[:-5]
+    def main(plan_number: str):
 
         # corridor = Corridor(layer_width=25, nb_layer=5)
 
+        solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
+                                            solution_number=0)
+
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec, show=False)
+        corridor.apply_to(solution, show=False)
+
+        plan = solution.spec.plan
 
         plan.check()
-
         plan.name = "corridor_" + plan.name
         plan.plot()
 
 
-    plan_name = "050.json"
-    main(input_file=plan_name)
+    plan_name = "050"
+    main(plan_number=plan_name)
