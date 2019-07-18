@@ -16,3 +16,4 @@ def test_ref_plan():
     place_doors(ref_solution.spec.plan)
     furniture.GARNISHERS['default'].apply_to(ref_solution)
     ref_solution.spec.plan.check()
+    assert len(ref_solution.spec.plan.furnitures) > 0
