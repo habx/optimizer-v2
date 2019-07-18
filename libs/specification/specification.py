@@ -8,6 +8,7 @@ from libs.plan.category import SpaceCategory
 from libs.plan.plan import Plan
 from libs.specification.size import Size
 from libs.plan.category import SPACE_CATEGORIES
+import logging
 
 from typing import List, Optional, Dict
 SQM = 10000
@@ -144,6 +145,7 @@ class Specification:
         plan_area = sum(space.area for space in self.plan.mutable_spaces())
         if ((typology_limit_area and typology_limit_area > plan_area)
             or min_spec_area > plan_area):
+            logging.warning("Specification : plan area and specification area incompatibility")
             return False
         else:
             return True
