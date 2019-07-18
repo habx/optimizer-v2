@@ -24,6 +24,7 @@ from libs.utils.geometry import (
 DOOR_WIDTH = 90
 DOOR_WIDTH_TOLERANCE = 20
 EPSILON = 2
+INDOOR_SIZE = 40000
 
 
 # TODO DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
@@ -373,6 +374,7 @@ def door_width(contact_line: List['Edge'], *_) -> bool:
 door_position_rules = {
     "imperative": [door_width, door_space],
     "non_imperative": [along_border, distant_from_door],
+    # "non_imperative": [along_border],
     "cosmetic": [close_to_circulation, distant_from_linears]
 }
 
@@ -421,7 +423,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     if not 1 > end_split_coeff > 0:
         end_split_coeff = 0 * (end_split_coeff <= 0) + (end_split_coeff >= 1)
 
-    if end_split_coeff * end_edge.length <= 1 and 1 < len(door_edges):
+    if end_split_coeff * end_edge.length <= 1 and len(door_edges) > 1:
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -486,7 +488,8 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['
         score = 0
         line = _lines[0]
         for _l, _line in enumerate(_lines):
-            current_score = _get_portion_score(_space, _line, start)
+            space_of_line=_space.plan.get_space_of_edge(_line[0])
+            current_score = _get_portion_score(space_of_line, _line, start)
             if current_score > score:
                 line = _line
                 score = current_score
@@ -544,9 +547,14 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         else:
             lines.append([edge])
 
-    # door arbitrarily opens on the inside for toilets and bathroom
+    # door arbitrarily opens on the inside for toilets, bathroom and small rooms
     # TODO : more generic rule should be applied
-    inside = False if space.category.name in ["toilet", "bathroom"] else True
+    inside = True
+    if (space.category.name in ["toilet", "bathroom"]
+            or (space.area < INDOOR_SIZE
+                and not space.category is SPACE_CATEGORIES['circulation'])):
+        inside = False
+    # inside = False if space.category.name in ["toilet", "bathroom"] else True
     if not inside:
         for l, line in enumerate(lines):
             lines[l] = [e.pair for e in reversed(line)]
