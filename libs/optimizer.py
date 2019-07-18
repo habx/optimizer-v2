@@ -57,7 +57,7 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 ref_plan_score:float,
+                 ref_plan_score: float,
                  ref_plan_score_components: Optional[dict] = None
                  ):
         self.solutions = solutions
@@ -91,7 +91,7 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+        refiner_params = {"ngen": 1, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
                           "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
@@ -332,14 +332,14 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "paris-mon18_A1604_blueprint.json",
-            "paris-mon18_A1604_setup.json",
+            "048.json",
+            "048_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
                 "do_corridor": True,
-                "do_refiner":True,
+                "do_refiner": True,
                 "max_nb_solutions": 3,
                 "do_door": True,
                 "do_final_scoring": True,
