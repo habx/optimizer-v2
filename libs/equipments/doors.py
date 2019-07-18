@@ -52,10 +52,20 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
 def select_circulation_spaces(space: 'Space') -> List['Space']:
     """
     get all circulation spaces adjacent to space with adjacent min adjacent length
+    if both a corridor and an entrance are adjacent to space and adjacent to each other,
+    the corridor is not considered for door setting
     :param space:
     :return:
     """
-    return get_adjacent_circulation_spaces(space)
+    circulations_spaces = get_adjacent_circulation_spaces(space)
+    if not circulations_spaces:
+        return []
+    entrances = [sp for sp in circulations_spaces if sp.category is SPACE_CATEGORIES["entrance"]]
+    corridors = [sp for sp in circulations_spaces if sp.category is SPACE_CATEGORIES["circulation"]]
+    for corridor in corridors:
+        if [entrance for entrance in entrances if corridor in entrance.adjacent_spaces()]:
+            circulations_spaces.remove(corridor)
+    return circulations_spaces
 
 
 def select_preferential_circulation_space(space: 'Space') -> List['Space']:
@@ -488,7 +498,7 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['
         score = 0
         line = _lines[0]
         for _l, _line in enumerate(_lines):
-            space_of_line=_space.plan.get_space_of_edge(_line[0])
+            space_of_line = _space.plan.get_space_of_edge(_line[0])
             current_score = _get_portion_score(space_of_line, _line, start)
             if current_score > score:
                 line = _line
@@ -684,7 +694,7 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[0]
+                solution = best_solutions[1]
                 plan = solution.spec.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
@@ -706,14 +716,14 @@ if __name__ == '__main__':
         spec = out[1]
         plan.name = input_file[:-5]
 
-        corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
-                            growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec)
+        # corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+        #                    growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
+        # corridor.apply_to(plan, spec=spec)
 
         bool_place_single_door = False
         if bool_place_single_door:
             cat1 = "livingKitchen"
-            cat2 = "circulation"
+            cat2 = "bedroom"
             space1 = list(sp for sp in plan.spaces if
                           sp.category.name == cat1)[0]
             space2 = list(sp for sp in plan.spaces if
@@ -725,5 +735,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "055.json"
+    _plan_name = "048.json"
     main(input_file=_plan_name)
