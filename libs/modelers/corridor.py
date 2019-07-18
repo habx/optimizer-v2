@@ -260,7 +260,7 @@ class Corridor:
                 # in which case we proceed to repair
                 l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
                     list(sp.faces)) and not sp.category.name == "circulation"]
-                if len(l) > 1:  # a space has been split by corridor propagation
+                if not l or len(l) > 1:  # a space has been split by corridor propagation
                     repair_space = l[0]
                     repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
                     while len(list(repair_space.faces)) != len(repair_faces):
