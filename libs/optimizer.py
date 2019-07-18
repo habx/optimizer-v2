@@ -297,7 +297,6 @@ class Optimizer:
                         ref_plan.plot()
                     ref_solution = reference_plan_solution(ref_plan, setup_spec)
                     ref_final_score, ref_final_score_components = final_scoring(ref_solution)
-                    print(ref_final_score, ref_final_score_components)
 
             if best_solutions:
                 for sol in best_solutions:
