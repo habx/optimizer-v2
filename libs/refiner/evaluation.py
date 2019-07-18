@@ -191,8 +191,8 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     """
     ratios = {
         SPACE_CATEGORIES["circulation"]: 350.0,
-        SPACE_CATEGORIES["livingKitchen"]: 0.5,
-        SPACE_CATEGORIES["living"]: 0.5,
+        SPACE_CATEGORIES["livingKitchen"]: 0.1,
+        SPACE_CATEGORIES["living"]: 0.1,
         "default": 1.0
     }
     score = {}

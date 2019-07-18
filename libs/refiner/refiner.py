@@ -567,9 +567,9 @@ if __name__ == '__main__':
         params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "053"  # 062 006 020 061
+        plan_number = "ARCH019"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=2)
+                                            solution_number=0)
 
         if solution:
             plan = solution.spec.plan
