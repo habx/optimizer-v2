@@ -370,16 +370,21 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     face = edge.face
 
+    front_door = next(space.plan.get_linears("frontDoor"))
+    # if there is no front door we make the assumption we are on a level of a
+    # multiple level apartment. NOTE : this will not work with triplex as we have no way
+    # of knowing which starting step correspond to the stairs going to the entrance level
+    if not front_door:
+        front_door = next(space.plan.get_linears("startingStep"))
+
     if space.category is SPACE_CATEGORIES["entrance"]:
         needed_linears = space.category.needed_linears
-    else:
         # Wen a plan has no entrance, we make the assumption that if a space has the frontDoor
         # then it is considered as an entrance and should therefore keep the frontDoor linear
-        front_door = next(space.plan.get_linears("frontDoor"))
-        if space.has_linear(front_door):
-            needed_linears = set(space.category.needed_linears) | {LINEAR_CATEGORIES["frontDoor"]}
-        else:
-            needed_linears = space.category.needed_linears
+    elif space.has_linear(front_door):
+        needed_linears = set(space.category.needed_linears) | {LINEAR_CATEGORIES["frontDoor"]}
+    else:
+        needed_linears = space.category.needed_linears
 
     if not space.category.needed_linears or not face:
         return False
