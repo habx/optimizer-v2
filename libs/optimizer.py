@@ -294,6 +294,7 @@ class Optimizer:
                         ref_plan.plot()
                     ref_solution = reference_plan_solution(ref_plan, setup_spec)
                     ref_final_score, ref_final_score_components = final_scoring(ref_solution)
+                    print(ref_final_score, ref_final_score_components)
 
             if best_solutions:
                 for sol in best_solutions:
@@ -332,16 +333,16 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "paris-mon18_A1604_blueprint.json",
-            "paris-mon18_A1604_setup.json",
+            "ARCH014_blueprint.json",
+            "ARCH014_setup.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": True,
-                "do_corridor": True,
-                "do_refiner":True,
+                "do_plot": False,
+                "do_corridor": False,
+                "do_refiner":False,
                 "max_nb_solutions": 3,
-                "do_door": True,
+                "do_door": False,
                 "do_final_scoring": True,
                 "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }

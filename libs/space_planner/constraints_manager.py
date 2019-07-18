@@ -1514,6 +1514,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [item_max_distance_constraint, {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
+        [components_adjacency_constraint,
+         {"category": "doorWindow", "adj": False, "addition_rule": "And"}],
     ],
     "living": [
         [item_attribution_constraint, {}],
