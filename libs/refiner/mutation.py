@@ -368,30 +368,33 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     :param space:
     :return:
     """
-    other_entrances = (SPACE_CATEGORIES["living"], SPACE_CATEGORIES["livingKitchen"])
-
     face = edge.face
-    has_entrance = True
 
-    if SPACE_CATEGORIES["entrance"] not in (s.category for s in space.plan.mutable_spaces()):
-        has_entrance = False
+    if space.category is SPACE_CATEGORIES["entrance"]:
+        needed_linears = space.category.needed_linears
+    else:
+        # Wen a plan has no entrance, we make the assumption that if a space has the frontDoor
+        # then it is considered as an entrance and should therefore keep the frontDoor linear
+        front_door = next(space.plan.get_linears("frontDoor"))
+        if space.has_linear(front_door):
+            needed_linears = set(space.category.needed_linears) | {LINEAR_CATEGORIES["frontDoor"]}
+        else:
+            needed_linears = space.category.needed_linears
 
-    if ((not space.category.needed_linears or not face)
-            and (has_entrance or space.category not in other_entrances)):
+    if not space.category.needed_linears or not face:
         return False
 
-    needed_linears = list(space.category.needed_linears)
-    if not has_entrance and space.category in other_entrances:
-        needed_linears.append(LINEAR_CATEGORIES["frontDoor"])
-
     for _edge in edge.face.edges:
+        # only check boundary edges
+        if space.is_internal(_edge):
+            continue
         linear = space.plan.get_linear_from_edge(_edge)
-        # Note : enable to keep only one needed linear
+        # keep only one needed linear
         if linear and linear.category in needed_linears:
             for other_edge in space.exterior_edges:
                 other_linear = space.plan.get_linear_from_edge(other_edge)
                 if (other_linear and other_linear is not linear
-                        and other_linear.category in needed_linears):
+                        and other_linear.category is linear.category):
                     break
             else:
                 return True

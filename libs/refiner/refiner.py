@@ -319,7 +319,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-15.0, -10.0, -50.0, -10.0, -50000.0,)
+    weights = (-15.0, -10.0, -100.0, -1.0, -50000.0,)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -567,9 +567,9 @@ if __name__ == '__main__':
         params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "049"  # 062 006 020 061
+        plan_number = "053"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=1)
+                                            solution_number=2)
 
         if solution:
             plan = solution.spec.plan
