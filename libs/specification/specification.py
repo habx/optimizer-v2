@@ -139,7 +139,11 @@ class Specification:
             4 : 73*SQM,
             5 : 92*SQM
         }
-        if limit_area_dict[self.typology] > sum(space.area for space in self.plan.mutable_spaces()):
+        typology_limit_area = limit_area_dict.get(self.typology, None)
+        min_spec_area = sum(item.min_size.area for item in self.spec.items)
+        plan_area = sum(space.area for space in self.plan.mutable_spaces())
+        if ((typology_limit_area and typology_limit_area > plan_area)
+            or min_spec_area > plan_area):
             return False
         else:
             return True
