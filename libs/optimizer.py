@@ -206,7 +206,7 @@ class Optimizer:
         elapsed_times["setup"] = time.process_time() - t0_setup
         logging.info("Setup read in %f", elapsed_times["setup"])
         if not area_matching:
-            return Response(None, elapsed_times, None, None)
+            return Response([], elapsed_times, None, None)
 
         # grid
         logging.info("Grid")
