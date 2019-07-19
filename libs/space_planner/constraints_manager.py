@@ -49,7 +49,7 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 1800000  # millisecond
-SEARCH_SOLUTIONS_LIMIT = 1000
+SEARCH_SOLUTIONS_LIMIT = 10000
 
 
 class ConstraintSolver:
@@ -146,7 +146,7 @@ class ConstraintSolver:
                     self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
-                    sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
+                    sol_positions[i_item].append(int(self.cells_item[j_space].Value() == i_item))
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)

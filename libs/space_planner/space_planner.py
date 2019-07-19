@@ -115,6 +115,64 @@ class SpacePlanner:
 
         return solution_spec, space_item
 
+    def _rooms_building_fast(self, plan: 'Plan',i: int, matrix_solution) -> ('Plan', Dict['Item', 'Space']):
+        """
+        Builds the rooms requested in the specification from the matrix and seed spaces.
+        :param: plan
+        :param: matrix_solution
+        :return: built plan
+        """
+        new_spec = deepcopy(self.solutions_collector.spec_with_circulation)
+        space_item = {}
+        seed_space_to_remove = []
+        for i_item, item in enumerate(new_spec.items):
+            current_space = None
+            if item.category.name != "circulation":
+                for j_space, space in enumerate(plan.mutable_spaces()):
+                    if matrix_solution[i_item][j_space] == 1:
+                        if not current_space:
+                            space.category = item.category
+                            current_space = space
+                            space_item[current_space] = item
+                        else:
+                            seed_space_to_remove.append(space)
+                            for face_id in space.faces_id:
+                                current_space.add_face_id(face_id)
+                current_space.set_edges()
+
+        while seed_space_to_remove:
+            for space in plan.mutable_spaces():
+                if space in seed_space_to_remove:
+                    plan.remove(space)
+                    seed_space_to_remove.remove(space)
+
+        # circulation case :
+        for j_space, space in enumerate(plan.mutable_spaces()):
+            if space.category.name == "seed":
+                space.category = SPACE_CATEGORIES["circulation"]
+
+        # OPT-72: If we really want to enable it, it should be done through some execution context
+        # parameters.
+        # assert plan.check()
+
+        solution_spec = Specification('Solution' + str(i) + 'Specification', plan)
+        for current_item in new_spec.items:
+            if current_item not in space_item.values():
+                # entrance case
+                if current_item.category.name == "entrance":
+                    for space, item in space_item.items():
+                        if "frontDoor" in space.components_category_associated():
+                            item.min_size.area += current_item.min_size.area
+                            item.max_size.area += current_item.max_size.area
+
+        for item in new_spec.items:
+            if item in space_item.values():
+                solution_spec.add_item(item)
+
+        solution_spec.plan.mesh.compute_cache()
+
+        return solution_spec, space_item
+
     def solution_research(self, show=False):
         """
         Looks for all possible solutions then find the three best solutions
@@ -131,8 +189,9 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
             if len(self.manager.solver.solutions) > 0:
                 for i, sol in enumerate(self.manager.solver.solutions):
+                    #print(sol)
                     plan_solution = self.spec.plan.clone()
-                    solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
+                    solution_spec, dict_space_item = self._rooms_building_fast(plan_solution, i, sol)
                     self.solutions_collector.add_solution(solution_spec, dict_space_item)
                     logging.debug(solution_spec.plan)
 
@@ -190,7 +249,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "061.json"
+        input_file = "001.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -251,7 +310,7 @@ if __name__ == '__main__':
         #         SHUFFLES['square_shape_shuffle_rooms'].run(sol.spec.plan, show=True)
         #         sol.spec.plan.plot()
 
-        logging.debug("total time :", time.process_time() - t00)
+        print("total time :", time.process_time() - t00)
 
 
     def space_planning_nico():
