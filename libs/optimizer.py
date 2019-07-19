@@ -197,6 +197,19 @@ class Optimizer:
         elapsed_times["reader"] = time.process_time() - t0_reader
         logging.info("Lot read in %f", elapsed_times["reader"])
 
+        # reading setup
+        logging.info("Read setup")
+        t0_setup = time.process_time()
+        setup_spec = reader.create_specification_from_data(setup)
+        logging.debug(setup_spec)
+        setup_spec.plan = plan
+        setup_spec.plan.remove_null_spaces()
+        area_matching = setup_spec.area_checker()
+        elapsed_times["setup"] = time.process_time() - t0_setup
+        logging.info("Setup read in %f", elapsed_times["setup"])
+        if not area_matching:
+            return Response([], elapsed_times, None, None)
+
         # grid
         logging.info("Grid")
         t0_grid = time.process_time()
@@ -218,16 +231,6 @@ class Optimizer:
             save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
-
-        # reading setup
-        logging.info("Read setup")
-        t0_setup = time.process_time()
-        setup_spec = reader.create_specification_from_data(setup)
-        logging.debug(setup_spec)
-        setup_spec.plan = plan
-        setup_spec.plan.remove_null_spaces()
-        elapsed_times["setup"] = time.process_time() - t0_setup
-        logging.info("Setup read in %f", elapsed_times["setup"])
 
         # space planner
         logging.info("Space planner")
@@ -340,11 +343,11 @@ if __name__ == '__main__':
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": True,
-                "do_corridor": True,
-                #"do_refiner":True,
+                "do_plot": False,
+                "do_corridor": False,
+                #"do_refiner":False,
                 "max_nb_solutions": 5,
-                #"do_door": True,
+                #"do_door": False,
                 #"do_final_scoring": True,
                 #"ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }

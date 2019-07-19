@@ -403,6 +403,7 @@ def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') 
     :return: Solution
     """
     reference_plan.remove_null_spaces()
+    reference_plan.remove_empty_spaces()
     if [space for space in reference_plan.spaces if space.category.name == "circulation"]:
         ref_plan_spec = initial_spec_adaptation(setup_spec, reference_plan, "ReferencePlanSpec",
                                                 True)
@@ -411,6 +412,5 @@ def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') 
                                                 False)
     ref_plan_spec.plan = reference_plan
     ref_space_item = create_item_dict(ref_plan_spec, reference_plan)
-    reference_plan.plot()
 
     return Solution(ref_plan_spec, ref_space_item, 99999)
