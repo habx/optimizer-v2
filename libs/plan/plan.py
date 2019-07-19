@@ -3258,6 +3258,16 @@ class Plan:
         for space in space_to_remove:
             space.remove()
 
+    def remove_empty_spaces(self):
+        """
+        Remove from the plan spaces with no edge reference
+        :return:
+        """
+        logging.debug("Plan: removing null spaces of plan %s", self)
+        space_to_remove = [space for space in self.spaces if space.category.name == "empty"]
+        for space in space_to_remove:
+            space.remove()
+
     def count_category_spaces(self, category_name: str) -> int:
         """
         count the number of spaces with the given category name
