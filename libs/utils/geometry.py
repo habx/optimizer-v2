@@ -8,18 +8,18 @@ TODO : we should structure this with a point class and a vector class
 from typing import Optional, Any, Sequence, Dict, Tuple, List
 import numpy as np
 import shapely as sp
-from shapely.geometry import Point, LineString, LinearRing
+from shapely.geometry import Point, LineString, LinearRing, Polygon
 from random import randint
 import math
 
-from libs.utils.custom_types import Vector2d, Coords2d
+from libs.utils.custom_types import Vector2d, Coords2d, ListCoords2d, FourCoords2d
 
 COORD_DECIMAL = 4  # number of decimal of the points coordinates
 ANGLE_EPSILON = 1.0  # value to check if an angle has a specific value
 MIN_ANGLE = 5.0
 
 
-def truncate(value: float, decimals: int = COORD_DECIMAL)-> float:
+def truncate(value: float, decimals: int = COORD_DECIMAL) -> float:
     """
     Rounds a value to the specified precision
     :param value:
@@ -35,7 +35,7 @@ def magnitude(vector: Vector2d) -> float:
     :param vector: vector as a tuple
     :return: float
     """
-    mag = np.sqrt(vector[0]**2 + vector[1]**2)
+    mag = np.sqrt(vector[0] ** 2 + vector[1] ** 2)
     return mag
 
 
@@ -172,6 +172,14 @@ def barycenter(point_1: Coords2d, point_2: Coords2d, coeff: float) -> Coords2d:
     return x_coord, y_coord
 
 
+def centroid(polygon: ListCoords2d) -> Coords2d:
+    """
+    Returns the centroid of polygon
+    :param polygon:
+    :return:
+    """
+    return Polygon(polygon).centroid.coords[0]
+
 def previous(item: Any, list_items: Sequence) -> Any:
     """
     Returns the previous item in a list
@@ -190,7 +198,7 @@ def random_unit(dec: int = 100) -> float:
     :param dec: precision
     :return:
     """
-    return float((randint(0, 2 * dec + 1) - dec)/dec)
+    return float((randint(0, 2 * dec + 1) - dec) / dec)
 
 
 def add_random_noise(coords: Coords2d, maximum: float = 1.0) -> Coords2d:
@@ -216,14 +224,14 @@ def same_half_plane(vector_1: Vector2d, vector_2: Vector2d) -> bool:
     return dot_product(vector_1, vector_2) >= 0
 
 
-def dot_product(vector_1: Vector2d, vector_2: Vector2d):
+def dot_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
     """
     Returns the dot product of the two vectors
     :param vector_1:
     :param vector_2:
     :return:
     """
-    return vector_1[0]*vector_2[0] + vector_1[1]*vector_2[1]
+    return vector_1[0] * vector_2[0] + vector_1[1] * vector_2[1]
 
 
 def cross_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
@@ -233,7 +241,7 @@ def cross_product(vector_1: Vector2d, vector_2: Vector2d) -> float:
     :param vector_2:
     :return:
     """
-    return vector_1[0]*vector_2[1] - vector_1[1]*vector_2[0]
+    return vector_1[0] * vector_2[1] - vector_1[1] * vector_2[0]
 
 
 def pseudo_equal(value: float, other: float, epsilon: float) -> bool:
@@ -314,12 +322,12 @@ def lines_intersection(line_1: Tuple[Coords2d, Vector2d],
     a, u = line_1
     b, v = line_2
     assert v != (0, 0) and u != (0, 0), "Geometry: Line intersection : the vectors must no be null"
-    d = (v[0]*u[1] - u[0]*v[1])
+    d = (v[0] * u[1] - u[0] * v[1])
     # if d == 0: no or infinite number of solutions because the vectors are co-linears
     if d == 0:
         return None
-    t = 1/d * (u[1]*(a[0] - b[0]) - u[0]*(a[1]-b[1]))
-    return b[0] + t*v[0], b[1] + t*v[1]
+    t = 1 / d * (u[1] * (a[0] - b[0]) - u[0] * (a[1] - b[1]))
+    return b[0] + t * v[0], b[1] + t * v[1]
 
 
 def project_point_on_segment(point: Coords2d,
@@ -341,21 +349,21 @@ def project_point_on_segment(point: Coords2d,
     a = point
     u = vector
     b = segment[0]
-    v = segment[1][0]-b[0], segment[1][1] - b[1]
-    d = (v[0]*u[1] - u[0]*v[1])
+    v = segment[1][0] - b[0], segment[1][1] - b[1]
+    d = (v[0] * u[1] - u[0] * v[1])
     if d == 0:
         return None
     abx = a[0] - b[0]
     aby = a[1] - b[1]
-    t = 1/d * (u[1]*abx - u[0]*aby)
+    t = 1 / d * (u[1] * abx - u[0] * aby)
     len_segment = distance(*segment)
     relative_epsilon = epsilon / len_segment
     if t > 1 + relative_epsilon or t < -relative_epsilon:
         return None
-    p = 1/d * (v[1]*abx - v[0]*aby)
+    p = 1 / d * (v[1] * abx - v[0] * aby)
     if p < -relative_epsilon and not no_direction:
         return None
-    return b[0] + t*v[0], b[1] + t*v[1]
+    return b[0] + t * v[0], b[1] + t * v[1]
 
 
 def min_section(perimeter: List[Coords2d]) -> float:
@@ -396,3 +404,119 @@ def min_section(perimeter: List[Coords2d]) -> float:
     return depth
 
 
+def rotate(polygon: ListCoords2d, ref_point: Coords2d, angle: float) -> ListCoords2d:
+    """
+    Return a rotated version of the polygon around a reference point
+    :param polygon:
+    :param ref_point:
+    :param angle: in degrees, ccw
+    :return:
+    """
+    ref_x, ref_y = ref_point
+    # convert to radians
+    angle = angle * math.pi / 180
+    # rotate each point
+    return tuple([(math.cos(angle) * (x - ref_x) - math.sin(angle) * (y - ref_y) + ref_x,
+                   math.sin(angle) * (x - ref_x) + math.cos(angle) * (y - ref_y) + ref_y)
+                  for x, y in polygon])
+
+
+def minimum_rotated_rectangle(polygon: ListCoords2d) -> FourCoords2d:
+    """
+    Return the smallest bounding box of the polygon
+    :param polygon:
+    :return:
+    """
+    return Polygon(polygon).minimum_rotated_rectangle.exterior.coords[:-1]
+
+
+def polygons_collision(poly_1: ListCoords2d,
+                       poly_2: ListCoords2d,
+                       tolerance: float = 0) -> bool:
+    """
+    Return true if polygons are colliding, given the input tolerance
+    :param poly_1:
+    :param poly_2:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(poly_1).buffer(-tolerance).intersects(Polygon(poly_2))
+
+
+def polygon_border_collision(polygon: ListCoords2d,
+                             border: ListCoords2d,
+                             tolerance: float = 0) -> bool:
+    """
+    Return true if polygon collides border, given the input tolerance
+    :param polygon:
+    :param border:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(polygon).buffer(-tolerance).intersects(LinearRing(border))
+
+
+def polygon_linestring_collision(polygon: ListCoords2d,
+                                 linestring: ListCoords2d,
+                                 tolerance: float = 0) -> bool:
+    """
+    Return true if polygon collides linestring, given the input tolerance
+    :param polygon:
+    :param linestring:
+    :param tolerance:
+    :return:
+    """
+    return Polygon(polygon).buffer(-tolerance).intersects(LineString(linestring))
+
+
+def circle_line_intersection(line_start: Coords2d,
+                             line_stop: Coords2d,
+                             circle_center: Coords2d,
+                             radius: float) -> bool:
+    """
+    Return True if circle intersects line
+    :param line_start:
+    :param line_stop:
+    :param circle_center:
+    :param radius:
+    :return:
+    """
+    a_x, a_y = line_start
+    b_x, b_y = line_stop
+    c_x, c_y = circle_center
+    # compute line length and vec
+    line_length = ((b_x - a_x) ** 2 + (b_y - a_y) ** 2) ** 0.5
+    vec_x = (b_x - a_x) / line_length
+    vec_y = (b_y - a_y) / line_length
+    # project c on a-b (compute distance a-c')
+    dist = (c_x - a_x) * vec_x + (c_y - a_y) * vec_y
+    # compute c-c' distance and compare with radius
+    return ((c_x - (a_x + dist * vec_x)) ** 2 + (c_y - (a_y + dist * vec_y)) ** 2) ** 0.5 <= radius
+
+
+def bottleneck(polygon: ListCoords2d, tolerance: float) -> bool:
+    """
+    Return True if polygon contains a bottleneck tighter than the input tolerence.
+    :param polygon:
+    :param tolerance:
+    :return:
+    """
+
+    lines = [((polygon[i - 1][0], polygon[i - 1][1]), (polygon[i][0], polygon[i][1]))
+             for i in range(len(polygon))]
+    for coord in polygon:
+        intersections = [circle_line_intersection(line[0], line[1], coord, tolerance)
+                         for line in lines]
+        if len([0
+                for i, intersection in enumerate(intersections)
+                if intersection and (not intersections[i - 1])]) > 1:
+            return True
+    return False
+
+
+def distance_point_border(point: Coords2d, border: ListCoords2d) -> float:
+    return Point(point).distance(LinearRing(border))
+
+
+def is_inside(point: Coords2d, polygon: ListCoords2d) -> bool:
+    return Polygon(polygon).contains(Point(point))
