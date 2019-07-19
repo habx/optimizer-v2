@@ -15,6 +15,7 @@ from libs.io.writer import generate_output_dict, save_plan_as_json
 from libs.modelers.grid import GRIDS
 from libs.modelers.seed import SEEDERS
 from libs.modelers.corridor import Corridor, CORRIDOR_BUILDING_RULES
+from libs.equipments.furniture import GARNISHERS
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
@@ -24,6 +25,7 @@ from libs.space_planner.solution import spec_adaptation, reference_plan_solution
 import libs.io.plot
 import matplotlib.pyplot as plt
 import urllib, json
+
 
 
 class LocalContext:
@@ -105,6 +107,8 @@ class ExecParams:
         self.do_refiner = params.get('do_refiner', False)
         self.refiner_type = params.get('refiner_type', 'space_nsga')
         self.refiner_params = params.get('refiner_params', refiner_params)
+        self.do_garnisher = params.get('do_garnisher', False)
+        self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', False)
         self.ref_plan_url = params.get('ref_plan_url', None)
         self.do_final_scoring = params.get('do_final_scoring', False)
@@ -284,6 +288,21 @@ class Optimizer:
                         door_plot(sol.spec.plan)
         elapsed_times["door"] = time.process_time() - t0_door
         logging.info("Door placement achieved in %f", elapsed_times["door"])
+
+        # garnisher
+        t0_garnisher = time.process_time()
+        if params.do_garnisher:
+            logging.info("Garnisher")
+            if best_solutions and space_planner:
+                for i, sol in enumerate(best_solutions):
+                    GARNISHERS[params.garnisher_type].apply_to(sol)
+                    if params.do_plot:
+                        sol.spec.plan.plot(name=f"garnisher sol {i+1}")
+                    if params.save_ll_bp:
+                        save_plan_as_json(sol.spec.plan.serialize(), f"garnisher sol {i+1}",
+                                          libs.io.plot.output_path)
+        elapsed_times["garnisher"] = time.process_time() - t0_garnisher
+        logging.info("Garnisher achieved in %f", elapsed_times["garnisher"])
 
         # scoring
         ref_final_score = None
