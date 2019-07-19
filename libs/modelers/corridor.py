@@ -524,10 +524,10 @@ class Corridor:
             for line_edge in line:
                 corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
                 self.add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
-                                          show)
+                                          show, corner=True)
                 self.add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
                                           corridor_space,
-                                          show)
+                                          show, corner=True)
                 corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
                 space_corner = self.plan.get_space_of_edge(corner_edge)
                 if not space_corner or not corridor_space:
@@ -659,7 +659,9 @@ class Corridor:
                 return False
             if not self.plan.get_space_of_edge(layer_edge).category.mutable:
                 return False
-            if self.plan.get_linear(layer_edge):
+            # if self.plan.get_linear(layer_edge):
+            #    return False
+            if [l for l in layer_edge.face.edges if self.plan.get_linear(l)]:
                 return False
             if self.plan.get_linear(layer_edge.pair):
                 return False
@@ -704,7 +706,7 @@ class Corridor:
         return True
 
     def add_corridor_portion(self, edge: 'Edge', max_width: float, corridor_space: 'Space',
-                             show: bool = False):
+                             show: bool = False, corner: bool = False):
         """
         Builds a corridor space : starts with edge face and iteratively adds faces
         in normal direction to edge until the corridor space width reaches the objective
@@ -742,6 +744,8 @@ class Corridor:
                 if len(list(sp.faces)) == 1:
                     if self._space_totally_overlapped(sp.floor.level, sp.face):
                         break
+                if corner and sp.corner_stone(layer_edge.face):
+                    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
