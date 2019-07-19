@@ -363,7 +363,6 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     TODO : number of linears (example : living or bedroom if small windows)
-    TODO : for duplex add starting step linear to circulation
     :param edge:
     :param space:
     :return:
@@ -430,7 +429,7 @@ def _adjacent_to_needed_space(edge: 'Edge', space: 'Space',
         return False
 
     # check if another face maintains the needed adjacency
-    for _edge in space.edges:
+    for _edge in space.exterior_edges:
         if _edge.face is face or _edge in removed_edges:
             continue
         _other = space.plan.get_space_of_edge(_edge.pair)

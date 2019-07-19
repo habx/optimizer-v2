@@ -10,12 +10,12 @@ import logging
 from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
-from libs.plan.category import SPACE_CATEGORIES
+from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space, Floor
+    from libs.plan.plan import Space, Floor, Linear
     from libs.space_planner.solution import Solution
 
 # a score function returns a specific score for each space of the plan. It takes
@@ -40,7 +40,7 @@ def compose(funcs: List[scoreFunc],
     n_scores = len(funcs)
 
     for space_id in spaces_id:
-        new_space_fitness = [None] * n_scores
+        new_space_fitness: List[Optional[float]] = [None] * n_scores
         for i in range(n_scores):
             if space_id in scores[i]:
                 new_space_fitness[i] = scores[i][space_id]
@@ -191,7 +191,7 @@ def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float
     """
     ratios = {
         SPACE_CATEGORIES["circulation"]: 350.0,
-        SPACE_CATEGORIES["livingKitchen"]: 0.1,
+        SPACE_CATEGORIES["livingKitchen"]: 0.,
         SPACE_CATEGORIES["living"]: 0.1,
         "default": 1.0
     }
@@ -360,6 +360,57 @@ def _score_floor_connectivity(ind: 'Individual',
     return score
 
 
+def score_window_area_ratio(_: 'Specification', ind: 'Individual')-> Dict[int, float]:
+    """
+    Scores the spaces according to specific window area on floor area ratios
+    :param _:
+    :param ind:
+    :return:
+    """
+    min_ratios = {
+        SPACE_CATEGORIES["living"]: .18,
+        SPACE_CATEGORIES["livingKitchen"]: .18,
+        SPACE_CATEGORIES["dining"]: .18,
+        SPACE_CATEGORIES["bedroom"]: .15,
+        SPACE_CATEGORIES["kitchen"]: .10,
+        SPACE_CATEGORIES["study"]: .10
+    }
+
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.category in min_ratios:
+            window_area = sum(_window_area(window)
+                              for window in space.immutable_components(
+                LINEAR_CATEGORIES["doorWindow"], LINEAR_CATEGORIES["window"]))
+            ratio = window_area/space.cached_area()
+            score[space.id] = _score_min_value(ratio, min_ratios.get(space.category))
+        else:
+            score[space.id] = 0.
+
+    return score
+
+
+def _window_area(window: 'Linear') -> float:
+    small_window_height = 75.
+    normal_window_height = 125.
+    door_window_height = 215.
+
+    length = window.length
+    if window.category is LINEAR_CATEGORIES["doorWindow"]:
+        return length * door_window_height
+    if length <= 70.:
+        return length * small_window_height
+    return length * normal_window_height
+
+
+def _score_min_value(value: float, min_value: float) -> float:
+    """ simple function returning a penalty score if a value is inferior to the specified
+    min_value """
+    if value >= min_value:
+        return 0.
+    return ((min_value - value)/min_value) ** 2 * 100.
+
+
 def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
     """
     Computes a score of the min width of each corridor
@@ -427,4 +478,4 @@ def check(ind: 'Individual', solution: 'Solution') -> None:
 
 
 __all__ = ['compose', 'score_perimeter_area_ratio', 'score_bounding_box', 'score_area',
-           'score_corner', 'create_item_dict', 'check']
+           'score_corner', 'create_item_dict', 'check', 'score_window_area_ratio']

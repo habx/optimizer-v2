@@ -55,29 +55,6 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 random.seed(0)
 
 
-def merge_similar_circulations(plan: 'Plan') -> None:
-    """
-    Merges two adjacent corridors
-    :param plan:
-    :return:
-    """
-    try_again = True
-    adjacency_ratio = 0.3
-
-    while try_again:
-        try_again = False
-        circulations = list(plan.get_spaces("circulation"))
-        for circulation in circulations:
-            min_perimeter = circulation.perimeter*adjacency_ratio
-            for other_circulation in circulations:
-                if circulation.adjacency_to(other_circulation) >= min_perimeter:
-                    circulation.merge(other_circulation)
-                    try_again = True
-                    break
-            if try_again:
-                break
-
-
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
     Merges two adjacent corridors
@@ -103,19 +80,20 @@ def merge_adjacent_circulation(ind: 'Individual') -> None:
 def merge_circulation_living(ind: 'Individual') -> None:
     """
     Merges a circulation space with the living or the livingKitchen if
-    their adjacency length is superior a certain ratio of the circulation perimeter
+    their adjacency length is superior to a maximum length
     :return:
     """
-    adjacency_ratio = 0.4
+    max_length = 130.
+    adjacency_ratio = 0.25
 
     circulations = list(ind.get_spaces("circulation"))
     livings = list(ind.get_spaces("living", "livingKitchen"))
 
     for circulation in circulations:
         merged = False
-        perimeter = circulation.perimeter
+        circulation_perimeter = circulation.perimeter * adjacency_ratio
         for living in livings:
-            if circulation.adjacency_to(living) >= perimeter * adjacency_ratio:
+            if circulation.adjacency_to(living) >= min(max_length, circulation_perimeter):
                 living.merge(circulation)
                 merged = True
                 break
@@ -126,19 +104,21 @@ def merge_circulation_living(ind: 'Individual') -> None:
 def merge_circulation_entrance(ind: 'Individual') -> None:
     """
     Merges a circulation space with the entrance if
-    their adjacency length is superior a certain ratio of the circulation perimeter
+    their adjacency length is superior a certain ratio of the circulation perimeter or
+    superior to a minimum length
     :return:
     """
-    adjacency_ratio = 0.4
+    max_length = 130.
+    adjacency_ratio = 0.25
 
     circulations = list(ind.get_spaces("circulation"))
     entrances = list(ind.get_spaces("entrance"))
 
     for circulation in circulations:
+        circulation_perimeter = circulation.perimeter * adjacency_ratio
         merged = False
-        perimeter = circulation.perimeter
         for entrance in entrances:
-            if circulation.adjacency_to(entrance) >= perimeter * adjacency_ratio:
+            if circulation.adjacency_to(entrance) >= min(max_length, circulation_perimeter):
                 entrance.merge(circulation)
                 merged = True
                 break
@@ -175,9 +155,10 @@ class Refiner:
         output = max(results, key=lambda i: i.fitness.wvalue)
 
         # clean unnecessary circulation
-        merge_adjacent_circulation(output)
+        output.plot()
         merge_circulation_living(output)
         merge_circulation_entrance(output)
+        merge_adjacent_circulation(output)
         solution.spec.plan = output
         return output
 
@@ -319,7 +300,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-15.0, -10.0, -100.0, -1.0, -50000.0,)
+    weights = (-20.0, -8.0, -100.0, -1.0, -50000.0, -10.)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -334,6 +315,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
         evaluation.score_width_depth_ratio,
         evaluation.score_bounding_box,
         evaluation.score_connectivity,
+        evaluation.score_window_area_ratio
     ]
     toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
@@ -564,12 +546,12 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
+        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "ARCH019"  # 062 006 020 061
+        plan_number = "041"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=0)
+                                            solution_number=1)
 
         if solution:
             plan = solution.spec.plan
