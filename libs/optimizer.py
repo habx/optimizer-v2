@@ -340,7 +340,7 @@ if __name__ == '__main__':
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": False,
+                "do_plot": True,
                 "do_corridor": False,
                 "do_refiner":False,
                 "max_nb_solutions": 3,
