@@ -2,6 +2,7 @@
 import argparse
 import logging
 import os
+import copy
 
 import uuid
 import requests
@@ -39,6 +40,15 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
     response = requests.get(endpoint, params=context, headers={
         'x-habx-token': os.getenv('HABX_TOKEN', 'ymSC4QkHwxEnAeyBu9UqWzbs')
     })
+
+    if not response.ok:
+        log_context = copy.deepcopy(context)
+        log_context['httpStatusCode'] = response.status_code
+        log_context['httpContent'] = response.content.decode("utf-8")
+        logging.warning(
+            'Invalid response: %d / %s', response.status_code, response.content.decode("utf-8") ,
+            extra=log_context,
+        )
 
     job_input = response.json().get('job')
 
