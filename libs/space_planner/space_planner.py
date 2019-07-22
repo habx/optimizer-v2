@@ -70,7 +70,8 @@ class SpacePlanner:
                             seed_space_to_remove.append(space)
                             for face_id in space.faces_id:
                                 current_space.add_face_id(face_id)
-                current_space.set_edges()
+                if current_space:
+                    current_space.set_edges()
 
         while seed_space_to_remove:
             for space in plan.mutable_spaces():
