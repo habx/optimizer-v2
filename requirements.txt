@@ -4,6 +4,7 @@ shapely==1.6.4.post2
 ortools==7.2.6977
 Dijkstar==2.4.0
 networkx==2.3
+sklearn==0.0
 
 # WARNING: This should not be shared externally. We're using a token because fetching private
 #          dependencies using the SSH key prior to building the container is a lot more difficult,
