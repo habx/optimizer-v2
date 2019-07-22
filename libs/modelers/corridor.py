@@ -422,56 +422,52 @@ class Corridor:
         :return:
         """
 
-        def _condition(e: 'Edge'):
-            if (self.plan.get_space_of_edge(e)
-                    and self.plan.get_space_of_edge(e).category.name is "circulation"):
-                return True
-            return False
+        def _condition(_edge: 'Edge'):
+            """
+            condition that shall be verified for a corridor space to grow from edge _edge
+            :param _edge:
+            :return:
+            """
+            if not self.plan.get_space_of_edge(_edge):
+                return False
+            if not self.plan.get_space_of_edge(_edge).category is SPACE_CATEGORIES['circulation']:
+                return False
+            return True
 
-        def _line_forward(e: 'Edge') -> List['Edge']:
+        def _line_forward(_edge: 'Edge') -> List['Edge']:
             """
             returns edges aligned with e, contiguous, in forward direction
-            :param e:
+            :param _edge:
             :return:
             """
             output = []
-            current = e
+            current = _edge
             while current:
                 output.append(current)
                 current = current.aligned_edge or current.continuous_edge
             return output[1:]
 
         for edge in self.corner_data:
-
-            if self.plan.get_space_of_edge(edge):
-                floor = self.plan.get_space_of_edge(edge).floor
+            corner_edge = edge if self.corner_data[edge] > 0 else edge.pair
+            if self.plan.get_space_of_edge(corner_edge):
+                floor = self.plan.get_space_of_edge(corner_edge).floor
             else:
-                floor = self.plan.get_space_of_edge(edge.pair).floor
+                continue
 
             line = []
-            for line_edge in _line_forward(edge):
-                if ((_condition(line_edge) or _condition(line_edge.pair))
+            for line_edge in _line_forward(corner_edge):
+                # line_edge contains edges along wich a corridor space will grow to fill a corner
+                if ((_condition(line_edge.pair))
                         and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
             for line_edge in line:
                 corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
-                self.add_corridor_portion(line_edge, self.corner_data[edge]["ccw"], corridor_space,
+                self.add_corridor_portion(line_edge, self.corridor_rules.width, corridor_space,
                                           show, corner=True)
-                self.add_corridor_portion(line_edge.pair, self.corner_data[edge]["cw"],
-                                          corridor_space,
-                                          show, corner=True)
-                corner_edge = edge if self.corner_data[edge]["ccw"] > 0 else edge.pair
-                space_corner = self.plan.get_space_of_edge(corner_edge)
-                if not space_corner or not corridor_space:
-                    continue
-                if not space_corner.category.name == "circulation":  # and len(list(space_corner.faces)) < 2:  # do not remove the space
-                    continue
-                if list([e for e in space_corner.edges if
-                         e.pair.face and corridor_space.has_face(e.pair.face)]):
-                    # merge if spaces are adjacent
-                    corridor_space.merge(space_corner)
+                if not corridor_space:
+                    break
 
     def grow(self, path: List['Edge'], show: bool = False) -> 'Corridor':
         """
@@ -503,10 +499,8 @@ class Corridor:
         """
 
         edge_lines = self._get_straight_parts(path)
-        corridor_spaces = []
         for edge_line in edge_lines:
-            created_space = self.growth_method(self, edge_line, show)
-            corridor_spaces.append(created_space)
+            self.growth_method(self, edge_line, show)
 
     @staticmethod
     def _get_straight_parts(path: List['Edge']) -> List[List['Edge']]:
@@ -597,6 +591,7 @@ class Corridor:
         :param max_width:
         :param corridor_space:
         :param show:
+        :param corner:
         :return:
         """
 
@@ -668,9 +663,7 @@ def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edg
                                       show)
         if e == len(edge_line) - 1:
             # info stored for corner filling
-            width_ccw = corridor.corridor_rules.width if growing_direction > 0 else 0
-            width_cw = corridor.corridor_rules.width if growing_direction < 0 else 0
-            corridor.corner_data[edge] = {"cw": width_cw, "ccw": width_ccw}
+            corridor.corner_data[edge] = growing_direction
     return corridor_space
 
 
@@ -699,9 +692,9 @@ if __name__ == '__main__':
 
     plan_name = None
     if plan_index < 10:
-        plan_name = '00' + str(plan_index) + ".json"
+        plan_name = '00' + str(plan_index)  # + ".json"
     elif 10 <= plan_index < 100:
-        plan_name = '0' + str(plan_index) + ".json"
+        plan_name = '0' + str(plan_index)  # + ".json"
 
 
     def main(plan_number: str):
@@ -722,5 +715,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "061"
+    #plan_name = "015"
     main(plan_number=plan_name)
