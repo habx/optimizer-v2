@@ -55,74 +55,6 @@ class SpacePlanner:
         :return: built plan
         """
         new_spec = deepcopy(self.solutions_collector.spec_with_circulation)
-        dict_space_item = {}
-        for i_item, item in enumerate(new_spec.items):
-            item_space = []
-            if item.category.name != "circulation":
-                for j_space, space in enumerate(plan.mutable_spaces()):
-                    if matrix_solution[i_item][j_space] == 1:
-                        space.category = item.category
-                        item_space.append(space)
-                dict_space_item[item] = item_space
-
-        # circulation case :
-        for j_space, space in enumerate(plan.mutable_spaces()):
-            if space.category.name == "seed":
-                space.category = SPACE_CATEGORIES["circulation"]
-
-        # To know the space associated with the item
-        space_item = {}
-        for item in new_spec.items:
-            if item.category.name != "circulation":
-                item_space = dict_space_item[item]
-                if len(item_space) > 1:
-                    space_ini = item_space[0]
-                    item_space.remove(item_space[0])
-                    i = 0
-                    iter_max = len(item_space) ** 2
-                    while (len(item_space) > 0) and i < iter_max:
-                        i += 1
-                        for space in item_space:
-                            if space.adjacent_to(space_ini):
-                                item_space.remove(space)
-                                space_ini.merge(space)
-                                plan.remove_null_spaces()
-                                break
-                    space_item[space_ini] = item
-                elif len(item_space) == 1:
-                    if item_space:
-                        space_item[item_space[0]] = item
-
-        # OPT-72: If we really want to enable it, it should be done through some execution context
-        # parameters.
-        # assert plan.check()
-
-        solution_spec = Specification('Solution' + str(i) + 'Specification', plan)
-        for current_item in new_spec.items:
-            if current_item not in space_item.values():
-                # entrance case
-                if current_item.category.name == "entrance":
-                    for space, item in space_item.items():
-                        if "frontDoor" in space.components_category_associated():
-                            item.min_size.area += current_item.min_size.area
-                            item.max_size.area += current_item.max_size.area
-
-        for item in new_spec.items:
-            if item in space_item.values():
-                solution_spec.add_item(item)
-
-        solution_spec.plan.mesh.compute_cache()
-
-        return solution_spec, space_item
-
-    def _rooms_building_fast(self, plan: 'Plan',i: int, matrix_solution) -> ('Plan', Dict['Item', 'Space']):
-        """
-        Builds the rooms requested in the specification from the matrix and seed spaces.
-        :param: plan
-        :param: matrix_solution
-        :return: built plan
-        """
-        new_spec = deepcopy(self.solutions_collector.spec_with_circulation)
         space_item = {}
         seed_space_to_remove = []
         for i_item, item in enumerate(new_spec.items):
@@ -191,7 +123,7 @@ class SpacePlanner:
                 for i, sol in enumerate(self.manager.solver.solutions):
                     #print(sol)
                     plan_solution = self.spec.plan.clone()
-                    solution_spec, dict_space_item = self._rooms_building_fast(plan_solution, i, sol)
+                    solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
                     self.solutions_collector.add_solution(solution_spec, dict_space_item)
                     logging.debug(solution_spec.plan)
 
