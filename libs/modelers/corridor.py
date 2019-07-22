@@ -112,6 +112,7 @@ class Corridor:
         """
         stores groups of faces that belong to non mutable spaces, for repair purpose
         :param initial_mutable_spaces:
+        :param solution:
         :return:
         """
         grouped_faces = {level: [] for level in self.plan.levels}
@@ -715,5 +716,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    #plan_name = "015"
+    # plan_name = "015"
     main(plan_number=plan_name)
