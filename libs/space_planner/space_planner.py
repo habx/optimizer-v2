@@ -189,7 +189,7 @@ class SpacePlanner:
 
             matrix = self.clustering_distance_matrix(self.manager.solver.solutions)
             X_matrix = np.array(matrix)
-            db = DBSCAN(eps=1, min_samples=10, metric="precomputed", n_jobs=None).fit(X_matrix)
+            db = DBSCAN(eps=0.5, min_samples=10, metric="precomputed", n_jobs=None).fit(X_matrix)
             print("labels_", db.labels_)
             labels = db.labels_
 
@@ -254,8 +254,8 @@ class SpacePlanner:
 
         clustering_solutions = self.solution_research()
 
-        #self.solutions_collector.space_planner_best_results()
-        self.solutions_collector.best_solutions = clustering_solutions
+        self.solutions_collector.space_planner_best_results()
+        #self.solutions_collector.best_solutions = clustering_solutions
 
         return self.solutions_collector.best_solutions
 
