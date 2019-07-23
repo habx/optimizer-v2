@@ -189,7 +189,7 @@ class SpacePlanner:
 
             matrix = self.clustering_distance_matrix(self.manager.solver.solutions)
             X_matrix = np.array(matrix)
-            db = DBSCAN(eps=0.5, min_samples=10, metric="precomputed", n_jobs=None).fit(X_matrix)
+            db = DBSCAN(eps=0.5, min_samples=5, metric="precomputed", n_jobs=-1).fit(X_matrix)
             #print("labels_", db.labels_)
             labels = db.labels_
 
@@ -288,7 +288,7 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "050.json"
+        input_file = "030.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
