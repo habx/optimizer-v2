@@ -459,7 +459,7 @@ class Corridor:
             line = []
             for line_edge in _line_forward(edge):
                 # line_edge contains edges along wich a corridor space will grow to fill a corner
-                if ((_condition(line_edge))
+                if ((_condition(line_edge) or _condition(line_edge.pair))
                         and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
                     line.append(line_edge)
                 else:
@@ -718,5 +718,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "060"
+    plan_name = "050"
     main(plan_number=plan_name)
