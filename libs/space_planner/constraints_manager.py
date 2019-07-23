@@ -554,6 +554,9 @@ class ConstraintsManager:
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.plan.floor_count > 1:
                 for constraint in DUPLEX_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
@@ -1653,6 +1656,35 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "laundry": [
         [non_isolated_item_constraint, {}],
+    ]
+}
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "entrance": [
+
+    ],
+    "toilet": [
+
+    ],
+    "bathroom": [
+
+    ],
+    "living": [
+
+    ],
+    "livingKitchen": [
+
+    ],
+    "bedroom": [
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "study": [
+    ],
+    "dining": [
+    ],
+    "kitchen": [
+    ],
+    "laundry": [
     ]
 }
 
