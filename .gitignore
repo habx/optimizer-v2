@@ -5,3 +5,5 @@ output
 .DS_Store
 .idea
 doc/_build
+venv/
+tasks/

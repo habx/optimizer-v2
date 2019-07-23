@@ -1,0 +1,118 @@
+{
+  "rooms": [
+    {
+      "opensOn": [
+        "kitchen"
+      ],
+      "requiredArea": {
+        "max": 400000,
+        "min": 300000
+      },
+      "tags": [],
+      "type": "living",
+      "variant": "xl"
+    },
+    {
+      "opensOn": [
+        "living"
+      ],
+      "requiredArea": {
+        "max": 190000,
+        "min": 150000
+      },
+      "tags": [],
+      "type": "kitchen",
+      "variant": "xl"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 100000,
+        "min": 80000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 100000,
+        "min": 80000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "xs"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 180000,
+        "min": 150000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "l"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 120000,
+        "min": 100000
+      },
+      "tags": [],
+      "type": "bedroom",
+      "variant": "s"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 60000,
+        "min": 40000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "s"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "tags": [],
+      "type": "bathroom",
+      "variant": "xs"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 20000,
+        "min": 10000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "s"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 80000,
+        "min": 40000
+      },
+      "tags": [],
+      "type": "toilet",
+      "variant": "xl"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 130000,
+        "min": 110000
+      },
+      "tags": [],
+      "type": "circulation",
+      "variant": ""
+    }
+  ]
+}
