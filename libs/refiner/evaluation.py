@@ -382,7 +382,9 @@ def score_window_area_ratio(_: 'Specification', ind: 'Individual')-> Dict[int, f
             window_area = sum(_window_area(window)
                               for window in space.immutable_components(
                 LINEAR_CATEGORIES["doorWindow"], LINEAR_CATEGORIES["window"]))
-            ratio = window_area/space.cached_area()
+            space_area = space.cached_area()
+            # per convention we assign a ratio of 0. if the space is empty
+            ratio = window_area/space_area if space_area else 0.
             score[space.id] = _score_min_value(ratio, min_ratios.get(space.category))
         else:
             score[space.id] = 0.
