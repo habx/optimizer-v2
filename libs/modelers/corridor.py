@@ -86,7 +86,6 @@ class Corridor:
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        self.circulator.plot()
         self._set_paths()
 
         # Real time plot updates
@@ -608,8 +607,8 @@ class Corridor:
                 if len(list(sp.faces)) == 1:
                     if self._space_totally_overlapped(sp.floor.level, sp.face):
                         break
-                if corner and sp.corner_stone(layer_edge.face):
-                    break
+                # if corner and sp.corner_stone(layer_edge.face):
+                #    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
