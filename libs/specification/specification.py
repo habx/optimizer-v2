@@ -8,8 +8,10 @@ from libs.plan.category import SpaceCategory
 from libs.plan.plan import Plan
 from libs.specification.size import Size
 from libs.plan.category import SPACE_CATEGORIES
+import logging
 
 from typing import List, Optional, Dict
+SQM = 10000
 
 
 class Specification:
@@ -126,6 +128,27 @@ class Specification:
             specification.add_item(new_item)
         return specification
 
+    def area_checker(self):
+        """
+        Returns if plan area and specification area are matching
+        :return:
+        """
+        limit_area_dict = {
+            1 : 22*SQM,
+            2 : 37*SQM,
+            3 : 57*SQM,
+            4 : 73*SQM,
+            5 : 92*SQM
+        }
+        typology_limit_area = limit_area_dict.get(self.typology, None)
+        min_spec_area = sum(item.min_size.area for item in self.items)
+        plan_area = sum(space.area for space in self.plan.mutable_spaces())
+        if ((typology_limit_area and typology_limit_area > plan_area)
+            or min_spec_area > plan_area):
+            logging.warning("Specification : plan area and specification area incompatibility")
+            return False
+        else:
+            return True
 
 class Item:
     """

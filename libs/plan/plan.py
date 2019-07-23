@@ -32,7 +32,8 @@ from libs.plan.category import LinearCategory, SpaceCategory, SPACE_CATEGORIES, 
 from libs.io.plot import plot_save, plot_edge, plot_polygon
 import libs.mesh.transformation as transformation
 from libs.specification.size import Size
-from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d
+from libs.equipments.furniture import Furniture
+from libs.utils.custom_types import Coords2d, TwoEdgesAndAFace, Vector2d, FourCoords2d
 from libs.utils.custom_exceptions import OutsideFaceError, OutsideVertexError, SpaceShapeError
 from libs.utils.decorator_timer import DecoratorTimer
 from libs.utils.geometry import (
@@ -42,7 +43,8 @@ from libs.utils.geometry import (
     opposite_vector,
     ccw_angle,
     pseudo_equal,
-    unit_vector
+    unit_vector,
+    minimum_rotated_rectangle
 )
 
 if TYPE_CHECKING:
@@ -780,7 +782,7 @@ class Space(PlanComponent):
 
         return max_x - min_x, max_y - min_y
 
-    def minimum_rotated_rectangle(self) -> Optional[Tuple[Coords2d, Coords2d, Coords2d, Coords2d]]:
+    def minimum_rotated_rectangle(self) -> Optional[FourCoords2d]:
         """
         Returns the smallest minimum rotated rectangle
         We rely on shapely minimum_rotated_rectangle method
@@ -789,10 +791,7 @@ class Space(PlanComponent):
         if not self.edge:
             return None
 
-        output = self.as_sp.minimum_rotated_rectangle.exterior.coords[:]
-        output.pop()
-
-        return output
+        return minimum_rotated_rectangle(self.boundary_polygon())
 
     def distance_to(self, other: 'Space', kind: str = "max") -> float:
         """
@@ -1571,7 +1570,7 @@ class Space(PlanComponent):
 
     def plot(self, ax=None,
              save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'border', 'half-edge')):
+             options: Tuple['str'] = ('face', 'border', 'half-edge', 'furniture')):
         """
         plot the space
         """
@@ -1593,6 +1592,10 @@ class Space(PlanComponent):
         if 'half-edge' in options:
             for edge in self.edges:
                 edge.plot_half_edge(ax, color=color, save=save)
+
+        if 'furniture' in options:
+            for furniture in self.furnitures():
+                ax = furniture.plot(ax, save=save, options=('fill', 'border', 'dash'))
 
         return ax
 
@@ -1924,6 +1927,13 @@ class Space(PlanComponent):
                 if space is not self and space not in connected_spaces:
                     connected_spaces.append(space)
         return connected_spaces
+
+    def furnitures(self) -> ['Furniture']:
+        """
+        Returns furniture associated with space
+        :return: ['Furniture']
+        """
+        return self.plan.furnitures.get(self, [])
 
     def centroid(self) -> Coords2d:
         """
@@ -2287,6 +2297,7 @@ class Plan:
     FloorType = Floor
     SpaceType = Space
     LinearType = Linear
+    FurnitureType = Furniture
 
     def __init__(self,
                  name: str = 'unnamed_plan',
@@ -2294,11 +2305,13 @@ class Plan:
                  floor_level: int = 0,
                  floor_meta: Optional[int] = None,
                  spaces: Optional[List['Space']] = None,
-                 linears: Optional[List['Linear']] = None):
+                 linears: Optional[List['Linear']] = None,
+                 furnitures: Optional[Dict['Space', List['Furniture']]] = None):
         self.id = uuid.uuid4()
         self.name = name
         self.spaces = spaces or []
         self.linears = linears or []
+        self.furnitures = furnitures or {}
         self.floors: Dict[int, 'Floor'] = {}
         self._counter = 0
 
@@ -2338,6 +2351,7 @@ class Plan:
         self.spaces = []
         self.linears = []
         self.floors = {}
+        self.furnitures = {}
 
     def is_similar(self, other: 'Plan') -> bool:
         """
@@ -2381,7 +2395,10 @@ class Plan:
             "name": self.name,
             "spaces": [space.serialize() for space in self.spaces],
             "linears": [linear.serialize() for linear in self.linears],
-            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()]
+            "floors": [floor.serialize(embedded_mesh) for floor in self.floors.values()],
+            "furnitures": {space.id: [furniture.serialize()
+                                      for furniture in furnitures]
+                           for space, furnitures in self.furnitures.items()}
         }
 
         return output
@@ -2413,6 +2430,12 @@ class Plan:
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
+
+        # add furnitures
+        for space_id, furnitures in data["furnitures"].items():
+            space = self.get_space_from_id(int(space_id))
+            self.furnitures[space] = [self.__class__.FurnitureType().deserialize(f)
+                                      for f in furnitures]
 
         self._reset_counter()
 
@@ -3160,7 +3183,7 @@ class Plan:
     def plot(self,
              show: bool = False,
              save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
+             options: Tuple = ('face', 'edge', 'half-edge', 'border', 'furniture'),
              floor: Optional['Floor'] = None,
              name: Optional[str] = None):
         """
@@ -3232,6 +3255,16 @@ class Plan:
         """
         logging.debug("Plan: removing null spaces of plan %s", self)
         space_to_remove = [space for space in self.spaces if space.edge is None]
+        for space in space_to_remove:
+            space.remove()
+
+    def remove_empty_spaces(self):
+        """
+        Remove from the plan spaces with no edge reference
+        :return:
+        """
+        logging.debug("Plan: removing null spaces of plan %s", self)
+        space_to_remove = [space for space in self.spaces if space.category.name == "empty"]
         for space in space_to_remove:
             space.remove()
 

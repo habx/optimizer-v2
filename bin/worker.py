@@ -6,7 +6,6 @@ import logging.handlers
 import os
 import socket
 import uuid
-import sentry_sdk
 
 # OPT-119 & OPT-120: Dirty path handling
 import libpath
