@@ -12,6 +12,7 @@ from shapely import geometry
 from libs.plan.plan import Space, Plan, Edge, Linear, LINEAR_CATEGORIES, SPACE_CATEGORIES, \
     LinearOrientation
 from libs.io.plot import plot_save
+from libs.utils.graph import GraphNx
 
 from libs.utils.geometry import (
     parallel,
@@ -23,6 +24,7 @@ from libs.utils.geometry import (
 DOOR_WIDTH = 90
 DOOR_WIDTH_TOLERANCE = 20
 EPSILON = 2
+INDOOR_SIZE = 40000
 
 
 # TODO DOOR_WIDTH_TOLERANCE should be set to a lower value, epsilon?
@@ -50,10 +52,20 @@ def get_adjacent_circulation_spaces(space: 'Space') -> List['Space']:
 def select_circulation_spaces(space: 'Space') -> List['Space']:
     """
     get all circulation spaces adjacent to space with adjacent min adjacent length
+    if both a corridor and an entrance are adjacent to space and adjacent to each other,
+    the corridor is not considered for door setting
     :param space:
     :return:
     """
-    return get_adjacent_circulation_spaces(space)
+    circulations_spaces = get_adjacent_circulation_spaces(space)
+    if not circulations_spaces:
+        return []
+    entrances = [sp for sp in circulations_spaces if sp.category is SPACE_CATEGORIES["entrance"]]
+    corridors = [sp for sp in circulations_spaces if sp.category is SPACE_CATEGORIES["circulation"]]
+    for corridor in corridors:
+        if [entrance for entrance in entrances if corridor in entrance.adjacent_spaces()]:
+            circulations_spaces.remove(corridor)
+    return circulations_spaces
 
 
 def select_preferential_circulation_space(space: 'Space') -> List['Space']:
@@ -70,13 +82,20 @@ def select_preferential_circulation_space(space: 'Space') -> List['Space']:
 
     entrances = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['entrance']]
-    if entrances:
+    if entrances and space.category.circulation:
+        # if several entrances, space can be opened on all the adjacent entrances
         return entrances
+    if entrances:
+        return [entrances[0]]
 
     corridors = [sp for sp in adjacent_circulation_spaces
                  if sp.category is SPACE_CATEGORIES['circulation']]
-    if corridors:
+    if corridors and space.category.circulation:
+        # if space is a a  ciruclation space adjacent to several corridors, a door is
+        # set on every corridors
         return corridors
+    if corridors:
+        return [corridors[0]]
 
     return [adjacent_circulation_spaces[0]]
 
@@ -155,10 +174,11 @@ def place_doors(plan: 'Plan'):
     :return:
     """
 
-    def _open_space(_space: 'Space'):
+    def _open_space(_space: 'Space', _door_graph: 'GraphNx'):
         """
         place necessary doors on _space border
         :param _space:
+        :param _door_graph:
         :return:
         """
 
@@ -176,14 +196,22 @@ def place_doors(plan: 'Plan'):
             list_opening_spaces = space_selection_rules["default_non_circulation"](_space)
 
         for opening_space in list_opening_spaces:
-            place_door_between_two_spaces(_space, opening_space)
+            if not _door_graph.has_path(_space.id, opening_space.id):
+                # places a door only if _space has not been connected already to opening_space
+                _door_graph.add_edge(opening_space.id, _space.id)
+                place_door_between_two_spaces(_space, opening_space)
 
     # treat mutable spaces in ascending area order - smallest spaces are are the most constrained
     mutable_spaces = sorted((sp for sp in plan.spaces if sp.mutable),
                             key=lambda x: x.area)
 
+    # graph containin infos on positionned doors
+    door_graph = GraphNx()
     for mutable_space in mutable_spaces:
-        _open_space(mutable_space)
+        door_graph.add_node(mutable_space.id)
+
+    for mutable_space in mutable_spaces:
+        _open_space(mutable_space, door_graph)
 
 
 ###############################################
@@ -356,6 +384,7 @@ def door_width(contact_line: List['Edge'], *_) -> bool:
 door_position_rules = {
     "imperative": [door_width, door_space],
     "non_imperative": [along_border, distant_from_door],
+    # "non_imperative": [along_border],
     "cosmetic": [close_to_circulation, distant_from_linears]
 }
 
@@ -380,7 +409,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
         """
         vect_1 = (_point[0] - _edge.start.coords[0], _point[1] - _edge.start.coords[1])
         vect_2 = (_point[0] - _edge.end.coords[0], _point[1] - _edge.end.coords[1])
-        return dot_product(vect_1, vect_2) <= 0
+        return dot_product(vect_1, vect_2) <= EPSILON
 
     if not start:
         contact_line = [e.pair for e in contact_line]
@@ -404,7 +433,7 @@ def get_door_edges(contact_line: List['Edge'], start: bool = True) -> List['Edge
     if not 1 > end_split_coeff > 0:
         end_split_coeff = 0 * (end_split_coeff <= 0) + (end_split_coeff >= 1)
 
-    if end_split_coeff * end_edge.length <= 1 and 1 < len(door_edges):
+    if end_split_coeff * end_edge.length <= 1 and len(door_edges) > 1:
         door_edges.pop()
     elif end_edge.length - 1 > end_split_coeff * end_edge.length > 1:  # no snap case
         # split edge
@@ -469,7 +498,8 @@ def get_door_position(space: 'Space', lines: List[List['Edge']]) -> Tuple[List['
         score = 0
         line = _lines[0]
         for _l, _line in enumerate(_lines):
-            current_score = _get_portion_score(_space, _line, start)
+            space_of_line = _space.plan.get_space_of_edge(_line[0])
+            current_score = _get_portion_score(space_of_line, _line, start)
             if current_score > score:
                 line = _line
                 score = current_score
@@ -527,9 +557,14 @@ def place_door_between_two_spaces(space: 'Space', circulation_space: 'Space'):
         else:
             lines.append([edge])
 
-    # door arbitrarily opens on the inside for toilets and bathroom
+    # door arbitrarily opens on the inside for toilets, bathroom and small rooms
     # TODO : more generic rule should be applied
-    inside = False if space.category.name in ["toilet", "bathroom"] else True
+    inside = True
+    if (space.category.name in ["toilet", "bathroom"]
+            or (space.area < INDOOR_SIZE
+                and not space.category is SPACE_CATEGORIES['circulation'])):
+        inside = False
+    # inside = False if space.category.name in ["toilet", "bathroom"] else True
     if not inside:
         for l, line in enumerate(lines):
             lines[l] = [e.pair for e in reversed(line)]
@@ -681,14 +716,14 @@ if __name__ == '__main__':
         spec = out[1]
         plan.name = input_file[:-5]
 
-        corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
-                            growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(plan, spec=spec)
+        # corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
+        #                    growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
+        # corridor.apply_to(plan, spec=spec)
 
         bool_place_single_door = False
         if bool_place_single_door:
             cat1 = "livingKitchen"
-            cat2 = "circulation"
+            cat2 = "bedroom"
             space1 = list(sp for sp in plan.spaces if
                           sp.category.name == cat1)[0]
             space2 = list(sp for sp in plan.spaces if
@@ -700,5 +735,5 @@ if __name__ == '__main__':
         door_plot(plan)
 
 
-    _plan_name = "055.json"
+    _plan_name = "048.json"
     main(input_file=_plan_name)

@@ -59,7 +59,7 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 ref_plan_score:float,
+                 ref_plan_score: float,
                  ref_plan_score_components: Optional[dict] = None
                  ):
         self.solutions = solutions
@@ -354,8 +354,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "ARCH014_blueprint.json",
-            "ARCH014_setup.json",
+            "048.json",
+            "048_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
