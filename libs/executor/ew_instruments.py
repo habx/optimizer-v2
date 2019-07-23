@@ -2,6 +2,8 @@ import cProfile
 import os
 import pstats
 import tracemalloc
+import logging
+from typing import Optional
 
 import pprofile
 import pyinstrument
@@ -23,7 +25,7 @@ class PProfile(ExecWrapper):
         return res
 
     @staticmethod
-    def instantiate(td: TaskDefinition):
+    def instantiate(td: TaskDefinition) -> Optional[ExecWrapper]:
         if td.params.get('pprofile', False):
             return __class__(td.local_context.output_dir)
         return None
@@ -63,7 +65,7 @@ class PyInstrument(ExecWrapper):
         )
 
     @staticmethod
-    def instantiate(td: TaskDefinition):
+    def instantiate(td: TaskDefinition) -> Optional[ExecWrapper]:
         if td.params.get('pyinstrument', False):
             return __class__(td.local_context.output_dir)
         return None
@@ -93,7 +95,7 @@ class CProfile(ExecWrapper):
         self.cpu_prof = None
 
     @staticmethod
-    def instantiate(td: TaskDefinition):
+    def instantiate(td: TaskDefinition) -> Optional[ExecWrapper]:
         if td.params.get('c_profile', False):
             return __class__(td.local_context.output_dir)
         return None
@@ -104,9 +106,9 @@ class TraceMalloc(ExecWrapper):
     Enabling malloc monitoring if "traceMalloc" is specified
     """
 
-    def __init__(self, output_dir):
+    def __init__(self, output_dir: str):
         super().__init__()
-        self.output_dir = output_dir
+        self.output_dir: str = output_dir
 
     def _before(self, td: TaskDefinition):
         tracemalloc.start()
@@ -120,7 +122,29 @@ class TraceMalloc(ExecWrapper):
                 f.write("%s\n" % stat)
 
     @staticmethod
-    def instantiate(td: TaskDefinition):
+    def instantiate(td: TaskDefinition) -> Optional[ExecWrapper]:
         if td.params.get('tracemalloc', False):
             return __class__(td.local_context.output_dir)
         return None
+
+
+class MultiRuns(ExecWrapper):
+    """
+    Enabling multiple runs
+    """
+
+    def __init__(self, nb_runs: int):
+        super().__init__()
+        self.nb_runs = nb_runs
+
+    def _exec(self, td: TaskDefinition) -> opt.Response:
+        for i in range(0, self.nb_runs - 1):
+            logging.info("Executing pre-run nb %d", i)
+            super()._exec(td)
+        logging.info("Executing actual run")
+        return super()._exec(td)
+
+    @staticmethod
+    def instantiate(td: TaskDefinition) -> Optional[ExecWrapper]:
+        nb_runs: int = td.params.get('nb_runs', 1)
+        return __class__(nb_runs) if nb_runs > 1 else None
