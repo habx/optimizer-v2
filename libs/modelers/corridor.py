@@ -85,7 +85,9 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
+
         self.circulator.connect()
+        # self.circulator.plot()
         self._set_paths()
 
         # Real time plot updates
@@ -455,16 +457,17 @@ class Corridor:
                 continue
 
             line = []
-            for line_edge in _line_forward(corner_edge):
+            for line_edge in _line_forward(edge):
                 # line_edge contains edges along wich a corridor space will grow to fill a corner
-                if ((_condition(line_edge.pair))
+                if ((_condition(line_edge))
                         and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
             for line_edge in line:
+                support_edge = line_edge if self.corner_data[edge] > 0 else line_edge.pair
                 corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
-                self.add_corridor_portion(line_edge, self.corridor_rules.width, corridor_space,
+                self.add_corridor_portion(support_edge, self.corridor_rules.width, corridor_space,
                                           show, corner=True)
                 if not corridor_space:
                     break
@@ -715,5 +718,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    # plan_name = "015"
+    plan_name = "060"
     main(plan_number=plan_name)
