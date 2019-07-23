@@ -190,7 +190,7 @@ class SpacePlanner:
             matrix = self.clustering_distance_matrix(self.manager.solver.solutions)
             X_matrix = np.array(matrix)
             db = DBSCAN(eps=0.5, min_samples=10, metric="precomputed", n_jobs=None).fit(X_matrix)
-            print("labels_", db.labels_)
+            #print("labels_", db.labels_)
             labels = db.labels_
 
             # Number of clusters in labels, ignoring noise if present.
@@ -213,9 +213,8 @@ class SpacePlanner:
                 if len(list_labels) == 0:
                     break
 
-            print("len clustering_solutions", len(clustering_solutions))
             for i, sol in enumerate(clustering_solutions):
-                print(sol)
+                #print(sol)
                 plan_solution = self.spec.plan.clone()
                 solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
                 self.solutions_collector.add_solution(solution_spec, dict_space_item)
@@ -270,6 +269,7 @@ if __name__ == '__main__':
     import libs.io.reader as reader
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
+    from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 
     import argparse
     import time
@@ -288,11 +288,11 @@ if __name__ == '__main__':
         :return:
         """
         #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "037.json"
+        input_file = "050.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
-        # print("input_file", input_file, " - area : ", plan.indoor_area)
+        print("input_file", input_file, " - area : ", plan.indoor_area/SQM)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
 
         GRIDS['002'].apply_to(plan)
@@ -308,19 +308,19 @@ if __name__ == '__main__':
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
-        print("number of mutables spaces, %i",
-                      len([space for space in spec.plan.spaces if space.mutable]))
-        print("mutables spaces area",
-              sum([space.area for space in spec.plan.spaces if space.mutable]))
+        # print("number of mutables spaces, %i",
+        #               len([space for space in spec.plan.spaces if space.mutable]))
+        # print("mutables spaces area",
+        #       sum([space.area for space in spec.plan.spaces if space.mutable]))
         t0 = time.process_time()
         space_planner = SPACE_PLANNERS["standard_space_planner"]
         best_solutions = space_planner.apply_to(spec, 3)
         logging.debug(space_planner.spec)
         logging.debug("space_planner time : %f", time.process_time() - t0)
         # surfaces control
-        print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
-        print("Setup AREA : %i",
-                      int(sum(item.required_area for item in space_planner.spec.items)))
+        # print("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
+        # print("Setup AREA : %i",
+        #               int(sum(item.required_area for item in space_planner.spec.items)))
         logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
                                                      for item in space_planner.spec.items)))
         logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
@@ -331,7 +331,7 @@ if __name__ == '__main__':
         logging.debug("space_planner time : ", time.process_time() - t0)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
-        print(best_solutions)
+        #print(best_solutions)
 
         # Output
         if best_solutions:
@@ -351,81 +351,4 @@ if __name__ == '__main__':
 
         print("total time :", time.process_time() - t00)
 
-
-    def space_planning_nico():
-        """
-        Test
-        :return:
-        """
-        input_file = "020.json"
-        t00 = time.process_time()
-        plan = reader.create_plan_from_file(input_file)
-        logging.info("input_file %s", input_file)
-        # print("input_file", input_file, " - area : ", plan.indoor_area)
-        logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
-
-        plan_name = None
-        if plan_index < 10:
-            plan_name = '00' + str(plan_index)
-        elif 10 <= plan_index < 100:
-            plan_name = '0' + str(plan_index)
-
-        # plan_name = '007'
-
-        try:
-            new_serialized_data = reader.get_plan_from_json(plan_name + ".json")
-            plan = Plan(plan_name).deserialize(new_serialized_data)
-        except FileNotFoundError:
-            plan = reader.create_plan_from_file(plan_name + ".json")
-            GRIDS["optimal_finer_grid"].apply_to(plan)
-            SEEDERS["directional_seeder"].apply_to(plan)
-            writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
-
-        plan.remove_null_spaces()
-        plan.plot()
-
-        input_file_setup = plan_name + "_setup0.json"
-        spec = reader.create_specification_from_file(input_file_setup)
-        logging.debug(spec)
-        spec.plan = plan
-        spec.plan.remove_null_spaces()
-
-        logging.debug("number of mutables spaces, %i",
-                      len([space for space in spec.plan.spaces if space.mutable]))
-
-        t0 = time.process_time()
-        space_planner = SPACE_PLANNERS["standard_space_planner"]
-        best_solutions = space_planner.apply_to(spec, 3)
-        logging.debug(space_planner.spec)
-        logging.debug("space_planner time : %f", time.process_time() - t0)
-        # surfaces control
-        logging.debug("PLAN AREA : %i", int(space_planner.spec.plan.indoor_area))
-        logging.debug("Setup AREA : %i",
-                      int(sum(item.required_area for item in space_planner.spec.items)))
-        logging.debug("Setup max AREA : %i", int(sum(item.max_size.area
-                                                     for item in space_planner.spec.items)))
-        logging.debug("Setup min AREA : %i", int(sum(item.min_size.area
-                                                     for item in space_planner.spec.items)))
-        plan_ratio = round(space_planner.spec.plan.indoor_perimeter
-                           ** 2 / space_planner.spec.plan.indoor_area)
-        logging.debug("PLAN Ratio : %i", plan_ratio)
-        logging.debug("solution_research time : ", time.process_time() - t0)
-        logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
-        logging.debug("solution_research time: %f", time.process_time() - t0)
-        logging.debug(best_solutions)
-
-        # Output
-        if best_solutions:
-            for sol in best_solutions:
-                sol.spec.plan.plot()
-                logging.debug(sol, sol.space_planning_score)
-                for space in sol.spec.plan.mutable_spaces():
-                    logging.debug(space.category.name, " : ", space.cached_area())
-                solution_dict = writer.generate_output_dict_from_file(input_file, sol)
-                writer.save_json_solution(solution_dict, sol.id)
-
-        logging.debug("total time :", time.process_time() - t00)
-
-
     space_planning()
-    # space_planning_nico()

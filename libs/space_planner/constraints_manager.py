@@ -49,7 +49,8 @@ MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
 SEARCH_TIME_LIMIT = 600000  # millisecond 10 min
-SEARCH_TIME_LIMIT = 1800000  # millisecond 30 min
+SEARCH_TIME_LIMIT = 60000  # millisecond 1 min
+#SEARCH_TIME_LIMIT = 1800000  # millisecond 30 min
 SEARCH_SOLUTIONS_LIMIT = 1000
 
 
@@ -156,7 +157,8 @@ class ConstraintSolver:
                                     len(self.solutions))
                     break
                 if (time.process_time() - t0 - 15) >= 0:
-                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec")
+                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                                    len(self.solutions))
                     break
 
         # noinspection PyArgumentList

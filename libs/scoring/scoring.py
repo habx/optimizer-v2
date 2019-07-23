@@ -737,7 +737,7 @@ def space_planning_scoring(solution: 'Solution') -> float:
                       + position_scoring(solution)
                       + corner_scoring(solution)
                       + night_and_day_scoring(solution)) / 4
-    solution_score = (solution_score + entrance_bonus(solution))
+    solution_score = (solution_score + entrance_bonus(solution) - circulation_penalty(solution))
     logging.debug("Solution %i: Final score : %f", solution.id, solution_score)
 
     return solution_score
