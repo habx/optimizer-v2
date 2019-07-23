@@ -694,7 +694,7 @@ if __name__ == '__main__':
             new_spec = space_planner.spec
 
             if best_solutions:
-                solution = best_solutions[1]
+                solution = best_solutions[0]
                 plan = solution.spec.plan
                 new_spec.plan = plan
                 writer.save_plan_as_json(plan.serialize(), plan_file_name)
