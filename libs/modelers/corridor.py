@@ -56,7 +56,7 @@ class Corridor:
         self.circulator: Circulator = None
         self.corner_data: Dict = None
         self.grouped_faces: Dict[int, List[List['Face']]] = None
-        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
+        self.directions: DirectionsDict = {}
 
     def _clear(self):
         self.plan = None
@@ -78,6 +78,7 @@ class Corridor:
         self._clear()
         self.spec = solution.spec
         self.plan = solution.spec.plan
+        self.directions = {level: {} for level in self.plan.levels}
 
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
@@ -311,9 +312,13 @@ class Corridor:
 
             l = 0  # penetration length
             continue_penetration = True
+            level = self.plan.get_space_of_edge(_edge_list[0]).floor.level
+            if start:
+                growing_direction = self.directions[level][_edge_list[0]]
+            else:
+                growing_direction = self.directions[level][_edge_list[-1]]
             while l < penetration_length and continue_penetration:
                 limit_edge = _edge_list[0].pair if start else _edge_list[-1]
-                growing_direction = self.directions[limit_edge]
                 limit_vertex = limit_edge.end
                 penetration_edges = [edge for edge in limit_vertex.edges if
                                      edge.face and edge.pair.face]
@@ -325,7 +330,6 @@ class Corridor:
                             continue_penetration = False
                         else:
                             added_edge = penetration_edge.pair if start else penetration_edge
-                            level = self.plan.get_space_of_edge(added_edge).floor.level
                             self.directions[level][added_edge] = growing_direction
                             _edge_list = [added_edge] + _edge_list if start \
                                 else _edge_list + [added_edge]
@@ -339,7 +343,6 @@ class Corridor:
         edge_list = _add_edges(edge_list)
 
         return edge_list
-
 
     def _corner_fill(self, show: bool = False):
         """
