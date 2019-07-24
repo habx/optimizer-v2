@@ -85,7 +85,6 @@ class Corridor:
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
-
         self.circulator.connect()
         # self.circulator.plot()
         self._set_paths()
@@ -301,7 +300,7 @@ class Corridor:
         def _add_edges(_edge_list: List['Edge']):
             """
             Adds edges to the list, at the beginning (if start) or end if
-            penetration condition are satisfied until penetration length is reached
+            penetration conditions are satisfied until penetration length is reached
             :param _edge_list: ordered list of vertices forming a circulation path
             :return:
             """
@@ -342,7 +341,6 @@ class Corridor:
         """
 
         def _get_neighbor_direction(_edge, _path):
-            # for _e in self.circulator.directions[level]:
             for _e in _path:
                 if _e in self.circulator.directions[level] and parallel(_e.vector, _edge.vector):
                     return self.circulator.directions[level][_e]
@@ -458,9 +456,10 @@ class Corridor:
 
             line = []
             for line_edge in _line_forward(edge):
-                # line_edge contains edges along wich a corridor space will grow to fill a corner
+                # line_edge contains edges along which a corridor space will grow to fill a corner
                 if ((_condition(line_edge) or _condition(line_edge.pair))
-                        and sum([l_e.length for l_e in line]) < self.corridor_rules.width):
+                        and (sum([l_e.length for l_e in
+                                  line]) + line_edge.length) <= self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
@@ -468,7 +467,7 @@ class Corridor:
                 support_edge = line_edge if self.corner_data[edge] > 0 else line_edge.pair
                 corridor_space = Space(self.plan, floor, category=SPACE_CATEGORIES['circulation'])
                 self.add_corridor_portion(support_edge, self.corridor_rules.width, corridor_space,
-                                          show, corner=True)
+                                          show)
                 if not corridor_space:
                     break
 
@@ -497,7 +496,7 @@ class Corridor:
         Circulation path defined by path is decomposed into its straight portions
         A corridor space is grown around each portion
         :param path: ordered list of contiguous edges forming a circulation path
-        :param show: ordered list of contiguous edges forming a circulation path
+        :param show:
         :return:
         """
 
@@ -586,7 +585,7 @@ class Corridor:
         return True
 
     def add_corridor_portion(self, edge: 'Edge', max_width: float, corridor_space: 'Space',
-                             show: bool = False, corner: bool = False):
+                             show: bool = False):
         """
         Builds a corridor space : starts with edge face and iteratively adds faces
         in normal direction to edge until the corridor space width reaches the objective
@@ -594,7 +593,6 @@ class Corridor:
         :param max_width:
         :param corridor_space:
         :param show:
-        :param corner:
         :return:
         """
 
