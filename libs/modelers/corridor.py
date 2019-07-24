@@ -391,8 +391,8 @@ class Corridor:
             for line_edge in _line_forward(edge):
                 # line_edge contains edges along which a corridor space will grow to fill a corner
                 if ((_condition(line_edge) or _condition(line_edge.pair))
-                        and (sum([l_e.length for l_e in
-                                  line]) + line_edge.length) <= self.corridor_rules.width):
+                        and (sum([l_e.length for l_e in line]) + line_edge.length)
+                        <= self.corridor_rules.width):
                     line.append(line_edge)
                 else:
                     break
