@@ -16,6 +16,7 @@ from libs.utils.geometry import (
 )
 
 GrowCorridor = Callable[['Corridor', List['Edge'], bool], 'Space']
+DirectionsDict = Dict[int, Dict['Edge', float]]
 
 EPSILON = 1
 SMALL_CORRIDOR_AREA = 5000
@@ -55,6 +56,7 @@ class Corridor:
         self.circulator: Circulator = None
         self.corner_data: Dict = None
         self.grouped_faces: Dict[int, List[List['Face']]] = None
+        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
 
     def _clear(self):
         self.plan = None
@@ -271,6 +273,10 @@ class Corridor:
 
         for path_info in self.circulator.paths_info:
             current_path = [t[0] for t in path_info.edge_path]
+            level = self.plan.get_space_of_edge(current_path[0]).floor.level
+            for tuple in path_info.edge_path:
+                current_path.append(tuple[0])
+                self.directions[level][tuple[0]] = tuple[1]
             if not current_path:
                 continue
             if path_info.departure_penetration:
@@ -342,74 +348,16 @@ class Corridor:
 
         def _get_neighbor_direction(_edge, _path):
             for _e in _path:
-                if _e in self.circulator.directions[level] and parallel(_e.vector, _edge.vector):
-                    return self.circulator.directions[level][_e]
+                if _e in self.directions[level] and parallel(_e.vector, _edge.vector):
+                    return self.directions[level][_e]
 
         if self.plan.get_space_of_edge(path[0]):
             level = self.plan.get_space_of_edge(path[0]).floor.level
         else:
             level = self.plan.get_space_of_edge(path[0].pair).floor.level
         for e, edge in enumerate(path):
-            if edge not in self.circulator.directions[level]:
-                self.circulator.directions[level][edge] = _get_neighbor_direction(edge, path)
-
-    def _update_path(self, path: List['Edge']):
-        """
-        Some edges of the circulation path can be split in the slicing process.
-        The path then has to be updated with new resulting edges.
-        For those new edges, a growing direction has to be set
-        :param path:
-        :return:
-        """
-
-        def _line_forward(_edge: 'Edge') -> List['Edge']:
-            """
-            returns edges aligned with e, contiguous, in forward direction
-            :param _edge:
-            :return:
-            """
-            output = []
-            current = _edge
-            while current:
-                output.append(current)
-                current = current.aligned_edge or current.continuous_edge
-            return output[1:]
-
-        def _repair_path(_start_edge: 'Edge', _end_edge: 'Edge'):
-            """
-            gets the list of edges aligned with _start_edge and ending with an edge linked to
-            _end_edge
-            :param _start_edge:
-            :param _end_edge:
-            :return:
-            """
-            line = _line_forward(_start_edge)
-            _added_edges = []
-            for _e in line:
-                _added_edges.append(_e)
-                if _e.end is _end_edge.start:
-                    break
-            else:
-                assert _start_edge, "circulation path could not be repaired"
-
-            return _added_edges
-
-        if not path:
-            return path
-
-        repair = True
-        while repair:
-            for e, edge in enumerate(path[:-1]):
-                if edge.end is not path[e + 1].start:
-                    added_edges = _repair_path(edge, path[e + 1])
-                    path[e + 1:e + 1] = added_edges
-                    break
-            else:
-                repair = False
-
-        self._update_growing_direction(path)
-
-        return path
+            if edge not in self.directions[level]:
+                self.directions[level][edge] = _get_neighbor_direction(edge, path)
 
     def _corner_fill(self, show: bool = False):
         """
@@ -656,7 +604,7 @@ def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edg
 
     corridor_space = Space(plan, floor, category=SPACE_CATEGORIES['circulation'])
 
-    growing_direction = corridor.circulator.directions[level][edge_line[0]]
+    growing_direction = corridor.directions[level][edge_line[0]]
     for e, edge in enumerate(edge_line):
         support_edge = edge if growing_direction > 0 else edge.pair
         corridor.add_corridor_portion(support_edge, corridor.corridor_rules.width,
