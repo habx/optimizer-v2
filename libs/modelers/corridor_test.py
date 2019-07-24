@@ -61,8 +61,7 @@ def test_simple_grid():
     ################ circulation path ################
     circulation_path = build_a_path(plan)
     circulator = Circulator(plan, spec=Specification(), cost_rules=CostRules)
-    for edge in circulation_path:
-        circulator.directions[0][edge] = 1
+
 
     ################ corridor build ################
     corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
@@ -76,6 +75,9 @@ def test_simple_grid():
         group_faces[sp.floor.level].append([f for f in sp.faces])
     corridor.grouped_faces = group_faces
     plan.check()
+    corridor.directions={0:{}}
+    for edge in circulation_path:
+        corridor.directions[0][edge] = 1
     corridor.grow(circulation_path)
     plan.remove_null_spaces()
     plan.plot()
