@@ -93,7 +93,7 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
                           "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
@@ -359,7 +359,7 @@ if __name__ == '__main__':
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": False,
+                "do_plot": True,
                 "do_corridor": False,
                 "do_refiner":False,
                 "max_nb_solutions": 3,
