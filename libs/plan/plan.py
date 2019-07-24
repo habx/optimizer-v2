@@ -15,10 +15,10 @@ from typing import (
     Tuple,
     Sequence,
     Generator,
-    Union,
     Dict,
     Any,
-    Iterable
+    Iterable,
+    Union
 )
 import logging
 import uuid
@@ -407,6 +407,7 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         previous_edge = edge.previous
         if __debug__:
+            # noinspection PyUnusedLocal
             seen = []
         while not self.is_boundary(previous_edge):
             if __debug__:
@@ -561,6 +562,7 @@ class Space(PlanComponent):
         """
         if self.edge:
             if __debug__:
+                # noinspection PyUnusedLocal
                 seen = []
             for reference_edge in self.reference_edges:
                 for edge in self.siblings(reference_edge):
@@ -1625,20 +1627,34 @@ class Space(PlanComponent):
 
         return is_valid
 
-    def immutable_components(self) -> ['PlanComponent']:
+    def immutable_components(self,
+                             *categories: [Union['LinearCategory', 'SpaceCategory']]
+                             ) -> ['PlanComponent']:
         """
         Return the components associated to the space
+        :param: categories: optional list
         :return: [PlanComponent]
         """
         immutable_associated = []
 
-        for linear in self.plan.linears:
-            if self.has_linear(linear) and not linear.category.mutable:
-                immutable_associated.append(linear)
+        if categories:
+            for linear in self.plan.linears:
+                if (linear.category in categories and not linear.category.mutable
+                        and self.has_linear(linear)):
+                    immutable_associated.append(linear)
 
-        for space in self.plan.spaces:
-            if not space.category.mutable and space.adjacent_to(self):
-                immutable_associated.append(space)
+            for space in self.plan.spaces:
+                if (space.category in categories and not space.category.mutable
+                        and space.adjacent_to(self)):
+                    immutable_associated.append(space)
+        else:
+            for linear in self.plan.linears:
+                if self.has_linear(linear) and not linear.category.mutable:
+                    immutable_associated.append(linear)
+
+            for space in self.plan.spaces:
+                if not space.category.mutable and space.adjacent_to(self):
+                    immutable_associated.append(space)
 
         return immutable_associated
 
