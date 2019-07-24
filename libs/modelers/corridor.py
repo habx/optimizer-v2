@@ -274,9 +274,8 @@ class Corridor:
         for path_info in self.circulator.paths_info:
             current_path = [t[0] for t in path_info.edge_path]
             level = self.plan.get_space_of_edge(current_path[0]).floor.level
-            for tuple in path_info.edge_path:
-                current_path.append(tuple[0])
-                self.directions[level][tuple[0]] = tuple[1]
+            for t in path_info.edge_path:
+                self.directions[level][t[0]] = t[1]
             if not current_path:
                 continue
             if path_info.departure_penetration:
