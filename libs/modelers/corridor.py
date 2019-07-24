@@ -547,8 +547,6 @@ class Corridor:
                 if len(list(sp.faces)) == 1:
                     if self._space_totally_overlapped(sp.floor.level, sp.face):
                         break
-                # if corner and sp.corner_stone(layer_edge.face):
-                #    break
                 corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
                 if show:
@@ -655,5 +653,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "040"
+    plan_name = "061"
     main(plan_number=plan_name)
