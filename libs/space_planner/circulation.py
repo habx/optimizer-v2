@@ -635,7 +635,6 @@ class Circulator:
         #####
 
         path_lines = _get_lines_of_path([t[0] for t in path_info.edge_path])
-        level = path_info.departure_space[0].floor.level
         edge_path = []
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
