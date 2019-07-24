@@ -274,7 +274,10 @@ class Corridor:
 
         for path_info in self.circulator.paths_info:
             current_path = [t[0] for t in path_info.edge_path]
-            level = self.plan.get_space_of_edge(current_path[0]).floor.level
+            if self.plan.get_space_of_edge(current_path[0]):
+                level = self.plan.get_space_of_edge(current_path[0]).floor.level
+            else:
+                level = self.plan.get_space_of_edge(current_path[0].pair).floor.level
             for t in path_info.edge_path:
                 self.directions[level][t[0]] = t[1]
             if not current_path:
@@ -312,7 +315,10 @@ class Corridor:
 
             l = 0  # penetration length
             continue_penetration = True
-            level = self.plan.get_space_of_edge(_edge_list[0]).floor.level
+            if self.plan.get_space_of_edge(_edge_list[0]):
+                level = self.plan.get_space_of_edge(_edge_list[0]).floor.level
+            else:
+                level = self.plan.get_space_of_edge(_edge_list[0].pair).floor.level
             if start:
                 growing_direction = self.directions[level][_edge_list[0]]
             else:
@@ -649,5 +655,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "050"
+    plan_name = "040"
     main(plan_number=plan_name)
