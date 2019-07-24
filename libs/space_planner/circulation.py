@@ -88,7 +88,6 @@ class Circulator:
         self.spec = spec
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
-        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
 
         self.paths_info: List[PathInfo] = []
 
@@ -159,6 +158,7 @@ class Circulator:
                 if tuple_i[1] <= tuple_j[1]:  # check set_i is contained by set_j
                     del (self.paths_info[tuple_i[0]])
                     break
+
 
     def _set_penetrations(self):
         """
@@ -640,7 +640,6 @@ class Circulator:
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
             for edge in line:
-                self.directions[level][edge] = growing_direction
                 edge_path.append((edge, growing_direction))
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair
