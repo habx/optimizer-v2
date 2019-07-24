@@ -329,8 +329,7 @@ class Corridor:
                 penetration_edges = [edge for edge in limit_vertex.edges if
                                      edge.face and edge.pair.face]
                 for edge in penetration_edges:
-                    if parallel(edge.vector,
-                                limit_edge.vector):  # and _penetration_condition(edge):
+                    if parallel(edge.vector, limit_edge.vector):
                         penetration_edge = edge
                         if l + penetration_edge.length > penetration_length:
                             continue_penetration = False
