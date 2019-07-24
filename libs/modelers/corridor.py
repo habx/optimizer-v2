@@ -283,7 +283,6 @@ class Corridor:
             if path_info.arrival_penetration:
                 current_path = self._add_penetration_edges(current_path,
                                                            start=False)
-            self._update_growing_direction(current_path)
             self.paths.append(current_path)
 
     def _add_penetration_edges(self, edge_list: List['Edge'], start: bool = True):
@@ -314,6 +313,7 @@ class Corridor:
             continue_penetration = True
             while l < penetration_length and continue_penetration:
                 limit_edge = _edge_list[0].pair if start else _edge_list[-1]
+                growing_direction = self.directions[limit_edge]
                 limit_vertex = limit_edge.end
                 penetration_edges = [edge for edge in limit_vertex.edges if
                                      edge.face and edge.pair.face]
@@ -324,8 +324,11 @@ class Corridor:
                         if l + penetration_edge.length > penetration_length:
                             continue_penetration = False
                         else:
-                            _edge_list = [penetration_edge.pair] + _edge_list if start \
-                                else _edge_list + [penetration_edge]
+                            added_edge = penetration_edge.pair if start else penetration_edge
+                            level = self.plan.get_space_of_edge(added_edge).floor.level
+                            self.directions[level][added_edge] = growing_direction
+                            _edge_list = [added_edge] + _edge_list if start \
+                                else _edge_list + [added_edge]
                             l += penetration_edge.length
                         break
                 else:
@@ -337,26 +340,6 @@ class Corridor:
 
         return edge_list
 
-    def _update_growing_direction(self, path: List['Edge']):
-        """
-        Some edges of the circulation path can be split in the slicing process.
-        The path then contains new edges for which growing direction information need to be set
-        :param path:
-        :return:
-        """
-
-        def _get_neighbor_direction(_edge, _path):
-            for _e in _path:
-                if _e in self.directions[level] and parallel(_e.vector, _edge.vector):
-                    return self.directions[level][_e]
-
-        if self.plan.get_space_of_edge(path[0]):
-            level = self.plan.get_space_of_edge(path[0]).floor.level
-        else:
-            level = self.plan.get_space_of_edge(path[0].pair).floor.level
-        for e, edge in enumerate(path):
-            if edge not in self.directions[level]:
-                self.directions[level][edge] = _get_neighbor_direction(edge, path)
 
     def _corner_fill(self, show: bool = False):
         """
