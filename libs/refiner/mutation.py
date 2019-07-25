@@ -363,35 +363,42 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
     """
     Returns True if the edge face has an immutable component
     TODO : number of linears (example : living or bedroom if small windows)
-    TODO : for duplex add starting step linear to circulation
     :param edge:
     :param space:
     :return:
     """
-    other_entrances = (SPACE_CATEGORIES["living"], SPACE_CATEGORIES["livingKitchen"])
-
     face = edge.face
-    has_entrance = True
 
-    if SPACE_CATEGORIES["entrance"] not in (s.category for s in space.plan.mutable_spaces()):
-        has_entrance = False
+    front_door = next(space.plan.get_linears("frontDoor"))
+    # if there is no front door we make the assumption we are on a level of a
+    # multiple level apartment. NOTE : this will not work with triplex as we have no way
+    # of knowing which starting step correspond to the stairs going to the entrance level
+    if not front_door:
+        front_door = next(space.plan.get_linears("startingStep"))
 
-    if ((not space.category.needed_linears or not face)
-            and (has_entrance or space.category not in other_entrances)):
+    if space.category is SPACE_CATEGORIES["entrance"]:
+        needed_linears = space.category.needed_linears
+        # Wen a plan has no entrance, we make the assumption that if a space has the frontDoor
+        # then it is considered as an entrance and should therefore keep the frontDoor linear
+    elif space.has_linear(front_door):
+        needed_linears = set(space.category.needed_linears) | {LINEAR_CATEGORIES["frontDoor"]}
+    else:
+        needed_linears = space.category.needed_linears
+
+    if not space.category.needed_linears or not face:
         return False
 
-    needed_linears = list(space.category.needed_linears)
-    if not has_entrance and space.category in other_entrances:
-        needed_linears.append(LINEAR_CATEGORIES["frontDoor"])
-
     for _edge in edge.face.edges:
+        # only check boundary edges
+        if space.is_internal(_edge):
+            continue
         linear = space.plan.get_linear_from_edge(_edge)
-        # Note : enable to keep only one needed linear
+        # keep only one needed linear
         if linear and linear.category in needed_linears:
             for other_edge in space.exterior_edges:
                 other_linear = space.plan.get_linear_from_edge(other_edge)
                 if (other_linear and other_linear is not linear
-                        and other_linear.category in needed_linears):
+                        and other_linear.category is linear.category):
                     break
             else:
                 return True
@@ -422,7 +429,7 @@ def _adjacent_to_needed_space(edge: 'Edge', space: 'Space',
         return False
 
     # check if another face maintains the needed adjacency
-    for _edge in space.edges:
+    for _edge in space.exterior_edges:
         if _edge.face is face or _edge in removed_edges:
             continue
         _other = space.plan.get_space_of_edge(_edge.pair)
