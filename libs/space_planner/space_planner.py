@@ -7,7 +7,7 @@ and a customer input setup
 
 """
 import logging
-from typing import List, Optional, Dict
+from typing import List, Dict
 from libs.specification.specification import Specification, Item
 from libs.space_planner.solution import SolutionsCollector, Solution
 from libs.plan.plan import Plan, Space
@@ -17,7 +17,6 @@ import libs.io.writer as writer
 from copy import deepcopy
 
 from sklearn.cluster import DBSCAN
-import numpy as np
 
 SQM = 10000
 
@@ -50,7 +49,8 @@ class SpacePlanner:
             if space.cached_area() < min_area:
                 self.spec.plan.remove(space)
 
-    def _rooms_building(self, plan: 'Plan',i: int, matrix_solution) -> ('Plan', Dict['Item', 'Space']):
+    def _rooms_building(self, plan: 'Plan', i: int, matrix_solution) -> ('Specification',
+                                                                         Dict['Item', 'Space']):
         """
         Builds the rooms requested in the specification from the matrix and seed spaces.
         :param: plan
@@ -109,17 +109,6 @@ class SpacePlanner:
 
         return solution_spec, space_item
 
-    def solution_distance(self, sol1, sol2) -> float:
-
-        distance = 0
-        for i, sol1_line in enumerate(sol1):
-            sol2_line = sol2[i]
-            for j, sol1_el in enumerate(sol1_line):
-                sol2_el = sol2_line[j]
-                distance += abs(sol1_el-sol2_el)
-
-        return distance
-
     def clustering_distance_matrix(self, input_solutions: []):
         """
         distance matrix between solutions for the clustering
@@ -135,7 +124,8 @@ class SpacePlanner:
                 coeff += 1
             if "window" in compo or "doorWindow" in compo:
                 coeff += 2
-            coeff = coeff*space.cached_area()/sum(space.area for space in self.spec.plan.mutable_spaces())
+            coeff = (coeff*space.cached_area()/sum(space.area for space in
+                                                   self.spec.plan.mutable_spaces()))
             seed_space_coeff.append(coeff)
 
         solutions = deepcopy(input_solutions)
@@ -156,7 +146,7 @@ class SpacePlanner:
         for i, i_sol in enumerate(solutions):
             for j, j_sol in enumerate(solutions):
                 if i < j:
-                    distance = self.solution_distance(i_sol, j_sol)
+                    distance = solution_distance(i_sol, j_sol)
                     matrix[i][j] = distance
                     matrix[j][i] = distance
                     # stats
@@ -188,9 +178,7 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
 
             matrix = self.clustering_distance_matrix(self.manager.solver.solutions)
-            X_matrix = np.array(matrix)
-            db = DBSCAN(eps=0.5, min_samples=5, metric="precomputed", n_jobs=-1).fit(X_matrix)
-            #print("labels_", db.labels_)
+            db = DBSCAN(eps=0.5, min_samples=5, metric="precomputed", n_jobs=-1).fit(matrix)
             labels = db.labels_
 
             # Number of clusters in labels, ignoring noise if present.
@@ -214,7 +202,6 @@ class SpacePlanner:
                     break
 
             for i, sol in enumerate(clustering_solutions):
-                #print(sol)
                 plan_solution = self.spec.plan.clone()
                 solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
                 self.solutions_collector.add_solution(solution_spec, dict_space_item)
@@ -224,16 +211,6 @@ class SpacePlanner:
                     plan_solution.plot()
 
         return self.solutions_collector.solutions
-
-            # for i, sol in enumerate(self.manager.solver.solutions):
-            #     #print(sol)
-            #     plan_solution = self.spec.plan.clone()
-            #     solution_spec, dict_space_item = self._rooms_building(plan_solution, i, sol)
-            #     self.solutions_collector.add_solution(solution_spec, dict_space_item)
-            #     logging.debug(solution_spec.plan)
-            #
-            #     if show:
-            #         plan_solution.plot()
 
     def apply_to(self, spec: 'Specification', max_nb_solutions: int) -> List['Solution']:
         """
@@ -251,10 +228,9 @@ class SpacePlanner:
 
         self.manager = ConstraintsManager(self)
 
-        clustering_solutions = self.solution_research()
+        self.solution_research()
 
         self.solutions_collector.space_planner_best_results()
-        #self.solutions_collector.best_solutions = clustering_solutions
 
         return self.solutions_collector.best_solutions
 
@@ -265,19 +241,35 @@ SPACE_PLANNERS = {
     "standard_space_planner": standard_space_planner
 }
 
+
+def solution_distance(sol1: [], sol2: []) -> float:
+    """
+    distance between 2 solution matrices
+    :param: solution1
+    :param: solution2
+    :return: distance matrix
+    """
+    distance = 0
+    for i, sol1_line in enumerate(sol1):
+        sol2_line = sol2[i]
+        for j, sol1_el in enumerate(sol1_line):
+            sol2_el = sol2_line[j]
+            distance += abs(sol1_el - sol2_el)
+    return distance
+
+
 if __name__ == '__main__':
     import libs.io.reader as reader
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
-    from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
+    # from resources import DEFAULT_BLUEPRINT_INPUT_FOLDER
 
     import argparse
     import time
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--plan_index", help="choose plan index",
-                        default=0)
-    #logging.getLogger().setLevel(logging.DEBUG)
+    parser.add_argument("-p", "--plan_index", help="choose plan index", default=0)
+    # logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -287,8 +279,8 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        #input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "022.json"
+        # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
+        input_file = "056.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -331,7 +323,7 @@ if __name__ == '__main__':
         logging.debug("space_planner time : ", time.process_time() - t0)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
-        #print(best_solutions)
+        # print(best_solutions)
 
         # Output
         if best_solutions:
