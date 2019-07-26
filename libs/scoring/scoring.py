@@ -73,7 +73,7 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
     category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                           "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                           "circulation"]
-    category_name_list = ["living", "livingKitchen", "dining", "kitchen","bedroom","toilet", "bathroom", "study","entrance",
+    category_name_list = ["living", "livingKitchen", "dining", "kitchen", "bedroom", "toilet", "bathroom", "study","entrance",
                            "laundry", "wardrobe",
                            "misc",
                           "circulation"]
