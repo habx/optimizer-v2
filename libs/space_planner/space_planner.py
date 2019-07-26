@@ -229,8 +229,9 @@ class SpacePlanner:
         self.manager = ConstraintsManager(self)
 
         self.solution_research()
-
         self.solutions_collector.space_planner_best_results()
+        # clustering_solutions = self.solution_research()
+        # self.solutions_collector.best_solutions = clustering_solutions
 
         return self.solutions_collector.best_solutions
 
@@ -280,7 +281,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "056.json"
+        input_file = "018.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)

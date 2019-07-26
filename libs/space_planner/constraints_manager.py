@@ -49,7 +49,7 @@ MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
-SEARCH_TIME_LIMIT = 60000000  # millisecond 1 min
+SEARCH_TIME_LIMIT = 60000  # millisecond 1 min
 SEARCH_SOLUTIONS_LIMIT = 1000
 
 
@@ -151,14 +151,14 @@ class ConstraintSolver:
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)
-                # if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
-                #     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
-                #                     len(self.solutions))
-                #     break
-                # if (time.process_time() - t0 - 15) >= 0:
-                #     logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
-                #                     len(self.solutions))
-                #     break
+                if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
+                    logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
+                                    len(self.solutions))
+                    break
+                if (time.process_time() - t0 - 15) >= 0:
+                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                                    len(self.solutions))
+                    break
 
         # noinspection PyArgumentList
         self.solver.EndSearch()
@@ -1693,8 +1693,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [min_perimeter_length, {}],
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "study": [
         [min_perimeter_length, {}],
@@ -1727,7 +1725,7 @@ T4_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [item_adjacency_constraint,
-         {"item_categories": ["bedroom", "office"], "adj": True, "addition_rule": "Or"}],
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "study": [
     ],
