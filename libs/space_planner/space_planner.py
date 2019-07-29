@@ -155,7 +155,8 @@ class SpacePlanner:
                     if distance > max_dist:
                         max_dist = distance
                     dist_moy += distance
-        dist_moy = dist_moy/((len(solutions)**2)/2-len(solutions))
+        if len(solutions) > 2:
+            dist_moy = dist_moy/((len(solutions)**2)/2-len(solutions))
 
         logging.debug("min_dist: %f", min_dist)
         logging.debug("max_dist: %f", max_dist)
@@ -179,6 +180,8 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
 
             if len(self.manager.solver.solutions) > 1:
+                print(self.manager.solver.solutions)
+                print(len(self.manager.solver.solutions))
                 matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
                 db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
                     matrix)
@@ -187,7 +190,7 @@ class SpacePlanner:
                 # Number of clusters in labels, ignoring noise if present.
                 logging.debug(set(labels))
                 for i in set(labels):
-                    print("number of elements", i, list(labels).count(i))
+                    logging.debug("number of elements %d, %d", i, list(labels).count(i))
 
                 n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
                 n_noise_ = list(labels).count(-1)
