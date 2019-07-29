@@ -157,9 +157,10 @@ class SpacePlanner:
                     dist_moy += distance
         dist_moy = dist_moy/((len(solutions)**2)/2-len(solutions))
 
-        print("min_dist", min_dist)
-        print("max_dist", max_dist)
-        print("dist_moy", dist_moy)
+        logging.debug("min_dist: %f", min_dist)
+        logging.debug("max_dist: %f", max_dist)
+        logging.debug("dist_moy: %f", dist_moy)
+
         return matrix, dist_moy
 
     def solution_research(self, show=False):
@@ -177,7 +178,6 @@ class SpacePlanner:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
 
-
             if len(self.manager.solver.solutions) > 1:
                 matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
                 db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
@@ -185,25 +185,23 @@ class SpacePlanner:
                 labels = db.labels_
 
                 # Number of clusters in labels, ignoring noise if present.
-                print(set(labels))
+                logging.debug(set(labels))
                 for i in set(labels):
                     print("number of elements", i, list(labels).count(i))
 
                 n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
                 n_noise_ = list(labels).count(-1)
 
-                print('Estimated number of clusters: %d' % n_clusters_)
-                print('Estimated number of noise points: %d' % n_noise_)
+                logging.debug('Estimated number of clusters: %d' % n_clusters_)
+                logging.debug('Estimated number of noise points: %d' % n_noise_)
                 list_labels = list(set(labels))
                 clustering_solutions = []
                 for i, sol in enumerate(self.manager.solver.solutions):
                     if labels[i] in list_labels:
-                        print(i)
                         clustering_solutions.append(sol)
                         list_labels.remove(labels[i])
                     if len(list_labels) == 0:
                         break
-
             else:
                 clustering_solutions = self.manager.solver.solutions
 

@@ -304,12 +304,12 @@ class ConstraintsManager:
         :return:
         """
         min_distance_from_entrance = 400
-        frontDoor = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
+        front_door = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
         ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
         for duct in ducts:
-            if (frontDoor[0] and
-                    frontDoor[0].floor == duct.floor and
-                    duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
+            if (front_door[0] and
+                    front_door[0].floor == duct.floor and
+                    duct.distance_to_linear(front_door[0], "min") < min_distance_from_entrance):
                 self.duct_next_to_entrance.append(duct)
 
     def _init_item_windows_area(self) -> None:
@@ -805,9 +805,9 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                         path_inside_room = path_inside_room * \
                                                            manager.solver.positions[item.id, i_path]
                                     new_ct = path_inside_room * (
-                                                manager.solver.positions[item.id, j] *
-                                                manager.solver.positions[item.id, k] * path_length
-                                                <= max_distance)
+                                            manager.solver.positions[item.id, j] *
+                                            manager.solver.positions[item.id, k] * path_length
+                                            <= max_distance)
                                 ct = manager.or_(ct, new_ct)
     return ct == 1
 
@@ -1450,7 +1450,8 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager',
     nbr_toilet = len(
         [i_item for i_item in manager.sp.spec.items if i_item.category.name == "toilet"])
 
-    if nbr_toilet >= manager.sp.spec.plan.floor_count and manager.multiplex_toilet_repartition_constraint_first_pass:
+    if (nbr_toilet >= manager.sp.spec.plan.floor_count
+            and manager.multiplex_toilet_repartition_constraint_first_pas):
         manager.multiplex_toilet_repartition_constraint_first_pass = False
         item_floors = []
         for i_item in manager.sp.spec.items:
@@ -1490,7 +1491,8 @@ def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager',
     nbr_bathroom = len(
         [i_item for i_item in manager.sp.spec.items if i_item.category.name == "bathroom"])
 
-    if nbr_bathroom >= manager.sp.spec.plan.floor_count and manager.multiplex_bathroom_repartition_constraint_first_pass:
+    if (nbr_bathroom >= manager.sp.spec.plan.floor_count
+            and manager.multiplex_bathroom_repartition_constraint_first_pass):
         manager.multiplex_bathroom_repartition_constraint_first_pass = False
         item_floors_bath = []
         item_floors_bed = []
@@ -1708,33 +1710,10 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ]
 }
 T4_MORE_ITEMS_CONSTRAINTS = {
-    "entrance": [
-
-    ],
-    "toilet": [
-
-    ],
-    "bathroom": [
-
-    ],
-    "living": [
-
-    ],
-    "livingKitchen": [
-
-    ],
     "bedroom": [
         [item_adjacency_constraint,
-          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
-    "study": [
-    ],
-    "dining": [
-    ],
-    "kitchen": [
-    ],
-    "laundry": [
-    ]
 }
 
 DUPLEX_CONSTRAINTS = {
