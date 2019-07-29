@@ -41,7 +41,7 @@ def test_t1():
 
     space_planner_t1 = SPACE_PLANNERS["standard_space_planner"]
     best_solutions = space_planner_t1.apply_to(spec, 3)
-    assert len(space_planner_t1.solutions_collector.solutions) == 2
+    assert len(space_planner_t1.solutions_collector.solutions) == 1
 
 
 def test_t1_bis():
