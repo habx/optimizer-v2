@@ -73,9 +73,9 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
     category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
                           "living", "livingKitchen", "dining", "bedroom", "study", "misc",
                           "circulation"]
-    category_name_list = ["entrance", "bathroom", "study", "living", "livingKitchen", "dining",
-                          "kitchen", "bedroom", "toilet", "laundry", "wardrobe", "misc",
-                          "circulation"]
+    category_name_list = ["entrance", "kitchen", "toilet", "bathroom", "laundry", "livingKitchen",
+                          "living", "dining", "bedroom",
+                          "study", "wardrobe", "misc", "circulation"]
     new_spec.init_id(category_name_list)
 
     # area
