@@ -178,7 +178,12 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
 
             matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
-            db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(matrix)
+            if len(self.manager.solver.solutions) > 1:
+                db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
+                    matrix)
+            else:
+                db = DBSCAN(eps=0.5, min_samples=5, metric="precomputed", n_jobs=-1).fit(
+                    matrix)
             labels = db.labels_
 
             # Number of clusters in labels, ignoring noise if present.
@@ -281,7 +286,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "011.json"
+        input_file = "032.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)

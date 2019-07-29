@@ -169,7 +169,7 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
         if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
-            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
+            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 1 min")
 
 
 def adjacency_matrix_to_graph(matrix):
@@ -1725,7 +1725,7 @@ T4_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "study": [
     ],
