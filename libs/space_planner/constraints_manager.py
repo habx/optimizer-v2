@@ -1451,7 +1451,7 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager',
         [i_item for i_item in manager.sp.spec.items if i_item.category.name == "toilet"])
 
     if (nbr_toilet >= manager.sp.spec.plan.floor_count
-            and manager.multiplex_toilet_repartition_constraint_first_pas):
+            and manager.multiplex_toilet_repartition_constraint_first_pass):
         manager.multiplex_toilet_repartition_constraint_first_pass = False
         item_floors = []
         for i_item in manager.sp.spec.items:
