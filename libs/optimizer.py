@@ -59,7 +59,7 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 ref_plan_score:float,
+                 ref_plan_score: float,
                  ref_plan_score_components: Optional[dict] = None
                  ):
         self.solutions = solutions
@@ -93,7 +93,7 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
                           "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
@@ -354,17 +354,17 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "ARCH014_blueprint.json",
-            "ARCH014_setup.json",
+            "005.json",
+            "005_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
-                "do_plot": False,
+                "do_plot": True,
                 "do_corridor": False,
                 "do_refiner":False,
                 "max_nb_solutions": 3,
                 "do_door": False,
-                "do_final_scoring": True,
+                "do_final_scoring": False,
                 "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
         )
