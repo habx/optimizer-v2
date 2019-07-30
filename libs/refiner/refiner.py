@@ -302,7 +302,16 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -8.0, -500.0, -1.0, -50000.0, -10.)
+    scores = [
+        (evaluation.score_corner, -20.0),
+        (evaluation.score_area, -8.0),
+        # (evaluation.score_shape, -1.0),
+        (evaluation.score_width_depth_ratio, -500.0),
+        (evaluation.score_bounding_box, -1.0),
+        (evaluation.score_connectivity, -50000.0),
+        (evaluation.score_window_area_ratio, -10.)
+    ]
+    scores_fc, weights = list(zip(*scores))
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -310,15 +319,6 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     toolbox.configure("fitness", "CustomFitness", weights)
     toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
-    # Note : order is very important as tuples are evaluated lexicographically in python
-    scores_fc = [
-        evaluation.score_corner,
-        evaluation.score_area,
-        evaluation.score_width_depth_ratio,
-        evaluation.score_bounding_box,
-        evaluation.score_connectivity,
-        evaluation.score_window_area_ratio
-    ]
     toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
@@ -548,7 +548,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 1}
+        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2, "processes": 1}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "060"  # 062 006 020 061

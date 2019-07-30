@@ -266,7 +266,7 @@ class Space(PlanComponent):
         :return:
         """
         if linear.floor == self.floor:
-            return linear.edge in self.edges
+            return linear.edge.face in self.faces
         else:
             return False
 
@@ -388,7 +388,7 @@ class Space(PlanComponent):
         next_edge = edge.next
         if __debug__:
             seen = []
-        while not self.is_boundary(next_edge):
+        while next_edge.pair.face is not None and next_edge.pair.face.id in self.faces_id:
             if __debug__ and next_edge in seen:
                 raise Exception("The mesh is badly formed for space: %s", self)
             if __debug__:
@@ -1217,7 +1217,7 @@ class Space(PlanComponent):
             self._edges_id = []
             return
 
-        seen = []
+        seen = set()
         self._edges_id = []
         found_exterior_edge = False
         for face in self.faces:
@@ -1225,29 +1225,36 @@ class Space(PlanComponent):
                 if edge in seen:
                     continue
                 if not self.is_boundary(edge):
-                    seen.append(edge)
-                    seen.append(edge.pair)
+                    seen.add(edge)
+                    seen.add(edge.pair)
                     continue
                 # in order to determine which edge is the exterior one we have to
                 # calculate its rotation order (ccw or ccw).
                 # we use the curve orientation algorithm
-                siblings = list(self.siblings(edge))
-                ref_edge = min(siblings, key=lambda e: e.start.coords)
-                previous_edge = self.previous_edge(ref_edge)
-                det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
-                if det < 0:  # counter clockwise
-                    if found_exterior_edge:
-                        # self.plan.plot()
-                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
-                                              self.plan)
-                    self._edges_id = [edge.id] + self._edges_id
-                    found_exterior_edge = True
-                else:  # clockwise
+                if not found_exterior_edge:
+                    siblings = list(self.siblings(edge))
+                    ref_edge = min(siblings, key=lambda e: e.start.coords)
+                    previous_edge = self.previous_edge(ref_edge)
+                    det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                    if det < 0:  # counter clockwise
+                        if found_exterior_edge:
+                            # self.plan.plot()
+                            raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                                  self.plan)
+                        self._edges_id = [edge.id] + self._edges_id
+                        found_exterior_edge = True
+                        # remove all other linked edges on the boundary
+                        for sibling in siblings:
+                            seen.add(sibling)
+                            seen.add(sibling.pair)
+                else:
+                    # if the exterior edge has already been found the other boundary edges
+                    # can only be `hole` edges
                     self.add_edge(edge)
-
-                for sibling in siblings:
-                    seen.append(sibling)
-                    seen.append(sibling.pair)
+                    # remove all other linked edges on the boundary
+                    for sibling in self.siblings(edge):
+                        seen.add(sibling)
+                        seen.add(sibling.pair)
 
         if not len(self._edges_id) or not found_exterior_edge:
             raise SpaceShapeError("The space is badly shaped: {}".format(self))
