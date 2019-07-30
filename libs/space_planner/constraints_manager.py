@@ -1336,7 +1336,8 @@ def max_1_window_adjacency_constraint(manager: 'ConstraintsManager',
     adjacency_sum = manager.solver.solver.Sum(
         manager.solver.positions[item.id, j] for j, space in
         enumerate(manager.sp.spec.plan.mutable_spaces()) if
-        "window" in space.components_category_associated())
+        ("window" in space.components_category_associated()
+         or "doorWindow" in space.components_category_associated()))
     ct = adjacency_sum <= 1
     return ct
 
@@ -1588,7 +1589,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
-         {"category": "doorWindow", "adj": False, "addition_rule": "And"}],
+         {"category": "doorWindow", "adj": False}],
         [max_1_window_adjacency_constraint, {}]
     ],
     "living": [
