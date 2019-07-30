@@ -161,7 +161,7 @@ class Refiner:
         merge_adjacent_circulation(output)
         solution.spec.plan = output
         solution.space_item = {output.get_space_from_id(i): item
-                               for i, item in output.fitness.cache["space_to_item"]}
+                               for i, item in output.fitness.cache["space_to_item"].items()}
         return solution
 
     def run(self,
