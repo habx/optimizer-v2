@@ -2441,14 +2441,14 @@ class Plan:
             floor = self.floors[floor_id]
             self.__class__.SpaceType(self, floor, _id=int(space["id"])).deserialize(space)
 
-        # add linears
-        for linear in data["linears"]:
+        # add linears (note a plan could have no linears)
+        for linear in data.get("linears", []):
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
 
         # add furnitures
-        for space_id, furnitures in data["furnitures"].items():
+        for space_id, furnitures in data.get("furnitures", {}).items():
             space = self.get_space_from_id(int(space_id))
             self.furnitures[space] = [self.__class__.FurnitureType().deserialize(f)
                                       for f in furnitures]

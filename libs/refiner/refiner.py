@@ -302,7 +302,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -8.0, -100.0, -1.0, -50000.0, -10.)
+    weights = (-20.0, -8.0, -500.0, -1.0, -50000.0, -10.)
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -551,9 +551,9 @@ if __name__ == '__main__':
         params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "041"  # 062 006 020 061
+        plan_number = "060"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=1)
+                                            solution_number=2)
 
         if solution:
             plan = solution.spec.plan
@@ -568,7 +568,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["space_nsga"].apply_to(solution, params)
+            improved_plan = REFINERS["space_nsga"].apply_to(solution, params).spec.plan
             end = time.time()
 
             # display solution
