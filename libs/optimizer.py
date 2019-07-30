@@ -354,8 +354,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "048.json",
-            "048_setup0.json",
+            "005.json",
+            "005_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
@@ -364,7 +364,7 @@ if __name__ == '__main__':
                 "do_refiner":False,
                 "max_nb_solutions": 3,
                 "do_door": False,
-                "do_final_scoring": True,
+                "do_final_scoring": False,
                 "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
             }
         )

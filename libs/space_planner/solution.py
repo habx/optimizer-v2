@@ -7,17 +7,18 @@ Creates the following classes:
 TODO : fusion of the entrance for small apartment untreated
 
 """
+import functools
+import logging
+import operator
+from copy import deepcopy
 from typing import List, Dict, Optional
-from libs.plan.plan import Space
+
+from libs.plan.category import SPACE_CATEGORIES
 from libs.plan.plan import Plan
+from libs.plan.plan import Space
 from libs.scoring.scoring import space_planning_scoring, initial_spec_adaptation, create_item_dict
 from libs.specification.size import Size
 from libs.specification.specification import Specification, Item
-from libs.plan.category import SPACE_CATEGORIES
-import logging
-import functools
-import operator
-from copy import deepcopy
 
 CORRIDOR_SIZE = 120
 SQM = 10000
@@ -45,10 +46,10 @@ class SolutionsCollector:
                                                              'SpecificationWithCirculation', True)
         self.spec_with_circulation.plan.mesh.compute_cache()
 
-        self.spec_without_circulation= initial_spec_adaptation(spec, spec.plan,
-                                                               'SpecificationWithoutCirculation',
-                                                               False)
-        self.spec_without_circulation .plan.mesh.compute_cache()
+        self.spec_without_circulation = initial_spec_adaptation(spec, spec.plan,
+                                                                'SpecificationWithoutCirculation',
+                                                                False)
+        self.spec_without_circulation.plan.mesh.compute_cache()
 
     def add_solution(self, spec: 'Specification', dict_space_item: Dict['Space', 'Item']) -> None:
         """
@@ -106,7 +107,7 @@ class SolutionsCollector:
         dist_from_best_sol = self.distance_from_all_solutions(best_sol)
         dist_from_results = [dist_from_best_sol]
 
-        for i in range(self.max_results-1):
+        for i in range(self.max_results - 1):
             current_score = None
             index_current_sol = None
             for i_sol in range(len(self.solutions)):
@@ -116,9 +117,10 @@ class SolutionsCollector:
                                                                   in dist_from_results])
                 if ((current_score is None and current_distance_from_results > 0)
                         or (current_score is not None
-                            and list_scores[i_sol]*current_distance_from_results > current_score)):
+                            and list_scores[
+                                i_sol] * current_distance_from_results > current_score)):
                     index_current_sol = i_sol
-                    current_score = list_scores[i_sol]*current_distance_from_results
+                    current_score = list_scores[i_sol] * current_distance_from_results
             if current_score:
                 best_sol_list.append(self.solutions[index_current_sol])
                 logging.debug("SolutionsCollector : Second solution : index : %i, score : %f",
@@ -171,7 +173,7 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
 
     if circulation_spaces:
         circulation_item = [item for item in collector.spec_with_circulation.items
-                                     if item.category.name == "circulation"]
+                            if item.category.name == "circulation"]
         if circulation_item:
             circulation_item = deepcopy(circulation_item[0])
         else:
@@ -189,10 +191,11 @@ def spec_adaptation(solution: 'Solution', collector: 'SolutionsCollector'):
 
     # area
     invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation"
-                            "misc"]
+                                                                                     "misc"]
     invariant_area = sum(item.required_area for item in solution.spec.items
                          if item.category.name in invariant_categories)
-    mutable_spaces_area = sum([space.cached_area() for space in solution.spec.plan.mutable_spaces()])
+    mutable_spaces_area = sum(
+        [space.cached_area() for space in solution.spec.plan.mutable_spaces()])
     coeff = (int(mutable_spaces_area - invariant_area) / int(sum(
         item.required_area for item in solution.spec.items if
         item.category.name not in invariant_categories)))
@@ -305,7 +308,8 @@ class Solution:
         distance = 0
         if len(self.space_item) != len(other_solution.space_item):
             distance += 1
-        other_solution_item_name = [item.category.name for item in other_solution.space_item.values()]
+        other_solution_item_name = [item.category.name for item in
+                                    other_solution.space_item.values()]
         for space, item in self.space_item.items():
             if item.category.name not in other_solution_item_name:
                 continue
@@ -334,7 +338,8 @@ class Solution:
                         distance += 1
         return distance
 
-def reference_plan_solution(reference_plan:'Plan', setup_spec: 'Specification') -> Solution:
+
+def reference_plan_solution(reference_plan: 'Plan', setup_spec: 'Specification') -> Solution:
     """
     reference plan solution building
     :param reference_plan: Solution
