@@ -133,8 +133,8 @@ def corner_scoring(solution: 'Solution') -> float:
     corner_score = 0
     has_holes = 0
     for space, item in solution.space_item.items():
-        space_score = 100 - max(space.number_of_corners() -
-                                nbr_corner.get(item.category.name, nbr_corner["default"]), 0) * 25
+        space_score = 100 - (space.number_of_corners() -
+                                nbr_corner.get(item.category.name, nbr_corner["default"])) * 25
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
@@ -470,7 +470,11 @@ def luminosity_scoring(solution: 'Solution') -> float:
                                                    comp.category.name in ["window", "doorWindow"]]:
             for face in space.faces:
                 if face_luminosity[face] == 0:
-                    area_sum += 5 * face.area
+                    if space.category.name in ["living", "livingKitchen", "dining", "bedroom",
+                                               "study", "kitchen"]:
+                        area_sum += 5 * face.area
+                    else:
+                        area_sum += face.area
                 else:
                     luminosity_score += face.area * face_luminosity[face]
                     area_sum += face.area
@@ -769,6 +773,8 @@ def final_scoring(solution: 'Solution', do_plot: bool = False) -> [float]:
     score_components["minimal_dimensions"] = minimal_dimensions_scoring(solution)
     plan_score = sum(score_components.values()) / len(score_components)
 
+    print(solution.id, score_components, plan_score)
+
     if do_plot:
         radar_chart(plan_score, score_components, solution.id,
                     solution.spec.plan.name + "_FinalScore")
@@ -828,7 +834,7 @@ def luminosity_plot(solution: 'Solution', face_luminosity: Dict['Face', int]):
         _ax = ax[level] if number_of_floors > 1 else ax
         if face_luminosity[face]:
             _ax.plot([face.as_sp.centroid.xy[0][0]], [face.as_sp.centroid.xy[1][0]], marker='*',
-                     markersize=3, color="yellow")
+                     markersize=3, color="orange")
 
     plot_save(True, False)
 

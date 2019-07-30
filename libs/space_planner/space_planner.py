@@ -180,8 +180,6 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
 
             if len(self.manager.solver.solutions) > 1:
-                print(self.manager.solver.solutions)
-                print(len(self.manager.solver.solutions))
                 matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
                 db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
                     matrix)
