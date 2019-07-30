@@ -766,7 +766,8 @@ class Space(PlanComponent):
         if self.edge is None:
             return 0.0, 0.0
 
-        vector = vector or self.edge.unit_vector
+        vector_x = vector or self.edge.unit_vector
+        vector_y = normal_vector(vector_x)
         total_x = 0
         max_x = 0
         min_x = 0
@@ -775,10 +776,10 @@ class Space(PlanComponent):
         min_y = 0
 
         for space_edge in self.exterior_edges:
-            total_x += dot_product(space_edge.vector, vector)
+            total_x += dot_product(space_edge.vector, vector_x)
             max_x = max(total_x, max_x)
             min_x = min(total_x, min_x)
-            total_y += dot_product(space_edge.vector, normal_vector(vector))
+            total_y += dot_product(space_edge.vector, vector_y)
             max_y = max(total_y, max_y)
             min_y = min(total_y, min_y)
 
@@ -793,7 +794,7 @@ class Space(PlanComponent):
         if not self.edge:
             return None
 
-        return minimum_rotated_rectangle(self.boundary_polygon())
+        return minimum_rotated_rectangle(tuple(self.boundary_polygon()))
 
     def distance_to(self, other: 'Space', kind: str = "max") -> float:
         """

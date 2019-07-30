@@ -161,7 +161,7 @@ class Refiner:
         merge_adjacent_circulation(output)
         solution.spec.plan = output
         solution.space_item = {output.get_space_from_id(i): item
-                               for i, item in output.fitness.cache["space_to_item"]}
+                               for i, item in output.fitness.cache["space_to_item"].items()}
         return solution
 
     def run(self,
@@ -548,7 +548,7 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 8}
+        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 1}
 
         logging.getLogger().setLevel(logging.INFO)
         plan_number = "060"  # 062 006 020 061
