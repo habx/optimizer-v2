@@ -765,6 +765,7 @@ def final_scoring(solution: 'Solution', do_plot: bool = False) -> [float]:
     :return: score_components = [float]
     """
     score_components = dict()
+    print(solution.space_item)
     score_components["area"] = area_scoring(solution)
     score_components["corner"] = corner_scoring(solution)
     score_components["bounding_box"] = bounding_box_scoring(solution)
