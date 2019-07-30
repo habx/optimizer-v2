@@ -138,7 +138,8 @@ def corner_scoring(solution: 'Solution') -> float:
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
-    corner_score = max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0)
+    corner_score = min(max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0),
+                       100)
     logging.debug("Corner score : %f", corner_score)
     return corner_score
 
