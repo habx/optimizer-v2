@@ -761,7 +761,7 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     """
 
     epsilon_length = 20
-    if seeder.plan.area/SQM < 110:
+    if seeder.plan.indoor_area/SQM < 115:
         min_cell_area = MIN_SEEDER_SPACE_AREA
     else:
         min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
@@ -1016,7 +1016,7 @@ def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
     :param show:
     :return: the list of modified spaces
     """
-    if seeder.plan.area/SQM < 110:
+    if seeder.plan.indoor_area/SQM < 115:
         min_cell_area = MIN_SEEDER_SPACE_AREA
     else:
         min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
