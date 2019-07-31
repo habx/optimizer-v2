@@ -1242,6 +1242,8 @@ class Space(PlanComponent):
                                                   self.plan)
                         self._edges_id = [edge.id] + self._edges_id
                         found_exterior_edge = True
+                    else:
+                        self.add_edge(edge)
                     # remove all other linked edges on the boundary
                     for sibling in siblings:
                         seen.add(sibling)
@@ -1250,10 +1252,10 @@ class Space(PlanComponent):
                     # if the exterior edge has already been found the other boundary edges
                     # can only be `hole` edges
                     self.add_edge(edge)
-                # remove all other linked edges on the boundary
-                for sibling in self.siblings(edge):
-                    seen.add(sibling)
-                    seen.add(sibling.pair)
+                    # remove all other linked edges on the boundary
+                    for sibling in self.siblings(edge):
+                        seen.add(sibling)
+                        seen.add(sibling.pair)
 
         if not len(self._edges_id) or not found_exterior_edge:
             raise SpaceShapeError("The space is badly shaped: {}".format(self))
