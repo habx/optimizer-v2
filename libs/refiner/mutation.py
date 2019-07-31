@@ -160,7 +160,7 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
 
         # remove all edges that have a needed linear for the space
         for e in edges_by_spaces[other].copy():
-            if _has_needed_linear(e, other):
+            if _has_needed_linear(e, other, space):
                 edges_by_spaces[other].remove(e)
 
         # remove all edges that are the only ones whose face is adjacent to a needed space
@@ -363,6 +363,8 @@ def _has_needed_linear(edge: 'Edge', space: 'Space', other: Optional['Space'] = 
     """
     # some spaces cannot be given certain linears
     forbidden_linears = {
+        SPACE_CATEGORIES["circulation"]: {LINEAR_CATEGORIES["doorWindow"],
+                                          LINEAR_CATEGORIES["window"]},
         SPACE_CATEGORIES["toilet"]: {LINEAR_CATEGORIES["doorWindow"], LINEAR_CATEGORIES["window"]},
         SPACE_CATEGORIES["bathroom"]: {LINEAR_CATEGORIES["doorWindow"]}
     }
