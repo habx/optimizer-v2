@@ -3,6 +3,8 @@
 # This file can be executed on drone or locally by using:
 # $ docker build . -t test && docker run test
 
+apt-get install libgoogle-perftools4 git -y
+
 # Cutting tests
 tests=$(circleci tests glob "**/*_test.py" | circleci tests split) ||:
 
