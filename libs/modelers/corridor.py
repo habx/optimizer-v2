@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Type, Callable
+from typing import Optional, Dict, List, Type, Callable, Optional
 from enum import Enum
 
 import matplotlib.pyplot as plt
@@ -52,11 +52,12 @@ class Corridor:
         self.circulation_cost_rules = circulation_cost_rules
         self.growth_method = growth_method
         self.plot = plot
-        self.spec: Specification = None
-        self.plan: Plan = None
-        self.circulator: Circulator = None
-        self.corner_data: Dict = None
-        self.grouped_faces: Dict[int, List[List['Face']]] = None
+        self.spec: Optional[Specification] = None
+        self.plan: Optional[Plan] = None
+        self.circulator: Optional[Circulator] = None
+        self.corner_data: Dict = {}
+        self.paths = []
+        self.grouped_faces: Dict[int, List[List['Face']]] = {}
         self.directions: DirectionsDict = {}
 
     def _clear(self):
@@ -83,14 +84,13 @@ class Corridor:
 
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
-                                  sp.mutable and not sp.category.name is "circulation"]
+                                  sp.mutable and sp.category is not SPACE_CATEGORIES["circulation"]]
         dict_item = self._store_repair_info(initial_mutable_spaces, solution)
 
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
         self._set_paths()
 
         # Real time plot updates
@@ -535,7 +535,7 @@ class Corridor:
         :return:
         """
 
-        layer_edges = self.get_parallel_layers_edges(edge, max_width)
+        layer_edges = [edge]  # self.get_parallel_layers_edges(edge, max_width)
 
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
