@@ -10,4 +10,4 @@ if [[ "$(docker images -q ${DOCKER_IMAGE} 2> /dev/null)" == "" ]]; then
   docker build . -t ${DOCKER_IMAGE}
 fi
 
-docker run -w /work -v $(pwd):/work ${DOCKER_IMAGE} $@
+docker run -w /work -v $(pwd):/work -ti ${DOCKER_IMAGE} $@

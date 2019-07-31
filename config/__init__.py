@@ -3,6 +3,7 @@ import json
 
 DEFAULT_CONF_PATH = 'config/config.default.json'
 
+
 def from_file():
     env = os.environ.get('HABX_ENV')
 
