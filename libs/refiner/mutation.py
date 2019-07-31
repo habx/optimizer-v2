@@ -218,7 +218,7 @@ def add_face(space: 'Space') -> List['Space']:
     if other_space.number_of_faces == 1:
         return []
 
-    if _has_needed_linear(edge.pair, other_space):
+    if _has_needed_linear(edge.pair, other_space, space):
         return []
 
     if _adjacent_to_needed_space(edge.pair, other_space, [edge.pair]):
@@ -258,45 +258,38 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     # check that we are not removing any important faces
     edges = space.aligned_siblings(edge, max_angle)
 
-    # we must check also that the list of faces does not remove any needed linears or adjacent
-    # spaces. We remove all the needed faces.
-    for edge in edges[:]:
-        if _has_needed_linear(edge, space):
-            edges.remove(edge)
-
-    for edge in edges[:]:
-        if _adjacent_to_needed_space(edge, space, edges):
-            edges.remove(edge)
-
-    if not edges:
-        logging.debug("No more edges %s", space)
-        return []
-
     logging.debug("refiner: Mutation: Removing aligned edges : %s from space %s", edges, space)
 
     faces_by_spaces = defaultdict(set)
-    faces = set(list(e.face for e in edges))
-    remaining_faces = set()
+    removed_faces = set()
 
-    for edge in edges:
-        other = plan.get_space_of_edge(edge.pair)
-        if other is None or not other.mutable and edge.face in faces:
+    for edge in edges[:]:
+        # we must check also that the list of faces does not remove any needed linears or adjacent
+        # spaces. We remove all the needed faces.
+        if _adjacent_to_needed_space(edge, space, edges):
             continue
-        remaining_faces.add(edge.face)
-        faces_by_spaces[other].add(edge.face)  # Note : a face can be linked to 2+ spaces
+        other = plan.get_space_of_edge(edge.pair)
+        # we need to know what is the other space to check if the linear must be kept
+        if _has_needed_linear(edge, space, other):
+            continue
+        if other is None or not other.mutable:
+            continue
+        removed_faces.add(edge.face)
+        faces_by_spaces[other].add(edge.face)  # Note : the same face can be linked to 2+ spaces
 
-    if not faces or space.corner_stone(*remaining_faces):
+    # check if we have at least one face to swap
+    if not faces_by_spaces or space.corner_stone(*removed_faces):
         return []
 
     modified_spaces = [space]
     for other in faces_by_spaces:
-        if not other.mutable:
-            continue
         # Note : a face can be adjacent to multiple other spaces. We must check that the face
         #        has not already been given to another space. This is why we only retain
         #        the intersection of the identified faces set with the remaining faces of the space
         faces_id = set(map(lambda f: f.id,
                            faces_by_spaces[other])).intersection(space.faces_id)
+        if not faces_id:
+            continue
         other.add_face_id(*faces_id)
         space.remove_face_id(*faces_id)
         # set the reference edges of each spaces
@@ -336,7 +329,7 @@ def remove_face(space: 'Space') -> List['Space']:
         logging.debug("Refiner: Mutation: No other space %s", space)
         return []
 
-    if _has_needed_linear(edge, space):
+    if _has_needed_linear(edge, space, other_space):
         return []
 
     if _adjacent_to_needed_space(edge, space, [edge]):
@@ -359,14 +352,21 @@ UTILITY Functions
 """
 
 
-def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
+def _has_needed_linear(edge: 'Edge', space: 'Space', other: Optional['Space'] = None) -> bool:
     """
     Returns True if the edge face has an immutable component
     TODO : number of linears (example : living or bedroom if small windows)
     :param edge:
     :param space:
+    :param other:
     :return:
     """
+    # some spaces cannot be given certain linears
+    forbidden_linears = {
+        SPACE_CATEGORIES["toilet"]: {LINEAR_CATEGORIES["doorWindow"], LINEAR_CATEGORIES["window"]},
+        SPACE_CATEGORIES["bathroom"]: {LINEAR_CATEGORIES["doorWindow"]}
+    }
+
     face = edge.face
 
     front_door = next(space.plan.get_linears("frontDoor"))
@@ -395,6 +395,10 @@ def _has_needed_linear(edge: 'Edge', space: 'Space') -> bool:
         linear = space.plan.get_linear_from_edge(_edge)
         # keep only one needed linear
         if linear and linear.category in needed_linears:
+            # if the linear belongs to the forbidden linears of the other space
+            # consider that the current space needs this linear
+            if other and linear.category in forbidden_linears.get(other.category, []):
+                return True
             for other_edge in space.exterior_edges:
                 other_linear = space.plan.get_linear_from_edge(other_edge)
                 if (other_linear and other_linear is not linear
