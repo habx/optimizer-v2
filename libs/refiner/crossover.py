@@ -11,6 +11,7 @@ import random
 from typing import TYPE_CHECKING, Optional, Tuple
 
 from libs.utils.custom_exceptions import SpaceShapeError
+from libs.utils.geometry import cross_product
 
 MIN_ADJACENCY_EDGE_LENGTH = None
 
@@ -113,6 +114,19 @@ def copy_space(from_ind: 'Individual', to_ind: 'Individual', space_id: int) -> '
     # this might raise a SpaceShapeError Exception if we've split a space in half
     for space in modified_spaces:
         space.set_edges()
+        # check if the space has been split
+        if space.has_holes:
+            found_exterior_edge = False
+            for edge in space.reference_edges:
+                siblings = list(space.siblings(edge))
+                ref_edge = min(siblings, key=lambda e: e.start.coords)
+                previous_edge = space.previous_edge(ref_edge)
+                det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                if det < 0:  # counter clockwise
+                    if found_exterior_edge:
+                        raise SpaceShapeError("Space: The space has been split ! %s | %s", space,
+                                              space.plan)
+                    found_exterior_edge = True
 
     modified_ind.modified_spaces |= {s.id for s in modified_spaces}
 

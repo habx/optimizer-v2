@@ -144,7 +144,7 @@ class Refiner:
 
     def apply_to(self,
                  solution: 'Solution',
-                 params: dict):
+                 params: dict) -> 'Solution':
         """
         Applies the refiner to the plan and returns the result.
         :param solution:
@@ -163,6 +163,7 @@ class Refiner:
         solution.space_item = {output.get_space_from_id(i): item
                                for i, item in output.fitness.cache["space_to_item"].items()
                                if output.get_space_from_id(i)}
+        return solution
 
     def run(self,
             solution: 'Solution',
@@ -548,12 +549,12 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2, "processes": 8}
+        params = {"ngen": 120, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "062"  # 062 006 020 061
+        plan_number = "059"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=0)
+                                            solution_number=1)
 
         if solution:
             plan = solution.spec.plan

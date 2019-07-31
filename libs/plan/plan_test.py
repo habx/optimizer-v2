@@ -536,9 +536,13 @@ def test_remove_face_between_holes():
 
     face_2 = plan.empty_space.insert_face_from_boundary(hole_2)
     plan.empty_space.remove_face(face_2)
+    plan.plot()
 
     face_3 = plan.empty_space.insert_face_from_boundary(face)
+
     plan.empty_space.remove_face(face_3)
+
+    # plan.plot()
 
     assert len(list(plan.empty_space.holes_reference_edge)) == 1
     assert plan.check()
