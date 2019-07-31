@@ -13,6 +13,8 @@ tests=$(circleci tests glob "**/*_test.py" | circleci tests split) ||:
 # Verbose view
 pytest --durations=10 -v $tests
 
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4 pytest --durations=10 -v $tests
+
 # To compare the packages
 pip list
 
