@@ -1024,7 +1024,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
             ratio = 18
         elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
             ratio = 15
-        elif item.category.name in ["kitchen", "study", "bathroom"] and len(item.opens_on) == 0:
+        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
             ratio = 10
         else:
             ratio = 0
@@ -1589,7 +1589,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
-         {"category": "doorWindow", "adj": False}],
+         {"category": ["doorWindow"], "adj": False}],
         [max_1_window_adjacency_constraint, {}]
     ],
     "living": [

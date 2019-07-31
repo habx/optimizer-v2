@@ -286,7 +286,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "059.json"
+        input_file = "029.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -335,6 +335,9 @@ if __name__ == '__main__':
         if best_solutions:
             for sol in best_solutions:
                 sol.spec.plan.plot()
+                for space in sol.spec.plan.mutable_spaces():
+                    print(space.category.name)
+                    print(space.components_category_associated())
                 logging.debug(sol, sol.space_planning_score)
                 for space in sol.spec.plan.mutable_spaces():
                     logging.debug(space.category.name, " : ", space.cached_area())
