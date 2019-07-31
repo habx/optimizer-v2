@@ -83,8 +83,8 @@ def merge_circulation_living(ind: 'Individual') -> None:
     their adjacency length is superior to a maximum length
     :return:
     """
-    max_length = 130.
-    adjacency_ratio = 0.25
+    max_length = 150.
+    adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
     livings = list(ind.get_spaces("living", "livingKitchen"))
@@ -108,8 +108,8 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
     superior to a minimum length
     :return:
     """
-    max_length = 130.
-    adjacency_ratio = 0.25
+    max_length = 150.
+    adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
     entrances = list(ind.get_spaces("entrance"))
@@ -144,7 +144,7 @@ class Refiner:
 
     def apply_to(self,
                  solution: 'Solution',
-                 params: dict) -> 'Individual':
+                 params: dict) -> 'Solution':
         """
         Applies the refiner to the plan and returns the result.
         :param solution:
@@ -160,7 +160,10 @@ class Refiner:
         merge_circulation_entrance(output)
         merge_adjacent_circulation(output)
         solution.spec.plan = output
-        return output
+        solution.space_item = {output.get_space_from_id(i): item
+                               for i, item in output.fitness.cache["space_to_item"].items()
+                               if output.get_space_from_id(i)}
+        return solution
 
     def run(self,
             solution: 'Solution',
@@ -300,7 +303,16 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :param params: The params of the algorithm
     :return: a configured toolbox
     """
-    weights = (-20.0, -8.0, -100.0, -1.0, -50000.0, -10.)
+    scores = [
+        (evaluation.score_corner, -20.0),
+        (evaluation.score_area, -8.0),
+        # (evaluation.score_shape, -1.0),
+        (evaluation.score_width_depth_ratio, -500.0),
+        (evaluation.score_bounding_box, -1.0),
+        (evaluation.score_connectivity, -50000.0),
+        (evaluation.score_window_area_ratio, -10.)
+    ]
+    scores_fc, weights = list(zip(*scores))
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
 
@@ -308,15 +320,6 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     toolbox.configure("fitness", "CustomFitness", weights)
     toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
-    # Note : order is very important as tuples are evaluated lexicographically in python
-    scores_fc = [
-        evaluation.score_corner,
-        evaluation.score_area,
-        evaluation.score_width_depth_ratio,
-        evaluation.score_bounding_box,
-        evaluation.score_connectivity,
-        evaluation.score_window_area_ratio
-    ]
     toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
@@ -546,10 +549,12 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1, "processes": 8}
+        params = {"ngen": 120, "mu": 120, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+                  "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "041"  # 062 006 020 061
+
+        plan_number = "029"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
                                             solution_number=1)
 
@@ -566,7 +571,7 @@ if __name__ == '__main__':
             plan.plot()
             # run genetic algorithm
             start = time.time()
-            improved_plan = REFINERS["space_nsga"].apply_to(solution, params)
+            improved_plan = REFINERS["space_nsga"].apply_to(solution, params).spec.plan
             end = time.time()
 
             # display solution

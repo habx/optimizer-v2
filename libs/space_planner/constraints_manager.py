@@ -12,13 +12,15 @@ OR-Tools : google constraint programing solver
     https://acrogenesis.com/or-tools/documentation/user_manual/index.html
 
 """
-from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
-from ortools.constraint_solver import pywrapcp as ortools
-from libs.specification.specification import Item
-from libs.plan.category import LinearCategory
-import networkx as nx
-import time
 import logging
+import time
+from typing import List, Callable, Optional, Sequence, TYPE_CHECKING
+
+import networkx as nx
+from ortools.constraint_solver import pywrapcp as ortools
+
+from libs.plan.category import LinearCategory
+from libs.specification.specification import Item
 
 if TYPE_CHECKING:
     from libs.space_planner.space_planner import SpacePlanner
@@ -40,15 +42,14 @@ SMALL_VARIANTS = ["xs", "s"]
 
 OPEN_ON_ADJACENCY_SIZE = 200
 
-
 SQM = 10000
-BIG_EXTERNAL_SPACE = 7*SQM
+BIG_EXTERNAL_SPACE = 7 * SQM
 LBW_THICKNESS = 30
 MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
-SEARCH_TIME_LIMIT = 1800000  # millisecond
+SEARCH_TIME_LIMIT = 60000  # millisecond 1 min
 SEARCH_SOLUTIONS_LIMIT = 1000
 
 
@@ -132,7 +133,7 @@ class ConstraintSolver:
         """
         t0 = time.process_time()
         decision_builder = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
-                               self.solver.ASSIGN_MIN_VALUE)
+                                             self.solver.ASSIGN_MIN_VALUE)
         time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
         self.solver.NewSearch(decision_builder, time_limit)
 
@@ -146,7 +147,7 @@ class ConstraintSolver:
                     self.cells_item[j].Value() == i_item for j in range(self.spaces_nbr)]))
                 sol_positions.append([])
                 for j_space in range(self.spaces_nbr):  # empty and seed spaces
-                    sol_positions[i_item].append(self.cells_item[j_space].Value() == i_item)
+                    sol_positions[i_item].append(int(self.cells_item[j_space].Value() == i_item))
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)
@@ -154,8 +155,9 @@ class ConstraintSolver:
                     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
                                     len(self.solutions))
                     break
-                if (time.process_time() - t0 - 600) >= 0:
-                    logging.warning("ConstraintSolver: TIME_LIMIT - 10 min")
+                if (time.process_time() - t0 - 15) >= 0:
+                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                                    len(self.solutions))
                     break
 
         # noinspection PyArgumentList
@@ -167,7 +169,7 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
         if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
-            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 30 min")
+            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 1 min")
 
 
 def adjacency_matrix_to_graph(matrix):
@@ -302,12 +304,12 @@ class ConstraintsManager:
         :return:
         """
         min_distance_from_entrance = 400
-        frontDoor = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
+        front_door = [lin for lin in self.sp.spec.plan.linears if lin.category.name == "frontDoor"]
         ducts = [space for space in self.sp.spec.plan.spaces if space.category.name == "duct"]
         for duct in ducts:
-            if (frontDoor[0] and
-                frontDoor[0].floor == duct.floor and
-                    duct.distance_to_linear(frontDoor[0], "min") < min_distance_from_entrance):
+            if (front_door[0] and
+                    front_door[0].floor == duct.floor and
+                    duct.distance_to_linear(front_door[0], "min") < min_distance_from_entrance):
                 self.duct_next_to_entrance.append(duct)
 
     def _init_item_windows_area(self) -> None:
@@ -315,16 +317,23 @@ class ConstraintsManager:
         Initialize item window area
         :return:
         """
+        small_window_height = 75  # window.length < 70cm
+        normal_window_height = 125
+        door_window_height = 215
         for item in self.sp.spec.items:
             area = 0
             for j, space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 for component in space.immutable_components():
                     if component.category.name == "window":
-                        area += (self.solver.positions[item.id, j]
-                                 * int(round(component.length * 100)))
+                        if component.length < 70:
+                            area += (self.solver.positions[item.id, j]
+                                     * int(round(component.length * small_window_height)))
+                        else:
+                            area += (self.solver.positions[item.id, j]
+                                     * int(round(component.length * normal_window_height)))
                     elif component.category.name == "doorWindow":
                         area += (self.solver.positions[item.id, j]
-                                   * int(round(component.length * 200)))
+                                 * int(round(component.length * door_window_height)))
             self.item_windows_area[item.id] = area
 
     def _init_windows_length(self) -> None:
@@ -427,8 +436,8 @@ class ConstraintsManager:
         :return: None
         """
         self.spaces_item_adjacency_matrix = [
-            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS/2).intersection(
-                j_space.as_sp.buffer(LBW_THICKNESS/2)).length/2> ITEM_ADJACENCY_LENGTH and
+            [1 if i == j or (i_space.as_sp.buffer(LBW_THICKNESS / 2).intersection(
+                j_space.as_sp.buffer(LBW_THICKNESS / 2)).length / 2 > ITEM_ADJACENCY_LENGTH and
                              i_space.floor.level == j_space.floor.level) else 0 for i, i_space in
              enumerate(self.sp.spec.plan.mutable_spaces())] for j, j_space in
             enumerate(self.sp.spec.plan.mutable_spaces())]
@@ -442,10 +451,13 @@ class ConstraintsManager:
             self.space_and_perimeter_adjacency_length.append(0)
             for edge in space.edges:
                 if (edge.pair.face is None or
-                    edge.pair in list(edge
-                                      for space in self.sp.spec.plan.spaces if space.category.external is True for edge in space.edges)):
+                        edge.pair in list(edge
+                                          for space in self.sp.spec.plan.spaces
+                                          if space.category.external is True for edge in
+                                          space.edges)):
                     self.space_and_perimeter_adjacency_length[j] += edge.length
-            self.space_and_perimeter_adjacency_length[j] = int(round(self.space_and_perimeter_adjacency_length[j]))
+            self.space_and_perimeter_adjacency_length[j] = int(round(
+                self.space_and_perimeter_adjacency_length[j]))
 
     def add_spaces_constraints(self) -> None:
         """
@@ -485,9 +497,12 @@ class ConstraintsManager:
                                 if duct in [component for component in
                                             space.immutable_components()]:
                                     if item_duct_adjacency is None:
-                                        item_duct_adjacency = self.solver.positions[item.id, j_space]
+                                        item_duct_adjacency = self.solver.positions[item.id,
+                                                                                    j_space]
                                     else:
-                                        item_duct_adjacency = self.solver.solver.Max(self.solver.positions[item.id, j_space], item_duct_adjacency)
+                                        item_duct_adjacency = self.solver.solver.Max(
+                                            self.solver.positions[item.id, j_space],
+                                            item_duct_adjacency)
                             adjacency_sum += item_duct_adjacency
 
                     if ct is None:
@@ -501,8 +516,9 @@ class ConstraintsManager:
         for s in external_spaces:
             external_space_edges += [e for e in s.exterior_edges]
         perimeter_duct_list = [duct for duct in duct_list if
-                     [edge for edge in duct.exterior_edges if (edge.pair in external_space_edges or
-                                                               not edge.pair.face)]]
+                               [edge for edge in duct.exterior_edges if
+                                (edge.pair in external_space_edges or
+                                 not edge.pair.face)]]
         duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen", "laundry"]
         ct = None
         for duct in duct_list:
@@ -516,19 +532,19 @@ class ConstraintsManager:
                     item_duct_adjacency = None
                     for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
 
-                            if duct in [component for component in space.immutable_components()]:
-                                if item_duct_adjacency is None:
-                                    item_duct_adjacency = self.solver.positions[item.id, j_space]
-                                else:
-                                    item_duct_adjacency = self.solver.solver.Max(
-                                        self.solver.positions[item.id, j_space], item_duct_adjacency)
+                        if duct in [component for component in space.immutable_components()]:
+                            if item_duct_adjacency is None:
+                                item_duct_adjacency = self.solver.positions[item.id, j_space]
+                            else:
+                                item_duct_adjacency = self.solver.solver.Max(
+                                    self.solver.positions[item.id, j_space],
+                                    item_duct_adjacency)
                     adjacency_sum += item_duct_adjacency
             if ct is None:
                 ct = adjacency_sum <= maximum
             else:
                 ct = self.and_(ct, adjacency_sum <= maximum)
         self.solver.add_constraint(ct)
-
 
     def add_item_constraints(self) -> None:
         """
@@ -550,6 +566,9 @@ class ConstraintsManager:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
+            if self.sp.spec.typology >= 4:
+                for constraint in T4_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.plan.floor_count > 1:
                 for constraint in DUPLEX_CONSTRAINTS.get(item.category.name, []):
@@ -630,7 +649,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
 
     if min_max == "max":
         if (item.variant in ["l", "xl"]
-             and item.category.name not in ["living", "livingKitchen", "dining"]):
+                and item.category.name not in ["living", "livingKitchen", "dining"]):
             max_area = round(item.max_size.area)
         else:
             max_area = round(max(item.max_size.area * MAX_AREA_COEFF, item.max_size.area + 1 * SQM))
@@ -646,6 +665,7 @@ def area_constraint(manager: 'ConstraintsManager', item: Item,
         ValueError("AreaConstraint")
 
     return ct
+
 
 def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -665,7 +685,7 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     elif item.category.name in ["entrance"]:
         param = 2.5
     else:
-        param = 1.8 # toilet
+        param = 1.8  # toilet
 
     max_distance = int(round(param * item.required_area ** 0.5))
 
@@ -686,8 +706,10 @@ def distance_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Co
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
+
 def item_max_distance_constraint(manager: 'ConstraintsManager', item: Item,
-                                 item_categories: List[str], max_distance: int) -> ortools.Constraint:
+                                 item_categories: List[str],
+                                 max_distance: int) -> ortools.Constraint:
     """
     Maximum distance constraint between item and an other type of item
     :param manager: 'ConstraintsManager'
@@ -703,30 +725,33 @@ def item_max_distance_constraint(manager: 'ConstraintsManager', item: Item,
         if num_item.category.name in item_categories and num_item != item:
             for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
                 for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    if j!= k:
+                    if j != k:
                         if current_ct is None:
                             if manager.spaces_min_distance[j][k] == 0:
                                 current_ct = (manager.solver.positions[item.id, j] *
                                               manager.solver.positions[num_item.id, k])
                             else:
                                 current_ct = ((manager.solver.positions[item.id, j] *
-                                              manager.solver.positions[num_item.id, k]) *
+                                               manager.solver.positions[num_item.id, k]) *
                                               ((manager.solver.positions[item.id, j] *
-                                              manager.solver.positions[num_item.id, k])
-                                             <= int(max_distance / manager.spaces_min_distance[j][k])))
+                                                manager.solver.positions[num_item.id, k])
+                                               <= int(max_distance / manager.spaces_min_distance[j][
+                                                          k])))
                         else:
                             if manager.spaces_min_distance[j][k] == 0:
                                 new_ct = (manager.solver.positions[item.id, j] *
-                                               manager.solver.positions[num_item.id, k])
+                                          manager.solver.positions[num_item.id, k])
                                 current_ct = manager.or_(current_ct, new_ct)
                             else:
                                 new_ct = ((manager.solver.positions[item.id, j] *
-                                              manager.solver.positions[num_item.id, k]) *
-                                             ((manager.solver.positions[item.id, j] *
-                                              manager.solver.positions[num_item.id, k])
-                                             <= int(max_distance / manager.spaces_min_distance[j][k])))
+                                           manager.solver.positions[num_item.id, k]) *
+                                          ((manager.solver.positions[item.id, j] *
+                                            manager.solver.positions[num_item.id, k])
+                                           <= int(max_distance / manager.spaces_min_distance[j][
+                                                      k])))
                                 current_ct = manager.or_(current_ct, new_ct)
     return current_ct
+
 
 def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Item,
                                         max_distance: int) -> ortools.Constraint:
@@ -737,7 +762,7 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
     :param max_distance: int
     :return: ct: ortools.Constraint
     """
-    additional_distance = 150 # 100 for window --> centroid and 50 for centroid --> duct
+    additional_distance = 150  # 100 for window --> centroid and 50 for centroid --> duct
     ct = None
     for j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()):
         for j_space_component in j_space.immutable_components():
@@ -759,28 +784,33 @@ def max_distance_window_duct_constraint(manager: 'ConstraintsManager', item: Ite
                                     path_inside_room = 1
                                     for i_path in path:
                                         path_inside_room = (path_inside_room *
-                                                        manager.solver.positions[item.id, i_path])
-                                    ct = path_inside_room*(manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] * path_length
-                                          <= max_distance)
+                                                            manager.solver.positions[
+                                                                item.id, i_path])
+                                    ct = path_inside_room * (manager.solver.positions[item.id, j] *
+                                                             manager.solver.positions[
+                                                                 item.id, k] * path_length
+                                                             <= max_distance)
                             else:
                                 if (j not in nx.nodes(manager.centroid_space_graph)
                                         or k not in nx.nodes(manager.centroid_space_graph)
                                         or not nx.has_path(manager.centroid_space_graph, j, k)):
                                     new_ct = (manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] == 0)
+                                              manager.solver.positions[item.id, k] == 0)
                                 else:
                                     path_length, path = nx.single_source_dijkstra(
                                         manager.centroid_space_graph, j, k)
                                     path_length += additional_distance
                                     path_inside_room = 1
                                     for i_path in path:
-                                        path_inside_room = path_inside_room * manager.solver.positions[item.id, i_path]
-                                    new_ct = path_inside_room*(manager.solver.positions[item.id, j] *
-                                          manager.solver.positions[item.id, k] * path_length
-                                          <= max_distance)
+                                        path_inside_room = path_inside_room * \
+                                                           manager.solver.positions[item.id, i_path]
+                                    new_ct = path_inside_room * (
+                                            manager.solver.positions[item.id, j] *
+                                            manager.solver.positions[item.id, k] * path_length
+                                            <= max_distance)
                                 ct = manager.or_(ct, new_ct)
     return ct == 1
+
 
 def area_graph_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -907,7 +937,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     elif item.category.name is "bedroom" and item.variant in ["xs"]:
         param = 22
     else:
-        param = 22 # toilet / entrance
+        param = 22  # toilet / entrance
 
     if item.category.name in ["toilet", "bathroom"]:
         cells_perimeter = manager.solver.solver.Sum(manager.solver.positions[item.id, j] *
@@ -936,7 +966,7 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
 
 
 def windows_ordering_constraint(manager: 'ConstraintsManager',
-                                item: Item) -> Optional[ ortools.Constraint]:
+                                item: Item) -> Optional[ortools.Constraint]:
     """
     Windows length constraint
     :param manager: 'ConstraintsManager'
@@ -966,6 +996,7 @@ def windows_ordering_constraint(manager: 'ConstraintsManager',
 
     return ct
 
+
 def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
                             ratio: int) -> ortools.Constraint:
     """
@@ -976,8 +1007,9 @@ def windows_area_constraint(manager: 'ConstraintsManager', item: Item,
     :return: ct: ortools.Constraint
     """
     ct = round(item.required_area * ratio) <= (
-                manager.item_windows_area[item.id] * 100)
+            manager.item_windows_area[item.id] * 100)
     return ct
+
 
 def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
@@ -987,13 +1019,12 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
     :return: ct: ortools.Constraint
     """
     ct = None
-
     if item.category.name in WINDOW_ROOMS:
         if item.category.name in ["living", "livingKitchen", "dining"]:
             ratio = 18
         elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
             ratio = 15
-        elif item.category.name in ["kitchen", "study", "bathroom"] and len(item.opens_on) == 0:
+        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
             ratio = 10
         else:
             ratio = 0
@@ -1008,6 +1039,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
             ct = manager.or_(ct1, ct2)
 
     return ct
+
 
 def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager',
                                          item: Item) -> ortools.Constraint:
@@ -1035,7 +1067,6 @@ def toilet_entrance_proximity_constraint(manager: 'ConstraintsManager',
     return ct
 
 
-
 def large_windows_constraint(manager: 'ConstraintsManager',
                              item: Item) -> Optional[ortools.Constraint]:
     """
@@ -1058,6 +1089,7 @@ def large_windows_constraint(manager: 'ConstraintsManager',
             ct = large_windows_sum >= 1
 
     return ct
+
 
 def opens_on_constraint(manager: 'ConstraintsManager', item: Item,
                         length: int) -> ortools.Constraint:
@@ -1108,7 +1140,9 @@ def symmetry_breaker_constraint(manager: 'ConstraintsManager', item: Item) -> or
         current = 0
         for j in range(manager.solver.spaces_nbr):
             memo = manager.solver.solver.Max(j *
-                    manager.solver.positions[manager.symmetry_breaker_memo[item_sym_id], j], memo)
+                                             manager.solver.positions[
+                                                 manager.symmetry_breaker_memo[item_sym_id], j],
+                                             memo)
             current = manager.solver.solver.Max(j * manager.solver.positions[item.id, j], current)
         ct = manager.solver.solver.IsLessVar(memo, current) == 1
 
@@ -1214,6 +1248,7 @@ def item_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 
     return ct
 
+
 def non_isolated_item_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
     """
     non isolated item constraint :
@@ -1243,10 +1278,10 @@ def non_isolated_item_constraint(manager: 'ConstraintsManager', item: Item) -> o
                         j, j_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
                     for k, k_space in enumerate(manager.sp.spec.plan.mutable_spaces()))
 
-
     ct = manager.or_(adjacency_sum >= 2, adjacency_circulation_room_sum >= 1)
 
     return ct
+
 
 def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
                                     category: Sequence[str], adj: bool = True,
@@ -1289,6 +1324,24 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
 
     return ct
 
+
+def max_1_window_adjacency_constraint(manager: 'ConstraintsManager',
+                                      item: Item) -> ortools.Constraint:
+    """
+    maximum 1 window adjacency constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    adjacency_sum = manager.solver.solver.Sum(
+        manager.solver.positions[item.id, j] for j, space in
+        enumerate(manager.sp.spec.plan.mutable_spaces()) if
+        ("window" in space.components_category_associated()
+         or "doorWindow" in space.components_category_associated()))
+    ct = adjacency_sum <= 1
+    return ct
+
+
 def externals_connection_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
     """
@@ -1312,10 +1365,11 @@ def externals_connection_constraint(manager: 'ConstraintsManager',
             manager.solver.positions[item.id, j] for j, space in
             enumerate(manager.sp.spec.plan.mutable_spaces())
             if (max([ext_space.cached_area() for ext_space in space.connected_spaces()
-                    if ext_space is not None and ext_space.category.external],
-                   default=0) > BIG_EXTERNAL_SPACE))
+                     if ext_space is not None and ext_space.category.external],
+                    default=0) > BIG_EXTERNAL_SPACE))
         ct = (adjacency_sum >= 1)
     return ct
+
 
 def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
                            ct: Optional[ortools.Constraint]) -> Optional[ortools.Constraint]:
@@ -1328,24 +1382,26 @@ def or_no_space_constraint(manager: 'ConstraintsManager', item: Item,
     """
     ct0 = (manager.solver.solver.Sum(manager.solver.positions[item.id, j]
                                      for j, space in enumerate(
-                                        manager.sp.spec.plan.mutable_spaces())) == 0)
+        manager.sp.spec.plan.mutable_spaces())) == 0)
     if ct:
         return manager.or_(ct, ct0)
     else:
         return None
 
+
 def optional_entrance_constraint(manager: 'ConstraintsManager',
-                                    item: Item) -> ortools.Constraint:
+                                 item: Item) -> ortools.Constraint:
     """
     optional entrance constraint
     :param manager: 'ConstraintsManager'
     :param item: Item
     :return: ct: ortools.Constraint
     """
-    ct1 = components_adjacency_constraint(manager, item,["frontDoor"], True)
+    ct1 = components_adjacency_constraint(manager, item, ["frontDoor"], True)
     ct = or_no_space_constraint(manager, item, ct1)
 
     return ct
+
 
 def conditional_entrance_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
@@ -1363,15 +1419,16 @@ def conditional_entrance_constraint(manager: 'ConstraintsManager',
             front_door_space = space
             break
 
-    if front_door_space and front_door_space.cached_area() > 5*SQM:
+    if front_door_space and front_door_space.cached_area() > 5 * SQM:
         ct = or_no_space_constraint(manager, item, ct1)
     else:
         ct = ct1
 
     return ct
 
+
 def min_perimeter_length(manager: 'ConstraintsManager',
-                                    item: Item) -> ortools.Constraint:
+                         item: Item) -> ortools.Constraint:
     """
     minimal intersection with blueprint perimeter
     :param manager: 'ConstraintsManager'
@@ -1390,13 +1447,16 @@ def min_perimeter_length(manager: 'ConstraintsManager',
     ct = None
 
     if not item.opens_on:
-        adjacency_sum = manager.solver.solver.Sum(manager.solver.positions[item.id, j] * manager.space_and_perimeter_adjacency_length[j]
-                                                  for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()))
+        adjacency_sum = manager.solver.solver.Sum(
+            manager.solver.positions[item.id, j] * manager.space_and_perimeter_adjacency_length[j]
+            for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()))
         ct = (adjacency_sum >= min_length[item.category.name])
     ct = or_no_space_constraint(manager, item, ct)
     return ct
 
-def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+
+def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager',
+                                            item: Item) -> ortools.Constraint:
     """
     multiplex_toilet_repartition_constraint
     :param manager: 'ConstraintsManager'
@@ -1404,24 +1464,28 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item:
     :return: ct: ortools.Constraint
     """
     ct = None
-    nbr_toilet = len([i_item for i_item in manager.sp.spec.items if i_item.category.name == "toilet"])
+    nbr_toilet = len(
+        [i_item for i_item in manager.sp.spec.items if i_item.category.name == "toilet"])
 
-    if nbr_toilet >= manager.sp.spec.plan.floor_count and manager.multiplex_toilet_repartition_constraint_first_pass:
+    if (nbr_toilet >= manager.sp.spec.plan.floor_count
+            and manager.multiplex_toilet_repartition_constraint_first_pass):
         manager.multiplex_toilet_repartition_constraint_first_pass = False
         item_floors = []
         for i_item in manager.sp.spec.items:
             if i_item.category.name == "toilet":
                 item_floor = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor)
+                    item_floor = manager.solver.solver.Max(
+                        manager.solver.positions[i_item.id, j] * (space.floor.level + 10),
+                        item_floor)
                 item_floors.append(item_floor)
         for floor in manager.sp.spec.plan.floors.values():
             ct_floor = None
             for i, i_floor in enumerate(item_floors):
                 if ct_floor is None:
-                    ct_floor = (i_floor == (floor.level+10))
+                    ct_floor = (i_floor == (floor.level + 10))
                 else:
-                    new_ct = (i_floor == (floor.level+10))
+                    new_ct = (i_floor == (floor.level + 10))
                     ct_floor = manager.solver.solver.Max(ct_floor, new_ct)
 
             if ct is None:
@@ -1431,7 +1495,9 @@ def multiplex_toilet_repartition_constraint(manager: 'ConstraintsManager', item:
 
     return ct
 
-def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Constraint:
+
+def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager',
+                                              item: Item) -> ortools.Constraint:
     """
     multiplex_bathroom_repartition_constraint
     :param manager: 'ConstraintsManager'
@@ -1439,9 +1505,11 @@ def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', ite
     :return: ct: ortools.Constraint
     """
     ct = None
-    nbr_bathroom = len([i_item for i_item in manager.sp.spec.items if i_item.category.name == "bathroom"])
+    nbr_bathroom = len(
+        [i_item for i_item in manager.sp.spec.items if i_item.category.name == "bathroom"])
 
-    if nbr_bathroom >= manager.sp.spec.plan.floor_count and manager.multiplex_bathroom_repartition_constraint_first_pass:
+    if (nbr_bathroom >= manager.sp.spec.plan.floor_count
+            and manager.multiplex_bathroom_repartition_constraint_first_pass):
         manager.multiplex_bathroom_repartition_constraint_first_pass = False
         item_floors_bath = []
         item_floors_bed = []
@@ -1449,35 +1517,40 @@ def multiplex_bathroom_repartition_constraint(manager: 'ConstraintsManager', ite
             if i_item.category.name == "bathroom":
                 item_floor_bath = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor_bath = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor_bath)
+                    item_floor_bath = manager.solver.solver.Max(
+                        manager.solver.positions[i_item.id, j] * (space.floor.level + 10),
+                        item_floor_bath)
                 item_floors_bath.append(item_floor_bath)
             if i_item.category.name in ["bedroom", "study"]:
                 item_floor_bed = 0
                 for j, space in enumerate(manager.sp.spec.plan.mutable_spaces()):
-                    item_floor_bed = manager.solver.solver.Max(manager.solver.positions[i_item.id, j] * (space.floor.level+10), item_floor_bed)
+                    item_floor_bed = manager.solver.solver.Max(
+                        manager.solver.positions[i_item.id, j] * (space.floor.level + 10),
+                        item_floor_bed)
                 item_floors_bed.append(item_floor_bed)
         for floor in manager.sp.spec.plan.floors.values():
             ct_floor_bath = None
             for i_floor_bath in item_floors_bath:
                 if ct_floor_bath is None:
-                    ct_floor_bath = (i_floor_bath == (floor.level+10))
+                    ct_floor_bath = (i_floor_bath == (floor.level + 10))
                 else:
-                    new_ct_bath = (i_floor_bath == (floor.level+10))
+                    new_ct_bath = (i_floor_bath == (floor.level + 10))
                     ct_floor_bath = manager.solver.solver.Max(ct_floor_bath, new_ct_bath)
 
             ct_floor_bed = None
             for i_floor_bed in item_floors_bed:
                 if ct_floor_bed is None:
-                    ct_floor_bed = (i_floor_bed == (floor.level+10))
+                    ct_floor_bed = (i_floor_bed == (floor.level + 10))
                 else:
-                    new_ct_bed = (i_floor_bed == (floor.level+10))
+                    new_ct_bed = (i_floor_bed == (floor.level + 10))
                     ct_floor_bed = manager.solver.solver.Max(ct_floor_bed, new_ct_bed)
             if ct is None:
                 ct = ct_floor_bath == ct_floor_bed
             else:
-                ct = manager.solver.solver.Min(ct, ct_floor_bath == ct_floor_bed)==1
+                ct = manager.solver.solver.Min(ct, ct_floor_bath == ct_floor_bed) == 1
 
     return ct
+
 
 GENERAL_ITEMS_CONSTRAINTS = {
     "all": [
@@ -1511,11 +1584,13 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [item_max_distance_constraint, {"item_categories": ["bedroom", "study"], "max_distance": 200}],
+        [item_max_distance_constraint,
+         {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
-         {"category": "doorWindow", "adj": False, "addition_rule": "And"}],
+         {"category": ["doorWindow"], "adj": False}],
+        [max_1_window_adjacency_constraint, {}]
     ],
     "living": [
         [item_attribution_constraint, {}],
@@ -1603,7 +1678,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
 
 T1_T2_ITEMS_CONSTRAINTS = {
     "entrance": [
-        [optional_entrance_constraint,{}],
+        [optional_entrance_constraint, {}],
     ]
 }
 
@@ -1651,6 +1726,12 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "laundry": [
         [non_isolated_item_constraint, {}],
     ]
+}
+T4_MORE_ITEMS_CONSTRAINTS = {
+    "bedroom": [
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
 }
 
 DUPLEX_CONSTRAINTS = {

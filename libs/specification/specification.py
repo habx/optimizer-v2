@@ -134,17 +134,16 @@ class Specification:
         :return:
         """
         limit_area_dict = {
-            1 : 22*SQM,
-            2 : 37*SQM,
-            3 : 57*SQM,
-            4 : 73*SQM,
-            5 : 92*SQM
+            1: 22*SQM,
+            2: 37*SQM,
+            3: 57*SQM,
+            4: 73*SQM,
+            5: 92*SQM
         }
         typology_limit_area = limit_area_dict.get(self.typology, None)
         min_spec_area = sum(item.min_size.area for item in self.items)
         plan_area = sum(space.area for space in self.plan.mutable_spaces())
-        if ((typology_limit_area and typology_limit_area > plan_area)
-            or min_spec_area > plan_area):
+        if min_spec_area > plan_area:
             logging.warning("Specification : plan area and specification area incompatibility")
             return False
         else:
