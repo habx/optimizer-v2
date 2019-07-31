@@ -180,8 +180,6 @@ class SpacePlanner:
                 len(self.manager.solver.solutions)))
 
             if len(self.manager.solver.solutions) > 1:
-                print(self.manager.solver.solutions)
-                print(len(self.manager.solver.solutions))
                 matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
                 db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
                     matrix)
@@ -288,7 +286,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "010.json"
+        input_file = "029.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -337,6 +335,9 @@ if __name__ == '__main__':
         if best_solutions:
             for sol in best_solutions:
                 sol.spec.plan.plot()
+                for space in sol.spec.plan.mutable_spaces():
+                    print(space.category.name)
+                    print(space.components_category_associated())
                 logging.debug(sol, sol.space_planning_score)
                 for space in sol.spec.plan.mutable_spaces():
                     logging.debug(space.category.name, " : ", space.cached_area())

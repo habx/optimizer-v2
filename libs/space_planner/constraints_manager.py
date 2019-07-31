@@ -1024,7 +1024,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
             ratio = 18
         elif item.category.name in ["bedroom"] and len(item.opens_on) == 0:
             ratio = 15
-        elif item.category.name in ["kitchen", "study", "bathroom"] and len(item.opens_on) == 0:
+        elif item.category.name in ["kitchen", "study"] and len(item.opens_on) == 0:
             ratio = 10
         else:
             ratio = 0
@@ -1325,6 +1325,23 @@ def components_adjacency_constraint(manager: 'ConstraintsManager', item: Item,
     return ct
 
 
+def max_1_window_adjacency_constraint(manager: 'ConstraintsManager',
+                                      item: Item) -> ortools.Constraint:
+    """
+    maximum 1 window adjacency constraint
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    adjacency_sum = manager.solver.solver.Sum(
+        manager.solver.positions[item.id, j] for j, space in
+        enumerate(manager.sp.spec.plan.mutable_spaces()) if
+        ("window" in space.components_category_associated()
+         or "doorWindow" in space.components_category_associated()))
+    ct = adjacency_sum <= 1
+    return ct
+
+
 def externals_connection_constraint(manager: 'ConstraintsManager',
                                     item: Item) -> ortools.Constraint:
     """
@@ -1572,7 +1589,8 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint,
-         {"category": "doorWindow", "adj": False, "addition_rule": "And"}],
+         {"category": ["doorWindow"], "adj": False}],
+        [max_1_window_adjacency_constraint, {}]
     ],
     "living": [
         [item_attribution_constraint, {}],

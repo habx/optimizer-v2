@@ -27,7 +27,6 @@ import matplotlib.pyplot as plt
 import urllib, json
 
 
-
 class LocalContext:
     """Local execution context"""
 
@@ -269,6 +268,7 @@ class Optimizer:
             if best_solutions:
                 for i, sol in enumerate(best_solutions):
                     REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
+                    spec_adaptation(sol, space_planner.solutions_collector)
                     if params.do_plot:
                         sol.spec.plan.plot(name=f"refiner sol {i + 1}")
                     if params.save_ll_bp:
@@ -307,7 +307,8 @@ class Optimizer:
         # scoring
         ref_final_score = None
         ref_final_score_components = None
-        if params.do_final_scoring :
+        if params.do_final_scoring:
+            # reference plan scoring
             if params.ref_plan_url is not None:
                 with urllib.request.urlopen(params.ref_plan_url) as url:
                     data = json.loads(url.read().decode())
@@ -317,6 +318,7 @@ class Optimizer:
                     ref_solution = reference_plan_solution(ref_plan, setup_spec)
                     ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
+            # solution scoring
             if best_solutions:
                 for sol in best_solutions:
                     final_score, final_score_components = final_scoring(sol)
@@ -354,18 +356,17 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "005.json",
-            "005_setup0.json",
+            "045.json",
+            "045_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
                 "do_plot": True,
-                "do_corridor": False,
-                "do_refiner":False,
+                "do_corridor": True,
+                "do_refiner": True,
                 "max_nb_solutions": 3,
                 "do_door": False,
-                "do_final_scoring": False,
-                "ref_plan_url": "https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json"
+                "do_final_scoring": True
             }
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))

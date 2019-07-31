@@ -144,7 +144,7 @@ class Refiner:
 
     def apply_to(self,
                  solution: 'Solution',
-                 params: dict) -> 'Solution':
+                 params: dict):
         """
         Applies the refiner to the plan and returns the result.
         :param solution:
@@ -161,8 +161,8 @@ class Refiner:
         merge_adjacent_circulation(output)
         solution.spec.plan = output
         solution.space_item = {output.get_space_from_id(i): item
-                               for i, item in output.fitness.cache["space_to_item"].items()}
-        return solution
+                               for i, item in output.fitness.cache["space_to_item"].items()
+                               if output.get_space_from_id(i)}
 
     def run(self,
             solution: 'Solution',
