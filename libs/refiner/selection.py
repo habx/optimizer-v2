@@ -32,7 +32,9 @@ def elite_select(mutate_func: 'MutateFunc',
     elite_size = int(len_pop*ratio)
     elite_pop = []
     fitness_values = []
-    # preserve diversity
+    # preserve diversity by removing identical individual
+    # per simplicity, we consider that an individual is identical to another i
+    # if their fitnesses are the same
     offset = 0
     while len(elite_pop) < elite_size:
         while len(pop) > offset and pop[offset].fitness.wvalue in fitness_values:
@@ -52,9 +54,9 @@ def elite_select(mutate_func: 'MutateFunc',
     for i in range(k - len(elite_pop)):
         pb = random.random()
         mutations_num = 1
-        if .3 < pb <= .6:
+        if .5 < pb <= .8:
             mutations_num = 2
-        elif pb > .6:
+        elif pb > .8:
             mutations_num = 3
         ind = random.choice(elite_pop).clone()
         for j in range(mutations_num):
