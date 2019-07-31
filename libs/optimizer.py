@@ -5,7 +5,7 @@ module used to run optimizer
 """
 
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import time
 import mimetypes
 import os
@@ -24,16 +24,18 @@ from libs.scoring.scoring import final_scoring
 from libs.space_planner.solution import spec_adaptation, reference_plan_solution
 import libs.io.plot
 import matplotlib.pyplot as plt
-import urllib, json
-
+import urllib
+import json
 
 
 class LocalContext:
     """Local execution context"""
 
     def __init__(self):
-        self.files: Dict[str, Dict] = {}
-        self.output_dir: str = None
+        self.files: Dict[str, dict] = {}
+        self.output_dir: Optional[str] = None
+        self.mq: Optional['Exchanger'] = None
+        self.td: Optional['TaskDefinition'] = None
 
     def add_file(
             self,
@@ -50,6 +52,13 @@ class LocalContext:
             'mime': mime,
         }
 
+    #def send_in_progress_result(self, resp: opt.Response, status: str = 'in-progress') -> None:
+    #    self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+
+    def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
+        self.mq = mq
+        self.td = td
+
 
 class Response:
     """
@@ -59,13 +68,32 @@ class Response:
     def __init__(self,
                  solutions: List[dict],
                  elapsed_times: Dict[str, float],
-                 ref_plan_score: float,
-                 ref_plan_score_components: Optional[dict] = None
+                 files: Dict[str, dict] = None,
+                 ref_plan_score: Optional[float] = None,
+                 ref_plan_score_components: Optional[dict] = None,
                  ):
         self.solutions = solutions
         self.elapsed_times = elapsed_times
+        self.files = files
         self.ref_plan_score = ref_plan_score
         self.ref_plan_score_components = ref_plan_score_components
+
+    def to_json(self, status: str = "ok") -> Dict[str, Any]:
+        j = {
+            'status': status,
+            'solutions': self.solutions,
+            'times': self.elapsed_times,
+            'files': self.files,
+        }
+
+        if self.ref_plan_score is not None:
+            j['refPlanScore'] = self.ref_plan_score
+
+        # APP-5870: Adding refPlanScoreComponents
+        if self.ref_plan_score_components is not None:
+            j['refPlanScoreComponents'] = self.ref_plan_score_components
+
+        return j
 
 
 class ExecParams:
@@ -110,8 +138,17 @@ class ExecParams:
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', False)
-        self.ref_plan_url = params.get('ref_plan_url', None)
-        self.do_final_scoring = params.get('do_final_scoring', False)
+        self.ref_plan_url: str = params.get('ref_plan_url', None)
+        self.do_final_scoring: bool = params.get('do_final_scoring', False)
+        self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
+        self.two_steps_processing: bool = params.get('two_steps_processing', True)
+
+        # This is a simplification rule
+        if self.two_steps_processing:
+            self.intermediate_transmission = True
+            self.do_refiner = True
+            self.do_door = True
+            self.do_corridor = True
 
 
 class Optimizer:
@@ -176,8 +213,7 @@ class Optimizer:
         assert "v2" in lot.keys(), "lot must contain v2 data"
 
         # OPT-119: If we don't have a local_context, we create one
-        if not local_context:
-            local_context = LocalContext()
+        assert local_context, "Local context is required"
 
         params = ExecParams(params_dict)
 
@@ -210,7 +246,7 @@ class Optimizer:
         elapsed_times["setup"] = time.process_time() - t0_setup
         logging.info("Setup read in %f", elapsed_times["setup"])
         if not area_matching:
-            return Response([], elapsed_times, None, None)
+            return Response([], elapsed_times, files=local_context.files)
 
         # grid
         logging.info("Grid")
@@ -242,6 +278,16 @@ class Optimizer:
         logging.debug(best_solutions)
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
+
+        if params.intermediate_transmission:
+            logging.info("Sending intermediate results")
+            response = Response(
+                best_solutions,
+                elapsed_times,
+                files=local_context.files,
+            )
+
+            local_context.send_in_progress_result(response)
 
         # corridor
         t0_corridor = time.process_time()
@@ -343,7 +389,13 @@ class Optimizer:
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
         # TODO: once scoring has been added, add the ref_plan_score to the solution
-        return Response(solutions, elapsed_times, ref_final_score, ref_final_score_components)
+        return Response(
+            solutions,
+            elapsed_times,
+            local_context.files,
+            ref_final_score,
+            ref_final_score_components
+        )
 
 
 if __name__ == '__main__':

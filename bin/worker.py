@@ -50,6 +50,7 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
         if not td.task_id:  # Drop it at some point
             td.task_id = msg.content.get('requestId')
 
+        td.local_context.prepare_mq(exchanger, td)
         result = processor.process_task(td)
 
         exchanger.send_result(result)

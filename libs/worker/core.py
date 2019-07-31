@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from libs.executor.executor import Executor, TaskDefinition
 from libs.worker.config import Config
+from libs.worker.mqproto import MQProto
 
 
 class TaskProcessor:
@@ -61,31 +62,7 @@ class TaskProcessor:
             else:
                 logging.exception("Problem handing message")
 
-        if result:
-            # OPT-74: The fields coming from the request are always added to the result
-
-            # If we don't have a data sub-structure, we create one
-            data = result.get('data')
-            if not data:
-                data = {'status': 'unknown'}
-                result['data'] = data
-            data['version'] = Executor.VERSION
-
-            # OPT-116: Transmitting the hostname so that we can at least properly diagnose from
-            #          which host the duplicate tasks are coming.
-            data['hostname'] = socket.gethostname()
-
-            # OPT-99: All the feedback shall only be done from the source data except for the
-            #         context which is allowed to be modified by the processing.
-            data['lot'] = td.blueprint
-            data['setup'] = td.setup
-            data['params'] = td.params
-            data['context'] = td.context
-
         self._process_task_after()
-
-        if td.task_id:
-            result['taskId'] = td.task_id
 
         return result
 
@@ -125,21 +102,5 @@ class TaskProcessor:
         td.local_context.output_dir = self.output_dir
 
         # Processing it
-        executor_result = self.executor.run(td)
-        result = {
-            'type': 'optimizer-processing-result',
-            'data': {
-                'status': 'ok',
-                'solutions': executor_result.solutions,
-                'times': executor_result.elapsed_times,
-                'files': td.local_context.files,
-            },
-        }
-        if executor_result.ref_plan_score is not None:
-            result['data']['refPlanScore'] = executor_result.ref_plan_score
-
-        # APP-5870: Adding refPlanScoreComponents
-        if executor_result.ref_plan_score_components is not None:
-            result['data']['refPlanScoreComponents'] = executor_result.ref_plan_score_components
-
-        return result
+        response = self.executor.run(td)
+        return MQProto.format_full_response(response, td, 'ok')
