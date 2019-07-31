@@ -1260,6 +1260,24 @@ class Space(PlanComponent):
         if not len(self._edges_id) or not found_exterior_edge:
             raise SpaceShapeError("The space is badly shaped: {}".format(self))
 
+    def set_edges_check(self) -> None:
+        """
+        Raise a ShapeError if the space is split.
+        Note : this method raise a ShapeSpaceError if the space is not connected but is slower than
+        the set_edges method that assume that the space is connected.
+        :return:
+        """
+        self.set_edges()
+        if self.has_holes:
+            for edge in list(self.reference_edges)[1:]:
+                siblings = list(self.siblings(edge))
+                ref_edge = min(siblings, key=lambda e: e.start.coords)
+                previous_edge = self.previous_edge(ref_edge)
+                det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                if det < 0:  # counter clockwise
+                    raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                          self.plan)
+
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
                                boundary_edge: Optional['Edge'] = None):
         """
