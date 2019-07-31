@@ -552,7 +552,7 @@ if __name__ == '__main__':
         params = {"ngen": 120, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "059"  # 062 006 020 061
+        plan_number = "ARCH019_blueprint"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
                                             solution_number=1)
 
