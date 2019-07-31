@@ -92,7 +92,7 @@ class ExecParams:
         if params is None:
             params = {}
 
-        refiner_params = {"ngen": 80, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
+        refiner_params = {"ngen": 60, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2,
                           "processes": 8}
 
         self.grid_type = params.get('grid_type', '002')
