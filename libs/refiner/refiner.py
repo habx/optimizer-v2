@@ -83,8 +83,8 @@ def merge_circulation_living(ind: 'Individual') -> None:
     their adjacency length is superior to a maximum length
     :return:
     """
-    max_length = 130.
-    adjacency_ratio = 0.25
+    max_length = 150.
+    adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
     livings = list(ind.get_spaces("living", "livingKitchen"))
@@ -108,8 +108,8 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
     superior to a minimum length
     :return:
     """
-    max_length = 130.
-    adjacency_ratio = 0.25
+    max_length = 150.
+    adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
     entrances = list(ind.get_spaces("entrance"))
@@ -549,10 +549,10 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 120, "mu": 80, "cxpb": 0.5, "max_tries": 10, "elite": 0.2, "processes": 8}
+        params = {"ngen": 120, "mu": 120, "cxpb": 0.9, "max_tries": 10, "elite": 0.1, "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
-        plan_number = "059"  # 062 006 020 061
+        plan_number = "029"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
                                             solution_number=1)
 

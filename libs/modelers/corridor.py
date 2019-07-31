@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Type, Callable
+from typing import Optional, Dict, List, Type, Callable, Optional
 from enum import Enum
 
 import matplotlib.pyplot as plt
@@ -23,6 +23,7 @@ SMALL_CORRIDOR_AREA = 5000
 
 
 class CorridorRules:
+    """rules for a corridor """
     def __init__(self,
                  width: float = 130,
                  penetration_length: float = 90):
@@ -51,11 +52,12 @@ class Corridor:
         self.circulation_cost_rules = circulation_cost_rules
         self.growth_method = growth_method
         self.plot = plot
-        self.spec: Specification = None
-        self.plan: Plan = None
-        self.circulator: Circulator = None
-        self.corner_data: Dict = None
-        self.grouped_faces: Dict[int, List[List['Face']]] = None
+        self.spec: Optional[Specification] = None
+        self.plan: Optional[Plan] = None
+        self.circulator: Optional[Circulator] = None
+        self.corner_data: Dict = {}
+        self.paths = []
+        self.grouped_faces: Dict[int, List[List['Face']]] = {}
         self.directions: DirectionsDict = {}
 
     def _clear(self):
@@ -82,14 +84,13 @@ class Corridor:
 
         # store mutable spaces, for repair purpose
         initial_mutable_spaces = [sp for sp in self.plan.spaces if
-                                  sp.mutable and not sp.category.name is "circulation"]
+                                  sp.mutable and sp.category is not SPACE_CATEGORIES["circulation"]]
         dict_item = self._store_repair_info(initial_mutable_spaces, solution)
 
         # computes circulation paths and stores them
         self.circulator = Circulator(plan=solution.spec.plan, spec=solution.spec,
                                      cost_rules=self.circulation_cost_rules)
         self.circulator.connect()
-        # self.circulator.plot()
         self._set_paths()
 
         # Real time plot updates
@@ -105,7 +106,7 @@ class Corridor:
 
         # space repair process : if some spaces have been cut by corridor growth
         final_mutable_spaces = [sp for sp in self.plan.spaces if
-                                sp.mutable and not sp.category.name is "circulation"]
+                                sp.mutable and sp.category is not SPACE_CATEGORIES["circulation"]]
         self._repair_spaces(initial_mutable_spaces, final_mutable_spaces)
 
         # reconstruct dict of items - required if some space has disappeared in the process
@@ -113,7 +114,7 @@ class Corridor:
 
     def _store_repair_info(self, initial_mutable_spaces: List['Space'], solution: 'Solution'):
         """
-        stores groups of faces that belong to non mutable spaces, for repair purpose
+        stores groups of faces that belong to mutable spaces, for repair purpose
         :param initial_mutable_spaces:
         :param solution:
         :return:
@@ -222,7 +223,7 @@ class Corridor:
         """
 
         def _get_group_face(_level: int, _face: 'Face') -> List['Face']:
-            # get the group of faces _face belongs to
+            # get the group of faces the specific _face belongs to
             for group in self.grouped_faces[_level]:
                 if _face in group:
                     return group
@@ -245,16 +246,16 @@ class Corridor:
                     repair_space = l[0]
                     repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
                     while len(list(repair_space.faces)) != len(repair_faces):
-                        for face in repair_faces:
+                        for face in repair_faces[:]:
                             space_of_face = self.plan.get_space_of_face(face)
                             if space_of_face is repair_space:
                                 continue
                             # adds face if adjacent to repair_space
                             if [e for e in face.edges if
-                                e.pair.face and repair_space.has_face(e.pair.face)]:
-                                repair_space.add_face(face)
-                                # repair_faces.remove(face)
+                               e.pair.face and repair_space.has_face(e.pair.face)]:
                                 space_of_face.remove_face(face)
+                                repair_space.add_face(face)
+                                repair_faces.remove(face)
                                 break
                     self.plan.remove_null_spaces()
                     final_mutable_spaces = [sp for sp in self.plan.spaces if
@@ -534,20 +535,20 @@ class Corridor:
         :return:
         """
 
-        layer_edges = self.get_parallel_layers_edges(edge, max_width)
+        layer_edges = [edge]  # self.get_parallel_layers_edges(edge, max_width)
 
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
-            if not sp.category.name == "circulation":
-                # ensures a corridor does not totally overlapp a space that was present before
+            if sp.category is not SPACE_CATEGORIES["circulation"]:
+                # ensures a corridor does not totally overlap a space that was present before
                 # corridor propagation
                 # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
                 # we authorize sp_1 or sp2 to be overlapped by a corridor, but not both
                 if len(list(sp.faces)) == 1:
                     if self._space_totally_overlapped(sp.floor.level, sp.face):
                         break
-                corridor_space.add_face(layer_edge.face)
                 sp.remove_face(layer_edge.face)
+                corridor_space.add_face(layer_edge.face)
                 if show:
                     self.plot.update([sp, corridor_space])
 
@@ -571,34 +572,32 @@ class Corridor:
 
 
 # growth methods
-def straight_path_growth_directionnal(corridor: 'Corridor', edge_line: List['Edge'],
-                                      show: bool = False) -> 'Space':
+def straight_path_growth_directional(corridor: 'Corridor', edge_line: List['Edge'],
+                                     show: bool = False) -> 'Space':
     """
     Builds a corridor by growing a space around the line
-    -get the growing direction of the line
-    -grows the corridor on the growing side
+    - get the growing direction of the line
+    - grows the corridor on the growing side
     :param corridor:
     :param edge_line:
     :param show:
     :return:
     """
     plan = corridor.plan
-    if plan.get_space_of_edge(edge_line[0]):
-        floor = plan.get_space_of_edge(edge_line[0]).floor
-    else:
-        floor = plan.get_space_of_edge(edge_line[0].pair).floor
-
+    init_space = plan.get_space_of_edge(edge_line[0]) or plan.get_space_of_edge(edge_line[0].pair)
+    floor = init_space.floor
     level = floor.level
 
     corridor_space = Space(plan, floor, category=SPACE_CATEGORIES['circulation'])
 
     growing_direction = corridor.directions[level][edge_line[0]]
-    for e, edge in enumerate(edge_line):
+
+    for i, edge in enumerate(edge_line):
         support_edge = edge if growing_direction > 0 else edge.pair
         corridor.add_corridor_portion(support_edge, corridor.corridor_rules.width,
                                       corridor_space,
                                       show)
-        if e == len(edge_line) - 1:
+        if i == len(edge_line) - 1:
             # info stored for corner filling
             corridor.corner_data[edge] = growing_direction
     return corridor_space
@@ -610,7 +609,7 @@ no_cut_rules = CorridorRules(width=140, penetration_length=130)
 CORRIDOR_BUILDING_RULES = {
     "no_cut": {
         "corridor_rules": no_cut_rules,
-        "growth_method": straight_path_growth_directionnal
+        "growth_method": straight_path_growth_directional
     }
 }
 
@@ -639,11 +638,11 @@ if __name__ == '__main__':
         # corridor = Corridor(layer_width=25, nb_layer=5)
 
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=0)
+                                            solution_number=1)
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
-        corridor.apply_to(solution, show=False)
+        corridor.apply_to(solution, show=True)
 
         plan = solution.spec.plan
 
@@ -652,5 +651,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "061"
+    plan_name = "029"
     main(plan_number=plan_name)
