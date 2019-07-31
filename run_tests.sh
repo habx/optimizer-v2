@@ -6,14 +6,8 @@
 # Cutting tests
 tests=$(circleci tests glob "**/*_test.py" | circleci tests split) ||:
 
-# requirements installation is done in CI
-#pip install -q --upgrade pip
-#pip install -q -r requirements.txt
-
 # Verbose view
 pytest --durations=10 -v $tests
 
 # To compare the packages
 pip list
-
-pylint libs || true
