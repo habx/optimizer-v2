@@ -1,20 +1,22 @@
 """MQ protocol handling"""
 import socket
+from typing import TYPE_CHECKING
+import libs.version as v
 
-import libs.optimizer as opt
-import libs.executor.defs as defs
-from libs.executor.executor import Executor
+if TYPE_CHECKING:
+    import libs.optimizer as opt
+    import libs.executor.defs as defs
 
 
 class MQProto:
     """MQ protocol handling"""
     @staticmethod
-    def format_full_response(resp: opt.Response, td: defs.TaskDefinition, status: str):
+    def format_full_response(resp: 'opt.Response', td: 'defs.TaskDefinition', status: str):
         # OPT-74: The fields coming from the request are always added to the result
         # If we don't have a data sub-structure, we create one
         data = resp.to_json(status) if resp else {'status': 'unknown'}
 
-        data['version'] = Executor.VERSION
+        data['version'] = v.VERSION
 
         # OPT-116: Transmitting the hostname so that we can at least properly diagnose from
         #          which host the duplicate tasks are coming.

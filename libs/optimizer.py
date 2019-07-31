@@ -27,36 +27,7 @@ import matplotlib.pyplot as plt
 import urllib
 import json
 
-class LocalContext:
-    """Local execution context"""
-
-    def __init__(self):
-        self.files: Dict[str, dict] = {}
-        self.output_dir: Optional[str] = None
-        self.mq: Optional['Exchanger'] = None
-        self.td: Optional['TaskDefinition'] = None
-
-    def add_file(
-            self,
-            name: str,
-            ftype: Optional[str] = '?',
-            title: Optional[str] = None,
-            mime: str = None
-    ):
-        if not title:
-            title = name
-        self.files[name] = {
-            'type': ftype,
-            'title': title,
-            'mime': mime,
-        }
-
-    #def send_in_progress_result(self, resp: opt.Response, status: str = 'in-progress') -> None:
-    #    self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
-
-    def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
-        self.mq = mq
-        self.td = td
+from libs.worker.mqproto import MQProto
 
 
 class Response:
@@ -93,6 +64,39 @@ class Response:
             j['refPlanScoreComponents'] = self.ref_plan_score_components
 
         return j
+
+
+class LocalContext:
+    """Local execution context"""
+
+    def __init__(self):
+        self.files: Dict[str, dict] = {}
+        self.output_dir: Optional[str] = None
+        self.mq: Optional['Exchanger'] = None
+        self.td: Optional['TaskDefinition'] = None
+
+    def add_file(
+            self,
+            name: str,
+            ftype: Optional[str] = '?',
+            title: Optional[str] = None,
+            mime: str = None
+    ):
+        if not title:
+            title = name
+        self.files[name] = {
+            'type': ftype,
+            'title': title,
+            'mime': mime,
+        }
+
+    def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
+        logging.info("send_in_progress_result( %s )", resp)
+        self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+
+    def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
+        self.mq = mq
+        self.td = td
 
 
 class ExecParams:
@@ -281,12 +285,11 @@ class Optimizer:
         if params.intermediate_transmission:
             logging.info("Sending intermediate results")
             response = Response(
-                best_solutions,
+                [generate_output_dict(lot, sol) for sol in best_solutions],
                 elapsed_times,
                 files=local_context.files,
             )
-
-            local_context.send_in_progress_result(response)
+            local_context.send_in_progress_result(response, 'in-progress')
 
         # corridor
         t0_corridor = time.process_time()
