@@ -45,7 +45,7 @@ SQM = 10000
 # TODO: these globals should really be members of the Seeder instance
 EPSILON_MAX_SIZE = 10.0
 SEEDER_ACTIVATION_NBR_CELLS = 18
-MIN_SEEDER_SPACE_AREA = 10000
+MIN_SEEDER_SPACE_AREA = 2*SQM
 
 
 class Seeder:
@@ -761,7 +761,10 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     """
 
     epsilon_length = 20
-    min_cell_area = MIN_SEEDER_SPACE_AREA
+    if seeder.plan.area/SQM < 110:
+        min_cell_area = MIN_SEEDER_SPACE_AREA
+    else:
+        min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
     target_number_of_spaces = SEEDER_ACTIVATION_NBR_CELLS
     modified_spaces = []
 
@@ -1013,7 +1016,10 @@ def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
     :param show:
     :return: the list of modified spaces
     """
-    min_cell_area = MIN_SEEDER_SPACE_AREA
+    if seeder.plan.area/SQM < 110:
+        min_cell_area = MIN_SEEDER_SPACE_AREA
+    else:
+        min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
     modified_spaces = []
 
     for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):

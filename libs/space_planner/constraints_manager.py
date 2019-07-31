@@ -1724,13 +1724,16 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [min_perimeter_length, {}],
     ],
     "laundry": [
-        [non_isolated_item_constraint, {}],
     ]
 }
 T4_MORE_ITEMS_CONSTRAINTS = {
     "bedroom": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "bathroom": [
+        [item_adjacency_constraint,
+         {"item_categories": ["bedroom"], "adj": True}],
     ],
 }
 
