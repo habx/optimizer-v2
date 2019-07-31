@@ -4,7 +4,7 @@ jobs:
   tests:
     docker:
       - image: circleci/python:3.7
-    parallelism: 2
+    parallelism: 3
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci /usr/local
@@ -127,7 +127,6 @@ workflows:
             branches:
               only:
                 - dev
-                - feature/OPT-47-correct
 
       - deploy-to-kubernetes-low-priority-worker:
           context: default_env_vars
@@ -140,4 +139,3 @@ workflows:
             branches:
               only:
                 - dev
-                - feature/OPT-47-correct
