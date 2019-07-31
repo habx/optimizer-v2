@@ -4,7 +4,8 @@
 
 FROM python:3.7-slim
 RUN apt-get update && apt-get install libgoogle-perftools4 git -y
-ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
+# If we want to make it the default behavior, we can to uncomment this:
+# ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
 WORKDIR /app
 COPY . /app
 CMD ["bin/worker.sh"]
