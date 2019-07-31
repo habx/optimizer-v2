@@ -286,7 +286,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "ARCH006_blueprint.json"
+        input_file = "ARCH007_blueprint.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
@@ -303,7 +303,7 @@ if __name__ == '__main__':
         #input_file_setup = input_file[:-5] + "_setup0.json"
         input_file_setup = input_file[:-14] + "setup.json"
         spec = reader.create_specification_from_file(input_file_setup)
-        logging.debug(spec)
+        print(spec)
         spec.plan = plan
         spec.plan.remove_null_spaces()
 
