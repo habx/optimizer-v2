@@ -146,6 +146,7 @@ class ExecParams:
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
         self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
         self.two_steps_processing: bool = params.get('two_steps_processing', Features.two_steps_processing())
+        self.individual_processing: bool = params.get('individual_processing', False)
 
         # This is a simplification rule
         if self.two_steps_processing:
