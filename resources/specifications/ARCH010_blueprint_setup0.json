@@ -57,7 +57,17 @@
         "min": 20000
       },
       "tags": [],
-      "type": "bathroom",
+      "type": "wardrobe",
+      "variant": "xs"
+    },
+    {
+      "opensOn": [],
+      "requiredArea": {
+        "max": 40000,
+        "min": 20000
+      },
+      "tags": [],
+      "type": "wardrobe",
       "variant": "xs"
     },
     {
@@ -87,17 +97,7 @@
         "min": 20000
       },
       "tags": [],
-      "type": "bathroom",
-      "variant": "xs"
-    },
-    {
-      "opensOn": [],
-      "requiredArea": {
-        "max": 20000,
-        "min": 10000
-      },
-      "tags": [],
-      "type": "toilet",
+      "type": "wardrobe",
       "variant": "s"
     },
     {

@@ -1576,8 +1576,6 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
         [toilet_entrance_proximity_constraint, {}],
         [non_isolated_item_constraint, {}],
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "bathroom": [
         [item_attribution_constraint, {}],
@@ -1697,10 +1695,6 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     "toilet": [
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
     ],
-    "bathroom": [
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
-    ],
     "living": [
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}],
@@ -1728,9 +1722,17 @@ T3_MORE_ITEMS_CONSTRAINTS = {
     ]
 }
 T4_MORE_ITEMS_CONSTRAINTS = {
-    "bedroom": [
+    "toilet": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "bathroom": [
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "bedroom": [
+        [item_adjacency_constraint,
+         {"item_categories": ["bedroom"], "adj": True}],
     ],
 }
 
