@@ -192,7 +192,7 @@ class Circulator:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
                     penetration_edge = (connecting_edge.aligned_edge
                                         or connecting_edge.continuous_edge)
-                    if start:
+                    if start and penetration_edge:
                         penetration_edge = penetration_edge.pair
                     return penetration_edge
             return None
