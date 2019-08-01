@@ -159,7 +159,7 @@ class Exchanger:
             Message=j,
         )
 
-    def send_request(self, request):
+    def send_request(self, request: dict):
         """This is a helper method. It should only be used for testing"""
         j = json.dumps(request)
         requests_topic_arn = self._get_or_create_topic(self.config.requests_topic_name)

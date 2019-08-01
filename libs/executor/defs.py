@@ -8,11 +8,11 @@ class TaskDefinition:
     """Definition of the task we're about to process"""
 
     def __init__(self):
-        self.blueprint: dict = None  # Blueprint to be processed (immutable)
-        self.setup: dict = None  # Setup to be processed (immutable)
-        self.params: dict = None  # Parameters controlling the processing behavior (immutable)
+        self.blueprint: dict = {}  # Blueprint to be processed (immutable)
+        self.setup: dict = {}  # Setup to be processed (immutable)
+        self.params: dict = {}  # Parameters controlling the processing behavior (immutable)
         self.context: dict = {}  # Why / Who / When / Where it was started
-        self.task_id: str = None  # Task ID used for storage
+        self.task_id: Optional[str] = None  # Task ID used for storage
         self.local_context: opt.LocalContext = opt.LocalContext()  # Local execution context
 
     def copy_for_processing(self) -> 'TaskDefinition':
@@ -87,7 +87,7 @@ class ExecWrapper:
         """
         self._before(td)
 
-        resp: opt.Response = None
+        resp: Optional[opt.Response] = None
         try:
             resp = self._exec(td)
             return resp
