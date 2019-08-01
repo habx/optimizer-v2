@@ -4,7 +4,7 @@ Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
 """
-from typing import Callable, Sequence, Optional, TYPE_CHECKING
+from typing import Callable, Sequence, Optional, Tuple, TYPE_CHECKING
 import logging
 
 from libs.plan.plan import Plan, Space
@@ -481,6 +481,67 @@ def section_cut(coeff: float,
     return _action
 
 
+def double_section_cut(other_position: str,
+                       traverse: str = "no",
+                       min_area: float = 80000,
+                       min_angle: float = 10) -> EdgeMutation:
+    """
+    Action Factory. Cuts the space and creates a new space if the face has a different main axis.
+    The difference is predicated according to the specified min_angle.
+    The face will not be separated into a new space if its area is inferior to the min_area
+    specified
+    :param positions:
+    :param traverse:
+    :param min_area:
+    :param min_angle:
+    :return:
+    """
+
+    def _action(edge: 'Edge', space: 'Space') -> Sequence['Space']:
+
+        if other_position == "next":
+            other_edge = space.next_edge(edge)
+            other_coeff = 0.
+            coeff = 1.
+        elif other_position == "previous":
+            other_edge = space.previous_edge(edge)
+            other_coeff = 1.
+            coeff = 0.
+        else:
+            raise ValueError("other_position arg should be equal to 'next' or 'previous'")
+
+        modified_spaces = {space}
+        created_faces = {edge.face}
+
+        for _edge, coeff in ((edge, coeff), (other_edge, other_coeff)):
+            vector = _edge.normal
+            cut_data = space.barycenter_cut(_edge, coeff, vector=vector, traverse=traverse)
+            # check the new face direction
+            if cut_data and cut_data[2]:
+                created_faces.add(cut_data[2])
+
+        for _face in created_faces:
+            if _face.area <= min_area:
+                continue
+            # check if the new face has a different direction
+            new_directions = space.face_directions(_face)
+            if not new_directions:
+                continue
+            angle_1 = geometry.ccw_angle((0, 1), new_directions[0])
+            angle_2 = geometry.ccw_angle((0, 1), space.directions[0])
+            delta = abs(angle_1 - angle_2) > min_angle
+
+            if delta:
+                new_space = Space(space.plan, space.floor, category=space.category)
+                space.remove_face(_face)
+                new_space.add_face(_face)
+                modified_spaces |= {new_space}
+
+        return list(modified_spaces) if len(modified_spaces) > 1 else []
+
+    return _action
+
+
 def insert_aligned_rectangle(height: float,
                              width: Optional[float] = None,
                              absolute_offset: float = 0,
@@ -547,7 +608,8 @@ MUTATION_FACTORIES = {
     "barycenter_cut": MutationFactory(barycenter_cut, reversible=False),
     "rectangle_cut": MutationFactory(insert_aligned_rectangle, reversible=False),
     "slice_cut": MutationFactory(slice_cut, reversible=False),
-    "section_cut": MutationFactory(section_cut, reversible=False)
+    "section_cut": MutationFactory(section_cut, reversible=False),
+    "double_section_cut": MutationFactory(double_section_cut, reversible=False)
 }
 
 MUTATIONS = {

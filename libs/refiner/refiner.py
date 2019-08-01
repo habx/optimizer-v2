@@ -304,7 +304,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :return: a configured toolbox
     """
     scores = [
-        (evaluation.score_corner, -20.0),
+        (evaluation.score_corner, -30.0),
         (evaluation.score_area, -8.0),
         # (evaluation.score_shape, -1.0),
         (evaluation.score_width_depth_ratio, -500.0),
@@ -554,9 +554,9 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "029"  # 062 006 020 061
-        solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=1)
+        plan_number = "ARCH018_blueprint"  # 062 006 020 061
+        solution = tools.cache.get_solution(plan_number, grid="003", seeder="directional_seeder",
+                                            solution_number=0)
 
         if solution:
             plan = solution.spec.plan
