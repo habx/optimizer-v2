@@ -92,7 +92,6 @@ class LocalContext:
         }
 
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
-        logging.info("send_in_progress_result( %s )", resp)
         self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
 
     def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
@@ -144,15 +143,10 @@ class ExecParams:
         self.do_door = params.get('do_door', False)
         self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
-        self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
-        self.two_steps_processing: bool = params.get('two_steps_processing', Features.two_steps_processing())
-
-        # This is a simplification rule
-        if self.two_steps_processing:
-            self.intermediate_transmission = True
-            self.do_refiner = True
-            self.do_door = True
-            self.do_corridor = True
+        self.intermediate_transmission: bool = params.get(
+            'intermediate_transmission',
+            Features.intermediate_transmission()
+        )
 
 
 class Optimizer:
@@ -284,7 +278,6 @@ class Optimizer:
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
         if params.intermediate_transmission:
-            logging.info("Sending intermediate results")
             response = Response(
                 [generate_output_dict(lot, sol) for sol in best_solutions],
                 elapsed_times,
