@@ -19,6 +19,7 @@ from libs.equipments.furniture import GARNISHERS
 from libs.refiner.refiner import REFINERS
 from libs.space_planner.space_planner import SPACE_PLANNERS
 from libs.equipments.doors import place_doors, door_plot
+from libs.utils.features import Features
 from libs.version import VERSION as OPTIMIZER_VERSION
 from libs.scoring.scoring import final_scoring
 from libs.space_planner.solution import spec_adaptation, reference_plan_solution
@@ -144,7 +145,7 @@ class ExecParams:
         self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
         self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
-        self.two_steps_processing: bool = params.get('two_steps_processing', True)
+        self.two_steps_processing: bool = params.get('two_steps_processing', Features.two_steps_processing())
 
         # This is a simplification rule
         if self.two_steps_processing:
