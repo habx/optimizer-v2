@@ -520,31 +520,33 @@ class ConstraintsManager:
                                 (edge.pair in external_space_edges or
                                  not edge.pair.face)]]
         duct_items = ["toilet", "bathroom", "livingKitchen", "kitchen", "laundry"]
+        duct_items_list = [item for item in self.sp.spec.items if item.category.name in duct_items]
         ct = None
-        for duct in duct_list:
-            if duct in perimeter_duct_list:
-                maximum = 2
-            else:
-                maximum = 3
-            adjacency_sum = 0
-            for item in self.sp.spec.items:
-                if item.category.name in duct_items:
-                    item_duct_adjacency = None
-                    for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
+        if len(duct_list) >= len(duct_items_list)/2:
+            for duct in duct_list:
+                if duct in perimeter_duct_list:
+                    maximum = 2
+                else:
+                    maximum = 3
+                adjacency_sum = 0
+                for item in self.sp.spec.items:
+                    if item.category.name in duct_items:
+                        item_duct_adjacency = None
+                        for j_space, space in enumerate(self.sp.spec.plan.mutable_spaces()):
 
-                        if duct in [component for component in space.immutable_components()]:
-                            if item_duct_adjacency is None:
-                                item_duct_adjacency = self.solver.positions[item.id, j_space]
-                            else:
-                                item_duct_adjacency = self.solver.solver.Max(
-                                    self.solver.positions[item.id, j_space],
-                                    item_duct_adjacency)
-                    adjacency_sum += item_duct_adjacency
-            if ct is None:
-                ct = adjacency_sum <= maximum
-            else:
-                ct = self.and_(ct, adjacency_sum <= maximum)
-        self.solver.add_constraint(ct)
+                            if duct in [component for component in space.immutable_components()]:
+                                if item_duct_adjacency is None:
+                                    item_duct_adjacency = self.solver.positions[item.id, j_space]
+                                else:
+                                    item_duct_adjacency = self.solver.solver.Max(
+                                        self.solver.positions[item.id, j_space],
+                                        item_duct_adjacency)
+                        adjacency_sum += item_duct_adjacency
+                if ct is None:
+                    ct = adjacency_sum <= maximum
+                else:
+                    ct = self.and_(ct, adjacency_sum <= maximum)
+            self.solver.add_constraint(ct)
 
     def add_item_constraints(self) -> None:
         """
@@ -1586,8 +1588,7 @@ GENERAL_ITEMS_CONSTRAINTS = {
          {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
-        [components_adjacency_constraint,
-         {"category": ["doorWindow"], "adj": False}],
+        [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [max_1_window_adjacency_constraint, {}]
     ],
     "living": [
@@ -1718,6 +1719,7 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [min_perimeter_length, {}],
     ],
     "laundry": [
+        [non_isolated_item_constraint, {}],
     ]
 }
 T4_MORE_ITEMS_CONSTRAINTS = {
@@ -1731,7 +1733,7 @@ T4_MORE_ITEMS_CONSTRAINTS = {
     ],
     "bedroom": [
         [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+         {"item_categories": ["bedroom"], "adj": True}],
     ],
 }
 
