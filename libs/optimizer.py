@@ -151,7 +151,6 @@ class ExecParams:
         if self.two_steps_processing:
             self.intermediate_transmission = True
             self.do_refiner = True
-            self.do_door = True
             self.do_corridor = True
 
 
