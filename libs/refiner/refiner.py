@@ -554,9 +554,9 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "ARCH018_blueprint"  # 062 006 020 061
+        plan_number = "A1E2L02"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="003", seeder="directional_seeder",
-                                            solution_number=0)
+                                            solution_number=1)
 
         if solution:
             plan = solution.spec.plan

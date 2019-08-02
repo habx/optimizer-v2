@@ -490,7 +490,7 @@ def double_section_cut(other_position: str,
     The difference is predicated according to the specified min_angle.
     The face will not be separated into a new space if its area is inferior to the min_area
     specified
-    :param positions:
+    :param other_position:
     :param traverse:
     :param min_area:
     :param min_angle:
