@@ -243,7 +243,10 @@ class Optimizer:
         area_matching = setup_spec.area_checker()
         elapsed_times["setup"] = time.process_time() - t0_setup
         logging.info("Setup read in %f", elapsed_times["setup"])
+        # If plan area and specification area incompatibility early exit:
         if not area_matching:
+            elapsed_times["total"] = time.process_time() - t0_total
+            elapsed_times["totalReal"] = time.time() - t0_total_real
             return Response([], elapsed_times, files=local_context.files)
 
         # grid
@@ -387,7 +390,6 @@ class Optimizer:
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
-        # TODO: once scoring has been added, add the ref_plan_score to the solution
         return Response(
             solutions,
             elapsed_times,
