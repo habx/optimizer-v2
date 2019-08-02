@@ -80,3 +80,6 @@ class Features:
     def two_steps_processing(cls) -> bool:
         return cls._get('optimizer-v2.two_steps_processing')
 
+    @classmethod
+    def per_solution_processing(cls) -> bool:
+        return cls._get('optimizer-v2.per_solution_processing')

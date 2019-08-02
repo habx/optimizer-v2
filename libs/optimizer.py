@@ -5,7 +5,7 @@ module used to run optimizer
 """
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, TYPE_CHECKING
 import time
 import mimetypes
 import os
@@ -29,6 +29,9 @@ import urllib
 import json
 
 from libs.worker.mqproto import MQProto
+
+if TYPE_CHECKING:
+    from libs.worker.mq import Exchanger
 
 
 class Response:
@@ -73,8 +76,9 @@ class LocalContext:
     def __init__(self):
         self.files: Dict[str, dict] = {}
         self.output_dir: Optional[str] = None
-        self.mq: Optional['Exchanger'] = None
+        self.mq: Optional[Exchanger] = None
         self.td: Optional['TaskDefinition'] = None
+        self.mq_msg_later: List[dict] = []
 
     def add_file(
             self,
@@ -94,6 +98,9 @@ class LocalContext:
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
         logging.info("send_in_progress_result( %s )", resp)
         self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+
+    def send_mq_later(self, msg: dict):
+        self.mq_msg_later.append(msg)
 
     def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
         self.mq = mq
@@ -146,7 +153,7 @@ class ExecParams:
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
         self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
         self.two_steps_processing: bool = params.get('two_steps_processing', Features.two_steps_processing())
-        self.individual_processing: bool = params.get('individual_processing', False)
+        self.individual_processing: bool = params.get('per_solution_processing', Features.per_solution_processing())
 
         # This is a simplification rule
         if self.two_steps_processing:
@@ -293,22 +300,26 @@ class Optimizer:
             )
             local_context.send_in_progress_result(response, 'in-progress')
 
+        if params.individual_processing:
+            for i, sol in enumerate(best_solutions):
+                if params.save_ll_bp:
+                    save_plan_as_json(plan.serialize(), "solutions/%s" % i, libs.io.plot.output_path)
+
         # corridor
         t0_corridor = time.process_time()
         if params.do_corridor:
             logging.info("Corridor")
-            if best_solutions:
-                for i, sol in enumerate(best_solutions):
-                    corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
-                    Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
-                             growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
-                    # specification update
-                    spec_adaptation(sol, space_planner.solutions_collector)
-                    if params.do_plot:
-                        sol.spec.plan.plot(name=f"corridor sol {i + 1}")
-                    if params.save_ll_bp:
-                        save_plan_as_json(sol.spec.plan.serialize(), f"corridor sol {i + 1}",
-                                          libs.io.plot.output_path)
+            for i, sol in enumerate(best_solutions):
+                corridor_building_rule = CORRIDOR_BUILDING_RULES[params.corridor_type]
+                Corridor(corridor_rules=corridor_building_rule["corridor_rules"],
+                         growth_method=corridor_building_rule["growth_method"]).apply_to(sol)
+                # specification update
+                spec_adaptation(sol, space_planner.solutions_collector)
+                if params.do_plot:
+                    sol.spec.plan.plot(name=f"corridor sol {i + 1}")
+                if params.save_ll_bp:
+                    save_plan_as_json(sol.spec.plan.serialize(), f"corridor sol {i + 1}",
+                                      libs.io.plot.output_path)
         elapsed_times["corridor"] = time.process_time() - t0_corridor
         logging.info("Corridor achieved in %f", elapsed_times["corridor"])
 
@@ -316,15 +327,14 @@ class Optimizer:
         t0_refiner = time.process_time()
         if params.do_refiner:
             logging.info("Refiner")
-            if best_solutions:
-                for i, sol in enumerate(best_solutions):
-                    REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
-                    spec_adaptation(sol, space_planner.solutions_collector)
-                    if params.do_plot:
-                        sol.spec.plan.plot(name=f"refiner sol {i + 1}")
-                    if params.save_ll_bp:
-                        save_plan_as_json(sol.spec.plan.serialize(), f"refiner sol {i + 1}",
-                                          libs.io.plot.output_path)
+            for i, sol in enumerate(best_solutions):
+                REFINERS[params.refiner_type].apply_to(sol, params.refiner_params)
+                spec_adaptation(sol, space_planner.solutions_collector)
+                if params.do_plot:
+                    sol.spec.plan.plot(name=f"refiner sol {i + 1}")
+                if params.save_ll_bp:
+                    save_plan_as_json(sol.spec.plan.serialize(), f"refiner sol {i + 1}",
+                                      libs.io.plot.output_path)
         elapsed_times["refiner"] = time.process_time() - t0_refiner
         logging.info("Refiner achieved in %f", elapsed_times["refiner"])
 

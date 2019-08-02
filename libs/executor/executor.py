@@ -2,7 +2,7 @@ from typing import List
 
 import libs.optimizer as opt
 from libs.executor.defs import ExecWrapper, TaskDefinition
-from libs.executor.ew_optimizer import OptimizerRun, Crasher, Timeout
+from libs.executor.ew_optimizer import OptimizerRun, Crasher, Timeout, DelayedMQ
 from libs.executor.ew_instruments import CProfile, PProfile, PyInstrument, TraceMalloc, MultiRuns
 from libs.executor.ew_logs import LoggingToFile, LoggingLevel
 from libs.executor.ew_upload import S3Upload, SaveFilesOnError
@@ -18,7 +18,7 @@ class Executor:
 
     EXEC_BUILDERS: List[ExecWrapper] = [
         # Core execution:
-        OptimizerRun, Crasher, Timeout,
+        OptimizerRun, Crasher, Timeout, DelayedMQ,
 
         # Instrumentation:
         CProfile, PProfile, PyInstrument, TraceMalloc, MultiRuns,
