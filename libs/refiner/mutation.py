@@ -414,7 +414,8 @@ def _has_needed_linear(edge: 'Edge', space: 'Space', other: Optional['Space'] = 
 def _adjacent_to_needed_space(edge: 'Edge', space: 'Space',
                               removed_edges: Container['Edge']) -> bool:
     """
-    Returns True if the edge face has an immutable component
+    Returns True if the edge face is adjacent to an immutable component an no other face
+    of the space is adjacent to an immutable component of the same category
     :param edge:
     :param space:
     :param removed_edges: other edges removed from the space

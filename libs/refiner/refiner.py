@@ -549,14 +549,14 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 120, "mu": 120, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
+        params = {"ngen": 120, "mu": 120, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
                   "processes": 8}
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "A1E2L02"  # 062 006 020 061
-        solution = tools.cache.get_solution(plan_number, grid="003", seeder="directional_seeder",
-                                            solution_number=1)
+        plan_number = "A125"  # 062 006 020 061
+        solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
+                                            solution_number=0)
 
         if solution:
             plan = solution.spec.plan

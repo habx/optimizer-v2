@@ -4,7 +4,7 @@ Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
 """
-from typing import Callable, Sequence, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
 
 from libs.plan.plan import Plan, Space
