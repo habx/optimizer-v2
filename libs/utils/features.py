@@ -79,3 +79,8 @@ class Features:
     @classmethod
     def intermediate_transmission(cls) -> bool:
         return cls._get('optimizer-v2.intermediate_transmission')
+
+    @classmethod
+    def do_door(cls) -> bool:
+        return cls._get('optimizer-v2.do_door')
+

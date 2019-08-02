@@ -140,7 +140,7 @@ class ExecParams:
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
-        self.do_door = params.get('do_door', False)
+        self.do_door = params.get('do_door', Features.do_door())
         self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
         self.intermediate_transmission: bool = params.get(
