@@ -92,7 +92,8 @@ class LocalContext:
         }
 
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
-        self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+         if self.mq:
+            self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
 
     def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
         self.mq = mq
