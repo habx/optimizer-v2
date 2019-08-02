@@ -96,8 +96,8 @@ class LocalContext:
         }
 
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
-        logging.info("send_in_progress_result( %s )", resp)
-        self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+         if self.mq:
+            self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
 
     def send_mq_later(self, msg: dict):
         self.mq_msg_later.append(msg)
@@ -148,19 +148,14 @@ class ExecParams:
         self.refiner_params = params.get('refiner_params', refiner_params)
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
-        self.do_door = params.get('do_door', False)
+        self.do_door = params.get('do_door', Features.do_door())
         self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', False)
-        self.intermediate_transmission: bool = params.get('intermediate_transmission', True)
-        self.two_steps_processing: bool = params.get('two_steps_processing', Features.two_steps_processing())
+        self.intermediate_transmission: bool = params.get(
+            'intermediate_transmission',
+            Features.intermediate_transmission()
+        )
         self.individual_processing: bool = params.get('per_solution_processing', Features.per_solution_processing())
-
-        # This is a simplification rule
-        if self.two_steps_processing:
-            self.intermediate_transmission = True
-            self.do_refiner = True
-            self.do_door = True
-            self.do_corridor = True
 
 
 class Optimizer:
@@ -257,7 +252,10 @@ class Optimizer:
         area_matching = setup_spec.area_checker()
         elapsed_times["setup"] = time.process_time() - t0_setup
         logging.info("Setup read in %f", elapsed_times["setup"])
+        # If plan area and specification area incompatibility early exit:
         if not area_matching:
+            elapsed_times["total"] = time.process_time() - t0_total
+            elapsed_times["totalReal"] = time.time() - t0_total_real
             return Response([], elapsed_times, files=local_context.files)
 
         # grid
@@ -292,7 +290,6 @@ class Optimizer:
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
         if params.intermediate_transmission:
-            logging.info("Sending intermediate results")
             response = Response(
                 [generate_output_dict(lot, sol) for sol in best_solutions],
                 elapsed_times,
@@ -405,7 +402,6 @@ class Optimizer:
         # OPT-114: This is how we will transmit the generated files
         local_context.files = Optimizer.get_generated_files(libs.io.plot.output_path)
 
-        # TODO: once scoring has been added, add the ref_plan_score to the solution
         return Response(
             solutions,
             elapsed_times,

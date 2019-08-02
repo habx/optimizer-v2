@@ -77,8 +77,12 @@ class Features:
         return ff
 
     @classmethod
-    def two_steps_processing(cls) -> bool:
-        return cls._get('optimizer-v2.two_steps_processing')
+    def intermediate_transmission(cls) -> bool:
+        return cls._get('optimizer-v2.intermediate_transmission')
+
+    @classmethod
+    def do_door(cls) -> bool:
+        return cls._get('optimizer-v2.do_door')
 
     @classmethod
     def per_solution_processing(cls) -> bool:
