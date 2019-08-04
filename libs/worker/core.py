@@ -103,4 +103,4 @@ class TaskProcessor:
 
         # Processing it
         response = self.executor.run(td)
-        return MQProto.format_full_response(response, td, 'ok')
+        return MQProto.format_response_success(response, td, 'ok')

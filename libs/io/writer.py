@@ -10,7 +10,7 @@ import libs.io.reader as reader
 from libs.space_planner.solution import Solution
 
 
-def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None):
+def save_as_json(data: Dict, output_folder: str, file_name: str):
     """
     Saves the data to a json file
     :param data:
@@ -18,10 +18,9 @@ def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None
     :param file_name:
     :return:
     """
-    if file_name:
-        assert file_name[len(file_name) - 5:] == ".json", "The filename must have a .json extension"
+    assert file_name
+    assert file_name[len(file_name) - 5:] == ".json", "The filename must have a .json extension"
 
-    file_name = file_name or data.get("name", "unnamed") + ".json"
     module_path = os.path.dirname(__file__)
     output_folder_path = os.path.join(module_path, output_folder)
     output_path = os.path.join(module_path, output_folder, file_name)
@@ -35,15 +34,14 @@ def save_as_json(data: Dict, output_folder: str, file_name: Optional[str] = None
 
 def save_plan_as_json(data: Dict,
                       file_name: Optional[str] = None,
-                      output_folder: Optional[str] = None):
+                      output_folder: str = reader.DEFAULT_PLANS_OUTPUT_FOLDER):
     """
     Saves the serialized plan as a json
     :param data: the serialized data
     :param file_name: the name of the file (without the extension)
+    :param output_folder: the folder to put the file into
     """
     output_folder = output_folder or reader.DEFAULT_PLANS_OUTPUT_FOLDER
-    if file_name is not None and file_name[-5:] != ".json":
-        file_name += ".json"
     save_as_json(data, output_folder, file_name)
 
 

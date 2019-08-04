@@ -97,7 +97,7 @@ class LocalContext:
 
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
          if self.mq:
-            self.mq.send_result(MQProto.format_full_response(resp, self.td, status))
+            self.mq.send_result(MQProto.format_response_success(resp, self.td, status))
 
     def send_mq_later(self, msg: dict):
         self.mq_msg_later.append(msg)
@@ -265,7 +265,7 @@ class Optimizer:
         if params.do_plot:
             plan.plot(name="grid")
         if params.save_ll_bp:
-            save_plan_as_json(plan.serialize(), "grid", libs.io.plot.output_path)
+            save_plan_as_json(plan.serialize(), "grid.json", libs.io.plot.output_path)
         elapsed_times["grid"] = time.process_time() - t0_grid
         logging.info("Grid achieved in %f", elapsed_times["grid"])
 
@@ -276,7 +276,7 @@ class Optimizer:
         if params.do_plot:
             plan.plot(name="seeder")
         if params.save_ll_bp:
-            save_plan_as_json(plan.serialize(), "seeder", libs.io.plot.output_path)
+            save_plan_as_json(plan.serialize(), "seeder.json", libs.io.plot.output_path)
         elapsed_times["seeder"] = time.process_time() - t0_seeder
         logging.info("Seeder achieved in %f", elapsed_times["seeder"])
 
@@ -300,7 +300,7 @@ class Optimizer:
         if params.individual_processing:
             for i, sol in enumerate(best_solutions):
                 if params.save_ll_bp:
-                    save_plan_as_json(plan.serialize(), "solutions/%s" % i, libs.io.plot.output_path)
+                    save_plan_as_json(plan.serialize(), f"solutions/{sol.uid}.json" % i, libs.io.plot.output_path)
 
         # corridor
         t0_corridor = time.process_time()
