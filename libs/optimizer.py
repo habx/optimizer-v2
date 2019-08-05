@@ -96,7 +96,7 @@ class LocalContext:
         }
 
     def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
-         if self.mq:
+        if self.mq:
             self.mq.send_result(MQProto.format_response_success(resp, self.td, status))
 
     def send_mq_later(self, msg: dict):
