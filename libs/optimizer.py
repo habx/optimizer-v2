@@ -143,7 +143,7 @@ class ExecParams:
         self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', Features.do_door())
         self.ref_plan_url: str = params.get('ref_plan_url', None)
-        self.do_final_scoring: bool = params.get('do_final_scoring', False)
+        self.do_final_scoring: bool = params.get('do_final_scoring', os.getenv('HABX_ENV') == 'dev')
         self.intermediate_transmission: bool = params.get(
             'intermediate_transmission',
             Features.intermediate_transmission()
