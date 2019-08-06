@@ -300,7 +300,15 @@ class Optimizer:
         if params.individual_processing:
             for i, sol in enumerate(best_solutions):
                 if params.save_ll_bp:
-                    save_plan_as_json(plan.serialize(), f"solutions/{sol.uid}.json" % i, libs.io.plot.output_path)
+                    if sol.uid:
+                        save_plan_as_json(plan.serialize(), f"solutions/{sol.uid}.json" % i, libs.io.plot.output_path)
+                    else:
+                        logging.warning(
+                            "Missing solution's UUID",
+                            extra={
+                                'taskId': local_context.td.task_id,
+                            }
+                        )
 
         # corridor
         t0_corridor = time.process_time()

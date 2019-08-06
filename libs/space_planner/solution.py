@@ -13,6 +13,8 @@ import operator
 from copy import deepcopy
 from typing import List, Dict, Optional
 
+from uuid import UUID
+
 from libs.plan.category import SPACE_CATEGORIES
 from libs.plan.plan import Plan
 from libs.plan.plan import Space
@@ -215,8 +217,9 @@ class Solution:
     def __init__(self,
                  spec: 'Specification',
                  dict_space_item: Dict['Space', 'Item'],
-                 _id: int):
+                 _id: int, uid: UUID = None):
         self._id = _id
+        self.uid = uid
         self.spec = spec
         self.spec.plan.name = self.spec.plan.name + "_Solution_Id" + str(self._id)
         self.space_item: Dict['Space', 'Item'] = dict_space_item
