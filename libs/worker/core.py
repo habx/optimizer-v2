@@ -1,7 +1,6 @@
 import glob
 import logging
 import os
-import socket
 import sys
 import tempfile
 import time
@@ -32,9 +31,14 @@ class TaskProcessor:
         """This is the core processing method. It receives a TaskDefinition and produces a message
         for the SNS topic to answer. This is because different types of inputs can be used (SQS or
         K8S job) but only one kind of feedback can be sent."""
-        logging.info("Processing %s", td)
+        logging.info(
+            "Processing task",
+            extra={
+                'taskId': td.task_id,
+            }
+        )
 
-        self._process_task_before()
+        self._cleanup_output_dir()
 
         # We calculate the overall time just in case we face a crash
         before_time_real = time.time()
@@ -43,26 +47,19 @@ class TaskProcessor:
         try:
             result = self._process_task_core(td)
         except Exception as e:
-            result = {
-                'type': 'optimizer-processing-result',
-                'data': {
-                    'status': 'error',
-                    'error': traceback.format_exception(*sys.exc_info()),
-                    'times': {
-                        'totalReal': (time.time() - before_time_real),
-                        'total': (time.process_time() - before_time_cpu)
-                    },
-                },
+            times = {
+                'totalReal': (time.time() - before_time_real),
+                'total': (time.process_time() - before_time_cpu),
             }
 
-            # Timeout is a special kind of error, we still want the stacktrace like any other
-            # error.
-            if isinstance(e, TimeoutError):
-                result['data']['status'] = 'timeout'
-            else:
-                logging.exception("Problem handing message")
+            result = MQProto.format_response_error(e, traceback.format_exception(*sys.exc_info()), times, td)
 
-        self._process_task_after()
+            logging.exception(
+                "Problem handing message",
+                extra={
+                    'taskId': td.task_id,
+                }
+            )
 
         return result
 
@@ -71,14 +68,20 @@ class TaskProcessor:
 
     def _cleanup_output_dir(self):
         for f in self._output_files():
-            logging.info("Deleting file \"%s\"", f)
+            logging.info(
+                "Deleting file",
+                extra={
+                    'fileName': f,
+                }
+            )
+
             os.remove(f)
 
-    def _process_task_before(self):
-        self._cleanup_output_dir()
+    #    def _process_task_before(self):
+    #        self._cleanup_output_dir()
 
-    def _process_task_after(self):
-        pass
+    #    def _process_task_after(self):
+    #        pass
 
     def _process_task_core(self, td: TaskDefinition) -> Optional[dict]:
         """
@@ -86,7 +89,12 @@ class TaskProcessor:
         :param td: Task definition we're processing
         :return: Message to return
         """
-        logging.info("Processing message: %s", td)
+        logging.info(
+            "Processing message",
+            extra={
+                'taskId': td.task_id,
+            }
+        )
 
         # If we're having a personal identify, we only accept message to ourself
         target_worker = td.params.get('target_worker')
@@ -103,4 +111,4 @@ class TaskProcessor:
 
         # Processing it
         response = self.executor.run(td)
-        return MQProto.format_full_response(response, td, 'ok')
+        return MQProto.format_response_success(response, td, 'ok')
