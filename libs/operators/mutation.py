@@ -4,7 +4,7 @@ Mutation module
 A mutation modifies a space
 The module exports a catalog containing various mutations
 """
-from typing import Callable, Sequence, Optional, Tuple, TYPE_CHECKING
+from typing import Callable, Sequence, Optional, TYPE_CHECKING
 import logging
 
 from libs.plan.plan import Plan, Space
@@ -490,7 +490,7 @@ def double_section_cut(other_position: str,
     The difference is predicated according to the specified min_angle.
     The face will not be separated into a new space if its area is inferior to the min_area
     specified
-    :param positions:
+    :param other_position:
     :param traverse:
     :param min_area:
     :param min_angle:

@@ -127,7 +127,7 @@ def score_area(spec: 'Specification',
     """
     min_areas = {
         SPACE_CATEGORIES["bedroom"]: 90000.0,
-        SPACE_CATEGORIES["bathroom"]: 30000.0,
+        SPACE_CATEGORIES["bathroom"]: 20000.0,
         SPACE_CATEGORIES["toilet"]: 10000.0,
         "default": 10000.0
     }
@@ -150,6 +150,7 @@ def score_area(spec: 'Specification',
         space_area = space.cached_area()
 
         if space_area < min_areas.get(space.category, min_areas["default"]):
+            # logging.warning("Extra small space detected %s", space)
             area_score[space.id] = min_size_penalty
             continue
 
@@ -217,17 +218,26 @@ def number_of_corners(space: 'Space') -> int:
 
 
 def _score_space_bounding_box(space: 'Space', box: Tuple[float, float]) -> float:
-    box_ratios = {
-        SPACE_CATEGORIES["circulation"]: 350.0,
-        SPACE_CATEGORIES["livingKitchen"]: 0.1,
-        SPACE_CATEGORIES["living"]: 0.1,
-        "default": 1.0
+    min_grooves = {
+        SPACE_CATEGORIES["bathroom"]: 4800,
+        SPACE_CATEGORIES["toilet"]: 3000,
+        SPACE_CATEGORIES["laundry"]: 4800,
+        "default": 0.
     }
-    if space.cached_area() == 0:
+    box_ratios = {
+        SPACE_CATEGORIES["circulation"]: 3500.,
+        SPACE_CATEGORIES["toilet"]: 300.,
+        SPACE_CATEGORIES["bathroom"]: 600.,
+        SPACE_CATEGORIES["livingKitchen"]: 10.,
+        SPACE_CATEGORIES["living"]: 30.,
+        "default": 100.
+    }
+    area = space.cached_area()
+    if area == 0:
         return 100.
     box_area = box[0] * box[1]
-    area = space.cached_area()
-    space_score = ((area - box_area) / 10000) ** 2 * 10.0
+    space_score = (max(box_area - area -
+                       min_grooves.get(space.category, min_grooves["default"]), 0.) / area) ** 2
     return space_score * box_ratios.get(space.category, box_ratios["default"])
 
 
