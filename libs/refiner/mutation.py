@@ -104,23 +104,28 @@ def _random_space(ind: 'Individual') -> Optional['Space']:
     :return:
     """
     mutable_spaces = list(ind.mutable_spaces())
+    min_weight = 40.  # needed so a space can always be picked
     if not mutable_spaces:
         logging.warning("Mutation: Random space, no mutable space was found !!")
         return None
-    spaces_fitnesses = (math.fabs(ind.fitness.sp_wvalue[s.id]) for s in mutable_spaces)
+    spaces_fitnesses = (max(math.fabs(ind.fitness.sp_wvalue[s.id]), min_weight)**2
+                        for s in mutable_spaces)
     # we randomly select a space with higher weights for the spaces with lower fitnesses
     # Note : weighted fitnesses are negative hence the absolute value
     return random.choices(mutable_spaces, weights=spaces_fitnesses)[0]
 
 
-def _mutable_edges(space: 'Space') -> ['Edge']:
+def _random_mutable_edge(space: 'Space') -> Optional['Edge']:
     """
-    Returns the list of all the edges from the boundary of the space adjacent to another mutable
-    space
+    Returns a random mutable edge
     :param space:
     :return:
     """
-    return list(SELECTORS["mutable_edges"].yield_from(space))
+    mutable_edges = list(SELECTORS["mutable_edges"].yield_from(space))
+    if not mutable_edges:
+        logging.debug("Refiner: Mutation: No mutable edges %s", space)
+        return None
+    return random.choice(mutable_edges)
 
 
 """
@@ -137,11 +142,9 @@ def add_aligned_faces(space: 'Space') -> List['Space']:
     :return:
     """
 
-    mutable_edges = _mutable_edges(space)
-    if not mutable_edges:
-        logging.debug("Refiner: Mutation: No mutable edges %s", space)
+    edge = _random_mutable_edge(space)
+    if not edge:
         return []
-    edge = random.choice(mutable_edges)
 
     max_angle = 25.0  # the angle used to determine if two edges are aligned
 
@@ -200,11 +203,9 @@ def add_face(space: 'Space') -> List['Space']:
     :param space:
     :return:
     """
-    mutable_edges = _mutable_edges(space)
-    if not mutable_edges:
-        logging.debug("Refiner: Mutation: No mutable edges %s", space)
+    edge = _random_mutable_edge(space)
+    if not edge:
         return []
-    edge = random.choice(mutable_edges)
 
     plan = space.plan
     face = edge.pair.face
@@ -242,14 +243,16 @@ def remove_aligned_faces(space: 'Space') -> List['Space']:
     :param space:
     :return:
     """
-    if space.number_of_faces <= 1:
+    if space.number_of_faces <= 1 and space.category is not SPACE_CATEGORIES["circulation"]:
         return []
 
-    mutable_edges = _mutable_edges(space)
-    if not mutable_edges:
-        logging.debug("Refiner: Mutation: No mutable edges %s", space)
+    if space.number_of_faces == 1 and space.category is SPACE_CATEGORIES["circulation"]:
+        logging.debug("Refiner: Removing only face of circulation %s", space)
+        return remove_only_face(space)
+
+    edge = _random_mutable_edge(space)
+    if not edge:
         return []
-    edge = random.choice(mutable_edges)
 
     plan = space.plan
 
@@ -313,14 +316,16 @@ def remove_face(space: 'Space') -> List['Space']:
     :param space:
     :return: a list of space
     """
-    if space.number_of_faces <= 1:
+    if space.number_of_faces <= 1 and space.category is not SPACE_CATEGORIES["circulation"]:
         return []
 
-    mutable_edges = _mutable_edges(space)
-    if not mutable_edges:
-        logging.debug("Refiner: Mutation: No mutable edges %s", space)
+    if space.number_of_faces == 1 and space.category is SPACE_CATEGORIES["circulation"]:
+        logging.debug("Refiner: Removing only face of circulation %s", space)
+        return remove_only_face(space)
+
+    edge = _random_mutable_edge(space)
+    if not edge:
         return []
-    edge = random.choice(mutable_edges)
 
     plan = space.plan
     face = edge.face
@@ -345,6 +350,22 @@ def remove_face(space: 'Space') -> List['Space']:
     other_space.add_face(face)
 
     return [other_space, space]
+
+
+def remove_only_face(space: 'Space') -> List['Space']:
+    """
+    Removes the only face of a space and gives it to a random
+    :param space:
+    :return:
+    """
+    edge = _random_mutable_edge(space)
+    if not edge:
+        return []
+    other_space = space.plan.get_space_of_edge(edge.pair)
+    space.remove_face(edge.face)
+    other_space.add_face(edge.face)
+    return [other_space, space]
+
 
 
 """

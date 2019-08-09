@@ -64,7 +64,7 @@ def compose(funcs: List[scoreFunc],
     :return:
     """
     current_fitness = ind.fitness.sp_values
-    cache = Cache()
+    cache = Cache()  # creates a cache for computed values shared between score functions
     scores = [f(spec, ind, cache) for f in funcs]
     spaces_id = [s.id for s in ind.mutable_spaces()]
     n_scores = len(funcs)
@@ -105,12 +105,17 @@ def _score_space_area(space_area: float, min_area: float, max_area: float) -> fl
     :param max_area:
     :return:
     """
-    sp_score = 0
+    medium_area = (min_area + max_area) / 2.
+
     if min_area != 0 and space_area < min_area:
         # note: worse to be smaller
-        sp_score = (((min_area - space_area) / min_area) ** 2) * 100 * 3.0
+        sp_score = (((min_area - space_area) / min_area) ** 2 * 300 +
+                    abs(min_area - medium_area) / medium_area * 50)
     elif max_area != 0 and space_area > max_area:
-        sp_score = (((space_area - max_area) / max_area) ** 2) * 100.0
+        sp_score = (((space_area - max_area) / max_area) ** 2 * 100.0
+                    + abs(max_area - medium_area) / medium_area * 50)
+    else:
+        sp_score = abs(space_area - medium_area) / medium_area * 50.0
     return sp_score
 
 
@@ -144,7 +149,7 @@ def score_area(spec: 'Specification',
         if space.id not in ind.modified_spaces:
             continue
         if space.category is SPACE_CATEGORIES["circulation"]:
-            area_score[space.id] = 0.0
+            area_score[space.id] = space.cached_area() / (min_areas["default"] * 10.)
             continue
         item = space_to_item[space.id]
         space_area = space.cached_area()
@@ -174,7 +179,6 @@ def score_corner(_: 'Specification', ind: 'Individual', cache: Cache) -> Dict[in
         if space.category in excluded_spaces:
             score[space.id] = 0.0
             continue
-        # score[space.id] = number_of_corners(space)
         score[space.id] = max(space.number_of_corners() - 4.0, 0)
         if space.has_holes:
             score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
@@ -230,6 +234,7 @@ def _score_space_bounding_box(space: 'Space', box: Tuple[float, float]) -> float
         SPACE_CATEGORIES["bathroom"]: 600.,
         SPACE_CATEGORIES["livingKitchen"]: 10.,
         SPACE_CATEGORIES["living"]: 30.,
+        SPACE_CATEGORIES["bedroom"]: 1000.,
         "default": 100.
     }
     area = space.cached_area()
@@ -254,13 +259,14 @@ def _score_space_depth(space: 'Space', box: Tuple[float, float]) -> float:
     empty_space_penalty = 100.0
     # different rule for circulation we look for a specific width
     if space.category is SPACE_CATEGORIES["circulation"]:
-        if circulation_min_width <= min(box) <= circulation_max_width:
+        space_width = min(box) if max(box) > circulation_max_width else max(box)
+        if circulation_min_width <= space_width <= circulation_max_width:
             return 0.
-        elif circulation_min_width > min(box):
+        elif circulation_min_width > space_width:
             # we add a ten times penalty because a narrow corridor can not be tolerated
-            return ((circulation_min_width - min(box)) / circulation_min_width) * 10
-        elif circulation_max_width < min(box):
-            return (min(box) - circulation_max_width) / circulation_max_width
+            return ((circulation_min_width - space_width) / circulation_min_width) * 10
+        elif circulation_max_width < space_width:
+            return (space_width - circulation_max_width) / circulation_max_width
         else:
             return 0.
 
