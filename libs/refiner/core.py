@@ -32,9 +32,7 @@ class Fitness:
         :return:
         """
         if alias in globals():
-            logging.warning("A class named '{0}' has already been created and it "
-                            "will be overwritten. Consider deleting previous "
-                            "creation of that class or rename it.".format(alias))
+            return globals()[alias]
 
         custom_class = type(alias, (Fitness,), {"_weights": weights})
         # the custom class must be added to the global namespace for pickling
@@ -251,9 +249,7 @@ class Individual(Plan):
         :return:
         """
         if alias in globals():
-            logging.warning("A class named '{0}' has already been created and it "
-                            "will be overwritten. Consider deleting previous "
-                            "creation of that class or rename it.".format(alias))
+            return globals()[alias]
 
         custom_class = type(alias, (Individual,), {"_fitness_class": fitness_class,
                                                    "FloorType": UnwatchedFloor})
