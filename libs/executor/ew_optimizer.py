@@ -2,7 +2,7 @@ import logging
 import os
 import signal
 
-import psutil as psutil
+import psutil
 
 from libs.executor.defs import ExecWrapper, TaskDefinition
 import libs.optimizer as opt
