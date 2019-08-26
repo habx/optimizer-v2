@@ -1,4 +1,8 @@
+import logging
+import os
 import signal
+
+import psutil as psutil
 
 from libs.executor.defs import ExecWrapper, TaskDefinition
 import libs.optimizer as opt
@@ -60,6 +64,30 @@ class Timeout(ExecWrapper):
 
     def _after(self, td: TaskDefinition, resp: opt.Response):
         signal.alarm(0)
+        Timeout.kill_sub_processes()
+
+    @staticmethod
+    def kill_sub_processes():
+        parent = psutil.Process(os.getpid())
+        children = parent.children(recursive=True)
+        for child in children:
+            logging.warning(
+                "Killing sub-process",
+                extra={
+                    'action': 'ew_timeout.sub_kill',
+                    'component': 'ew_timeout',
+                    'pid': child.pid,
+                }
+            )
+            child.kill()
+        if children:
+            psutil.wait_procs(children, timeout=5)
+            logging.warning(
+                    "sub-process cleanup is done",
+                    extra={
+                        'childrenNb': len(children),
+                    }
+            )
 
     @staticmethod
     def instantiate(td: TaskDefinition):
