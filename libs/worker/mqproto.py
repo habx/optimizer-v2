@@ -28,7 +28,7 @@ class MQProto:
             'data': data,
         }
 
-        return MQProto._add_context(result, td)
+        return MQProto._add_full_context(result, td)
 
     @staticmethod
     def format_response_error(ex: Exception, diag: List, times: Dict[str, float], td: 'defs.TaskDefinition') -> Dict[str, Any]:
@@ -49,10 +49,21 @@ class MQProto:
             },
         }
 
-        return MQProto._add_context(result, td)
+        return MQProto._add_full_context(result, td)
+
+    @classmethod
+    def format_request_solution_processing(cls, solution_id, td: 'defs.TaskDefinition'):
+        request = {
+            'type': 'optimizer-processing-solution',
+            'data': {
+                'solutionId': solution_id,
+                'setup': td.setup,
+            },
+        }
+        return MQProto._add_core_context(request)
 
     @staticmethod
-    def _add_context(msg: Dict[str, Any], td: 'defs.TaskDefinition') -> Dict[str, Any]:
+    def _add_core_context(msg: Dict[str, Any], td: 'defs.TaskDefinition'):
         if td.task_id:
             msg['taskId'] = td.task_id
 
@@ -66,6 +77,12 @@ class MQProto:
         # OPT-116: Transmitting the hostname so that we can at least properly diagnose from
         #          which host the duplicate tasks are coming.
         data['hostname'] = socket.gethostname()
+
+    @staticmethod
+    def _add_full_context(msg: Dict[str, Any], td: 'defs.TaskDefinition') -> Dict[str, Any]:
+        MQProto._add_core_context(msg, td)
+
+        data = msg['data']
 
         # OPT-99: All the feedback shall only be done from the source data except for the
         #         context which is allowed to be modified by the processing.

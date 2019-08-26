@@ -61,7 +61,7 @@ def process_task(config: Config, td: TaskDefinition):
     exchanger = Exchanger(config)
     exchanger.prepare(consumer=False, producer=True)
 
-    td.local_context.prepare_mq(exchanger, td)
+    td.local_context.mq_prepare(exchanger, td)
     result = processor.process_task(td)
     exchanger.send_result(result)
 

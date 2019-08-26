@@ -52,7 +52,7 @@ def _process_messages(args: argparse.Namespace, worker_conf: Config, exchanger: 
         if not td.task_id:  # Drop it at some point
             td.task_id = msg.content.get('requestId')
 
-        td.local_context.prepare_mq(exchanger, td)
+        td.local_context.mq_prepare(exchanger, td)
         result = processor.process_task(td)
 
         exchanger.send_result(result)

@@ -75,9 +75,9 @@ class DelayedMQ(ExecWrapper):
     """
 
     def _after(self, td: TaskDefinition, resp: opt.Response):
-        for msg in td.local_context.mq_msg_later:
-            td.local_context.mq.send_result(msg)
-        td.local_context.mq_msg_later.clear()
+        for msg in td.local_context.mq_requests_msg_list:
+            td.local_context.mq.send_request(msg)
+        td.local_context.mq_requests_msg_list.clear()
 
     @staticmethod
     def instantiate(td: TaskDefinition) -> Optional['ExecWrapper']:

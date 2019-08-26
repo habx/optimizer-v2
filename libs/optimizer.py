@@ -32,6 +32,7 @@ from libs.worker.mqproto import MQProto
 
 if TYPE_CHECKING:
     from libs.worker.mq import Exchanger
+    from libs.worker.core import TaskDefinition
 
 
 class Response:
@@ -78,7 +79,7 @@ class LocalContext:
         self.output_dir: Optional[str] = None
         self.mq: Optional[Exchanger] = None
         self.td: Optional['TaskDefinition'] = None
-        self.mq_msg_later: List[dict] = []
+        self.mq_requests_msg_list: List[dict] = []
 
     def add_file(
             self,
@@ -95,14 +96,14 @@ class LocalContext:
             'mime': mime,
         }
 
-    def send_in_progress_result(self, resp: Response, status: str = 'in-progress') -> None:
+    def mq_send_result_in_progress(self, resp: Response, status: str = 'in-progress') -> None:
         if self.mq:
             self.mq.send_result(MQProto.format_response_success(resp, self.td, status))
 
-    def send_mq_later(self, msg: dict):
-        self.mq_msg_later.append(msg)
+    def mq_send_request_later(self, msg: dict):
+        self.mq_requests_msg_list.append(msg)
 
-    def prepare_mq(self, mq: 'Exchanger', td: 'TaskDefinition'):
+    def mq_prepare(self, mq: 'Exchanger', td: 'TaskDefinition'):
         self.mq = mq
         self.td = td
 
@@ -295,20 +296,19 @@ class Optimizer:
                 elapsed_times,
                 files=local_context.files,
             )
-            local_context.send_in_progress_result(response, 'in-progress')
+            local_context.mq_send_result_in_progress(response, 'in-progress')
 
         if params.individual_processing:
             for i, sol in enumerate(best_solutions):
-                if params.save_ll_bp:
-                    if sol.uid:
-                        save_plan_as_json(plan.serialize(), f"solutions/{sol.uid}.json" % i, libs.io.plot.output_path)
-                    else:
-                        logging.warning(
-                            "Missing solution's UUID",
-                            extra={
-                                'taskId': local_context.td.task_id,
-                            }
-                        )
+                plan = sol.spec.plan
+                save_plan_as_json(
+                    plan.serialize(),
+                    f"space-planner/plans/{plan.id}.json",
+                    local_context.output_dir
+                )
+                local_context.mq_send_request_later(
+                    MQProto.format_request_solution_processing(plan.uid, local_context.td)
+                )
 
         # corridor
         t0_corridor = time.process_time()
