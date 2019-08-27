@@ -31,21 +31,6 @@ class OptimizerRun(ExecWrapper):
         return OptimizerRun()
 
 
-class Crasher(ExecWrapper):
-    """
-    Crashing the execution if a "crash" parameter is specified
-    """
-
-    def _exec(self, td: TaskDefinition):
-        raise Exception("Crashing !")
-
-    @staticmethod
-    def instantiate(td: TaskDefinition):
-        if td.params.get("crash", False):
-            return Crasher()
-        return None
-
-
 class Timeout(ExecWrapper):
     """
     Enabling a timeout timer if a "timeout" is specified
@@ -54,9 +39,10 @@ class Timeout(ExecWrapper):
     def throw_timeout(self, signum, frame):
         raise TimeoutError("Processing timeout reached")
 
-    def __init__(self, timeout: int):
+    def __init__(self, timeout: int, cleanup_sub_processes=True):
         super().__init__()
         self.timeout = timeout
+        self.cleanup_sub_processes = cleanup_sub_processes
 
     def _before(self, td: TaskDefinition):
         signal.signal(signal.SIGALRM, self.throw_timeout)
@@ -64,7 +50,8 @@ class Timeout(ExecWrapper):
 
     def _after(self, td: TaskDefinition, resp: opt.Response):
         signal.alarm(0)
-        Timeout.kill_sub_processes()
+        if self.cleanup_sub_processes:
+            Timeout.kill_sub_processes()
 
     @staticmethod
     def kill_sub_processes():
@@ -80,6 +67,7 @@ class Timeout(ExecWrapper):
                 }
             )
             child.kill()
+            child.wait(1)
         if children:
             psutil.wait_procs(children, timeout=5)
             logging.warning(
