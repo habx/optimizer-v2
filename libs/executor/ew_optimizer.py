@@ -38,6 +38,10 @@ class Timeout(ExecWrapper):
     """
 
     def throw_timeout(self, signum, frame):
+        # OPT-6235: Re-arming the signal 5s later just in case it was caught at a bad moment (for example during logging
+        # see https://habx.slack.com/archives/C59N45ZC4/p1567028363000100?thread_ts=1566770408.000100&cid=C59N45ZC4 for
+        # more details
+        signal.alarm(5)
         raise TimeoutError("Processing timeout reached")
 
     def __init__(self, timeout: int, cleanup_sub_processes=True):
