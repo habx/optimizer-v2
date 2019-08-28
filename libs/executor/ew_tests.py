@@ -3,6 +3,7 @@ import libs.optimizer as opt
 from typing import Optional, Dict, Any
 import multiprocessing
 import time
+import threading
 
 
 class Faker(ExecWrapper):
@@ -18,7 +19,10 @@ class Faker(ExecWrapper):
         self.nb_processes: int = params.get('nb_processes', 1)
 
     def _core_process(self, process_nb: int = 0) -> Optional[opt.Response]:
+        # try:
         time.sleep(self.process_time)
+        # except KeyboardInterrupt:
+        #    pass
         return None
 
     def _exec(self, td: TaskDefinition) -> opt.Response:

@@ -7,6 +7,7 @@ import psutil
 from libs.executor.defs import ExecWrapper, TaskDefinition
 import libs.optimizer as opt
 import libs.io.plot as plt
+from typing import List
 
 
 class OptimizerRun(ExecWrapper):
@@ -43,21 +44,31 @@ class Timeout(ExecWrapper):
         super().__init__()
         self.timeout = timeout
         self.cleanup_sub_processes = cleanup_sub_processes
+        self.safe_processes: List[int] = []
 
     def _before(self, td: TaskDefinition):
+        # self.identify_safe_processes()
         signal.signal(signal.SIGALRM, self.throw_timeout)
         signal.alarm(self.timeout)
 
     def _after(self, td: TaskDefinition, resp: opt.Response):
         signal.alarm(0)
         if self.cleanup_sub_processes:
-            Timeout.kill_sub_processes()
+            self.kill_sub_processes()
 
-    @staticmethod
-    def kill_sub_processes():
-        parent = psutil.Process(os.getpid())
-        children = parent.children(recursive=True)
+    # We don't seem to actually need it
+    def identify_safe_processes(self):
+        sp = []
+        for p in psutil.Process(os.getpid()).children(recursive=True):
+            sp.append(p.pid)
+        self.safe_processes = sp
+
+    def kill_sub_processes(self):
+        children = psutil.Process(os.getpid()).children(recursive=True)
+
         for child in children:
+            if child.pid in self.safe_processes:
+                continue
             logging.warning(
                 "Killing sub-process",
                 extra={
@@ -66,16 +77,15 @@ class Timeout(ExecWrapper):
                     'pid': child.pid,
                 }
             )
-            child.kill()
-            child.wait(1)
-        if children:
-            psutil.wait_procs(children, timeout=5)
-            logging.warning(
-                    "sub-process cleanup is done",
-                    extra={
-                        'childrenNb': len(children),
-                    }
-            )
+            child.terminate()
+            try:
+                child.wait(5)
+            except psutil.TimeoutExpired:
+                try:
+                    child.kill()
+                    child.wait(1)
+                except psutil.NoSuchProcess:
+                    pass
 
     @staticmethod
     def instantiate(td: TaskDefinition):
