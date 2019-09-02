@@ -134,8 +134,8 @@ class ConstraintSolver:
         t0 = time.process_time()
         decision_builder = self.solver.Phase(self.cells_item, self.solver.CHOOSE_FIRST_UNBOUND,
                                              self.solver.ASSIGN_MIN_VALUE)
-        time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
-        self.solver.NewSearch(decision_builder, time_limit)
+        #time_limit = self.solver.TimeLimit(SEARCH_TIME_LIMIT)
+        self.solver.NewSearch(decision_builder)#, time_limit)
 
         connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
 
@@ -151,14 +151,14 @@ class ConstraintSolver:
             validity = self._check_adjacency(sol_positions, connectivity_checker)
             if validity:
                 self.solutions.append(sol_positions)
-                if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
-                    logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
-                                    len(self.solutions))
-                    break
-                if (time.process_time() - t0 - 15) >= 0:
-                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
-                                    len(self.solutions))
-                    break
+                # if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
+                #     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
+                #                     len(self.solutions))
+                #     break
+                # if (time.process_time() - t0 - 15) >= 0:
+                #     logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                #                     len(self.solutions))
+                #     break
 
         # noinspection PyArgumentList
         self.solver.EndSearch()
@@ -168,7 +168,7 @@ class ConstraintSolver:
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
-        if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
+        if round(time.process_time() - t0) >= round(SEARCH_TIME_LIMIT / 1000):
             logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 1 min")
 
 
