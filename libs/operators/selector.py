@@ -146,7 +146,7 @@ def wrong_direction_edges(space: 'Space', *_) -> Generator['Edge', bool, None]:
     if not directions:
         return
 
-    for hole_edge in space.holes_reference_edge:
+    for hole_edge in space.reference_edges:
         for edge in space.siblings(hole_edge):
             for starting_edge in edge.start.edges:
                 if starting_edge is edge:

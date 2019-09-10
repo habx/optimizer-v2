@@ -763,8 +763,10 @@ def merge_small_cells(seeder: 'Seeder', show: bool) -> List['Space']:
     epsilon_length = 20
     if seeder.plan.indoor_area / SQM < 100:
         min_cell_area = MIN_SEEDER_SPACE_AREA
-    else:
+    elif seeder.plan.indoor_area / SQM < 130:
         min_cell_area = 1.5 * MIN_SEEDER_SPACE_AREA
+    else:
+        min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
     target_number_of_spaces = SEEDER_ACTIVATION_NBR_CELLS
     modified_spaces = []
 
@@ -1018,8 +1020,10 @@ def merge_corners(seeder: 'Seeder', show: bool) -> List['Space']:
     """
     if seeder.plan.indoor_area / SQM < 100:
         min_cell_area = MIN_SEEDER_SPACE_AREA
-    else:
+    elif seeder.plan.indoor_area / SQM < 130:
         min_cell_area = 1.5 * MIN_SEEDER_SPACE_AREA
+    else:
+        min_cell_area = 2 * MIN_SEEDER_SPACE_AREA
     modified_spaces = []
 
     for small_space in (s for s in seeder.plan.get_spaces("seed") if s.area < min_cell_area):

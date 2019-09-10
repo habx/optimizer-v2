@@ -153,13 +153,20 @@ class Exchanger:
     def send_result(self, result: dict):
         """Send a result"""
         j = json.dumps(result)
-        logging.info("Sending the processing result: %s", j)
+        logging.info(
+            "Sending the processing result",
+            extra={
+                'component': 'mq',
+                'action': 'mq.send_result',
+                'mqMsg': j,
+            }
+        )
         self._sns_client.publish(
             TopicArn=self._publishing_topic_arn,
             Message=j,
         )
 
-    def send_request(self, request):
+    def send_request(self, request: dict):
         """This is a helper method. It should only be used for testing"""
         j = json.dumps(request)
         requests_topic_arn = self._get_or_create_topic(self.config.requests_topic_name)

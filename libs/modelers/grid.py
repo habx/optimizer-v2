@@ -554,6 +554,79 @@ grid_02 = Grid("GRID_002", [
 ])
 
 
+grid_03 = Grid("GRID_003", [
+    # CORNER
+    (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["double_section_cut"]("next"), True),
+    (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["double_section_cut"]("previous"), True),
+
+    # SECTIONS
+    (SELECTORS["next_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+    (SELECTORS["previous_concave_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["previous_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](0), True),
+    (SELECTORS["next_convex_non_ortho"], MUTATION_FACTORIES["section_cut"](1), True),
+    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
+
+    # DUCTS
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](180), True),
+    (SELECTORS["duct_edge_min_10"], MUTATION_FACTORIES["slice_cut"](100), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_not_touching_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_first_edge"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+    (SELECTORS["corner_duct_second_edge"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["duct_edge_min_160"], MUTATION_FACTORIES["barycenter_cut"](0.5),
+     True),
+
+    # WALLS
+    (SELECTORS["close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](100, reference_point="end"), True),
+    (SELECTORS["previous_close_to_corner_wall"],
+     MUTATION_FACTORIES["translation_cut"](100, reference_point="start"), True),
+
+    # CORNER
+    (SELECTORS["previous_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["next_angle_salient"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+
+    # LOAD BEARING WALLS
+    (SELECTORS["adjacent_to_load_bearing_wall"], MUTATION_FACTORIES["barycenter_cut"](0), True),
+    (SELECTORS["adjacent_to_load_bearing_wall"], MUTATION_FACTORIES["barycenter_cut"](1), True),
+
+    # WINDOWS
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](350), True),
+    (SELECTORS["window_doorWindow"], MUTATION_FACTORIES["slice_cut"](410), True),
+    (SELECTORS["between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
+    (SELECTORS["between_edges_between_windows"], MUTATION_FACTORIES["barycenter_cut"](0.5), True),
+    (SELECTORS["before_window"],
+     MUTATION_FACTORIES["translation_cut"](10, reference_point="end"), True),
+    (SELECTORS["after_window"], MUTATION_FACTORIES["translation_cut"](10), True),
+
+    # ENTRANCE
+    (SELECTORS["before_front_door"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_front_door"], MUTATION_FACTORIES["translation_cut"](5), True),
+
+    # STAIRS
+    (SELECTORS["before_starting_step"],
+     MUTATION_FACTORIES["translation_cut"](5, reference_point="end"), True),
+    (SELECTORS["after_starting_step"], MUTATION_FACTORIES["translation_cut"](5), True),
+
+    # COMPLETION
+    (SELECTORS["wrong_direction"], MUTATIONS["remove_line"], True),
+    (SELECTOR_FACTORIES["edges_length"]([], [[120]]),
+     MUTATION_FACTORIES['barycenter_cut'](0.5), True),
+    (SELECTORS["all_aligned_edges"], MUTATION_FACTORIES['barycenter_cut'](1.0), False),
+
+    # CLEANUP
+    (SELECTORS["adjacent_to_empty_space"], MUTATIONS["merge_spaces"], True),
+    (SELECTORS["cuts_linear"], MUTATIONS["remove_edge"], True),
+    (SELECTOR_FACTORIES["small_angle_boundary"]([20.0]), MUTATIONS["remove_edge"], True),
+    (SELECTORS["close_to_wall_finer"], MUTATIONS["remove_edge"], False),
+    (SELECTOR_FACTORIES["tight_lines"]([20]), MUTATIONS["remove_line"], False),
+    (SELECTORS["close_to_window"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_front_door"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["close_to_duct"], MUTATIONS["remove_edge"], False),
+    (SELECTORS["corner_face"], MUTATIONS["remove_edge"], False)
+])
+
 
 GRIDS = {
     "ortho_grid": ortho_grid,
@@ -569,6 +642,7 @@ GRIDS = {
                            + wall_grid + simple_finer_grid + completion_grid + finer_cleanup_grid),
     "001": grid_01,
     "002": grid_02,
+    "003": grid_03
 }
 
 if __name__ == '__main__':
@@ -581,11 +655,11 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("013.json")
+        plan = reader.create_plan_from_file("ARCH011_blueprint.json")
         plan.check()
         plt.show()
         start_time = time.time()
-        new_plan = GRIDS["002"].apply_to(plan, show=True)
+        new_plan = GRIDS["003"].apply_to(plan, show=True)
         end_time = time.time()
         logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)

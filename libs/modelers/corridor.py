@@ -217,6 +217,8 @@ class Corridor:
         if in the process a mutable space has been split by a corridor propagation,
         the split space is set back to its state before corridor propagation
         This may break a corridor into pieces.
+        TODO : this feels really hacky and brittle. Would be much better to prevent
+               the split
         :param initial_mutable_spaces: list of spaces before corridor propagation
         :param final_mutable_spaces: list of faces after corridor propagation
         :return:
@@ -241,7 +243,7 @@ class Corridor:
                 # check if the group is distributed within several spaces (other than corridor)
                 # in which case we proceed to repair
                 l = [sp for sp in self.plan.spaces if not set(grouped_face).isdisjoint(
-                    list(sp.faces)) and not sp.category.name == "circulation"]
+                    set(sp.faces)) and sp.category is not SPACE_CATEGORIES["circulation"]]
                 if len(l) > 1:  # a space has been split by corridor propagation
                     repair_space = l[0]
                     repair_faces = _get_group_face(repair_space.floor.level, repair_space.face)
@@ -255,7 +257,7 @@ class Corridor:
                                e.pair.face and repair_space.has_face(e.pair.face)]:
                                 space_of_face.remove_face(face)
                                 repair_space.add_face(face)
-                                repair_faces.remove(face)
+                                # repair_faces.remove(face)
                                 break
                     self.plan.remove_null_spaces()
                     final_mutable_spaces = [sp for sp in self.plan.spaces if
@@ -367,11 +369,8 @@ class Corridor:
             :param _edge:
             :return:
             """
-            if not self.plan.get_space_of_edge(_edge):
-                return False
-            if not self.plan.get_space_of_edge(_edge).category is SPACE_CATEGORIES['circulation']:
-                return False
-            return True
+            space = self.plan.get_space_of_edge(_edge)
+            return space and space.category is SPACE_CATEGORIES['circulation']
 
         def _line_forward(_edge: 'Edge') -> List['Edge']:
             """
@@ -388,10 +387,10 @@ class Corridor:
 
         for edge in self.corner_data:
             corner_edge = edge if self.corner_data[edge] > 0 else edge.pair
-            if self.plan.get_space_of_edge(corner_edge):
-                floor = self.plan.get_space_of_edge(corner_edge).floor
-            else:
+            corner_edge_space = self.plan.get_space_of_edge(corner_edge)
+            if not corner_edge_space:
                 continue
+            floor = corner_edge_space.floor
 
             line = []
             for line_edge in _line_forward(edge):
@@ -518,7 +517,8 @@ class Corridor:
                 for f in group_face:
                     if f is face:
                         continue
-                    if not self.plan.get_space_of_face(f).category.name == "circulation":
+                    if (self.plan.get_space_of_face(f).category
+                            is not SPACE_CATEGORIES["circulation"]):
                         # not all faces of group_face are in corridors
                         return False
         return True
@@ -539,7 +539,7 @@ class Corridor:
 
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
-            if sp.category is not SPACE_CATEGORIES["circulation"]:
+            if sp and sp.category is not SPACE_CATEGORIES["circulation"]:
                 # ensures a corridor does not totally overlap a space that was present before
                 # corridor propagation
                 # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
@@ -638,7 +638,7 @@ if __name__ == '__main__':
         # corridor = Corridor(layer_width=25, nb_layer=5)
 
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=1)
+                                            solution_number=0)
 
         corridor = Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                             growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"])
@@ -651,5 +651,5 @@ if __name__ == '__main__':
         plan.plot()
 
 
-    plan_name = "029"
+    plan_name = "051"
     main(plan_number=plan_name)

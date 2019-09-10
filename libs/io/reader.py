@@ -270,8 +270,8 @@ def create_plan_from_data(floor_plan_dict: Dict, name: Optional[str] = None) -> 
     :return: a plan object
     """
     if "v2" in floor_plan_dict.keys():
-        lot_slug = floor_plan_dict["meta"]["slug"]
-        project_slug = floor_plan_dict["meta"]["projectSlug"]
+        lot_slug = floor_plan_dict["meta"]["slug"] if "meta" in floor_plan_dict else ""
+        project_slug = floor_plan_dict["meta"]["projectSlug"] if "meta" in floor_plan_dict else ""
         plan_name = "_".join((project_slug, lot_slug)) if name is None else name
         return create_plan_from_v2_data(floor_plan_dict["v2"], plan_name)
     elif "v1" in floor_plan_dict.keys():

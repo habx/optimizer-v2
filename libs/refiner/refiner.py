@@ -55,6 +55,25 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 random.seed(0)
 
 
+def merge_circulation(ind: 'Individual') -> None:
+    """
+    Checks the number of circulation in an individual and merges them to limit their numbers
+    :param ind:
+    :return:
+    """
+    circulations = list(ind.get_spaces("circulation"))
+    while len(circulations) > 2:
+        adjacency_ratios = [(c.adjacency_to(other_c) / other_c.perimeter, c, other_c)
+                            for c in circulations
+                            for other_c in circulations
+                            if c is not other_c]
+        _, c, other_c = max(adjacency_ratios, key=lambda t: t[0])
+        c.merge(other_c)
+        circulations.remove(other_c)
+
+    return
+
+
 def merge_adjacent_circulation(ind: 'Individual') -> None:
     """
     Merges two adjacent corridors
@@ -83,7 +102,7 @@ def merge_circulation_living(ind: 'Individual') -> None:
     their adjacency length is superior to a maximum length
     :return:
     """
-    max_length = 150.
+    # max_length = 150.
     adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
@@ -93,7 +112,7 @@ def merge_circulation_living(ind: 'Individual') -> None:
         merged = False
         circulation_perimeter = circulation.perimeter * adjacency_ratio
         for living in livings:
-            if circulation.adjacency_to(living) >= min(max_length, circulation_perimeter):
+            if circulation.adjacency_to(living) >= circulation_perimeter:
                 living.merge(circulation)
                 merged = True
                 break
@@ -108,7 +127,7 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
     superior to a minimum length
     :return:
     """
-    max_length = 150.
+    # max_length = 150.
     adjacency_ratio = 0.30
 
     circulations = list(ind.get_spaces("circulation"))
@@ -118,7 +137,7 @@ def merge_circulation_entrance(ind: 'Individual') -> None:
         circulation_perimeter = circulation.perimeter * adjacency_ratio
         merged = False
         for entrance in entrances:
-            if circulation.adjacency_to(entrance) >= min(max_length, circulation_perimeter):
+            if circulation.adjacency_to(entrance) >= circulation_perimeter:
                 entrance.merge(circulation)
                 merged = True
                 break
@@ -179,6 +198,8 @@ class Refiner:
         hof = params.get("hof", 0)
         _hof = support.HallOfFame(hof, lambda a, b: a.is_similar(b)) if hof > 0 else None
         chunk_size = math.ceil(params["mu"]/processes)
+
+        merge_circulation(solution.spec.plan)
 
         # 1. create plan cache for performance reason
         for floor in solution.spec.plan.floors.values():
@@ -304,14 +325,14 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     :return: a configured toolbox
     """
     scores = [
-        (evaluation.score_corner, -20.0),
+        (evaluation.score_corner, -100.0),
         (evaluation.score_area, -8.0),
-        # (evaluation.score_shape, -1.0),
         (evaluation.score_width_depth_ratio, -500.0),
         (evaluation.score_bounding_box, -1.0),
         (evaluation.score_connectivity, -50000.0),
         (evaluation.score_window_area_ratio, -10.)
     ]
+
     scores_fc, weights = list(zip(*scores))
     # a tuple containing the weights of the fitness
     cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
@@ -320,6 +341,55 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     toolbox.configure("fitness", "CustomFitness", weights)
     toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
     toolbox.configure("individual", "customIndividual", toolbox.fitness)
+    toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
+
+    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
+                                      mutation.Case.SMALL: 0.3,
+                                      mutation.Case.BIG: 0.1}),
+                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
+                                         mutation.Case.SMALL: 0.1,
+                                         mutation.Case.BIG: 0.3}),
+                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.4,
+                                               mutation.Case.SMALL: 0.5,
+                                               mutation.Case.BIG: 0.1}),
+                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.4,
+                                                  mutation.Case.SMALL: 0.1,
+                                                  mutation.Case.BIG: 0.5}))
+
+    toolbox.register("mutate", mutation.composite, mutations)
+    toolbox.register("mate", crossover.best_spaces)
+    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
+                     {"cxpb": cxpb})
+    toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
+    toolbox.register("select", space_nsga.select_nsga)
+    toolbox.register("populate", population.fc_mutate(toolbox.mutate))
+
+    return toolbox
+
+
+def fc_no_connectivity_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
+    """
+    Returns a toolbox for the space nsga algorithm
+    :param solution:
+    :param params: The params of the algorithm
+    :return: a configured toolbox
+    """
+    scores = [
+        (evaluation.score_corner, -100.0),
+        (evaluation.score_area, -8.0),
+        (evaluation.score_width_depth_ratio, -500.0),
+        (evaluation.score_bounding_box, -1.0),
+        (evaluation.score_window_area_ratio, -10.)
+    ]
+
+    scores_fc, weights = list(zip(*scores))
+    # a tuple containing the weights of the fitness
+    cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
+
+    toolbox = core.Toolbox()
+    toolbox.configure("fitness", "CustomFitnessNoConnectivity", weights)
+    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
+    toolbox.configure("individual", "customIndividualNoConnectivity", toolbox.fitness)
     toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
 
     mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
@@ -533,7 +603,8 @@ def naive_ga(toolbox: 'core.Toolbox',
 REFINERS = {
     "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
     "naive": Refiner(fc_nsga_toolbox, naive_ga),
-    "space_nsga": Refiner(fc_space_nsga_toolbox, space_nsga_ga)
+    "space_nsga": Refiner(fc_space_nsga_toolbox, space_nsga_ga),
+    "no_connectivity": Refiner(fc_no_connectivity_nsga_toolbox, space_nsga_ga)
 }
 
 if __name__ == '__main__':
@@ -549,28 +620,34 @@ if __name__ == '__main__':
 
         from libs.modelers.corridor import CORRIDOR_BUILDING_RULES, Corridor
 
-        params = {"ngen": 120, "mu": 120, "cxpb": 0.9, "max_tries": 10, "elite": 0.1,
-                  "processes": 8}
-
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "029"  # 062 006 020 061
+        plan_number = "B2E5L01"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=1)
+                                            solution_number=0)
 
         if solution:
+            params = {"ngen": 100, "mu": 120, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
+                      "processes": 8, "pre_pass": False}
+
             plan = solution.spec.plan
             plan.name = "original_" + plan_number
             plan.plot()
+
+            start = time.time()
+
+            # first pass
+            if params.get("pre_pass", False):
+                REFINERS["no_connectivity"].apply_to(solution, params)
 
             Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                      growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
                      ).apply_to(solution)
 
+            plan = solution.spec.plan
             plan.name = "Corridor_" + plan_number
             plan.plot()
-            # run genetic algorithm
-            start = time.time()
+            # run genetic algorithm second pass
             improved_plan = REFINERS["space_nsga"].apply_to(solution, params).spec.plan
             end = time.time()
 
