@@ -1,4 +1,7 @@
-version: 2
+version: 2.1
+orbs:
+  kubernetes: circleci/kubernetes@0.3.0
+
 jobs:
   # Executing tests (by benefiting from caching)
   tests:
@@ -54,7 +57,7 @@ jobs:
     working_directory: /work
     steps:
       - checkout
-      - run: 
+      - run:
           command: |
             apk update
             apk add ca-certificates curl
@@ -65,26 +68,43 @@ jobs:
   # Publishing the the tasks
   deploy-to-kubernetes-standard-worker:
     docker:
-      - image: quay.io/honestbee/drone-kubernetes
-    working_directory: /work
+    - image: circleci/buildpack-deps:stretch
+      user: root
     steps:
-      - checkout
-      - attach_workspace:
-          at: /work
+      - kubernetes/install:
+          kubectl-version: v1.15.0
       - run:
-          command: .circleci/deploy-to-kubernetes.sh
+          name: Configure kubernetes
+          command: |
+            kubectl config set-credentials default --token=${KUBERNETES_TOKEN_DEV}
+            kubectl config set-cluster default --server=${KUBERNETES_SERVER_DEV} --insecure-skip-tls-verify=true
+            kubectl config set-context default --cluster=default --user=default
+            kubectl config use-context default
+      - kubernetes/update-container-image:
+          container-image-updates: ${CIRCLE_PROJECT_REPONAME}=${AWS_ECR_ACCOUNT_URL}/${CIRCLE_PROJECT_REPONAME}:$(if [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          resource-name: deployment/${CIRCLE_PROJECT_REPONAME}
+          namespace: $(if [ -n "$CUSTOM_DEPLOYMENT_NAMESPACE" ]; then echo $CUSTOM_DEPLOYMENT_NAMESPACE; elif [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          show-kubectl-command: true
+
   deploy-to-kubernetes-low-priority-worker:
     docker:
-      - image: quay.io/honestbee/drone-kubernetes
-    working_directory: /work
+    - image: circleci/buildpack-deps:stretch
+      user: root
     steps:
-      - checkout
-      - attach_workspace:
-          at: /work
+      - kubernetes/install:
+          kubectl-version: v1.15.0
       - run:
+          name: Configure kubernetes
           command: |
-            export PLUGIN_DEPLOYMENT_POSTFIX=-low-priority
-            .circleci/deploy-to-kubernetes.sh
+            kubectl config set-credentials default --token=${KUBERNETES_TOKEN_DEV}
+            kubectl config set-cluster default --server=${KUBERNETES_SERVER_DEV} --insecure-skip-tls-verify=true
+            kubectl config set-context default --cluster=default --user=default
+            kubectl config use-context default
+      - kubernetes/update-container-image:
+          container-image-updates: ${CIRCLE_PROJECT_REPONAME}=${AWS_ECR_ACCOUNT_URL}/${CIRCLE_PROJECT_REPONAME}-low-priority:$(if [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          resource-name: deployment/${CIRCLE_PROJECT_REPONAME}-low-priority
+          namespace: $(if [ -n "$CUSTOM_DEPLOYMENT_NAMESPACE" ]; then echo $CUSTOM_DEPLOYMENT_NAMESPACE; elif [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          show-kubectl-command: true
 
 workflows:
   version: 2
