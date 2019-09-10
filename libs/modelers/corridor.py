@@ -539,7 +539,7 @@ class Corridor:
 
         for layer_edge in layer_edges:
             sp = self.plan.get_space_of_edge(layer_edge)
-            if sp.category is not SPACE_CATEGORIES["circulation"]:
+            if sp and sp.category is not SPACE_CATEGORIES["circulation"]:
                 # ensures a corridor does not totally overlap a space that was present before
                 # corridor propagation
                 # NB : a space sp_0 can be cut by corridor propagation, leading so sp_1 and sp_2
