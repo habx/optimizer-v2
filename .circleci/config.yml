@@ -101,7 +101,7 @@ jobs:
             kubectl config set-context default --cluster=default --user=default
             kubectl config use-context default
       - kubernetes/update-container-image:
-          container-image-updates: worker-optimizer=${AWS_ECR_ACCOUNT_URL}/worker-optimizer-low-priority:$(if [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          container-image-updates: worker-optimizer=${AWS_ECR_ACCOUNT_URL}/worker-optimizer:$(if [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
           resource-name: deployment/worker-optimizer-low-priority
           namespace: $(if [ -z "$CIRCLE_TAG" ]; then echo dev; else echo staging; fi)
           show-kubectl-command: true
