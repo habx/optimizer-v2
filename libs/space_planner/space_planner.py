@@ -186,15 +186,15 @@ class SpacePlanner:
                 labels = db.labels_
 
                 # Number of clusters in labels, ignoring noise if present.
-                logging.debug(set(labels))
+                logging.warning(set(labels))
                 for i in set(labels):
-                    logging.debug("number of elements %d, %d", i, list(labels).count(i))
+                    logging.warning("number of elements %d, %d", i, list(labels).count(i))
 
                 n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
                 n_noise_ = list(labels).count(-1)
 
-                logging.debug('Estimated number of clusters: %d' % n_clusters_)
-                logging.debug('Estimated number of noise points: %d' % n_noise_)
+                logging.warning('Estimated number of clusters: %d' % n_clusters_)
+                logging.warning('Estimated number of noise points: %d' % n_noise_)
                 list_labels = list(set(labels))
                 clustering_solutions = []
                 for i, sol in enumerate(self.manager.solver.solutions):
@@ -286,7 +286,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "ARCH015_blueprint.json"
+        input_file = "ARCH005_blueprint.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
