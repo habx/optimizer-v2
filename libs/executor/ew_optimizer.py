@@ -73,7 +73,7 @@ class Timeout(ExecWrapper):
         for child in children:
             if child.pid in self.safe_processes:
                 continue
-            logging.warning(
+            logging.info(
                 "Killing sub-process",
                 extra={
                     'action': 'ew_timeout.sub_kill',
@@ -81,15 +81,22 @@ class Timeout(ExecWrapper):
                     'pid': child.pid,
                 }
             )
-            child.terminate()
             try:
-                child.wait(5)
-            except psutil.TimeoutExpired:
+                child.terminate()
                 try:
+                    child.wait(5)
+                except psutil.TimeoutExpired:
                     child.kill()
                     child.wait(1)
-                except psutil.NoSuchProcess:
-                    pass
+            except psutil.NoSuchProcess:
+                logging.warning(
+                    "Process already stopped",
+                    extra={
+                        'action': 'ew_timeout.sub_kill_already_stopped',
+                        'component': 'ew_timeout',
+                        'pid': child.pid,
+                    }
+                )
 
     @staticmethod
     def instantiate(td: TaskDefinition):
