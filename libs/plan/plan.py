@@ -143,7 +143,7 @@ class Space(PlanComponent):
     • a ref to its parent plan
     """
 
-    __slots__ = '_edges_id', 'faces_id', '_cached_immutable_components'
+    __slots__ = '_edges_id', 'faces_id', '_cached_immutable_components', 'alpha'
 
     def __init__(self,
                  plan: 'Plan',
@@ -156,6 +156,7 @@ class Space(PlanComponent):
         self.faces_id = {edge.face.id} if edge and edge.face else set()
         self.category = category
         self._cached_immutable_components = []
+        self.alpha = 0.3
 
     def serialize(self) -> Dict:
         """
@@ -1607,6 +1608,7 @@ class Space(PlanComponent):
         if self.edge is None:
             return ax
         color = self.category.color
+        print(self.alpha)
 
         if 'border' in options or not ax:
             x, y = self.as_sp.exterior.xy
@@ -1616,7 +1618,7 @@ class Space(PlanComponent):
             for face in self.faces:
                 if face is None:
                     continue
-                ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'))
+                ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'), alpha=self.alpha)
 
         if 'half-edge' in options:
             for edge in self.edges:

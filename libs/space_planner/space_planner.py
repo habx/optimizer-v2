@@ -196,13 +196,55 @@ class SpacePlanner:
                 logging.warning('Estimated number of clusters: %d' % n_clusters_)
                 logging.warning('Estimated number of noise points: %d' % n_noise_)
                 list_labels = list(set(labels))
+                list_labels_0 = list_labels[0]
                 clustering_solutions = []
+                print("space", len(list(self.spec.plan.mutable_spaces())))
+                print(self.spec.items)
+                print("item", len(self.spec.items))
+                result_matrix = [[0 for j_space in range(len(list(self.spec.plan.mutable_spaces())))]
+                                  for i_item in range(len(self.spec.items))]
+
+                for i, sol in enumerate(self.manager.solver.solutions):
+                    # Publication
+                    if labels[i] == list_labels_0:
+                        for i_item, item in enumerate(self.spec.items):
+                            if item.category.name != "circulation":
+                                for j_space, space in enumerate(self.spec.plan.mutable_spaces()):
+                                    if sol[i_item][j_space] == 1:
+                                        result_matrix[i_item][j_space] += 1/list(labels).count(list_labels_0)
+                print(result_matrix)
+                plan_cluster = self.spec.plan.clone()
+
+                # pièce max attribuée au space
+                # for j_space, space in enumerate(plan_cluster.mutable_spaces()):
+                #     list_item = []
+                #     for i_item in range(len(self.spec.items)):
+                #         list_item.append(result_matrix[i_item][j_space])
+                #     print(list_item)
+                #
+                #     max_result = max(list_item)
+                #     indice = list_item.index(max_result)
+                #     space.category = self.spec.items[indice].category
+                #
+                #     space.alpha = max_result
+                #     print(space.alpha)
+                #     print(space.category.name)
+
+                for j_space, space in enumerate(plan_cluster.mutable_spaces()):
+                    for i_item, item in enumerate(self.spec.items):
+                        if item.category.name == "livingKitchen":
+                            space.alpha = result_matrix[i_item][j_space]
+                            space.category = item.category
+
+                plan_cluster.plot(name='test')
+
                 for i, sol in enumerate(self.manager.solver.solutions):
                     if labels[i] in list_labels:
                         clustering_solutions.append(sol)
                         list_labels.remove(labels[i])
                     if len(list_labels) == 0:
                         break
+
             else:
                 clustering_solutions = self.manager.solver.solutions
 

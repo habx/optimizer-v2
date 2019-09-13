@@ -2707,13 +2707,14 @@ class Face(MeshComponent):
     def plot(self, ax=None,
              options=('fill', 'border'),
              color: Optional[str] = None,
-             save: Optional[bool] = None):
+             save: Optional[bool] = None,
+             alpha: Optional[float] = 0.3):
         """
         Plots the face
         :return:
         """
         x, y = self.as_sp.exterior.xy
-        return plot_polygon(ax, x, y, options, color, save)
+        return plot_polygon(ax, x, y, options, color, save, alpha)
 
 
 class Mesh:

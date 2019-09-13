@@ -49,8 +49,8 @@ MAX_AREA_COEFF = 4 / 3
 MIN_AREA_COEFF = 2 / 3
 INSIDE_ADJACENCY_LENGTH = 20
 ITEM_ADJACENCY_LENGTH = 100
-SEARCH_TIME_LIMIT = 60000  # millisecond 1 min
-SEARCH_SOLUTIONS_LIMIT = 1000
+SEARCH_TIME_LIMIT = 600000  # millisecond 1 min 60000
+SEARCH_SOLUTIONS_LIMIT = 1000 #1000
 
 
 class ConstraintSolver:
@@ -138,8 +138,13 @@ class ConstraintSolver:
         self.solver.NewSearch(decision_builder, time_limit)
 
         connectivity_checker = check_room_connectivity_factory(self.spaces_adjacency_matrix)
-
+        logging.warning("ConstraintSolver: seed spaces_nbr: %d",
+                        self.spaces_nbr)
+        logging.warning("ConstraintSolver: rooms_nbr: %d",
+                        self.items_nbr)
+        logging.warning("ConstraintSolver: domain: %d", self.items_nbr ** self.spaces_nbr)
         # noinspection PyArgumentList
+        no_connected_rooms = 0
         while self.solver.NextSolution():
             sol_positions = []
             for i_item in range(self.items_nbr):  # Rooms
@@ -155,16 +160,19 @@ class ConstraintSolver:
                     logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
                                     len(self.solutions))
                     break
-                if (time.process_time() - t0 - 15) >= 0:
-                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
-                                    len(self.solutions))
-                    break
+                # if (time.process_time() - t0 - 15) >= 0:
+                #     logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                #                     len(self.solutions))
+                #     break
+            else:
+                no_connected_rooms += 1
 
         # noinspection PyArgumentList
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        logging.warning("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        logging.warning("ConstraintSolver: no_connected_rooms: %d", no_connected_rooms)
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
         logging.warning("ConstraintSolver: Process time : %f", time.process_time() - t0)
@@ -410,7 +418,6 @@ class ConstraintsManager:
         Initialize the graph of adjacent seed spaces with weight = centroid distance
         :return:
         """
-
         for i, i_space in enumerate(self.sp.spec.plan.mutable_spaces()):
             for j, j_space in enumerate(self.sp.spec.plan.mutable_spaces()):
                 if i < j:

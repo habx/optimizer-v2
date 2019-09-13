@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Optional, List
 
 from shapely.geometry import LineString
 from typing import Sequence
+import matplotlib as mpl
+import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 import numpy as np
@@ -102,7 +104,8 @@ def plot_polygon(_ax,
                  data2: Sequence[float],
                  options: Sequence[str] = ('vertices', 'border', 'fill'),
                  color: str = 'b',
-                 should_save: Optional[bool] = None):
+                 should_save: Optional[bool] = None,
+                 alpha: Optional[float] = 0.3):
     """
     Simple convenience function to plot a mesh face with matplotlib
     :param _ax:
@@ -119,13 +122,29 @@ def plot_polygon(_ax,
         should_save = True if should_save is None else should_save
 
     if 'fill' in options:
-        _ax.fill(data1, data2, alpha=0.3, color=color)
+        # if alpha != 0.3:
+        #     if alpha == 0:
+        #         color = 'white'
+        #     elif 0 < alpha < 0.2:
+        #         color = 'bisque'
+        #     elif 0.2 < alpha <= 0.4:
+        #         color = 'lightsalmon'
+        #     elif 0.4 <= alpha < 0.6:
+        #         color = 'orange'
+        #     elif 0.6 <= alpha < 0.8:
+        #         color = 'darkorange'
+        #     elif 0.8 <= alpha < 0.99:
+        #         color = 'chocolate'
+        #     elif alpha > 0.99:
+        #         color = 'sienna'
+        #_ax.fill(data1, data2, alpha=max(min(1-alpha, 1),0), color=color)
+        _ax.fill(data1, data2, alpha=max(min(alpha, 1),0), color='brown')
     if 'border' in options:
         ls = ':' if 'dash' in options else 'solid'
         lw = 0.5 if 'dash' in options else 1.0
-        _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
+        _ax.plot(data1, data2, 'k', color='white', ls=ls, lw=lw)
     if 'vertices' in options:
-        _ax.plot(data1, data2, 'ro', color=color)
+        _ax.plot(data1, data2, 'ro', color='white')
 
     plot_save(should_save)
 

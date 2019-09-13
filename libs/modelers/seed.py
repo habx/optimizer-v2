@@ -1101,7 +1101,7 @@ if __name__ == '__main__':
         elif 10 <= plan_index < 100:
             plan_name = '0' + str(plan_index)
 
-        #plan_name = "001"
+        plan_name = "ARCH014_blueprint"
 
         # to not run each time the grid generation
         try:
@@ -1113,7 +1113,7 @@ if __name__ == '__main__':
             writer.save_plan_as_json(plan.serialize(), plan_name + ".json")
 
         # SEEDERS["simple_seeder"].apply_to(plan, show=False)
-        SEEDERS["directional_seeder"].apply_to(plan, show=False)
+        SEEDERS["directional_seeder"].apply_to(plan, show=True)
         plan.plot()
         plan.check()
 
