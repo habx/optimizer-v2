@@ -19,7 +19,7 @@ from copy import deepcopy
 from sklearn.cluster import DBSCAN
 
 SQM = 10000
-
+CLUSTERING_ACTIVATION_SOL_NBR = 10
 
 class SpacePlanner:
     """
@@ -179,7 +179,7 @@ class SpacePlanner:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
                 len(self.manager.solver.solutions)))
 
-            if len(self.manager.solver.solutions) > 1:
+            if len(self.manager.solver.solutions) > CLUSTERING_ACTIVATION_SOL_NBR:
                 matrix, dist_moy = self.clustering_distance_matrix(self.manager.solver.solutions)
                 db = DBSCAN(eps=dist_moy/2, min_samples=5, metric="precomputed", n_jobs=-1).fit(
                     matrix)
@@ -275,7 +275,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index", default=0)
-    # logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -286,19 +286,18 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "ARCH015_blueprint.json"
+        input_file = "Bagneux_studio.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
         print("input_file", input_file, " - area : ", plan.indoor_area/SQM)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
-
         GRIDS['002'].apply_to(plan)
         SEEDERS["directional_seeder"].apply_to(plan)
 
         plan.plot()
-        # print(list(space.components_category_associated() for space in plan.mutable_spaces()))
-        # print(list(space.cached_area() for space in plan.mutable_spaces()))
+        #print(list(space.components_category_associated() for space in plan.mutable_spaces()))
+        #print(list(space.cached_area() for space in plan.mutable_spaces()))
 
         input_file_setup = input_file[:-5] + "_setup0.json"
         spec = reader.create_specification_from_file(input_file_setup)
@@ -326,6 +325,7 @@ if __name__ == '__main__':
         plan_ratio = round(space_planner.spec.plan.indoor_perimeter
                            ** 2 / space_planner.spec.plan.indoor_area)
         logging.debug("PLAN Ratio : %i", plan_ratio)
+        print(space_planner.spec)
         logging.debug("space_planner time : ", time.process_time() - t0)
         logging.debug("number of solutions : ", len(space_planner.solutions_collector.solutions))
         logging.debug("solution_research time: %f", time.process_time() - t0)
