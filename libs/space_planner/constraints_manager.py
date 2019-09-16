@@ -1697,10 +1697,6 @@ T2_MORE_ITEMS_CONSTRAINTS = {
     "entrance": [
         [optional_entrance_constraint, {}],
     ],
-    "livingKitchen": [
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [max_distance_window_duct_constraint, {"max_distance": 700}]
-    ],
     "toilet": [
         [item_adjacency_constraint,
          {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
@@ -1722,6 +1718,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
     ],
     "living": [
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [max_distance_window_duct_constraint, {"max_distance": 700}],
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}],
         [min_perimeter_length, {}],
