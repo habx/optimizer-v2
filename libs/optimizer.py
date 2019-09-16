@@ -163,7 +163,7 @@ class Optimizer:
                             lot_file_name: str = "011.json",
                             setup_file_name: str = "011_setup0.json",
                             params: dict = None,
-                            local_context: dict = None) -> Response:
+                            local_context: 'LocalContext' = None) -> Response:
         """
         Run Optimizer from file names.
         :param lot_file_name: name of lot file, file has to be in resources/blueprints
@@ -419,7 +419,8 @@ if __name__ == '__main__':
                 "max_nb_solutions": 3,
                 "do_door": False,
                 "do_final_scoring": True
-            }
+            },
+            local_context=LocalContext()
         )
         logging.info("Time: %i", int(response.elapsed_times["total"]))
         logging.info("Nb solutions: %i", len(response.solutions))

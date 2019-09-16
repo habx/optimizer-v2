@@ -2,29 +2,42 @@ from typing import (
     TYPE_CHECKING,
     Dict
 )
-from libs.plan.category import LinearCategory
+
 from libs.utils.geometry import (barycenter,
                                  distance_point_border,
                                  is_inside,
                                  move_point,
                                  ANGLE_EPSILON)
 
+from libs.plan.category import LinearCategory, LINEAR_CATEGORIES
+
 if TYPE_CHECKING:
     from libs.plan.plan import Space
     from libs.equipments.furniture import Furniture
 
 
-def fit_along_walls(furniture: 'Furniture', space: 'Space') -> bool:
+def fit_along_walls(furniture: 'Furniture', space: 'Space', **kwargs) -> bool:
     """
     Move furniture to fit in space along walls. Avoid walls with windows, and prefer centers.
     :return: did success
     """
+
+    avoid_windows = kwargs.get("avoid_windows", True)
+    avoid_doors = kwargs.get("avoid_doors", False)
+
+    space_perimeter = space.perimeter  # to compute it only once
     window_edges = [component.edge
                     for component in space.immutable_components()
-                    if isinstance(component.category, LinearCategory)
+                    if avoid_windows
+                    and isinstance(component.category, LinearCategory)
                     and component.category.window_type]
-    space_perimeter = space.perimeter
-
+    space_edges = [e for e in space.edges]
+    doors_positions = [linear.edge.start.coords
+                       for linear in space.plan.linears
+                       if avoid_doors
+                       and linear.category == LINEAR_CATEGORIES["door"]
+                       and (linear.edge in space_edges
+                            or linear.edge.pair in space_edges)]
     # init loop
     aligned_edges = space.aligned_siblings(space.edge)
     initial_edge = aligned_edges[0]
@@ -39,32 +52,25 @@ def fit_along_walls(furniture: 'Furniture', space: 'Space') -> bool:
         length = start_edge.start.distance_to(end_edge.end)
         perimeter_proportion = length / space_perimeter
 
-        # score each line
-        no_window = True
-        for edge in window_edges:
-            if edge in aligned_edges:
-                # at least one window on the line
-                no_window = False
-                break
-        possibilities.append({
-            "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords, 0.5),
-            "ref_vect": start_edge.normal,
-            "score": perimeter_proportion * 100 + no_window * 100
-        })
-        for i in range(1, 5):
+        # bonus/malus
+        bonus = 0
+        if avoid_windows:
+            for edge in window_edges:
+                if edge in aligned_edges:
+                    # at least one window on the line
+                    bonus -= 100
+                    break
+        for i in range(-4, 5):
+            x, y = barycenter(start_edge.start.coords, end_edge.end.coords, 0.5 + (0.1 * i))
+            if avoid_doors:
+                for position in doors_positions:
+                    bonus += ((position[0] - x) ** 2 + (position[1] - y) ** 2) ** 0.5
+            vect = start_edge.normal
             possibilities.append({
-                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
-                                        0.5 - (0.1 * i)),
-                "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - i + no_window * 100
+                "ref_point": (x, y),
+                "ref_vect": vect,
+                "score": perimeter_proportion * 100 - abs(i) + bonus
             })
-            possibilities.append({
-                "ref_point": barycenter(start_edge.start.coords, end_edge.end.coords,
-                                        0.5 + (0.1 * i)),
-                "ref_vect": start_edge.normal,
-                "score": perimeter_proportion * 100 - i + no_window * 100
-            })
-
         # prepare next loop
         aligned_edges = space.aligned_siblings(space.next_edge(end_edge))
         start_edge = aligned_edges[0]
@@ -199,5 +205,6 @@ if __name__ == '__main__':
             stop = time.process_time()
             logging.info(f"Garnisher time : {stop-start}")
             solution.spec.plan.plot(name=name)
+
 
     main()

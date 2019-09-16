@@ -29,12 +29,12 @@ class TestMultiprocessCleaner(unittest.TestCase):
         return len(psutil.Process(os.getpid()).children(recursive=True))
 
     def test_multiprocess_ok(self):
-        nb_process_before = self.get_nb_children()
+        # nb_process_before = self.get_nb_children()
         timeout = Timeout(2)
         timeout.next = Faker(params={'nb_processes': 10, 'process_time': 1})
         out = timeout.run(TaskDefinition())
         self.assertIsNotNone(out)
-        self.assertEqual(self.get_nb_children(), nb_process_before)
+        self.assertEqual(0, self.get_nb_children())
 
     def test_multiprocess_timeout_process_leak(self):
         time.sleep(2)
