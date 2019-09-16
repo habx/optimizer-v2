@@ -558,10 +558,10 @@ class ConstraintsManager:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology <= 2:
-                for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
+            if self.sp.spec.typology <= 1:
+                for constraint in T1_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
+            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 5:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
@@ -635,6 +635,19 @@ def item_attribution_constraint(manager: 'ConstraintsManager',
     ct = (manager.solver.solver.Sum(
         manager.solver.positions[item.id, j_space]
         for j_space in range(manager.sp.spec.plan.count_mutable_spaces())) >= 1)
+    return ct
+
+def item_non_attribution_constraint(manager: 'ConstraintsManager',
+                                item: Item) -> ortools.Constraint:
+    """
+    Item non associated with any space
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = (manager.solver.solver.Sum(
+        manager.solver.positions[item.id, j_space]
+        for j_space in range(manager.sp.spec.plan.count_mutable_spaces())) == 0)
     return ct
 
 
@@ -1560,12 +1573,11 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         [distance_constraint, {}],
-        [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [area_constraint, {"min_max": "max"}]
+        [area_constraint, {"min_max": "max"}],
     ],
     "toilet": [
         [item_attribution_constraint, {}],
@@ -1673,13 +1685,19 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ]
 }
 
-T1_T2_ITEMS_CONSTRAINTS = {
+T1_ITEMS_CONSTRAINTS = {
     "entrance": [
-        [optional_entrance_constraint, {}],
+        [item_non_attribution_constraint, {}],
     ]
 }
 
 T2_MORE_ITEMS_CONSTRAINTS = {
+    'all': [
+        [shape_constraint, {}],
+    ],
+    "entrance": [
+        [optional_entrance_constraint, {}],
+    ],
     "livingKitchen": [
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
         [max_distance_window_duct_constraint, {"max_distance": 700}]
