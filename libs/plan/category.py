@@ -11,7 +11,7 @@ CATEGORIES_COLORS = {
     'window': 'white',
     'doorWindow': 'white',
     'door': 'white',
-    'frontDoor': 'white',
+    'frontDoor': 'lightgray',
     'empty': 'b',
     'space': 'b',
     'seed': '#6a006a',
@@ -99,7 +99,7 @@ class LinearCategory(Category):
                  seedable: bool = False,
                  aperture: bool = False,
                  window_type: bool = False,
-                 width: float = 5.0):
+                 width: float = 2.5):
         super().__init__(name, mutable, seedable)
         self.aperture = aperture
         self.width = width
