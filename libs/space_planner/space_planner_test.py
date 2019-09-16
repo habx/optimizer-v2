@@ -38,7 +38,7 @@ def test_space_planner(input_file, input_setup):
         assert len(space_planner.solutions_collector.solutions) == 3
         assert len(best_solutions) == 3
     elif input_file == "012.json":
-        assert len(space_planner.solutions_collector.solutions) == 3
+        assert len(space_planner.solutions_collector.solutions) == 4
         assert len(best_solutions) == 2
 
 
