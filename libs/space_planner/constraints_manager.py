@@ -562,6 +562,8 @@ class ConstraintsManager:
                 for constraint in T1_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 2 or self.sp.spec.number_of_items > 5:
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
@@ -935,7 +937,6 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     # TODO : find best param
     # TODO : unit tests
     """
-
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
