@@ -561,12 +561,10 @@ class ConstraintsManager:
             if self.sp.spec.typology <= 1:
                 for constraint in T1_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology >= 2 and self.sp.spec.number_of_items > 5:
+            if self.sp.spec.typology >= 2 or self.sp.spec.number_of_items > 5:
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 4:
