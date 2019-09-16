@@ -1718,13 +1718,13 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [item_adjacency_constraint, {"item_categories": ["toilet"], "adj": False}],
     ],
     "living": [
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [max_distance_window_duct_constraint, {"max_distance": 700}],
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}],
         [min_perimeter_length, {}],
     ],
     "livingKitchen": [
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [max_distance_window_duct_constraint, {"max_distance": 700}],
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}],
         [min_perimeter_length, {}],
