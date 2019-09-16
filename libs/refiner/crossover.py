@@ -11,6 +11,7 @@ import random
 from typing import TYPE_CHECKING, Optional, Tuple
 
 from libs.utils.custom_exceptions import SpaceShapeError
+from libs.utils.geometry import cross_product
 
 MIN_ADJACENCY_EDGE_LENGTH = None
 
@@ -112,7 +113,7 @@ def copy_space(from_ind: 'Individual', to_ind: 'Individual', space_id: int) -> '
     # set the new reference edges of each modified spaces
     # this might raise a SpaceShapeError Exception if we've split a space in half
     for space in modified_spaces:
-        space.set_edges()
+        space.set_edges_check()
 
     modified_ind.modified_spaces |= {s.id for s in modified_spaces}
 

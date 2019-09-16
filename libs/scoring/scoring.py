@@ -2,6 +2,7 @@ import logging
 import math
 import os
 from typing import Dict
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import shapely as sp
@@ -9,12 +10,11 @@ from shapely.geometry import Point
 
 from libs.io.plot import plot_save
 from libs.plan.category import SPACE_CATEGORIES
-from libs.plan.plan import Plan, Face
+from libs.plan.plan import Plan, Space, Face
 from libs.space_planner.circulation import Circulator, CostRules
 from libs.space_planner.constraints_manager import WINDOW_ROOMS
 from libs.specification.size import Size
 from libs.specification.specification import Specification, Item
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from libs.space_planner.solution import Solution
@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 SQM = 10000
 CORRIDOR_SIZE = 120
 
-def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str, with_circulation: bool) -> 'Specification':
+
+def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
+                            with_circulation: bool) -> 'Specification':
     """
     change reader specification :
     adding entrance
@@ -64,26 +66,25 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
                 if "living" in kitchen_item.opens_on:
                     size_min = Size(area=(kitchen_item.min_size.area + item.min_size.area))
                     size_max = Size(area=(kitchen_item.max_size.area + item.max_size.area))
-                    #opens_on = item.opens_on.remove("kitchen")
+                    # opens_on = item.opens_on.remove("kitchen")
                     new_item = Item(SPACE_CATEGORIES["livingKitchen"], item.variant, size_min,
                                     size_max, item.opens_on, item.linked_to)
                     new_spec.add_item(new_item)
                     living_kitchen = True
 
-    category_name_list = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "kitchen",
-                          "living", "livingKitchen", "dining", "bedroom", "study", "misc",
-                          "circulation"]
+    category_name_list = ["entrance", "kitchen", "toilet", "bathroom", "laundry", "livingKitchen",
+                          "living", "dining", "bedroom", "study", "wardrobe", "misc", "circulation"]
     new_spec.init_id(category_name_list)
 
     # area
     mutable_spaces_area = sum([space.cached_area() for space in new_spec.plan.mutable_spaces()])
     spec_area = sum(item.required_area for item in new_spec.items)
-    if with_circulation == False or spec_area > mutable_spaces_area:
+    if not with_circulation or spec_area > mutable_spaces_area:
         invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe",
                                 "circulation", "misc", "bedroom", "study"]
     else:
-        invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe", "circulation",
-                                "misc"]
+        invariant_categories = ["entrance", "toilet", "bathroom", "laundry", "wardrobe",
+                                "circulation", "misc"]
 
     invariant_area = sum(item.required_area for item in new_spec.items
                          if item.category.name in invariant_categories)
@@ -103,9 +104,12 @@ def initial_spec_adaptation(spec: 'Specification', plan: 'Plan', spec_name: str,
 
     return new_spec
 
+
 """
 Scoring functions
 """
+
+
 def corner_scoring(solution: 'Solution') -> float:
     """
     :param solution
@@ -129,12 +133,13 @@ def corner_scoring(solution: 'Solution') -> float:
     corner_score = 0
     has_holes = 0
     for space, item in solution.space_item.items():
-        space_score = 100 - max(space.number_of_corners() -
-                                nbr_corner.get(item.category.name, nbr_corner["default"]), 0) * 25
+        space_score = 100 - (space.number_of_corners() -
+                                nbr_corner.get(item.category.name, nbr_corner["default"])) * 25
         corner_score += space_score
         if space.has_holes:
             has_holes += 1
-    corner_score = max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0)
+    corner_score = min(max(round(corner_score / len(solution.space_item), 2) - has_holes * 25, 0),
+                       100)
     logging.debug("Corner score : %f", corner_score)
     return corner_score
 
@@ -163,8 +168,8 @@ def bounding_box_scoring(solution: 'Solution') -> float:
             vector = space.directions[0]
             box = space.bounding_box(vector)
             difference = (box[0] * box[1] - area)
-            space_score = 100.0 - (difference * 100 / area) * \
-                          ratios.get(space.category.name, ratios["default"])
+            space_score = (100.0 - (difference * 100 / area) *
+                           ratios.get(space.category.name, ratios["default"]))
             score[space] = space_score
             bounding_box_score += space_score
 
@@ -200,8 +205,9 @@ def area_scoring(solution: 'Solution') -> float:
             # overflow
             else:
                 if item.required_area != 0:
-                    item_area_score = max(100 - (abs(item.required_area - space.cached_area()) * 200 /
-                                                 item.required_area), 0)
+                    item_area_score = max(
+                        100 - (abs(item.required_area - space.cached_area()) * 200 /
+                               item.required_area), 0)
                 else:
                     item_area_score = 0
                 if space.category.name == "toilet":
@@ -406,9 +412,11 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         space_minimal_dimensions_score = 100
         vector = space.directions[0]
         box = space.bounding_box(vector)
-        if ((max_length.get(item.category.name, max_length["default"]) and max(box) < max_length.get(
-                item.category.name, max_length["default"])) or
-                (min_length.get(item.category.name, min_length["default"]) and min(box) < min_length.get(
+        if ((max_length.get(item.category.name, max_length["default"]) and max(
+                box) < max_length.get(
+            item.category.name, max_length["default"])) or
+                (min_length.get(item.category.name, min_length["default"]) and min(
+                    box) < min_length.get(
                     item.category.name, min_length["default"]))):
             space_minimal_dimensions_score = 0
         if space_minimal_dimensions_score == 0:
@@ -463,7 +471,11 @@ def luminosity_scoring(solution: 'Solution') -> float:
                                                    comp.category.name in ["window", "doorWindow"]]:
             for face in space.faces:
                 if face_luminosity[face] == 0:
-                    area_sum += 5 * face.area
+                    if space.category.name in ["living", "livingKitchen", "dining", "bedroom",
+                                               "study", "kitchen"]:
+                        area_sum += 5 * face.area
+                    else:
+                        area_sum += face.area
                 else:
                     luminosity_score += face.area * face_luminosity[face]
                     area_sum += face.area
@@ -545,7 +557,8 @@ def night_and_day_scoring(solution: 'Solution') -> float:
             groups_score -= 50
         else:
             groups_score -= 25
-    if solution.spec.plan.floor_count < 2 and night_polygon and night_polygon.geom_type != "Polygon":
+    if (solution.spec.plan.floor_count < 2 and night_polygon
+            and night_polygon.geom_type != "Polygon"):
         if [item for item in solution.space_item.values() if item.category.name == "entrance"]:
             night_polygon_with_entrance = night_polygon.union(
                 solution.get_rooms("entrance")[0].as_sp.buffer(CORRIDOR_SIZE))
@@ -737,12 +750,13 @@ def space_planning_scoring(solution: 'Solution') -> float:
                       + position_scoring(solution)
                       + corner_scoring(solution)
                       + night_and_day_scoring(solution)) / 4
-    solution_score = (solution_score + entrance_bonus(solution))
+    solution_score = (solution_score + entrance_bonus(solution) - circulation_penalty(solution))
     logging.debug("Solution %i: Final score : %f", solution.id, solution_score)
 
     return solution_score
 
-def final_scoring(solution: 'Solution', do_plot:bool = False) -> [float]:
+
+def final_scoring(solution: 'Solution', do_plot: bool = False) -> [float]:
     """
     Final scoring
     compilation of different scores
@@ -760,15 +774,19 @@ def final_scoring(solution: 'Solution', do_plot:bool = False) -> [float]:
     score_components["minimal_dimensions"] = minimal_dimensions_scoring(solution)
     plan_score = sum(score_components.values()) / len(score_components)
 
+    print(solution.id, score_components, plan_score)
+
     if do_plot:
         radar_chart(plan_score, score_components, solution.id,
                     solution.spec.plan.name + "_FinalScore")
 
     return plan_score, score_components
 
+
 """
 Reference plans scoring
 """
+
 
 def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item']:
     """
@@ -785,7 +803,9 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
             if item.category.name == space.category.name:
                 corresponding_items.append(item)
         # Note : corridors have no corresponding spec item
-        best_item = min(corresponding_items, key=lambda i: math.fabs(i.required_area - space.cached_area()), default=None)
+        best_item = min(corresponding_items,
+                        key=lambda i: math.fabs(i.required_area - space.cached_area()),
+                        default=None)
         if space.category is not SPACE_CATEGORIES["circulation"]:
             assert best_item, "Score: Each space should have a corresponding item in the spec"
         output[space] = best_item
@@ -797,6 +817,7 @@ def create_item_dict(spec: 'Specification', plan: 'Plan') -> Dict['Space', 'Item
 """
 Scoring plot tools
 """
+
 
 def luminosity_plot(solution: 'Solution', face_luminosity: Dict['Face', int]):
     """
@@ -814,7 +835,7 @@ def luminosity_plot(solution: 'Solution', face_luminosity: Dict['Face', int]):
         _ax = ax[level] if number_of_floors > 1 else ax
         if face_luminosity[face]:
             _ax.plot([face.as_sp.centroid.xy[0][0]], [face.as_sp.centroid.xy[1][0]], marker='*',
-                     markersize=3, color="yellow")
+                     markersize=3, color="orange")
 
     plot_save(True, False)
 
@@ -878,7 +899,7 @@ if __name__ == '__main__':
     from libs.modelers.grid import GRIDS
     from libs.modelers.seed import SEEDERS
     from libs.space_planner.space_planner import SPACE_PLANNERS
-    from libs.space_planner.solution import reference_plan_solution
+
 
     def scoring_test():
         """
@@ -907,11 +928,11 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        input_blueprint_list = ["grenoble-cambridge_222_blueprint.json"]
+        # input_blueprint_list = ["grenoble-cambridge_222_blueprint.json"]
 
         for input_file in input_blueprint_list:
             input_file_setup = input_file[:-14] + "setup.json"
-            #input_file_setup = input_file[:-5] + "_setup0.json"
+            # input_file_setup = input_file[:-5] + "_setup0.json"
             plan = reader.create_plan_from_file(input_file)
 
             GRIDS['002'].apply_to(plan)
@@ -923,23 +944,13 @@ if __name__ == '__main__':
             space_planner = SPACE_PLANNERS["standard_space_planner"]
             best_solutions = space_planner.apply_to(input_spec, 3)
 
-            # architect plan
-            architect_input_plan = input_file[:-14] + "plan.json"
-            architect_plan = reader.create_plan_from_file(architect_input_plan)
-            architect_plan.remove_null_spaces()
-            architect_plan.plot()
-            ref_plan = reader.create_plan_from_data(architect_input_plan)
-            ref_solution = reference_plan_solution(ref_plan, input_spec)
-            ref_final_score, ref_final_score_components = final_scoring(ref_solution)
-
             for sol in best_solutions:
                 final_score, final_score_components = final_scoring(sol)
                 sol.final_score = final_score
                 radar_chart(final_score, final_score_components, sol.id,
                             sol.spec.plan.name + "_FinalScore")
                 if space_planner.solutions_collector.architect_plans:
-                    dist_to_architect_plan = sol.distance(
-                        space_planner.solutions_collector.architect_plans[0])
+                    sol.distance(space_planner.solutions_collector.architect_plans[0])
             plt.close()
 
 

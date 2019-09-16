@@ -2,11 +2,10 @@
 import argparse
 import logging
 import os
+import copy
 
 import uuid
 import requests
-
-import sentry_sdk
 
 # OPT-119 & OPT-120: Dirty path handling
 import libpath
@@ -16,10 +15,10 @@ from libs.worker.config import Config
 from libs.worker.core import TaskDefinition, TaskProcessor
 from libs.worker.mq import Exchanger
 
-import config
+import config as cf
 import habx_logger
 
-logging.root = habx_logger.HabxLogger(config.from_file())
+logging.root = habx_logger.HabxLogger(cf.from_file())
 logging.getLogger().setLevel(logging.INFO)
 
 # OPT-120: Only to make sure libpath won't be removed
@@ -40,6 +39,15 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
         'x-habx-token': os.getenv('HABX_TOKEN', 'ymSC4QkHwxEnAeyBu9UqWzbs')
     })
 
+    if not response.ok:
+        log_context = copy.deepcopy(context)
+        log_context['httpStatusCode'] = response.status_code
+        log_context['httpContent'] = response.content.decode("utf-8")
+        logging.warning(
+            'Invalid response: %d / %s', response.status_code, response.content.decode("utf-8"),
+            extra=log_context,
+        )
+
     job_input = response.json().get('job')
 
     td = TaskDefinition.from_json(job_input)
@@ -49,10 +57,12 @@ def fetch_task_definition(context: dict) -> TaskDefinition:
 def process_task(config: Config, td: TaskDefinition):
     processor = TaskProcessor(config)
     processor.prepare()
-    result = processor.process_task(td)
 
     exchanger = Exchanger(config)
     exchanger.prepare(consumer=False, producer=True)
+
+    td.local_context.prepare_mq(exchanger, td)
+    result = processor.process_task(td)
     exchanger.send_result(result)
 
 

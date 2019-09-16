@@ -6,7 +6,6 @@ import logging.handlers
 import os
 import socket
 import uuid
-import sentry_sdk
 
 # OPT-119 & OPT-120: Dirty path handling
 import libpath
@@ -20,6 +19,8 @@ from libs.worker.mq import Exchanger
 import config
 import habx_logger
 
+local_dev_hack()
+
 logging.root = habx_logger.HabxLogger(config.from_file())
 logging.getLogger().setLevel(logging.INFO)
 
@@ -27,14 +28,14 @@ logging.getLogger().setLevel(logging.INFO)
 libpath.add_local_libs()
 
 
-def _process_messages(args: argparse.Namespace, config: Config, exchanger: Exchanger):
+def _process_messages(args: argparse.Namespace, worker_conf: Config, exchanger: Exchanger):
     """Make it run. Once called it never stops."""
 
     logging.info(f'Optimizer V2 Worker ({Executor.VERSION})')
     # We need to both consume and produce
     exchanger.prepare(consumer=True, producer=True)
 
-    processor = TaskProcessor(config, args.target)
+    processor = TaskProcessor(worker_conf, args.target)
     processor.prepare()
 
     while True:
@@ -51,6 +52,7 @@ def _process_messages(args: argparse.Namespace, config: Config, exchanger: Excha
         if not td.task_id:  # Drop it at some point
             td.task_id = msg.content.get('requestId')
 
+        td.local_context.prepare_mq(exchanger, td)
         result = processor.process_task(td)
 
         exchanger.send_result(result)
@@ -103,14 +105,13 @@ def _send_message(args: argparse.Namespace, exchanger: Exchanger):
 
 def _cli():
     """CLI orchestrating function"""
-    local_dev_hack()
 
     # We're using AWS_REGION at habx and boto3 expects AWS_DEFAULT_REGION
     if 'AWS_DEFAULT_REGION' not in os.environ and 'AWS_REGION' in os.environ:
         os.environ['AWS_DEFAULT_REGION'] = os.environ['AWS_REGION']
 
-    config = Config()
-    exchanger = Exchanger(config)
+    worker_conf = Config()
+    exchanger = Exchanger(worker_conf)
 
     example_text = """
 Example usage:
@@ -148,7 +149,7 @@ bin/worker.py -b resources/blueprints/001.json -s resources/specifications/001_s
     if args.blueprint or args.setup:  # if only one is passed, we will crash and this is perfect
         _send_message(args, exchanger)
     else:
-        _process_messages(args, config, exchanger)
+        _process_messages(args, worker_conf, exchanger)
 
 
 _cli()

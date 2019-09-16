@@ -15,10 +15,10 @@ from typing import (
     Tuple,
     Sequence,
     Generator,
-    Union,
     Dict,
     Any,
-    Iterable
+    Iterable,
+    Union
 )
 import logging
 import uuid
@@ -266,7 +266,7 @@ class Space(PlanComponent):
         :return:
         """
         if linear.floor == self.floor:
-            return linear.edge in self.edges
+            return linear.edge.face in self.faces
         else:
             return False
 
@@ -388,7 +388,7 @@ class Space(PlanComponent):
         next_edge = edge.next
         if __debug__:
             seen = []
-        while not self.is_boundary(next_edge):
+        while next_edge.pair.face is not None and next_edge.pair.face.id in self.faces_id:
             if __debug__ and next_edge in seen:
                 raise Exception("The mesh is badly formed for space: %s", self)
             if __debug__:
@@ -407,6 +407,7 @@ class Space(PlanComponent):
         assert self.is_boundary(edge), "The edge has to be a boundary edge: {}".format(edge)
         previous_edge = edge.previous
         if __debug__:
+            # noinspection PyUnusedLocal
             seen = []
         while not self.is_boundary(previous_edge):
             if __debug__:
@@ -561,6 +562,7 @@ class Space(PlanComponent):
         """
         if self.edge:
             if __debug__:
+                # noinspection PyUnusedLocal
                 seen = []
             for reference_edge in self.reference_edges:
                 for edge in self.siblings(reference_edge):
@@ -764,7 +766,8 @@ class Space(PlanComponent):
         if self.edge is None:
             return 0.0, 0.0
 
-        vector = vector or self.edge.unit_vector
+        vector_x = vector or self.edge.unit_vector
+        vector_y = normal_vector(vector_x)
         total_x = 0
         max_x = 0
         min_x = 0
@@ -773,10 +776,10 @@ class Space(PlanComponent):
         min_y = 0
 
         for space_edge in self.exterior_edges:
-            total_x += dot_product(space_edge.vector, vector)
+            total_x += dot_product(space_edge.vector, vector_x)
             max_x = max(total_x, max_x)
             min_x = min(total_x, min_x)
-            total_y += dot_product(space_edge.vector, normal_vector(vector))
+            total_y += dot_product(space_edge.vector, vector_y)
             max_y = max(total_y, max_y)
             min_y = min(total_y, min_y)
 
@@ -791,7 +794,7 @@ class Space(PlanComponent):
         if not self.edge:
             return None
 
-        return minimum_rotated_rectangle(self.boundary_polygon())
+        return minimum_rotated_rectangle(tuple(self.boundary_polygon()))
 
     def distance_to(self, other: 'Space', kind: str = "max") -> float:
         """
@@ -1214,7 +1217,7 @@ class Space(PlanComponent):
             self._edges_id = []
             return
 
-        seen = []
+        seen = set()
         self._edges_id = []
         found_exterior_edge = False
         for face in self.faces:
@@ -1222,32 +1225,58 @@ class Space(PlanComponent):
                 if edge in seen:
                     continue
                 if not self.is_boundary(edge):
-                    seen.append(edge)
-                    seen.append(edge.pair)
+                    seen.add(edge)
+                    seen.add(edge.pair)
                     continue
                 # in order to determine which edge is the exterior one we have to
                 # calculate its rotation order (ccw or ccw).
                 # we use the curve orientation algorithm
+                if not found_exterior_edge:
+                    siblings = list(self.siblings(edge))
+                    ref_edge = min(siblings, key=lambda e: e.start.coords)
+                    previous_edge = self.previous_edge(ref_edge)
+                    det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
+                    if det < 0:  # counter clockwise
+                        if found_exterior_edge:
+                            raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                                  self.plan)
+                        self._edges_id = [edge.id] + self._edges_id
+                        found_exterior_edge = True
+                    else:
+                        self.add_edge(edge)
+                    # remove all other linked edges on the boundary
+                    for sibling in siblings:
+                        seen.add(sibling)
+                        seen.add(sibling.pair)
+                else:
+                    # if the exterior edge has already been found the other boundary edges
+                    # can only be `hole` edges
+                    self.add_edge(edge)
+                    # remove all other linked edges on the boundary
+                    for sibling in self.siblings(edge):
+                        seen.add(sibling)
+                        seen.add(sibling.pair)
+
+        if not len(self._edges_id) or not found_exterior_edge:
+            raise SpaceShapeError("The space is badly shaped: {}".format(self))
+
+    def set_edges_check(self) -> None:
+        """
+        Raise a ShapeError if the space is split.
+        Note : this method raise a ShapeSpaceError if the space is not connected but is slower than
+        the set_edges method that assume that the space is connected.
+        :return:
+        """
+        self.set_edges()
+        if self.has_holes:
+            for edge in list(self.reference_edges)[1:]:
                 siblings = list(self.siblings(edge))
                 ref_edge = min(siblings, key=lambda e: e.start.coords)
                 previous_edge = self.previous_edge(ref_edge)
                 det = cross_product(previous_edge.opposite_vector, ref_edge.vector)
                 if det < 0:  # counter clockwise
-                    if found_exterior_edge:
-                        # self.plan.plot()
-                        raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
-                                              self.plan)
-                    self._edges_id = [edge.id] + self._edges_id
-                    found_exterior_edge = True
-                else:  # clockwise
-                    self.add_edge(edge)
-
-                for sibling in siblings:
-                    seen.append(sibling)
-                    seen.append(sibling.pair)
-
-        if not len(self._edges_id) or not found_exterior_edge:
-            raise SpaceShapeError("The space is badly shaped: {}".format(self))
+                    raise SpaceShapeError("Space: The space has been split ! %s | %s", self,
+                                          self.plan)
 
     def change_reference_edges(self, forbidden_edges: Sequence['Edge'],
                                boundary_edge: Optional['Edge'] = None):
@@ -1625,20 +1654,34 @@ class Space(PlanComponent):
 
         return is_valid
 
-    def immutable_components(self) -> ['PlanComponent']:
+    def immutable_components(self,
+                             *categories: [Union['LinearCategory', 'SpaceCategory']]
+                             ) -> ['PlanComponent']:
         """
         Return the components associated to the space
+        :param: categories: optional list
         :return: [PlanComponent]
         """
         immutable_associated = []
 
-        for linear in self.plan.linears:
-            if self.has_linear(linear) and not linear.category.mutable:
-                immutable_associated.append(linear)
+        if categories:
+            for linear in self.plan.linears:
+                if (linear.category in categories and not linear.category.mutable
+                        and self.has_linear(linear)):
+                    immutable_associated.append(linear)
 
-        for space in self.plan.spaces:
-            if not space.category.mutable and space.adjacent_to(self):
-                immutable_associated.append(space)
+            for space in self.plan.spaces:
+                if (space.category in categories and not space.category.mutable
+                        and space.adjacent_to(self)):
+                    immutable_associated.append(space)
+        else:
+            for linear in self.plan.linears:
+                if self.has_linear(linear) and not linear.category.mutable:
+                    immutable_associated.append(linear)
+
+            for space in self.plan.spaces:
+                if not space.category.mutable and space.adjacent_to(self):
+                    immutable_associated.append(space)
 
         return immutable_associated
 
@@ -2425,14 +2468,14 @@ class Plan:
             floor = self.floors[floor_id]
             self.__class__.SpaceType(self, floor, _id=int(space["id"])).deserialize(space)
 
-        # add linears
-        for linear in data["linears"]:
+        # add linears (note a plan could have no linears)
+        for linear in data.get("linears", []):
             floor_id = int(linear["floor"])
             floor = self.floors[floor_id]
             self.__class__.LinearType(self, floor, _id=linear["id"]).deserialize(linear)
 
         # add furnitures
-        for space_id, furnitures in data["furnitures"].items():
+        for space_id, furnitures in data.get("furnitures", {}).items():
             space = self.get_space_from_id(int(space_id))
             self.furnitures[space] = [self.__class__.FurnitureType().deserialize(f)
                                       for f in furnitures]

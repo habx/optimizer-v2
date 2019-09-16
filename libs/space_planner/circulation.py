@@ -88,7 +88,6 @@ class Circulator:
         self.spec = spec
 
         self.paths: PathsDict = {'edge': {level: [] for level in self.plan.levels}}
-        self.directions: DirectionsDict = {level: {} for level in self.plan.levels}
 
         self.paths_info: List[PathInfo] = []
 
@@ -160,6 +159,7 @@ class Circulator:
                     del (self.paths_info[tuple_i[0]])
                     break
 
+
     def _set_penetrations(self):
         """
         defines whether a a circulation path shall penetrate, or not, with the spaces it connects
@@ -192,7 +192,7 @@ class Circulator:
                 if next_edge_pair and not _space.has_edge(next_edge_pair):
                     penetration_edge = (connecting_edge.aligned_edge
                                         or connecting_edge.continuous_edge)
-                    if start:
+                    if start and penetration_edge:
                         penetration_edge = penetration_edge.pair
                     return penetration_edge
             return None
@@ -635,12 +635,10 @@ class Circulator:
         #####
 
         path_lines = _get_lines_of_path([t[0] for t in path_info.edge_path])
-        level = path_info.departure_space[0].floor.level
         edge_path = []
         for line in path_lines:
             growing_direction = _get_growing_direction(line, space_items_dict, score_function)
             for edge in line:
-                self.directions[level][edge] = growing_direction
                 edge_path.append((edge, growing_direction))
                 # update space area when overlapped by a corridor
                 support_edge = edge if growing_direction > 0 else edge.pair

@@ -2,9 +2,10 @@ from typing import List
 
 import libs.optimizer as opt
 from libs.executor.defs import ExecWrapper, TaskDefinition
-from libs.executor.ew_optimizer import OptimizerRun, Crasher, Timeout
-from libs.executor.ew_instruments import CProfile, PProfile, PyInstrument, TraceMalloc
+from libs.executor.ew_optimizer import OptimizerRun, Timeout
+from libs.executor.ew_instruments import CProfile, PProfile, PyInstrument, TraceMalloc, MultiRuns
 from libs.executor.ew_logs import LoggingToFile, LoggingLevel
+from libs.executor.ew_tests import Faker, Crasher
 from libs.executor.ew_upload import S3Upload, SaveFilesOnError
 
 """
@@ -18,10 +19,16 @@ class Executor:
 
     EXEC_BUILDERS: List[ExecWrapper] = [
         # Core execution:
-        OptimizerRun, Crasher, Timeout,
+        OptimizerRun,
+
+        # Test:
+        Crasher, Faker,
+
+        # Fail-safe:
+        Timeout,
 
         # Instrumentation:
-        CProfile, PProfile, PyInstrument, TraceMalloc,
+        CProfile, PProfile, PyInstrument, TraceMalloc, MultiRuns,
 
         # Logging management:
         LoggingToFile, LoggingLevel,

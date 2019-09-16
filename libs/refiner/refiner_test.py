@@ -13,7 +13,7 @@ import tools.cache
 
 INPUT_FILES = reader_test.BLUEPRINT_INPUT_FILES
 
-PARAMS = {"ngen": 50, "mu": 20, "cxpb": 0.2}
+PARAMS = {"ngen": 50, "mu": 20, "cxpb": 0.2, "processes": 4}
 
 
 @pytest.mark.parametrize("input_file", INPUT_FILES)
@@ -26,16 +26,17 @@ def refiner_simple(input_file):
     logging.getLogger().setLevel(logging.INFO)
     plan_number = input_file[:len(input_file) - 5]
 
-    spec, plan = tools.cache.get_plan(plan_number, grid="001", seeder="directional_seeder")
+    sol = tools.cache.get_solution(plan_number, grid="001", seeder="directional_seeder")
 
-    if plan:
+    if sol:
+        plan = sol.spec.plan
         plan.name = "original" + "_" + plan_number
         plan.remove_null_spaces()
         plan.plot()
 
         # run genetic algorithm
         start = time.time()
-        improved_plan = REFINERS["nsga"].apply_to(plan, spec, PARAMS, processes=4)
+        improved_plan = REFINERS["nsga"].apply_to(sol, PARAMS).spec.plan
         end = time.time()
         improved_plan.name = "Refined_" + plan_number
         improved_plan.plot()

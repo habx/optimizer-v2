@@ -7,20 +7,49 @@ An evaluation function should take an individual
 """
 import math
 import logging
-from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, List, Callable, Dict, Optional, Tuple, Any
 
 from libs.utils.geometry import ccw_angle, pseudo_equal, min_section
-from libs.plan.category import SPACE_CATEGORIES
+from libs.plan.category import SPACE_CATEGORIES, LINEAR_CATEGORIES
 
 if TYPE_CHECKING:
     from libs.specification.specification import Specification, Item
     from libs.refiner.core import Individual
-    from libs.plan.plan import Space, Floor
+    from libs.plan.plan import Space, Floor, Linear
     from libs.space_planner.solution import Solution
 
 # a score function returns a specific score for each space of the plan. It takes
 # as arguments a specification object and an individual
 scoreFunc = Callable[['Specification', 'Individual'], Dict[int, float]]
+
+
+class CacheItem:
+    """ an item in the cache"""
+    def __init__(self, name: str):
+        self.name = name
+        self._contents: Dict[int, Any] = {}
+
+    def get(self, space_id: int, func: Callable) -> Any:
+        """
+        Get an element from the cache or compute it and store it
+        :param space_id:
+        :param func:
+        :return:
+        """
+        if space_id in self._contents:
+            return self._contents[space_id]
+        content = func()
+        self._contents[space_id] = content
+        return content
+
+
+class Cache:
+    """
+    A small class to store quantities for a given space
+    that can be reused between score functions
+    """
+    def __init__(self):
+        self.box = CacheItem("box")
 
 
 def compose(funcs: List[scoreFunc],
@@ -35,12 +64,13 @@ def compose(funcs: List[scoreFunc],
     :return:
     """
     current_fitness = ind.fitness.sp_values
-    scores = [f(spec, ind) for f in funcs]
+    cache = Cache()  # creates a cache for computed values shared between score functions
+    scores = [f(spec, ind, cache) for f in funcs]
     spaces_id = [s.id for s in ind.mutable_spaces()]
     n_scores = len(funcs)
 
     for space_id in spaces_id:
-        new_space_fitness = [None] * n_scores
+        new_space_fitness: List[Optional[float]] = [None] * n_scores
         for i in range(n_scores):
             if space_id in scores[i]:
                 new_space_fitness[i] = scores[i][space_id]
@@ -75,26 +105,34 @@ def _score_space_area(space_area: float, min_area: float, max_area: float) -> fl
     :param max_area:
     :return:
     """
-    sp_score = 0
+    medium_area = (min_area + max_area) / 2.
+
     if min_area != 0 and space_area < min_area:
         # note: worse to be smaller
-        sp_score = (((min_area - space_area) / min_area) ** 2) * 100 * 3.0
+        sp_score = (((min_area - space_area) / min_area) ** 2 * 300 +
+                    abs(min_area - medium_area) / medium_area * 50)
     elif max_area != 0 and space_area > max_area:
-        sp_score = (((space_area - max_area) / max_area) ** 2) * 100.0
+        sp_score = (((space_area - max_area) / max_area) ** 2 * 100.0
+                    + abs(max_area - medium_area) / medium_area * 50)
+    else:
+        sp_score = abs(space_area - medium_area) / medium_area * 50.0
     return sp_score
 
 
-def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_area(spec: 'Specification',
+               ind: 'Individual',
+               _: Cache) -> Dict[int, float]:
     """
     Returns a score that evaluates the proximity of the individual to a specification
     instance
     :param spec:
     :param ind
+    :param _
     :return:
     """
     min_areas = {
         SPACE_CATEGORIES["bedroom"]: 90000.0,
-        SPACE_CATEGORIES["bathroom"]: 30000.0,
+        SPACE_CATEGORIES["bathroom"]: 20000.0,
         SPACE_CATEGORIES["toilet"]: 10000.0,
         "default": 10000.0
     }
@@ -111,12 +149,13 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
         if space.id not in ind.modified_spaces:
             continue
         if space.category is SPACE_CATEGORIES["circulation"]:
-            area_score[space.id] = 0.0
+            area_score[space.id] = space.cached_area() / (min_areas["default"] * 10.)
             continue
         item = space_to_item[space.id]
         space_area = space.cached_area()
 
         if space_area < min_areas.get(space.category, min_areas["default"]):
+            # logging.warning("Extra small space detected %s", space)
             area_score[space.id] = min_size_penalty
             continue
 
@@ -125,10 +164,11 @@ def score_area(spec: 'Specification', ind: 'Individual') -> Dict[int, float]:
     return area_score
 
 
-def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_corner(_: 'Specification', ind: 'Individual', cache: Cache) -> Dict[int, float]:
     """
     :param _:
     :param ind:
+    :param cache:
     :return:
     """
     excluded_spaces = ()
@@ -139,7 +179,6 @@ def score_corner(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
         if space.category in excluded_spaces:
             score[space.id] = 0.0
             continue
-        # score[space.id] = number_of_corners(space)
         score[space.id] = max(space.number_of_corners() - 4.0, 0)
         if space.has_holes:
             score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
@@ -182,39 +221,132 @@ def number_of_corners(space: 'Space') -> int:
     return num_corners
 
 
-def score_bounding_box(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def _score_space_bounding_box(space: 'Space', box: Tuple[float, float]) -> float:
+    min_grooves = {
+        SPACE_CATEGORIES["bathroom"]: 4800,
+        SPACE_CATEGORIES["toilet"]: 3000,
+        SPACE_CATEGORIES["laundry"]: 4800,
+        "default": 0.
+    }
+    box_ratios = {
+        SPACE_CATEGORIES["circulation"]: 3500.,
+        SPACE_CATEGORIES["toilet"]: 300.,
+        SPACE_CATEGORIES["bathroom"]: 600.,
+        SPACE_CATEGORIES["livingKitchen"]: 10.,
+        SPACE_CATEGORIES["living"]: 30.,
+        SPACE_CATEGORIES["bedroom"]: 1000.,
+        "default": 100.
+    }
+    area = space.cached_area()
+    if area == 0:
+        return 100.
+    box_area = box[0] * box[1]
+    space_score = (max(box_area - area -
+                       min_grooves.get(space.category, min_grooves["default"]), 0.) / area) ** 2
+    return space_score * box_ratios.get(space.category, box_ratios["default"])
+
+
+def _score_space_depth(space: 'Space', box: Tuple[float, float]) -> float:
+    depth_ratios = {
+        "bedroom": 1.2,
+        "toilet": 1.7,
+        "bathroom": 1.2,
+        "entrance": 1.7,
+        "default": 1.5
+    }
+    circulation_min_width = 80.0
+    circulation_max_width = 110.0
+    empty_space_penalty = 100.0
+    # different rule for circulation we look for a specific width
+    if space.category is SPACE_CATEGORIES["circulation"]:
+        space_width = min(box) if max(box) > circulation_max_width else max(box)
+        if circulation_min_width <= space_width <= circulation_max_width:
+            return 0.
+        elif circulation_min_width > space_width:
+            # we add a ten times penalty because a narrow corridor can not be tolerated
+            return ((circulation_min_width - space_width) / circulation_min_width) * 10
+        elif circulation_max_width < space_width:
+            return (space_width - circulation_max_width) / circulation_max_width
+        else:
+            return 0.
+
+    if min(box) == 0.:
+        logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
+        return empty_space_penalty
+
+    space_ratio = max(box) / min(box)
+    ratio = depth_ratios.get(space.category.name, depth_ratios["default"])
+    if space_ratio >= ratio:
+        return (space_ratio - ratio) ** 2
+    else:
+        return 0.
+
+
+def score_width_depth_ratio(_: 'Specification',
+                            ind: 'Individual',
+                            cache: Cache) -> Dict[int, float]:
     """
-    Computes a score as the difference between the area of a space and its bounding box
+    Computes a score according to the spaces width an depth ratio
     :param _:
     :param ind:
+    :param cache
     :return:
     """
-    ratios = {
-        SPACE_CATEGORIES["circulation"]: 5.0,
-        SPACE_CATEGORIES["livingKitchen"]: 0.5,
-        SPACE_CATEGORIES["living"]: 0.5,
-        "default": 1.0
-    }
     score = {}
     for space in ind.mutable_spaces():
         if space.id not in ind.modified_spaces:
             continue
-        if space.cached_area() == 0:
-            score[space.id] = 100
-            continue
-        box = space.bounding_box()
-        box_area = box[0] * box[1]
-        area = space.cached_area()
-        space_score = ((area - box_area) / area)**2 * 100.0
-        score[space.id] = space_score * ratios.get(space.category, ratios["default"])
+        box = cache.box.get(space.id, space.bounding_box)
+        score[space.id] = _score_space_depth(space, box)
 
     return score
 
 
-def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_bounding_box(_: 'Specification', ind: 'Individual', cache: Cache) -> Dict[int, float]:
+    """
+    Computes a score as the difference between the area of a space and its bounding box
+    :param _:
+    :param ind:
+    :param cache:
+    :return:
+    """
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
+        box = cache.box.get(space.id, space.bounding_box)
+        score[space.id] = _score_space_bounding_box(space, box)
+
+    return score
+
+
+def score_shape(_: 'Specification', ind: 'Individual', cache: Cache) -> Dict[int, float]:
+    """
+    Scores the shape of the space by taking into account the depth/width ratio and
+    the difference of area between the space and its bounding box
+    :param _:
+    :param ind:
+    :param cache:
+    :return:
+    """
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.id not in ind.modified_spaces:
+            continue
+        box = cache.box.get(space.id, space.bounding_box)
+        score[space.id] = (_score_space_depth(space, box) * 500. +
+                           _score_space_bounding_box(space, box))
+
+    return score
+
+
+def score_perimeter_area_ratio(_: 'Specification',
+                               ind: 'Individual',
+                               cache: Cache) -> Dict[int, float]:
     """
     :param _
     :param ind:
+    :param cache:
     :return:
     """
     excluded_spaces = ()
@@ -240,55 +372,12 @@ def score_perimeter_area_ratio(_: 'Specification', ind: 'Individual') -> Dict[in
     return score
 
 
-def score_width_depth_ratio(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
-    """
-
-    :param _:
-    :param ind:
-    :return:
-    """
-    ratios = {
-        "bedroom": 1.2,
-        "toilet": 1.7,
-        "bathroom": 1.2,
-        "entrance": 1.7,
-        "default": 1.5
-    }
-    circulation_min_width = 80.0
-    circulation_max_width = 110.0
-    score = {}
-    for space in ind.mutable_spaces():
-        if space.id not in ind.modified_spaces:
-            continue
-        box = space.bounding_box()
-        # different rule for circulation we look for a specific width
-        if space.category is SPACE_CATEGORIES["circulation"]:
-            if circulation_min_width <= min(box) <= circulation_max_width:
-                score[space.id] = 0
-            elif circulation_min_width > min(box):
-                # we add a ten times penalty because a narrow corridor can not be tolerated
-                score[space.id] = ((circulation_min_width - min(box))/circulation_min_width) * 10
-            elif circulation_max_width < min(box):
-                score[space.id] = ((min(box) - circulation_max_width) / circulation_max_width)
-            continue
-        if min(box) == 0.:
-            logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
-            continue
-        space_ratio = max(box)/min(box)
-        ratio = ratios.get(space.category.name, ratios["default"])
-        if space_ratio >= ratio:
-            score[space.id] = (space_ratio - ratio)**2
-        else:
-            score[space.id] = 0
-
-    return score
-
-
-def score_connectivity(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_connectivity(_: 'Specification', ind: 'Individual', cache: 'Cache') -> Dict[int, float]:
     """
     Returns a score indicating whether the plan is connected
     :param _:
     :param ind:
+    :param cache
     :return:
     """
     min_length = 80.0
@@ -360,11 +449,68 @@ def _score_floor_connectivity(ind: 'Individual',
     return score
 
 
-def score_circulation_width(_: 'Specification', ind: 'Individual') -> Dict[int, float]:
+def score_window_area_ratio(_: 'Specification', ind: 'Individual', cache: Cache)-> Dict[int, float]:
+    """
+    Scores the spaces according to specific window area on floor area ratios
+    :param _:
+    :param ind:
+    :param cache:
+    :return:
+    """
+    min_ratios = {
+        SPACE_CATEGORIES["living"]: .18,
+        SPACE_CATEGORIES["livingKitchen"]: .18,
+        SPACE_CATEGORIES["dining"]: .18,
+        SPACE_CATEGORIES["bedroom"]: .15,
+        SPACE_CATEGORIES["kitchen"]: .10,
+        SPACE_CATEGORIES["study"]: .10
+    }
+
+    score = {}
+    for space in ind.mutable_spaces():
+        if space.category in min_ratios:
+            window_area = sum(_window_area(window)
+                              for window in space.immutable_components(
+                LINEAR_CATEGORIES["doorWindow"], LINEAR_CATEGORIES["window"]))
+            space_area = space.cached_area()
+            # per convention we assign a ratio of 0. if the space is empty
+            ratio = window_area/space_area if space_area else 0.
+            score[space.id] = _score_min_value(ratio, min_ratios.get(space.category))
+        else:
+            score[space.id] = 0.
+
+    return score
+
+
+def _window_area(window: 'Linear') -> float:
+    small_window_height = 75.
+    normal_window_height = 125.
+    door_window_height = 215.
+
+    length = window.length
+    if window.category is LINEAR_CATEGORIES["doorWindow"]:
+        return length * door_window_height
+    if length <= 70.:
+        return length * small_window_height
+    return length * normal_window_height
+
+
+def _score_min_value(value: float, min_value: float) -> float:
+    """ simple function returning a penalty score if a value is inferior to the specified
+    min_value """
+    if value >= min_value:
+        return 0.
+    return ((min_value - value)/min_value) ** 2 * 100.
+
+
+def score_circulation_width(_: 'Specification',
+                            ind: 'Individual',
+                            cache: 'Cache') -> Dict[int, float]:
     """
     Computes a score of the min width of each corridor
     :param _:
     :param ind:
+    :param cache:
     :return:
     """
     min_width = 90.0
@@ -427,4 +573,4 @@ def check(ind: 'Individual', solution: 'Solution') -> None:
 
 
 __all__ = ['compose', 'score_perimeter_area_ratio', 'score_bounding_box', 'score_area',
-           'score_corner', 'create_item_dict', 'check']
+           'score_corner', 'create_item_dict', 'check', 'score_window_area_ratio', 'score_shape']

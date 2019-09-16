@@ -2,15 +2,17 @@
 
 def local_dev_hack():
     import os
-    if not os.path.exists(os.path.expanduser('~/.aws/credentials')) \
-            and not os.getenv('AWS_ACCESS_KEY_ID') \
-            and not os.getenv('HABX_ENV'):
+    if not os.getenv('HABX_ENV'):
+        # os.path.exists(os.path.expanduser('~/.aws/credentials')) \
+        # and not os.getenv('AWS_ACCESS_KEY_ID') \
+
         import logging
         import socket
         import re
         logging.warning(
             "[LOCAL DEV ONLY] Injecting some AWS credentials in env vars [/LOCAL DEV ONLY]"
         )
+        os.environ['HABX_ENV'] = 'dev'
         os.environ['AWS_ACCESS_KEY_ID'] = 'AKIA2RESSX3JNVGOL4S5'
         os.environ['AWS_SECRET_ACCESS_KEY'] = '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'
         os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
