@@ -1720,7 +1720,8 @@ class Edge(MeshComponent):
                   .apply_to(self.start))
         return self.split(vertex)
 
-    def plot(self, ax, color: str = 'black', save: Optional[bool] = None):
+    def plot(self, ax, color: str = 'black', save: Optional[bool] = None,
+             width: Optional[float] = 1.0):
         """
         Plots the edge
         :param ax:
@@ -1729,7 +1730,7 @@ class Edge(MeshComponent):
         :return:
         """
         x_coords, y_coords = zip(*(self.start.coords, self.end.coords))
-        return plot_edge(x_coords, y_coords, ax, color=color, save=save)
+        return plot_edge(x_coords, y_coords, ax, color=color, save=save, width=width)
 
     def plot_half_edge(self, ax, color: str = 'black', save: Optional[bool] = None):
         """

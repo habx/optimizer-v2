@@ -1608,6 +1608,8 @@ class Space(PlanComponent):
         if self.edge is None:
             return ax
         color = self.category.color
+        if not self.mutable:
+            self.alpha = 1
         print(self.alpha)
 
         if 'border' in options or not ax:
@@ -2188,7 +2190,7 @@ class Linear(PlanComponent):
             x_coords, y_coords = zip(*edge.as_sp.coords)
             ax = plot_edge(x_coords, y_coords, ax,
                            color=self.category.color,
-                           width=self.category.width, alpha=0.6, save=save)
+                           width=self.category.width, alpha=1, save=save)
         return ax
 
     def check(self) -> bool:
@@ -3242,6 +3244,12 @@ class Plan:
         fig, ax = plt.subplots(n_rows)
         fig.subplots_adjust(hspace=0.4)  # needed to prevent overlapping of subplots title
 
+        _perimeter = 0.0
+        external_spaces = (s for s in self.spaces if s.category.external)
+        external_space_edges = []
+        for s in external_spaces:
+            external_space_edges += [e for e in s.exterior_edges]
+
         for i, floor in enumerate(self.floors.values()):
             _ax = ax[i] if n_rows > 1 else ax
             _ax.set_aspect('equal')
@@ -3250,6 +3258,11 @@ class Plan:
                 if space.floor is not floor:
                     continue
                 space.plot(_ax, save=False, options=options)
+                if space.category.external:
+                    continue
+                for edge in space.exterior_edges:
+                    if edge.pair in external_space_edges or not edge.pair.face:
+                        edge.plot(_ax, save=False, width=4.0)
 
             for linear in self.linears:
                 if linear.floor is not floor:
