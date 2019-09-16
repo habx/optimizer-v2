@@ -152,11 +152,11 @@ class ConstraintSolver:
             if validity:
                 self.solutions.append(sol_positions)
                 if len(self.solutions) >= SEARCH_SOLUTIONS_LIMIT:
-                    logging.warning("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
+                    logging.debug("ConstraintSolver: SEARCH_SOLUTIONS_LIMIT: %d",
                                     len(self.solutions))
                     break
                 if (time.process_time() - t0 - 15) >= 0:
-                    logging.warning("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
+                    logging.debug("ConstraintSolver: TIME_LIMIT - 15 sec : %d",
                                     len(self.solutions))
                     break
 
@@ -164,12 +164,12 @@ class ConstraintSolver:
         self.solver.EndSearch()
 
         logging.debug("ConstraintSolver: Statistics")
-        logging.debug("ConstraintSolver: num_solutions: %d", len(self.solutions))
+        logging.info("ConstraintSolver: num_solutions: %d", len(self.solutions))
         logging.debug("ConstraintSolver: failures: %d", self.solver.Failures())
         logging.debug("ConstraintSolver: branches:  %d", self.solver.Branches())
-        logging.debug("ConstraintSolver: Process time : %f", time.process_time() - t0)
-        if round(time.process_time() - t0) == round(SEARCH_TIME_LIMIT / 1000):
-            logging.warning("ConstraintSolver: SEARCH_TIME_LIMIT - 1 min")
+        logging.info("ConstraintSolver: Process time : %f", time.process_time() - t0)
+        if round(time.process_time() - t0) >= round(SEARCH_TIME_LIMIT / 1000):
+            logging.debug("ConstraintSolver: SEARCH_TIME_LIMIT - 1 min")
 
 
 def adjacency_matrix_to_graph(matrix):
@@ -558,15 +558,15 @@ class ConstraintsManager:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
             for constraint in GENERAL_ITEMS_CONSTRAINTS[item.category.name]:
                 self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology <= 2:
-                for constraint in T1_T2_ITEMS_CONSTRAINTS.get(item.category.name, []):
+            if self.sp.spec.typology <= 1:
+                for constraint in T1_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
-            if self.sp.spec.typology == 2 and self.sp.spec.number_of_items > 5:
+            if self.sp.spec.typology >= 2 or self.sp.spec.number_of_items > 5:
+                for constraint in T2_MORE_ITEMS_CONSTRAINTS["all"]:
+                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 3:
-                for constraint in T2_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
-                    self.add_item_constraint(item, constraint[0], **constraint[1])
                 for constraint in T3_MORE_ITEMS_CONSTRAINTS.get(item.category.name, []):
                     self.add_item_constraint(item, constraint[0], **constraint[1])
             if self.sp.spec.typology >= 4:
@@ -635,6 +635,19 @@ def item_attribution_constraint(manager: 'ConstraintsManager',
     ct = (manager.solver.solver.Sum(
         manager.solver.positions[item.id, j_space]
         for j_space in range(manager.sp.spec.plan.count_mutable_spaces())) >= 1)
+    return ct
+
+def item_non_attribution_constraint(manager: 'ConstraintsManager',
+                                item: Item) -> ortools.Constraint:
+    """
+    Item non associated with any space
+    :param manager: 'ConstraintsManager'
+    :param item: Item
+    :return: ct: ortools.Constraint
+    """
+    ct = (manager.solver.solver.Sum(
+        manager.solver.positions[item.id, j_space]
+        for j_space in range(manager.sp.spec.plan.count_mutable_spaces())) == 0)
     return ct
 
 
@@ -924,7 +937,6 @@ def shape_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Const
     # TODO : find best param
     # TODO : unit tests
     """
-
     plan_ratio = round(manager.sp.spec.plan.indoor_perimeter ** 2
                        / manager.sp.spec.plan.indoor_area)
 
@@ -1030,7 +1042,7 @@ def windows_constraint(manager: 'ConstraintsManager', item: Item) -> ortools.Con
             ratio = 10
         else:
             ratio = 0
-            logging.warning("ConstraintsManager - windows_constraint : undefined ratio")
+            logging.debug("ConstraintsManager - windows_constraint : undefined ratio")
 
         ct1 = windows_ordering_constraint(manager, item)
         ct2 = windows_area_constraint(manager, item, ratio)
@@ -1560,12 +1572,11 @@ GENERAL_ITEMS_CONSTRAINTS = {
         [graph_constraint, {}],
         [area_graph_constraint, {}],
         [distance_constraint, {}],
-        [shape_constraint, {}],
         [windows_constraint, {}],
         [symmetry_breaker_constraint, {}]
     ],
     "entrance": [
-        [area_constraint, {"min_max": "max"}]
+        [area_constraint, {"min_max": "max"}],
     ],
     "toilet": [
         [item_attribution_constraint, {}],
@@ -1578,23 +1589,16 @@ GENERAL_ITEMS_CONSTRAINTS = {
                                            "addition_rule": "And"}],
         [toilet_entrance_proximity_constraint, {}],
         [non_isolated_item_constraint, {}],
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "bathroom": [
         [item_attribution_constraint, {}],
         [area_constraint, {"min_max": "min"}],
         [area_constraint, {"min_max": "max"}],
         [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [item_max_distance_constraint,
-         {"item_categories": ["bedroom", "study"], "max_distance": 200}],
         [components_adjacency_constraint, {"category": ["startingStep", "frontDoor"], "adj": False,
                                            "addition_rule": "And"}],
         [components_adjacency_constraint, {"category": ["doorWindow"], "adj": False}],
         [max_1_window_adjacency_constraint, {}],
-
-        [item_adjacency_constraint,
-         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
     ],
     "living": [
         [item_attribution_constraint, {}],
@@ -1680,17 +1684,29 @@ GENERAL_ITEMS_CONSTRAINTS = {
     ]
 }
 
-T1_T2_ITEMS_CONSTRAINTS = {
+T1_ITEMS_CONSTRAINTS = {
     "entrance": [
-        [optional_entrance_constraint, {}],
+        [item_non_attribution_constraint, {}],
     ]
 }
 
 T2_MORE_ITEMS_CONSTRAINTS = {
-    "livingKitchen": [
-        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
-        [max_distance_window_duct_constraint, {"max_distance": 700}]
-    ]
+    'all': [
+        [shape_constraint, {}],
+    ],
+    "entrance": [
+        [optional_entrance_constraint, {}],
+    ],
+    "toilet": [
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
+    "bathroom": [
+        [item_max_distance_constraint,
+         {"item_categories": ["bedroom", "study"], "max_distance": 200}],
+        [item_adjacency_constraint,
+         {"item_categories": PRIVATE_ROOMS, "adj": True, "addition_rule": "Or"}],
+    ],
 }
 
 T3_MORE_ITEMS_CONSTRAINTS = {
@@ -1707,6 +1723,8 @@ T3_MORE_ITEMS_CONSTRAINTS = {
         [min_perimeter_length, {}],
     ],
     "livingKitchen": [
+        [components_adjacency_constraint, {"category": ["duct"], "adj": True}],
+        [max_distance_window_duct_constraint, {"max_distance": 700}],
         [externals_connection_constraint, {}],
         [large_windows_constraint, {}],
         [min_perimeter_length, {}],
