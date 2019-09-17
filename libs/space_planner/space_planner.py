@@ -196,7 +196,7 @@ class SpacePlanner:
                 logging.warning('Estimated number of clusters: %d' % n_clusters_)
                 logging.warning('Estimated number of noise points: %d' % n_noise_)
                 list_labels = list(set(labels))
-                list_labels_0 = list_labels[0]
+                list_labels_0 = list_labels[5]
                 clustering_solutions = []
                 print("space", len(list(self.spec.plan.mutable_spaces())))
                 print(self.spec.items)
@@ -216,27 +216,27 @@ class SpacePlanner:
                 plan_cluster = self.spec.plan.clone()
 
                 # pièce max attribuée au space
-                # for j_space, space in enumerate(plan_cluster.mutable_spaces()):
-                #     list_item = []
-                #     for i_item in range(len(self.spec.items)):
-                #         list_item.append(result_matrix[i_item][j_space])
-                #     print(list_item)
-                #
-                #     max_result = max(list_item)
-                #     indice = list_item.index(max_result)
-                #     space.category = self.spec.items[indice].category
-                #
-                #     space.alpha = max_result
-                #     print(space.alpha)
-                #     print(space.category.name)
-
                 for j_space, space in enumerate(plan_cluster.mutable_spaces()):
-                    for i_item, item in enumerate(self.spec.items):
-                        if item.category.name == "livingKitchen":
-                            space.alpha = result_matrix[i_item][j_space]
-                            space.category = item.category
+                    list_item = []
+                    for i_item in range(len(self.spec.items)):
+                        list_item.append(result_matrix[i_item][j_space])
+                    print(list_item)
 
-                plan_cluster.plot(name='test')
+                    max_result = max(list_item)
+                    indice = list_item.index(max_result)
+                    space.category = self.spec.items[indice].category
+
+                    space.alpha = max_result
+                    print(space.alpha)
+                    print(space.category.name)
+
+                # for j_space, space in enumerate(plan_cluster.mutable_spaces()):
+                #     for i_item, item in enumerate(self.spec.items):
+                #         if item.category.name == "livingKitchen":
+                #             space.alpha = result_matrix[i_item][j_space]
+                #             space.category = item.category
+
+                plan_cluster.plot(name='test_ARCH005')
 
                 for i, sol in enumerate(self.manager.solver.solutions):
                     if labels[i] in list_labels:
@@ -317,7 +317,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_index", help="choose plan index", default=0)
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
     args = parser.parse_args()
     plan_index = int(args.plan_index)
 
@@ -328,13 +328,14 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "ARCH014_blueprint.json"
+        input_file = "ARCH005_blueprint.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
         print("input_file", input_file, " - area : ", plan.indoor_area/SQM)
         logging.debug(("P2/S ratio : %i", round(plan.indoor_perimeter ** 2 / plan.indoor_area)))
         GRIDS['002'].apply_to(plan)
+        plan.plot()
         SEEDERS["directional_seeder"].apply_to(plan)
 
         plan.plot()
