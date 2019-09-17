@@ -187,7 +187,7 @@ class EdgeGraph:
                 #       This problem must be treated
                 #       possible treatment : by putting holes in the load bearing walls at location
                 #       where they can be crossed
-                logging.warning('GraphNx: no path found')
+                logging.info('GraphNx: no path found')
                 return [], 0
 
             finally:
