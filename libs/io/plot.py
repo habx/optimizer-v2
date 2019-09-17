@@ -145,7 +145,7 @@ def plot_polygon(_ax,
         if 'dash' in options:
             _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
         else:
-            _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
+            _ax.plot(data1, data2, 'k', color='k', ls=ls, lw=lw)
     if 'vertices' in options:
         _ax.plot(data1, data2, 'ro', color='white')
 
