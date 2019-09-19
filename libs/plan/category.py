@@ -152,3 +152,15 @@ SPACE_CATEGORIES = {
     "loggia": SpaceCategory('loggia', mutable=False, external=True),
     "wintergarden": SpaceCategory('wintergarden', mutable=False, external=True)
 }
+
+
+if __name__ == '__main__':
+    import matplotlib as mpl
+
+    def colors():
+        for cat, color in CATEGORIES_COLORS.items():
+            rgb_color = mpl.colors.to_hex(color)
+            print(cat, color, rgb_color)
+
+    colors()
+

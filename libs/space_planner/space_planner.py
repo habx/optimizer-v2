@@ -328,7 +328,7 @@ if __name__ == '__main__':
         :return:
         """
         # input_file = reader.get_list_from_folder(DEFAULT_BLUEPRINT_INPUT_FOLDER)[plan_index]
-        input_file = "ARCH005_blueprint.json"
+        input_file = "ARCH014_blueprint.json"
         t00 = time.process_time()
         plan = reader.create_plan_from_file(input_file)
         logging.info("input_file %s", input_file)
