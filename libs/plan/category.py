@@ -6,28 +6,28 @@ Category module : describes the type of space or linear that can be used in a pr
 from typing import List, Optional
 
 CATEGORIES_COLORS = {
-    'duct': 'k',
-    'loadBearingWall': 'k',
-    'window': '#FFCB19',
-    'doorWindow': '#FFCB19',
-    'door': 'green',
-    'frontDoor': 'r',
+    'duct': 'dimgrey',
+    'loadBearingWall': 'dimgrey',
+    'window': 'white',
+    'doorWindow': 'white',
+    'door': 'white',
+    'frontDoor': 'lightgray',
     'empty': 'b',
     'space': 'b',
     'seed': '#6a006a',
-    'living': 'aquamarine',
-    'livingKitchen': 'aquamarine',
+    'living': 'limegreen',
+    'livingKitchen': 'limegreen',
     'dining': 'turquoise',
-    'kitchen': 'paleturquoise',
-    'bedroom': 'mistyrose',
-    'toilet': 'cornflowerblue',
-    'bathroom': 'lightskyblue',
+    'kitchen': 'orangered',
+    'bedroom': 'orange',
+    'toilet': 'blue',
+    'bathroom': 'dodgerblue',
     'circulation': 'lightgray',
-    'entrance': 'grey',
+    'entrance': 'lightgrey',
     'wardrobe': 'pink',
-    'laundry': 'lightsteelblue',
-    'study': 'darkseagreen',
-    'misc': 'lightsteelblue',
+    'laundry': 'plum',
+    'study': 'peru',
+    'misc': 'darkgrey',
     'balcony': 'silver',
     'terrace': 'silver',
     'garden': 'green',
@@ -99,7 +99,7 @@ class LinearCategory(Category):
                  seedable: bool = False,
                  aperture: bool = False,
                  window_type: bool = False,
-                 width: float = 5.0):
+                 width: float = 2.5):
         super().__init__(name, mutable, seedable)
         self.aperture = aperture
         self.width = width
