@@ -138,6 +138,8 @@ def plot_polygon(_ax,
         #     elif alpha > 0.99:
         #         color = 'sienna'
         #_ax.fill(data1, data2, alpha=max(min(1-alpha, 1),0), color=color)
+        if alpha < 0.8:
+            color = 'white'
         _ax.fill(data1, data2, alpha=max(min(alpha, 1),0), color=color)
     if 'border' in options:
         ls = ':' if 'dash' in options else 'solid'
