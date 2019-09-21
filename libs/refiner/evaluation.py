@@ -248,9 +248,9 @@ def _score_space_bounding_box(space: 'Space', box: Tuple[float, float]) -> float
 
 def _score_space_depth(space: 'Space', box: Tuple[float, float]) -> float:
     depth_ratios = {
-        "bedroom": 1.2,
-        "toilet": 1.7,
-        "bathroom": 1.2,
+        "bedroom": 1.3,
+        "toilet": 2.,
+        "bathroom": 1.5,
         "entrance": 1.7,
         "default": 1.5
     }
@@ -573,4 +573,5 @@ def check(ind: 'Individual', solution: 'Solution') -> None:
 
 
 __all__ = ['compose', 'score_perimeter_area_ratio', 'score_bounding_box', 'score_area',
-           'score_corner', 'create_item_dict', 'check', 'score_window_area_ratio', 'score_shape']
+           'score_corner', 'create_item_dict', 'check', 'score_window_area_ratio', 'score_shape',
+           'score_width_depth_ratio']

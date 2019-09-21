@@ -54,6 +54,8 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 # setting a seed for debugging
 random.seed(0)
 
+fitness_history = [] # horrible global for paper purposes
+
 
 def merge_circulation(ind: 'Individual') -> None:
     """
@@ -287,7 +289,8 @@ def fc_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     scores_fc = [
         evaluation.score_corner,
         evaluation.score_area,
-        evaluation.score_perimeter_area_ratio,
+        # evaluation.score_perimeter_area_ratio,
+        evaluation.score_width_depth_ratio,
         evaluation.score_bounding_box,
         evaluation.score_connectivity,
         # evaluation.score_circulation_width
@@ -328,7 +331,7 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
         (evaluation.score_corner, -100.0),
         (evaluation.score_area, -8.0),
         (evaluation.score_width_depth_ratio, -500.0),
-        (evaluation.score_bounding_box, -1.0),
+        (evaluation.score_bounding_box, -2.0),
         (evaluation.score_connectivity, -50000.0),
         (evaluation.score_window_area_ratio, -10.)
     ]
@@ -501,6 +504,8 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     best_fitness = max(pop, key=lambda i: i.fitness.wvalue).fitness.wvalue
     no_improvement_count = 0
 
+    fitness_history.append([i.fitness.wvalues for i in pop])
+
     # Begin the generational process
     for gen in range(1, ngen + 1):
         logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
@@ -519,6 +524,9 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
 
         # Select the next generation population
         pop = toolbox.elite_select(total_pop, mu)
+
+        # statistic
+        fitness_history.append([i.fitness.wvalues for i in pop])
 
         # print best individual and check if we found a better solution
         best_ind = pop[0]
@@ -622,12 +630,12 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "B2E5L01"  # 062 006 020 061
+        plan_number = "ARCH005_blueprint"  # 062 006 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
                                             solution_number=0)
 
         if solution:
-            params = {"ngen": 100, "mu": 120, "cxpb": 0.5, "max_tries": 10, "elite": 0.1,
+            params = {"ngen": 100, "mu": 120, "cxpb": 0., "max_tries": 10, "elite": 0.8,
                       "processes": 8, "pre_pass": False}
 
             plan = solution.spec.plan
@@ -661,4 +669,12 @@ if __name__ == '__main__':
 
             evaluation.check(improved_plan, solution)
 
+
     apply()
+
+    import pickle
+    import os
+
+    module_path = os.path.dirname(__file__)
+    output_path = os.path.join(module_path, "stats", "fitness_history_elite_0_8_cbx_0.p")
+    pickle.dump(fitness_history, open(output_path, "wb"))
