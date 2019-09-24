@@ -385,7 +385,7 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         "dining": 280,
         "toilet": 95,  # non PMR
         "bathroom": 150,  # non PMR
-        "dressing": 155,
+        "wardrobe": 155,
         "study": 210,
         "kitchen": 180,  # non PMR
         "laundry": 95,
@@ -400,7 +400,7 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
         "dining": 340,
         "toilet": 130,
         "bathroom": 180,
-        "dressing": 150,
+        "wardrobe": 150,
         "study": 300,
         "kitchen": 220,
         "laundry": 150,
