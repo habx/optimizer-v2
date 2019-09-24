@@ -196,7 +196,7 @@ class SpacePlanner:
                 logging.warning('Estimated number of clusters: %d' % n_clusters_)
                 logging.warning('Estimated number of noise points: %d' % n_noise_)
                 list_labels = list(set(labels))
-                list_labels_0 = list_labels[4]
+                list_labels_0 = list_labels[0]
                 clustering_solutions = []
                 print("space", len(list(self.spec.plan.mutable_spaces())))
                 print(self.spec.items)
