@@ -102,7 +102,8 @@ def plot_polygon(_ax,
                  data2: Sequence[float],
                  options: Sequence[str] = ('vertices', 'border', 'fill'),
                  color: str = 'b',
-                 should_save: Optional[bool] = None):
+                 should_save: Optional[bool] = None,
+                 alpha: Optional[float] = 0.3):
     """
     Simple convenience function to plot a mesh face with matplotlib
     :param _ax:
@@ -119,13 +120,16 @@ def plot_polygon(_ax,
         should_save = True if should_save is None else should_save
 
     if 'fill' in options:
-        _ax.fill(data1, data2, alpha=0.3, color=color)
+        _ax.fill(data1, data2, alpha=alpha, color=color)
     if 'border' in options:
         ls = ':' if 'dash' in options else 'solid'
-        lw = 0.5 if 'dash' in options else 1.0
-        _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
+        lw = 0.5 if 'dash' in options else 1.5
+        if 'dash' in options:
+            _ax.plot(data1, data2, 'k', color=color, ls=ls, lw=lw)
+        else:
+            _ax.plot(data1, data2, 'k', color='k', ls=ls, lw=lw)
     if 'vertices' in options:
-        _ax.plot(data1, data2, 'ro', color=color)
+        _ax.plot(data1, data2, 'ro', color='white')
 
     plot_save(should_save)
 
