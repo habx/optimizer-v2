@@ -1620,7 +1620,8 @@ class Space(PlanComponent):
             for face in self.faces:
                 if face is None:
                     continue
-                ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'), alpha=self.alpha)
+                ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'),
+                               alpha=alpha)
 
         if 'half-edge' in options:
             for edge in self.edges:
@@ -3230,7 +3231,7 @@ class Plan:
     def plot(self,
              show: bool = False,
              save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border', 'furniture'),
+             options: Tuple = ('face', 'edge', 'border', 'furniture'),
              floor: Optional['Floor'] = None,
              name: Optional[str] = None):
         """

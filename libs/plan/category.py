@@ -26,7 +26,7 @@ CATEGORIES_COLORS = {
     'entrance': 'lightgrey',
     'wardrobe': 'pink',
     'laundry': 'plum',
-    'study': 'plum',
+    'study': 'peru',
     'misc': 'darkgrey',
     'balcony': 'silver',
     'terrace': 'silver',
