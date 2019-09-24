@@ -193,6 +193,8 @@ def area_scoring(solution: 'Solution') -> float:
     circulation_max_area = sum(item.max_size.area for item in solution.spec.items
                                if item.category.name in ["entrance", "circulation"])
     for space, item in solution.space_item.items():
+        print(space)
+        print(item)
         if space.category.name not in ["entrance", "circulation"]:
             nbr_rooms += 1
             # Min < SpaceArea < Max
