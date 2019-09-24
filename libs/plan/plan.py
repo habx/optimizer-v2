@@ -1600,7 +1600,7 @@ class Space(PlanComponent):
 
     def plot(self, ax=None,
              save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'border', 'half-edge', 'furniture'), alpha: float = 0.3):
+             options: Tuple['str'] = ('face', 'border', 'half-edge', 'furniture')):
         """
         plot the space
         """
@@ -1621,7 +1621,7 @@ class Space(PlanComponent):
                 if face is None:
                     continue
                 ax = face.plot(ax, color=color, save=save, options=('fill', 'border', 'dash'),
-                               alpha=alpha)
+                               alpha=self.alpha)
 
         if 'half-edge' in options:
             for edge in self.edges:
@@ -3258,7 +3258,7 @@ class Plan:
             for space in self.spaces:
                 if space.floor is not floor:
                     continue
-                space.plot(_ax, save=False, options=options, alpha = space.alpha)
+                space.plot(_ax, save=False, options=options)
                 if space.category.external:
                     continue
                 for edge in space.exterior_edges:
