@@ -8,6 +8,7 @@ import traceback
 from typing import List, Optional
 
 from libs.executor.executor import Executor, TaskDefinition
+from libs.utils.features import Features
 from libs.worker.config import Config
 from libs.worker.mqproto import MQProto
 
@@ -54,12 +55,23 @@ class TaskProcessor:
 
             result = MQProto.format_response_error(e, traceback.format_exception(*sys.exc_info()), times, td)
 
-            logging.exception(
-                "Problem handing message",
-                extra={
-                    'taskId': td.task_id,
-                }
-            )
+            # APP-6487: As we don't want to fix optimizer, we might as well turn errors into info, we
+            #           can still analyze errors here: https://metabase.habx.fr/question/524
+            if Features.disable_error_reporting():
+                logging.info(
+                    "Problem handing message",
+                    extra={
+                        'taskId': td.task_id,
+                        'err': e,
+                    }
+                )
+            else:
+                logging.exception(
+                    "Problem handing message",
+                    extra={
+                        'taskId': td.task_id,
+                    }
+                )
 
         return result
 
