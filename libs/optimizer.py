@@ -362,8 +362,8 @@ class Optimizer:
                     ref_plan = reader.create_plan_from_data(data)
                     if params.do_plot:
                         ref_plan.plot()
-                    #ref_solution = reference_plan_solution(ref_plan, setup_spec)
-                    #ref_final_score, ref_final_score_components = final_scoring(ref_solution)
+                    ref_solution = reference_plan_solution(ref_plan, setup_spec)
+                    ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
             # solution scoring
             if best_solutions:
