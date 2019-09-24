@@ -144,10 +144,6 @@ class ExecParams:
         self.do_door = params.get('do_door', Features.do_door())
         self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', os.getenv('HABX_ENV') == 'dev')
-        self.intermediate_transmission: bool = params.get(
-            'intermediate_transmission',
-            Features.intermediate_transmission()
-        )
 
 
 class Optimizer:
@@ -281,13 +277,13 @@ class Optimizer:
         elapsed_times["space planner"] = time.process_time() - t0_space_planner
         logging.info("Space planner achieved in %f", elapsed_times["space planner"])
 
-        if params.intermediate_transmission:
-            response = Response(
-                [generate_output_dict(lot, sol) for sol in best_solutions],
-                elapsed_times,
-                files=local_context.files,
-            )
-            local_context.send_in_progress_result(response, 'in-progress')
+        # Intermediate transmission of results
+        response = Response(
+            [generate_output_dict(lot, sol) for sol in best_solutions],
+            elapsed_times,
+            files=local_context.files,
+        )
+        local_context.send_in_progress_result(response, 'in-progress')
 
         # corridor
         t0_corridor = time.process_time()
