@@ -3,12 +3,12 @@
     {
       "opensOn": [],
       "requiredArea": {
-        "max": 150000,
-        "min": 120000
+        "max": 120000,
+        "min": 100000
       },
       "tags": [],
       "type": "bedroom",
-      "variant": "m"
+      "variant": "s"
     },
     {
       "opensOn": [],
@@ -67,7 +67,7 @@
         "min": 20000
       },
       "tags": [],
-      "type": "laundry",
+      "type": "wardrobe",
       "variant": "xs"
     },
     {

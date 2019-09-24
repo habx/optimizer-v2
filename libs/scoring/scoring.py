@@ -222,7 +222,7 @@ def area_scoring(solution: 'Solution') -> float:
                     if space.cached_area() < 90000:
                         area_penalty += 5
                 elif space.category.name == "laundry":
-                    if space.cached_area() < 20000:
+                    if space.cached_area() < 15000:
                         area_penalty += 5
             # Area score
             area_score += item_area_score
@@ -928,7 +928,7 @@ if __name__ == '__main__':
                                 "draveil-barbusse_A1-301_blueprint.json",
                                 "bagneux-petit_B222_blueprint.json"]
 
-        # input_blueprint_list = ["grenoble-cambridge_222_blueprint.json"]
+        input_blueprint_list = ["ARCH014_blueprint.json"]
 
         for input_file in input_blueprint_list:
             input_file_setup = input_file[:-14] + "setup.json"
@@ -949,8 +949,7 @@ if __name__ == '__main__':
                 sol.final_score = final_score
                 radar_chart(final_score, final_score_components, sol.id,
                             sol.spec.plan.name + "_FinalScore")
-                if space_planner.solutions_collector.architect_plans:
-                    sol.distance(space_planner.solutions_collector.architect_plans[0])
+
             plt.close()
 
 
