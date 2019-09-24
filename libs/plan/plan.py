@@ -1610,7 +1610,6 @@ class Space(PlanComponent):
         color = self.category.color
         if not self.mutable:
             self.alpha = 1
-        print(self.alpha)
 
         if 'border' in options or not ax:
             x, y = self.as_sp.exterior.xy
