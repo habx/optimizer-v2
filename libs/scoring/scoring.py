@@ -192,6 +192,7 @@ def area_scoring(solution: 'Solution') -> float:
     circulation_area = 0
     circulation_max_area = sum(item.max_size.area for item in solution.spec.items
                                if item.category.name in ["entrance", "circulation"])
+    logging.info(solution.space_item)
     for space, item in solution.space_item.items():
         print(space)
         print(item)

@@ -142,7 +142,7 @@ class ExecParams:
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', Features.do_door())
-        self.ref_plan_url: str = params.get('ref_plan_url', None)
+        self.ref_plan_url: str = params.get('ref_plan_url', ' https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json')
         self.do_final_scoring: bool = params.get('do_final_scoring', os.getenv('HABX_ENV') == 'dev')
         self.intermediate_transmission: bool = params.get(
             'intermediate_transmission',
@@ -408,8 +408,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
         executor = Optimizer()
         response = executor.run_from_file_names(
-            "045.json",
-            "045_setup0.json",
+            "ARCH014_blueprint.json",
+            "ARCH014_blueprint_setup0.json",
             {
                 "grid_type": "002",
                 "seeder_type": "directional_seeder",
