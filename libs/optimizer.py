@@ -142,7 +142,7 @@ class ExecParams:
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', Features.do_door())
-        self.ref_plan_url: str = params.get('ref_plan_url', ' https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json')
+        self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', os.getenv('HABX_ENV') == 'dev')
         self.intermediate_transmission: bool = params.get(
             'intermediate_transmission',
@@ -362,8 +362,8 @@ class Optimizer:
                     ref_plan = reader.create_plan_from_data(data)
                     if params.do_plot:
                         ref_plan.plot()
-                    ref_solution = reference_plan_solution(ref_plan, setup_spec)
-                    ref_final_score, ref_final_score_components = final_scoring(ref_solution)
+                    #ref_solution = reference_plan_solution(ref_plan, setup_spec)
+                    #ref_final_score, ref_final_score_components = final_scoring(ref_solution)
 
             # solution scoring
             if best_solutions:
