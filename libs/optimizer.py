@@ -142,7 +142,7 @@ class ExecParams:
         self.do_garnisher = params.get('do_garnisher', False)
         self.garnisher_type = params.get('garnisher_type', 'default')
         self.do_door = params.get('do_door', Features.do_door())
-        self.ref_plan_url: str = params.get('ref_plan_url', 'https://cdn.habx.fr/optimizer-lots/plans%20base/ARCH014_plan.json')
+        self.ref_plan_url: str = params.get('ref_plan_url', None)
         self.do_final_scoring: bool = params.get('do_final_scoring', os.getenv('HABX_ENV') == 'dev')
         self.intermediate_transmission: bool = params.get(
             'intermediate_transmission',
