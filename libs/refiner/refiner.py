@@ -54,7 +54,7 @@ algorithmFunc = Callable[['core.Toolbox', Plan, dict, Optional['support.HallOfFa
 # setting a seed for debugging
 random.seed(0)
 
-fitness_history = [] # horrible global for paper purposes
+fitness_history = []  # horrible global for paper purposes
 
 
 def merge_circulation(ind: 'Individual') -> None:
@@ -261,11 +261,8 @@ def mate_and_mutate(mate_func,
     if random.random() <= cxpb:
         new_ind_1, new_ind_2 = mate_func(_ind1, _ind2)
 
-    if new_ind_1 is _ind1:
-        mutate_func(new_ind_1)
-
-    if new_ind_2 is _ind2:
-        mutate_func(new_ind_2)
+    mutate_func(new_ind_1)
+    mutate_func(new_ind_2)
 
     return new_ind_1, new_ind_2
 
@@ -311,7 +308,7 @@ def fc_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
                                                   mutation.Case.BIG: 0.5}))
 
     toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.best_spaces)
+    toolbox.register("mate", crossover.different_spaces)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
     toolbox.register("select", nsga.select_nsga)
@@ -363,8 +360,8 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     toolbox.register("mate", crossover.best_spaces)
     toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
                      {"cxpb": cxpb})
-    toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
-    toolbox.register("select", space_nsga.select_nsga)
+    toolbox.register("elite_select", selection.nsga_select, toolbox.mutate, params["elite"])
+    toolbox.register("select", nsga.select_nsga)
     toolbox.register("populate", population.fc_mutate(toolbox.mutate))
 
     return toolbox
@@ -510,7 +507,8 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     for gen in range(1, ngen + 1):
         logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
         # Vary the population
-        offspring = space_nsga.select_tournament_dcd(pop, len(pop))
+        # offspring = space_nsga.select_tournament_dcd(pop, len(pop))
+        offspring = random.sample(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]
 
         # note : list is needed because map lazy evaluates
@@ -550,7 +548,7 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
             break
 
         # order individual on pareto front for tournament selection
-        pop = toolbox.select(pop, mu)
+        # pop = toolbox.select(pop, mu)
 
     return pop
 
@@ -630,12 +628,12 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "ARCH005_blueprint"  # 062 006 020 061
+        plan_number = "ARCH014_blueprint"  # 005 004 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
                                             solution_number=0)
 
         if solution:
-            params = {"ngen": 100, "mu": 120, "cxpb": 0., "max_tries": 10, "elite": 0.8,
+            params = {"ngen": 100, "mu": 120, "cxpb": 0.7, "max_tries": 15, "elite": 0.8,
                       "processes": 8, "pre_pass": False}
 
             plan = solution.spec.plan
@@ -676,5 +674,5 @@ if __name__ == '__main__':
     import os
 
     module_path = os.path.dirname(__file__)
-    output_path = os.path.join(module_path, "stats", "fitness_history_elite_0_8_cbx_0.p")
+    output_path = os.path.join(module_path, "stats", "fitness_history_elite_nsga.p")
     pickle.dump(fitness_history, open(output_path, "wb"))

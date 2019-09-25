@@ -155,7 +155,7 @@ def score_area(spec: 'Specification',
         space_area = space.cached_area()
 
         if space_area < min_areas.get(space.category, min_areas["default"]):
-            # logging.warning("Extra small space detected %s", space)
+            logging.debug("Extra small space detected %s", space)
             area_score[space.id] = min_size_penalty
             continue
 
@@ -181,7 +181,8 @@ def score_corner(_: 'Specification', ind: 'Individual', cache: Cache) -> Dict[in
             continue
         score[space.id] = max(space.number_of_corners() - 4.0, 0)
         if space.has_holes:
-            score[space.id] += 8.0  # arbitrary penalty (corners count double in a hole ;-))
+            score[space.id] += 16.0 * (len(space._edges_id) - 1)
+            # arbitrary penalty (corners count double in a hole ;-))
     return score
 
 

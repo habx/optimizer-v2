@@ -15,7 +15,7 @@ mpl.use("TkAgg")
 if __name__ == '__main__':
 
     module_path = os.path.dirname(__file__)
-    input_path = os.path.join(module_path, "fitness_history_elite_0_8_wd.p")
+    input_path = os.path.join(module_path, "fitness_history_elite_nsga.p")
 
     fitness_history = pickle.load(open(input_path, "rb"))
 
@@ -27,8 +27,8 @@ if __name__ == '__main__':
     ax = plt.gca()
 
     for g in fitness_history:
-        x = [-f[0] for f in g]
-        y = [-f[2] for f in g]
+        x = [-f[2] for f in g]
+        y = [-f[3] for f in g]
         i += 1
         ax.scatter(x, y, c=[color_map(i / len(fitness_history))]*len(x))
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     ax.set_xlabel('Corners')
     ax.set_ylabel('Width Depth')
     ax.set_xscale('log')
-    # ax.set_xlim(xmin=100, xmax=1000)
+    # ax.set_ylim(ymin=100, ymax=1000)
     plt.show()
 
 # no crossover : cbx = 0

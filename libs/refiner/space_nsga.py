@@ -12,7 +12,7 @@ import random
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import defaultdict
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, List
 
 if TYPE_CHECKING:
     from libs.refiner.core import Individual
@@ -21,6 +21,18 @@ if TYPE_CHECKING:
 ######################################
 # Non-Dominated Sorting   (NSGA-II)  #
 ######################################
+
+
+def select_pareto_front(individuals: Sequence['Individual']) -> List['Individual']:
+    """
+    Return the first pareto front
+    :param individuals:
+    :param k:
+    :return:
+    """
+    pareto_front = sort_nondominated(individuals, len(individuals), first_front_only=True)[0]
+    return list(pareto_front)
+
 
 def select_nsga(individuals: Sequence['Individual'], k: int, nd: str = 'standard'):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the

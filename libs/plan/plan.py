@@ -1599,7 +1599,7 @@ class Space(PlanComponent):
 
     def plot(self, ax=None,
              save: Optional[bool] = None,
-             options: Tuple['str'] = ('face', 'border', 'half-edge', 'furniture')):
+             options: Tuple['str'] = ('face', 'border', 'furniture')):
         """
         plot the space
         """

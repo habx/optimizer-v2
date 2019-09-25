@@ -33,6 +33,74 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual',
     """
 
     spaces_id = [i for i in ind_1.fitness.sp_wvalue]
+    differences = [ind_1.fitness.sp_wvalue[i] - ind_2.fitness.sp_wvalue[i] for i in spaces_id]
+
+    max_d = max(differences)
+    min_d = min(differences)
+
+    # check if the plans are different
+    if max_d <= 0.0 <= min_d:
+        logging.debug("Refiner: Crossover: The individuals are the same")
+        return ind_1, ind_1
+
+    # select the best space of ind 1
+    w_1 = [d if d > 0 else 0. for d in differences]
+    w_2 = [(-d) if d < 0 else 0. for d in differences]
+    best_space_1 = random.choices(spaces_id, w_1, k=1)[0] if max_d > 0 else None
+    best_space_2 = random.choices(spaces_id, w_2, k=1)[0] if min_d < 0 else None
+    # best_space_1 = spaces_id[differences.index(max_d)] if max_d > 0 else None
+    # best_space_2 = spaces_id[differences.index(min_d)] if min_d < 0 else None
+
+    # copy the best version of the selected space into the other individual
+    if best_space_1:
+        try:
+            output_2 = copy_space(ind_1, ind_2, best_space_1)
+        except SpaceShapeError:
+            logging.info("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
+                          ind_2.get_space_from_id(best_space_1))
+            output_2 = ind_2
+    else:
+        logging.debug("No crossover from ind 1 {}".format(differences))
+        output_2 = ind_2
+
+    if best_space_2:
+        try:
+            output_1 = copy_space(ind_2, ind_1, best_space_2)
+        except SpaceShapeError:
+            logging.info("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
+                          ind_1.get_space_from_id(best_space_2))
+            output_1 = ind_1
+    else:
+        logging.debug("No crossover from ind 2 {}".format(differences))
+        output_1 = ind_1
+
+    """
+    if output_2 is not ind_2 and output_1 is not ind_1:
+        ind_1.name = "Parent_1 - {}".format(best_space_1)
+        ind_1.plot()
+        ind_2.name = "Parent_2 - {}".format(best_space_2)
+        ind_2.plot()
+        output_1.name = "child_1"
+        output_1.plot()
+        output_2.name = "child_2"
+        output_2.plot()"""
+
+    return output_1, output_2
+
+
+def different_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual', 'Individual']:
+    """
+    Blends the two plans.
+    For each floor :
+    1. Finds the best space of each individual relative to the other.
+    2. Copies the best space of each individual into the other
+    3. If an error is raised while copying the space, return the initial individual
+    :param ind_1:
+    :param ind_2:
+    :return: a tuple of the crossed over individuals
+    """
+
+    spaces_id = [i for i in ind_1.fitness.sp_wvalue]
     differences = [math.fabs(ind_1.fitness.sp_wvalue[i] - ind_2.fitness.sp_wvalue[i])
                    for i in spaces_id]
 
@@ -50,7 +118,7 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual',
         try:
             output_2 = copy_space(ind_1, ind_2, random_space_id)
         except SpaceShapeError:
-            logging.debug("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
+            logging.info("Refiner: Failed to cross over individual 2: %s - %s", ind_2,
                           ind_2.get_space_from_id(random_space_id))
             output_2 = ind_2
     else:
@@ -58,7 +126,7 @@ def best_spaces(ind_1: 'Individual', ind_2: 'Individual') -> Tuple['Individual',
         try:
             output_1 = copy_space(ind_2, ind_1, random_space_id)
         except SpaceShapeError:
-            logging.debug("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
+            logging.info("Refiner: Failed to cross over individual 1: %s - %s", ind_1,
                           ind_1.get_space_from_id(random_space_id))
             output_1 = ind_1
 
@@ -104,11 +172,13 @@ def copy_space(from_ind: 'Individual', to_ind: 'Individual', space_id: int) -> '
 
     for face_id in extraneous_faces_id:
         modified_space.remove_face_id(face_id)
-        other = get_adjacent_mutable_space(face_id, modified_space)
-        if not other:
-            raise SpaceShapeError("No adjacent mutable space found !")
-        other.add_face_id(face_id)
-        modified_spaces.append(other)
+        # We try to give the removed faces to the spaces that they belong to in
+        # the copied individual. This will sometimes fail but works in the vast majority
+        # of cases enabling a fast crossover
+        other = copied_ind.get_space_from_face_id(face_id, copied_space.floor.mesh.id)
+        other_space = modified_ind.get_space_from_id(other.id)
+        other_space.add_face_id(face_id)
+        modified_spaces.append(other_space)
 
     # set the new reference edges of each modified spaces
     # this might raise a SpaceShapeError Exception if we've split a space in half
@@ -133,7 +203,7 @@ def get_adjacent_mutable_space(face_id: int, space: 'Space')-> Optional['Space']
 
     for edge in face.edges:
         # we look for edge pointing to another space
-        if not edge.pair.face or not space.has_face(edge.pair.face):
+        if not edge.pair.face or space.has_face(edge.pair.face):
             continue
         # we check if the space is mutable
         other = space.plan.get_space_from_face_id(edge.pair.face.id, mesh.id)
@@ -237,4 +307,4 @@ def connected_differences(ind_1: 'Individual', ind_2: 'Individual'):
         return ind_1, ind_2
 
 
-__all__ = ['best_spaces', 'connected_differences']
+__all__ = ['best_spaces', 'different_spaces', 'connected_differences']

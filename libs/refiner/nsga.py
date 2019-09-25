@@ -11,10 +11,24 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import defaultdict
 
+from typing import Sequence, List
+
 
 ######################################
 # Non-Dominated Sorting   (NSGA-II)  #
 ######################################
+
+
+def select_pareto_front(individuals: Sequence['Individual']) -> List['Individual']:
+    """
+    Return the first pareto front
+    :param individuals:
+    :param k:
+    :return:
+    """
+    pareto_front = sort_nondominated(individuals, len(individuals), first_front_only=True)[0]
+    return list(pareto_front)
+
 
 def select_nsga(individuals, k, nd='standard'):
     """Apply NSGA-II selection operator on the *individuals*. Usually, the

@@ -266,7 +266,7 @@ class Individual(Plan):
     def plot(self,
              show: bool = False,
              save: bool = True,
-             options: Tuple = ('face', 'edge', 'half-edge', 'border'),
+             options: Tuple = ('face', 'edge', 'border'),
              floor: Optional['Floor'] = None,
              name: Optional[str] = None):
         """
