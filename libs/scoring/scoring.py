@@ -222,8 +222,8 @@ def area_scoring(solution: 'Solution') -> float:
                     if space.cached_area() < 90000:
                         area_penalty += 5
                 elif space.category.name == "laundry":
-                    if space.cached_area() < 20000:
-                        area_penalty += 5
+                    if space.cached_area() < 15000:
+                        area_penalty += 1
             # Area score
             area_score += item_area_score
 
