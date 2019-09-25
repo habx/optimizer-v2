@@ -226,7 +226,7 @@ def area_scoring(solution: 'Solution') -> float:
                         area_penalty += 5
                 elif space.category.name == "laundry":
                     if space.cached_area() < 15000:
-                        area_penalty += 5
+                        area_penalty += 1
             # Area score
             area_score += item_area_score
 
@@ -241,7 +241,7 @@ def area_scoring(solution: 'Solution') -> float:
     if circulation_area > circulation_max_area:
         area_penalty += 2
 
-    area_score = round(area_score / nbr_rooms, 2) - area_penalty * 10
+    area_score = max(round(area_score / nbr_rooms, 2) - area_penalty * 10, 0)
     logging.debug("Area score : %f", area_score)
 
     return area_score
@@ -329,7 +329,7 @@ def position_scoring(solution: 'Solution') -> float:
         if item_position_score is not None:
             position_score += item_position_score - memo
 
-    position_score = position_score / nbr_room_position_score
+    position_score = max(position_score / nbr_room_position_score, 0)
 
     logging.debug("position_score %f", position_score)
 
@@ -370,7 +370,7 @@ def windows_scoring(solution: 'Solution') -> float:
             windows_score = min(space_windows_score, windows_score)
 
     logging.debug("Windows score : %f", windows_score)
-    return windows_score
+    return max(windows_score, 0)
 
 
 def minimal_dimensions_scoring(solution: 'Solution') -> float:
@@ -426,7 +426,7 @@ def minimal_dimensions_scoring(solution: 'Solution') -> float:
             minimal_dimensions_score = max(minimal_dimensions_score - 25, 0)
 
     logging.debug("minimal_dimensions_score : %f", minimal_dimensions_score)
-    return minimal_dimensions_score
+    return max(minimal_dimensions_score, 0)
 
 
 def luminosity_scoring(solution: 'Solution') -> float:
@@ -489,7 +489,7 @@ def luminosity_scoring(solution: 'Solution') -> float:
     luminosity_score = luminosity_score / area_sum
     luminosity_plot(solution, face_luminosity)
 
-    return luminosity_score
+    return max(luminosity_score, 0)
 
 
 def night_and_day_scoring(solution: 'Solution') -> float:
@@ -576,7 +576,7 @@ def night_and_day_scoring(solution: 'Solution') -> float:
                 groups_score -= 25
 
     logging.debug("Solution %i: Night and day score : %i", solution.id, groups_score)
-    return groups_score
+    return max(groups_score, 0)
 
 
 def something_inside_scoring(solution: 'Solution') -> float:
@@ -625,7 +625,7 @@ def something_inside_scoring(solution: 'Solution') -> float:
                         return 0
 
     logging.debug("Solution %i: Something Inside score : %f", solution.id, something_inside_score)
-    return something_inside_score
+    return max(something_inside_score, 0)
 
 
 def good_size_bonus(solution: 'Solution') -> float:
