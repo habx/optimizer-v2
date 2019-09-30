@@ -144,7 +144,7 @@ class Specification:
         min_spec_area = sum(item.min_size.area for item in self.items)
         plan_area = sum(space.area for space in self.plan.mutable_spaces())
         if min_spec_area > plan_area:
-            logging.warning("Specification : plan area and specification area incompatibility")
+            logging.info("Specification : plan area and specification area incompatibility")
             return False
         else:
             return True
