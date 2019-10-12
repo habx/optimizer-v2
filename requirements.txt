@@ -1,7 +1,7 @@
 matplotlib==2.2.2
 numpy==1.17.2
 shapely==1.6.4.post2
-ortools==7.3.7083
+ortools==7.4.7247
 Dijkstar==2.4.0
 networkx==2.3
 sklearn==0.0
