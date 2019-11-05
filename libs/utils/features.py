@@ -82,5 +82,5 @@ class Features:
 
     @classmethod
     def disable_error_reporting(cls) -> bool:
-        return cls._get('optimizer-v2.optimizer-v2.disable_error_reporting')
+        return cls._get('optimizer-v2.disable_error_reporting')
 
