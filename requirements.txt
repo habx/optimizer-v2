@@ -24,4 +24,4 @@ requests
 
 # For tests and linting:
 pytest
-pylint==2.4.3
+pylint==2.4.4
