@@ -1283,8 +1283,8 @@ class Edge(MeshComponent):
 
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            logging.warning('Mesh: Cannot link two edges ' +
-                            ' that are already linked:{0}-{1}'.format(self, other))
+            # APP-7308: Second pass for warnings
+            logging.info('Mesh: Cannot link two edges that are already linked:%s-%s', self, other)
             return None
 
         # check if the edges are the same
@@ -1452,7 +1452,8 @@ class Edge(MeshComponent):
 
         # if no intersection can be found return None
         if closest_edge is None:
-            logging.warning('Mesh: Could not create a viable cut')
+            # APP-7308: Second pass for warnings
+            logging.log('Mesh: Could not create a viable cut')
             return None
 
         # assign a correct edge to the initial face
