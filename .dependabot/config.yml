@@ -4,13 +4,11 @@ update_configs:
     directory: "/"
     update_schedule: "live"
     version_requirement_updates: "auto"
+    # https://dependabot.com/docs/config-file/#automerged_updates
     automerged_updates:
       - match:
-          dependency_type: "development"
+          dependency_type: "all"
           update_type: "semver:minor"
       - match:
-          dependency_type: "production"
-          update_type: "semver:minor"
-  - package_manager: "docker"
-    directory: "/"
-    update_schedule: "daily"
+          dependency_type: "all"
+          update_type: "in_range"
