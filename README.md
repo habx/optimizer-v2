@@ -1,4 +1,5 @@
-# Experiments around optimizer
+# Optimizer v2
+
 ### Objectives
 * Represent an apartment blueprint by a polygon mesh using the half-edge data structure
 * Generate smart mesh grids. A meaningful grid of the apartment should be able to represent 
