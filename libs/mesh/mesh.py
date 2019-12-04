@@ -1453,7 +1453,7 @@ class Edge(MeshComponent):
         # if no intersection can be found return None
         if closest_edge is None:
             # APP-7308: Second pass for warnings
-            logging.log('Mesh: Could not create a viable cut')
+            logging.info('Mesh: Could not create a viable cut')
             return None
 
         # assign a correct edge to the initial face
