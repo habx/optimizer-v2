@@ -1283,8 +1283,8 @@ class Edge(MeshComponent):
 
         # check if the edges are already linked
         if other.next is self or self.next is other:
-            logging.warning('Mesh: Cannot link two edges ' +
-                            ' that are already linked:{0}-{1}'.format(self, other))
+            logging.info('Mesh: Cannot link two edges ' +
+                         ' that are already linked:{0}-{1}'.format(self, other))
             return None
 
         # check if the edges are the same
