@@ -144,7 +144,7 @@ class SolutionsCollector:
         """
 
         if not self.solutions:
-            logging.warning("Solution : 0 solutions")
+            logging.info("Solution : 0 solutions")
             return []
 
         list_scores = []

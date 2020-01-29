@@ -173,7 +173,7 @@ class SpacePlanner:
         self.manager.solver.solve()
 
         if len(self.manager.solver.solutions) == 0:
-            logging.warning(
+            logging.info(
                 "SpacePlanner : solution_research : Plan without space planning solution")
         else:
             logging.info("SpacePlanner : solution_research : Plan with {0} solutions".format(
