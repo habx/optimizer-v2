@@ -271,7 +271,7 @@ def _score_space_depth(space: 'Space', box: Tuple[float, float]) -> float:
             return 0.
 
     if min(box) == 0.:
-        logging.warning("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
+        logging.info("Refiner: Evaluation: Width Depth Ratio a space is empty %s", space)
         return empty_space_penalty
 
     space_ratio = max(box) / min(box)
