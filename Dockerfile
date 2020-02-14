@@ -1,6 +1,8 @@
 # Execute with:
 # =============
 # docker build . -t worker-optimizer-v2 && docker run worker-optimizer-v2
+ARG GEMFURY_READ_TOKEN
+ARG GEMFURY_ORGA
 
 FROM python:3.7-slim
 RUN apt-get update && apt-get install libgoogle-perftools4 git gcc -y
