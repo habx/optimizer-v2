@@ -1,3 +1,5 @@
+--index-url https://${GEMFURY_READ_TOKEN}:@pypi.fury.io/${GEMFURY_ORGA}/
+--extra-index-url https://pypi.org/simple/
 matplotlib==2.2.2
 numpy==1.18.1
 shapely==1.7.0
@@ -6,22 +8,20 @@ Dijkstar==2.5.0
 networkx==2.4
 sklearn==0.0
 
-# WARNING: This should not be shared externally. We're using a token because fetching private
-#          dependencies using the SSH key prior to building the container is a lot more difficult,
-#          mostly because protobuf install doesn't respect the virtualenv.
-git+https://habxtech:5750d9564b8972c1b432f689142084304278420f@github.com/habx/lib-py-logger.git@v1.6.0#egg=habx_logger==v1.6.0
+lib-logger==1.6.1
+lib-features==0.2.0
 
 # For the exec wrapper:
-psutil
+psutil==5.6.7
 
 # For code analysis:
-pprofile
-pyinstrument
+pprofile==2.0.2
+pyinstrument==3.1.0
 
 # For the worker:
-boto3
-requests
+boto3==1.12.0
+requests==2.22.0
 
 # For tests and linting:
-pytest
+pytest==5.3.5
 pylint==2.4.4
