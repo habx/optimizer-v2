@@ -122,6 +122,7 @@ workflows:
               only: /^v.*/
 
       - tests:
+          context: default_env_vars
           filters:
             tags:
               only: /^v.*/
