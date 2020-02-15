@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   kubernetes: circleci/kubernetes@0.3.0
+  aws-ecr: circleci/aws-ecr@6.5.0
 
 jobs:
   # Executing tests (by benefiting from caching)
