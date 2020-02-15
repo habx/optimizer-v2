@@ -38,7 +38,21 @@ jobs:
             - build.json
 
   # Building the container and uploading it
-  build-container:
+  build_container:
+    docker:
+      - image: circleci/python
+        user: root
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - run: wget https://raw.githubusercontent.com/habx/docker-devops-build-infos/master/gen_node_build_infos.py -O - | python
+      - aws-ecr/build-and-push-image:
+          repo: ${CIRCLE_PROJECT_REPONAME}
+          tag: $(if [ -z "$CIRCLE_TAG" ]; then echo $(echo $CIRCLE_BRANCH | sed 's/\/\|@//g')-${CIRCLE_SHA1:0:7}; else echo $CIRCLE_TAG; fi)
+          setup-remote-docker: true
+          extra-build-args: --build-arg REVISION="$(git rev-parse --short HEAD)" --build-arg CREATED="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --build-arg VERSION="$(cat version.txt)" --build-arg TITLE="${CIRCLE_PROJECT_REPONAME}" --build-arg SOURCE="${CIRCLE_REPOSITORY_URL}" --build-arg AUTHORS="${CIRCLE_USERNAME}" --build-arg GEMFURY_READ_TOKEN="${GEMFURY_READ_TOKEN}" --build-arg GEMFURY_ORGA="${GEMFURY_ORGA}"
+  build-container__:
     docker:
       - image: plugins/ecr:17.05
     working_directory: /work
