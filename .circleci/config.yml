@@ -38,7 +38,7 @@ jobs:
             - build.json
 
   # Building the container and uploading it
-  build_container:
+  build-container:
     docker:
       - image: circleci/python
         user: root
