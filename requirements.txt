@@ -16,7 +16,7 @@ psutil==5.6.7
 
 # For code analysis:
 pprofile==2.0.2
-pyinstrument==3.1.0
+pyinstrument==3.1.2
 
 # For the worker:
 boto3==1.12.0
