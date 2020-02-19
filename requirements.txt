@@ -12,7 +12,7 @@ lib-logger==1.6.1
 lib-features==0.2.0
 
 # For the exec wrapper:
-psutil==5.6.7
+psutil==5.7.0
 
 # For code analysis:
 pprofile==2.0.2
