@@ -20,7 +20,7 @@ pyinstrument==3.1.2
 
 # For the worker:
 boto3==1.12.3
-requests==2.22.0
+requests==2.23.0
 
 # For tests and linting:
 pytest==5.3.5
