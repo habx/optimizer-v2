@@ -10,9 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 mpl.use("TkAgg")
-
-
-if __name__ == '__main__':
+def plot_generation():
 
     module_path = os.path.dirname(__file__)
     input_path = os.path.join(module_path, "fitness_history_elite_nsga.p")
@@ -27,7 +25,7 @@ if __name__ == '__main__':
     ax = plt.gca()
 
     for g in fitness_history:
-        x = [-f[2] for f in g]
+        x = [-f[0] for f in g]
         y = [-f[3] for f in g]
         i += 1
         ax.scatter(x, y, c=[color_map(i / len(fitness_history))]*len(x))
@@ -38,6 +36,45 @@ if __name__ == '__main__':
     ax.set_xscale('log')
     # ax.set_ylim(ymin=100, ymax=1000)
     plt.show()
+
+
+def plot_fitness_convergence():
+    """ plot the fitness convergence """
+    slug = "ARCH005_blueprint"
+    cx = 0.7
+    el = 0.5
+    m = 120
+    n_time = 20
+    module_path = os.path.dirname(__file__)
+    input_path = os.path.join(module_path, "best_{}_mu_{}_cx_{}_elite_{}_n_{}.p".format(slug, m, cx, el, n_time))
+    fitness_history = pickle.load(open(input_path, "rb"))
+
+    x = list(range(max(len(f) for f in fitness_history)))
+    n = len(fitness_history)
+
+    # y = [sum(f[i] for f in fitness_history) / n for i in x]
+
+    fig, ax = plt.subplots()
+    for f in fitness_history:
+        while len(f) < len(x):
+            f.append(f[len(f)-1])
+
+    y = [sum(f[i] for f in fitness_history)/n for i in range(1, 50)]
+    y_min = [y[i - 1] - min(f[i] for f in fitness_history) for i in range(1, 50)]
+    y_max = [max(f[i] for f in fitness_history) - y[i -1] for i in range(1, 50)]
+
+    ax.step(x[1:50], y, where='post', label='post', c='black')
+    ax.errorbar(x[1:50], y, yerr=[y_min, y_max], c='b', capsize=2, lw=1, fmt='.k')
+    ax.set_xlabel('Generations')
+    ax.set_ylabel('Average Fitness')
+    # ax.set_title('Average, minimum and maximum fitness per generation for 25 runs')
+
+    plt.show()
+
+
+if __name__ == '__main__':
+
+    plot_fitness_convergence()
 
 # no crossover : cbx = 0
 # time elapsed : 96.46 s / score: -2991.36 / # gen : 67

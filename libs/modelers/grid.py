@@ -655,16 +655,18 @@ if __name__ == '__main__':
         Test
         :return:
         """
-        plan = reader.create_plan_from_file("ARCH011_blueprint.json")
-        plan.check()
+        plan = reader.create_plan_from_file("ARCH003_blueprint.json")
+        # plan.check()
+        plan.plot()
         plt.show()
         start_time = time.time()
-        new_plan = GRIDS["003"].apply_to(plan, show=True)
+        new_plan = GRIDS["003"].apply_to(plan, show=False)
         end_time = time.time()
         logging.info("Time elapsed: {}".format(end_time - start_time))
         new_plan.plot(save=False)
         plt.show()
         new_plan.check()
+        new_plan.plot()
         print(len(new_plan.mesh.faces))
 
     create_a_grid()

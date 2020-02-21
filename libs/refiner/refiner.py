@@ -35,7 +35,6 @@ from libs.refiner import (
     evaluation,
     mutation,
     nsga,
-    space_nsga,
     population,
     support,
     selection
@@ -267,56 +266,6 @@ def mate_and_mutate(mate_func,
     return new_ind_1, new_ind_2
 
 
-def fc_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
-    """
-    Returns a toolbox
-    :param solution:
-    :param params: The params of the algorithm
-    :return: a configured toolbox
-    """
-    weights = (-20.0, -1.0, -50.0, -1.0, -50000.0,)
-    # a tuple containing the weights of the fitness
-    cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
-
-    toolbox = core.Toolbox()
-    toolbox.configure("fitness", "CustomFitness", weights)
-    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
-    toolbox.configure("individual", "customIndividual", toolbox.fitness)
-    # Note : order is very important as tuples are evaluated lexicographically in python
-    scores_fc = [
-        evaluation.score_corner,
-        evaluation.score_area,
-        # evaluation.score_perimeter_area_ratio,
-        evaluation.score_width_depth_ratio,
-        evaluation.score_bounding_box,
-        evaluation.score_connectivity,
-        # evaluation.score_circulation_width
-    ]
-    toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
-
-    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
-                                      mutation.Case.SMALL: 0.3,
-                                      mutation.Case.BIG: 0.1}),
-                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
-                                         mutation.Case.SMALL: 0.1,
-                                         mutation.Case.BIG: 0.3}),
-                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.4,
-                                               mutation.Case.SMALL: 0.5,
-                                               mutation.Case.BIG: 0.1}),
-                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.4,
-                                                  mutation.Case.SMALL: 0.1,
-                                                  mutation.Case.BIG: 0.5}))
-
-    toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.different_spaces)
-    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
-                     {"cxpb": cxpb})
-    toolbox.register("select", nsga.select_nsga)
-    toolbox.register("populate", population.fc_mutate(toolbox.mutate))
-
-    return toolbox
-
-
 def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     """
     Returns a toolbox for the space nsga algorithm
@@ -367,109 +316,6 @@ def fc_space_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
     return toolbox
 
 
-def fc_no_connectivity_nsga_toolbox(solution: 'Solution', params: dict) -> 'core.Toolbox':
-    """
-    Returns a toolbox for the space nsga algorithm
-    :param solution:
-    :param params: The params of the algorithm
-    :return: a configured toolbox
-    """
-    scores = [
-        (evaluation.score_corner, -100.0),
-        (evaluation.score_area, -8.0),
-        (evaluation.score_width_depth_ratio, -500.0),
-        (evaluation.score_bounding_box, -1.0),
-        (evaluation.score_window_area_ratio, -10.)
-    ]
-
-    scores_fc, weights = list(zip(*scores))
-    # a tuple containing the weights of the fitness
-    cxpb = params["cxpb"]  # the probability to mate a given couple of individuals
-
-    toolbox = core.Toolbox()
-    toolbox.configure("fitness", "CustomFitnessNoConnectivity", weights)
-    toolbox.fitness.cache["space_to_item"] = evaluation.create_item_dict(solution)
-    toolbox.configure("individual", "customIndividualNoConnectivity", toolbox.fitness)
-    toolbox.register("evaluate", evaluation.compose, scores_fc, solution.spec)
-
-    mutations = ((mutation.add_face, {mutation.Case.DEFAULT: 0.1,
-                                      mutation.Case.SMALL: 0.3,
-                                      mutation.Case.BIG: 0.1}),
-                 (mutation.remove_face, {mutation.Case.DEFAULT: 0.1,
-                                         mutation.Case.SMALL: 0.1,
-                                         mutation.Case.BIG: 0.3}),
-                 (mutation.add_aligned_faces, {mutation.Case.DEFAULT: 0.4,
-                                               mutation.Case.SMALL: 0.5,
-                                               mutation.Case.BIG: 0.1}),
-                 (mutation.remove_aligned_faces, {mutation.Case.DEFAULT: 0.4,
-                                                  mutation.Case.SMALL: 0.1,
-                                                  mutation.Case.BIG: 0.5}))
-
-    toolbox.register("mutate", mutation.composite, mutations)
-    toolbox.register("mate", crossover.best_spaces)
-    toolbox.register("mate_and_mutate", mate_and_mutate, toolbox.mate, toolbox.mutate,
-                     {"cxpb": cxpb})
-    toolbox.register("elite_select", selection.elite_select, toolbox.mutate, params["elite"])
-    toolbox.register("select", space_nsga.select_nsga)
-    toolbox.register("populate", population.fc_mutate(toolbox.mutate))
-
-    return toolbox
-
-
-def nsga_ga(toolbox: 'core.Toolbox',
-            initial_ind: 'core.Individual',
-            params: dict,
-            hof: Optional['support.HallOfFame']) -> List['core.Individual']:
-    """
-    A simple implementation of a genetic algorithm.
-    :param toolbox: a refiner toolbox
-    :param initial_ind: an initial individual
-    :param params: the parameters of the algorithm
-    :param hof: an optional hall of fame to store best individuals
-    :return: the best plan
-    """
-    # algorithm parameters
-    ngen = params["ngen"]
-    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
-    chunk_size = math.ceil(mu / params["processes"])
-    initial_ind.all_spaces_modified()
-    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
-    pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop, chunk_size)
-
-    # This is just to assign the crowding distance to the individuals
-    # no actual selection is done
-    pop = toolbox.select(pop, len(pop))
-
-    # Begin the generational process
-    for gen in range(1, ngen + 1):
-        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
-        # Vary the population
-        offspring = nsga.select_tournament_dcd(pop, len(pop))
-        offspring = [toolbox.clone(ind) for ind in offspring]
-
-        # note : list is needed because map lazy evaluates
-        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
-                                    math.ceil(chunk_size/2)))
-        offspring = [i for t in modified for i in t]
-
-        # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
-
-        # best score
-        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
-
-        # Select the next generation population
-        pop = toolbox.select(pop + offspring, mu)
-
-        # store best individuals in hof
-        if hof is not None:
-            hof.update(pop, value=True)
-
-    return pop
-
-
 def space_nsga_ga(toolbox: 'core.Toolbox',
                   initial_ind: 'core.Individual',
                   params: dict,
@@ -501,7 +347,7 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     best_fitness = max(pop, key=lambda i: i.fitness.wvalue).fitness.wvalue
     no_improvement_count = 0
 
-    fitness_history.append([i.fitness.wvalues for i in pop])
+    # fitness_history.append([i.fitness.wvalues for i in pop])
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
@@ -524,7 +370,7 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         pop = toolbox.elite_select(total_pop, mu)
 
         # statistic
-        fitness_history.append([i.fitness.wvalues for i in pop])
+        # fitness_history.append([ind.fitness.wvalues for ind in pop])
 
         # print best individual and check if we found a better solution
         best_ind = pop[0]
@@ -535,6 +381,8 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         else:
             no_improvement_count += 1
 
+        fitness_history.append(best_ind.fitness.wvalue)
+
         # store best individuals in hof
         if hof is not None:
             hof.update(pop, value=True)
@@ -542,8 +390,8 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
         logging.info("Best x{}: {:.2f} - {}".format(no_improvement_count, best_ind.fitness.wvalue,
                                                     best_ind.fitness.values))
 
-        # if we do not improve more than `max_tries times in a row we estimate we have reached t`
-        # he global min and we can stop.
+        # if we do not improve more than `max_tries times in a row we estimate we have reached
+        # the global min and we can stop.
         if no_improvement_count > params.get("max_tries", 10):
             break
 
@@ -553,69 +401,15 @@ def space_nsga_ga(toolbox: 'core.Toolbox',
     return pop
 
 
-def naive_ga(toolbox: 'core.Toolbox',
-             initial_ind: 'core.Individual',
-             params: dict,
-             hof: Optional['support.HallOfFame']) -> List['core.Individual']:
-    """
-    A simple implementation of a genetic algorithm.
-    :param toolbox: a refiner toolbox
-    :param initial_ind: an initial individual
-    :param params: the parameters of the algorithm
-    :param hof: an optional hall of fame to store best individuals
-    :return: the best plan
-    """
-    # algorithm parameters
-    ngen = params["ngen"]
-    mu = params["mu"]  # Must be a multiple of 4 for tournament selection of NSGA-II
-    chunk_size = math.ceil(mu / params["processes"])
-    initial_ind.all_spaces_modified()  # set all spaces as modified for first evaluation
-    initial_ind.fitness.sp_values = toolbox.evaluate(initial_ind)
-    logging.info("Initial : {:.2f} - {}".format(initial_ind.fitness.wvalue,
-                                                initial_ind.fitness.values))
-    pop = toolbox.populate(initial_ind, mu)
-    toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, pop, chunk_size)
-
-    # Begin the generational process
-    for gen in range(1, ngen + 1):
-        logging.info("Refiner: generation %i : %.2f prct", gen, gen / ngen * 100.0)
-        # Vary the population
-        offspring = [toolbox.clone(ind) for ind in pop]
-        random.shuffle(offspring)
-
-        # note : list is needed because map lazy evaluates
-        modified = list(toolbox.map(toolbox.mate_and_mutate, zip(offspring[::2], offspring[1::2]),
-                                    math.ceil(chunk_size/2)))
-        offspring = [i for t in modified for i in t]
-
-        # Evaluate the individuals with an invalid fitness
-        toolbox.evaluate_pop(toolbox.map, toolbox.evaluate, offspring, chunk_size)
-
-        # best score
-        best_ind = max(offspring, key=lambda i: i.fitness.wvalue)
-        logging.info("Best : {:.2f} - {}".format(best_ind.fitness.wvalue, best_ind.fitness.values))
-
-        # Select the next generation population
-        pop = sorted(pop + offspring, key=lambda i: i.fitness.wvalue, reverse=True)
-        pop = pop[:mu]
-
-        # store best individuals in hof
-        if hof is not None:
-            hof.update(pop, value=True)
-
-    return pop
-
-
 REFINERS = {
-    "nsga": Refiner(fc_nsga_toolbox, nsga_ga),
-    "naive": Refiner(fc_nsga_toolbox, naive_ga),
     "space_nsga": Refiner(fc_space_nsga_toolbox, space_nsga_ga),
-    "no_connectivity": Refiner(fc_no_connectivity_nsga_toolbox, space_nsga_ga)
 }
 
 if __name__ == '__main__':
+    import pickle
+    import os
 
-    def apply():
+    def apply(plan_number: str = "ARCH005", cxpb: float = 0.7, elite: float = 0.5, mu: int=120):
         """
         Plan to check :
         • 049 / 050 / 027
@@ -628,23 +422,15 @@ if __name__ == '__main__':
 
         logging.getLogger().setLevel(logging.INFO)
 
-        plan_number = "ARCH014_blueprint"  # 005 004 020 061
         solution = tools.cache.get_solution(plan_number, grid="002", seeder="directional_seeder",
-                                            solution_number=0)
+                                            solution_number=1)
 
         if solution:
-            params = {"ngen": 100, "mu": 120, "cxpb": 0.7, "max_tries": 15, "elite": 0.8,
+            params = {"ngen": 100, "mu": mu, "cxpb": cxpb, "max_tries": 15, "elite": elite,
                       "processes": 8, "pre_pass": False}
 
             plan = solution.spec.plan
             plan.name = "original_" + plan_number
-            plan.plot()
-
-            start = time.time()
-
-            # first pass
-            if params.get("pre_pass", False):
-                REFINERS["no_connectivity"].apply_to(solution, params)
 
             Corridor(corridor_rules=CORRIDOR_BUILDING_RULES["no_cut"]["corridor_rules"],
                      growth_method=CORRIDOR_BUILDING_RULES["no_cut"]["growth_method"]
@@ -653,7 +439,9 @@ if __name__ == '__main__':
             plan = solution.spec.plan
             plan.name = "Corridor_" + plan_number
             plan.plot()
+
             # run genetic algorithm second pass
+            start = time.time()
             improved_plan = REFINERS["space_nsga"].apply_to(solution, params).spec.plan
             end = time.time()
 
@@ -667,12 +455,26 @@ if __name__ == '__main__':
 
             evaluation.check(improved_plan, solution)
 
+            return end - start, improved_plan.fitness.wvalue
 
-    apply()
 
-    import pickle
-    import os
+    # TEST RUN
+
+    slug = "ARCH005_blueprint"
+    cx = 0.7
+    el = 0.5
+    m = 120
+
+    n_time = 1
+
+    results = []
+    for i in range(n_time):
+        fitness_history = []
+        apply(slug, cx, el, m)
+        results.append(fitness_history)
 
     module_path = os.path.dirname(__file__)
-    output_path = os.path.join(module_path, "stats", "fitness_history_elite_nsga.p")
-    pickle.dump(fitness_history, open(output_path, "wb"))
+    output_path = os.path.join(module_path,
+                               "stats",
+                               "best_{}_mu_{}_cx_{}_elite_{}_n_{}.p".format(slug, m, cx, el, n_time))
+    pickle.dump(results, open(output_path, "wb"))
