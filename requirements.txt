@@ -8,7 +8,7 @@ Dijkstar==2.5.0
 networkx==2.4
 sklearn==0.0
 
-lib-logger==1.6.1
+lib-logger==2.0.0
 lib-features==0.2.0
 
 # For the exec wrapper:
